@@ -1,0 +1,2258 @@
+/* UI设计/ai — 深空星云主题（移植自 globals.css） */
+
+:root {
+  --background: oklch(0.16 0.03 264);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.21 0.035 264);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.21 0.035 264);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --primary: oklch(0.72 0.16 235);
+  --primary-foreground: oklch(0.14 0.03 264);
+  --secondary: oklch(0.27 0.04 264);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.25 0.035 264);
+  --muted-foreground: oklch(0.68 0.03 255);
+  --accent: oklch(0.66 0.2 305);
+  --accent-foreground: oklch(0.98 0.01 250);
+  --destructive: oklch(0.62 0.23 18);
+  --border: oklch(0.4 0.05 260 / 35%);
+  --input: oklch(0.3 0.04 264 / 60%);
+  --ring: oklch(0.72 0.16 235);
+  --radius: 0.875rem;
+  --sidebar: oklch(0.18 0.035 266);
+  --sidebar-foreground: oklch(0.92 0.01 250);
+  --sidebar-primary: oklch(0.72 0.16 235);
+  --sidebar-accent: oklch(0.28 0.05 264);
+  --sidebar-border: oklch(0.4 0.05 260 / 30%);
+
+  --bg: var(--background);
+  --text: var(--foreground);
+  --pure-surface: var(--card);
+  --muted-steel: var(--muted-foreground);
+  --divider-cloud: var(--border);
+  --primary-hover: oklch(0.78 0.16 235);
+  --danger: var(--destructive);
+  --ok: oklch(0.7 0.15 145);
+  --sidebar-bg: var(--sidebar);
+  --sidebar-text: var(--sidebar-foreground);
+  --sidebar-muted: var(--muted-foreground);
+  --sidebar-active: oklch(0.28 0.05 264);
+  --radius-btn: 12px;
+  --radius-card: 16px;
+  --radius-input: 12px;
+  --focus-ring: 0 0 0 2px oklch(0.72 0.16 235 / 0.45), 0 0 20px oklch(0.72 0.16 235 / 0.25);
+}
+
+body.theme-nebula {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.bg-nebula {
+  background-color: oklch(0.16 0.03 264);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 15% 0%, oklch(0.72 0.16 235 / 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 45% at 95% 100%, oklch(0.66 0.2 305 / 0.16), transparent 60%),
+    radial-gradient(ellipse 40% 40% at 80% 10%, oklch(0.7 0.15 180 / 0.1), transparent 60%);
+}
+
+.glass {
+  background: oklch(0.22 0.035 264 / 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid oklch(0.6 0.06 260 / 0.18);
+}
+
+.glass-strong {
+  background: oklch(0.2 0.035 264 / 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid oklch(0.6 0.08 245 / 0.22);
+}
+
+.glow-primary {
+  box-shadow:
+    0 0 0 1px oklch(0.72 0.16 235 / 0.4),
+    0 0 24px oklch(0.72 0.16 235 / 0.35),
+    0 0 48px oklch(0.72 0.16 235 / 0.15);
+}
+
+.glow-accent {
+  box-shadow:
+    0 0 0 1px oklch(0.66 0.2 305 / 0.4),
+    0 0 24px oklch(0.66 0.2 305 / 0.35);
+}
+
+.text-glow {
+  text-shadow: 0 0 18px oklch(0.72 0.16 235 / 0.55);
+}
+
+.gradient-border {
+  position: relative;
+  background: oklch(0.21 0.035 264 / 0.6);
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    oklch(0.72 0.16 235 / 0.6),
+    oklch(0.66 0.2 305 / 0.5),
+    transparent 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+.scroll-tech::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-tech::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-tech::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0.06 255 / 0.4);
+  border-radius: 999px;
+}
+
+.scroll-tech::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.6 0.1 245 / 0.6);
+}
+
+/* —— 全局壳层 —— */
+.theme-nebula .main-column {
+  background: transparent;
+}
+
+.theme-nebula .topbar {
+  background: transparent;
+  border-bottom-color: var(--border);
+  box-shadow: none;
+}
+
+.theme-nebula .breadcrumb {
+  color: var(--muted-foreground);
+  font-size: 18px;
+}
+
+.theme-nebula .breadcrumb strong {
+  color: var(--foreground);
+  text-shadow: 0 0 18px oklch(0.72 0.16 235 / 0.4);
+}
+
+.theme-nebula .tabs-strip {
+  background: transparent;
+  border-bottom-color: var(--border);
+  padding-left: 32px;
+  padding-right: 32px;
+}
+
+.theme-nebula .tab-chip {
+  background: oklch(0.25 0.035 264 / 0.5);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+  border-radius: 12px 12px 0 0;
+}
+
+.theme-nebula .tab-chip.is-active {
+  background: oklch(0.21 0.035 264 / 0.65);
+  color: var(--foreground);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.theme-nebula .tab-panels {
+  background: transparent;
+}
+
+.theme-nebula .card {
+  background: oklch(0.21 0.035 264 / 0.55);
+  border-color: var(--border);
+  color: var(--foreground);
+  box-shadow: none;
+}
+
+.theme-nebula input,
+.theme-nebula select,
+.theme-nebula textarea {
+  background: oklch(0.16 0.03 264 / 0.5);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula input::placeholder,
+.theme-nebula textarea::placeholder {
+  color: oklch(0.68 0.03 255 / 0.7);
+}
+
+.theme-nebula input:focus-visible,
+.theme-nebula select:focus-visible,
+.theme-nebula textarea:focus-visible {
+  border-color: oklch(0.72 0.16 235 / 0.5);
+  box-shadow: var(--focus-ring);
+}
+
+/* 仅主操作按钮用渐变；禁止全局 button 污染导航/工具栏（此前导致侧栏整块青紫渐变） */
+.theme-nebula button {
+  background: oklch(0.21 0.035 264 / 0.55);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula button:hover {
+  background: oklch(0.28 0.05 264 / 0.65);
+  color: var(--foreground);
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
+.theme-nebula button.secondary {
+  background: oklch(0.21 0.035 264 / 0.55);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula button.secondary:hover {
+  background: oklch(0.28 0.05 264 / 0.65);
+  color: var(--foreground);
+  border-color: oklch(0.72 0.16 235 / 0.4);
+}
+
+.theme-nebula .topbar-ai-btn,
+.theme-nebula .ai-send-btn,
+.theme-nebula .ai-web-toggle.is-on,
+.theme-nebula .ai-voice-toolbar-btn {
+  border: none;
+  color: var(--primary-foreground);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+.theme-nebula .topbar-ai-btn:hover,
+.theme-nebula .ai-send-btn:hover:not(:disabled),
+.theme-nebula .ai-web-toggle.is-on:hover,
+.theme-nebula .ai-voice-toolbar-btn:hover {
+  filter: brightness(1.06);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+}
+
+.theme-nebula th {
+  background: oklch(0.25 0.035 264 / 0.6);
+  color: var(--foreground);
+}
+
+.theme-nebula td {
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+.theme-nebula .field-hint {
+  color: var(--muted-foreground);
+}
+
+/* —— 侧栏 —— */
+.theme-nebula .sidebar {
+  width: 256px;
+  background: oklch(0.18 0.035 266 / 0.8);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid var(--sidebar-border);
+  padding-top: 0;
+  transition: width 0.2s ease;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed {
+  width: 64px;
+  min-width: 64px;
+  overflow: hidden;
+}
+
+.theme-nebula .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  border-bottom: none;
+}
+
+.theme-nebula .sidebar-brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  overflow: hidden;
+  padding: 0;
+}
+
+.theme-nebula .sidebar-brand-logo img {
+  width: 40px;
+  height: 40px;
+  display: block;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.theme-nebula .sidebar-brand-title {
+  font-size: 16px;
+}
+
+.theme-nebula .sidebar-brand-sub {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  position: relative;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.theme-nebula .nav-item:hover {
+  background: oklch(0.28 0.05 264 / 0.35);
+  color: var(--sidebar-foreground);
+  border-color: transparent;
+}
+
+.theme-nebula .nav-item.is-active {
+  background: var(--sidebar-accent);
+  color: var(--foreground);
+  border-color: oklch(0.72 0.16 235 / 0.45);
+  box-shadow:
+    0 0 0 1px oklch(0.72 0.16 235 / 0.35),
+    0 0 20px oklch(0.72 0.16 235 / 0.18);
+}
+
+.theme-nebula .nav-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+}
+
+.theme-nebula .nav-item-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.theme-nebula .nav-item.is-active .nav-item-icon {
+  color: var(--primary);
+  opacity: 1;
+}
+
+.theme-nebula .sidebar-toggle {
+  background: oklch(0.28 0.05 264 / 0.3);
+  border: 1px solid var(--sidebar-border);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .sidebar-toggle:hover {
+  border-color: oklch(0.72 0.16 235 / 0.4);
+  color: var(--foreground);
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-brand-text {
+  display: none;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-brand {
+  justify-content: center;
+  padding: 16px 8px;
+  gap: 0;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-brand-full {
+  display: none;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-brand-abbr {
+  display: inline;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-text {
+  display: none;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-abbr {
+  display: inline;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding: 10px 8px;
+  gap: 0;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-item-sub {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-nav-group-items {
+  max-height: 0 !important;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-group-arrow {
+  display: none;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .nav-item-icon {
+  margin: 0 auto;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-toggle-text {
+  display: none;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-toggle {
+  justify-content: center;
+  padding: 10px 8px;
+}
+
+.theme-nebula .sidebar.sidebar-collapsed .sidebar-toggle-icon {
+  transform: rotate(180deg);
+}
+
+.theme-nebula .tab-panels:has(#panel-ai:not([hidden])) {
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+.theme-nebula .ai-input-stack {
+  flex-shrink: 0;
+  background: var(--ai-surface);
+}
+
+/* —— 顶栏按钮 —— */
+.theme-nebula .topbar-cap-btn {
+  background: oklch(0.72 0.16 235 / 0.1);
+  border: 1px solid oklch(0.72 0.16 235 / 0.4);
+  color: var(--primary);
+  border-radius: 12px;
+}
+
+.theme-nebula .topbar-cap-btn:hover {
+  background: oklch(0.72 0.16 235 / 0.2);
+}
+
+.theme-nebula .topbar-ai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 12px;
+  box-shadow: 0 0 24px oklch(0.66 0.2 305 / 0.3);
+}
+
+.theme-nebula .topbar-ai-btn:hover {
+  filter: brightness(1.06);
+}
+
+/* —— AI 面板：主交互区白色背景 —— */
+.theme-nebula #panel-ai {
+  --ai-surface: #ffffff;
+  --ai-surface-muted: #f8fafc;
+  --ai-surface-text: #17202b;
+  --ai-surface-muted-text: #64748b;
+  --ai-surface-border: #d8e0eb;
+  --ai-surface-secondary: #eef2f6;
+}
+
+.theme-nebula #panel-ai .ai-chat-card {
+  background: transparent;
+  border: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.theme-nebula .ai-panel-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  overflow: hidden;
+  margin: 0;
+  background: var(--ai-surface);
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.theme-nebula .ai-panel-shell.gradient-border::before {
+  display: none;
+}
+
+.theme-nebula .ai-doc-workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+.theme-nebula .ai-doc-main-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.theme-nebula .ai-chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  margin-bottom: 0;
+  border: none;
+  border-bottom: 1px solid var(--ai-surface-border);
+  border-radius: 0;
+  background: var(--ai-surface);
+  flex-shrink: 0;
+}
+
+.theme-nebula .ai-chat-search-bar input[type="search"] {
+  flex: 1;
+  border-radius: 12px;
+  padding: 10px 14px 10px 40px;
+  background: var(--ai-surface);
+  border-color: var(--ai-surface-border);
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-chat-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.theme-nebula .ai-chat-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ai-surface-muted-text);
+  pointer-events: none;
+}
+
+.theme-nebula #panel-ai .ai-chat-search-meta {
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ai-surface-border);
+  background: var(--ai-surface-secondary);
+  color: var(--ai-surface-muted-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.theme-nebula .ai-tool-btn:hover {
+  border-color: oklch(0.72 0.16 235 / 0.45);
+  color: var(--ai-surface-text);
+  background: #dde5ef;
+}
+
+.theme-nebula .ai-icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--ai-surface-border);
+  background: var(--ai-surface-secondary);
+  color: var(--ai-surface-muted-text);
+  cursor: pointer;
+}
+
+.theme-nebula .ai-icon-btn:hover {
+  border-color: oklch(0.72 0.16 235 / 0.45);
+  color: var(--primary);
+  background: #dde5ef;
+}
+
+.theme-nebula .ai-voice-toolbar-btn {
+  border: none;
+  color: var(--primary-foreground);
+  background: linear-gradient(135deg, oklch(0.7 0.15 180), var(--primary));
+}
+
+.theme-nebula .ai-chat-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--ai-surface);
+}
+
+.theme-nebula .ai-chat-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 24px;
+}
+
+.theme-nebula .ai-chat-empty[hidden] {
+  display: none !important;
+}
+
+.theme-nebula .ai-chat-empty-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, oklch(0.72 0.16 235 / 0.2), oklch(0.66 0.2 305 / 0.2));
+  color: var(--primary);
+}
+
+.theme-nebula .ai-chat-empty-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ai-surface-text);
+  text-shadow: none;
+}
+
+.theme-nebula .ai-chat-empty-desc {
+  margin: 8px 0 0;
+  max-width: 360px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-chat-empty-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.theme-nebula .ai-quick {
+  border-radius: 999px;
+  border: 1px solid var(--ai-surface-border);
+  background: var(--ai-surface-secondary);
+  color: var(--ai-surface-muted-text);
+  padding: 8px 16px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.theme-nebula .ai-quick:hover {
+  border-color: oklch(0.72 0.16 235 / 0.45);
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: var(--ai-surface);
+  border: none;
+  border-radius: 0;
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-chat-log:empty {
+  display: none;
+}
+
+.theme-nebula .ai-msg-label {
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-msg-user .ai-msg-label,
+.theme-nebula .ai-msg-assistant .ai-msg-label {
+  color: var(--primary);
+}
+
+.theme-nebula .ai-msg-body,
+.theme-nebula .ai-msg-core-text,
+.theme-nebula .ai-msg-core-rich,
+.theme-nebula .ai-msg-core-rich .ai-doc-h,
+.theme-nebula .ai-msg-core-rich .ai-doc-p,
+.theme-nebula .ai-msg-core-rich .ai-doc-ul,
+.theme-nebula .ai-msg-core-rich .ai-doc-ol,
+.theme-nebula .ai-msg-core-rich .ai-doc-table th,
+.theme-nebula .ai-msg-core-rich .ai-doc-table td {
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-msg-core-rich .ai-doc-table th {
+  background: var(--ai-surface-secondary);
+}
+
+.theme-nebula .ai-msg-core-rich .ai-doc-table-wrap {
+  background: var(--ai-surface);
+  border-color: var(--ai-surface-border);
+}
+
+.theme-nebula .ai-msg-core-rich code {
+  background: var(--ai-surface-muted);
+  border-color: var(--ai-surface-border);
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-msg-attachment {
+  background: var(--ai-surface-muted);
+  border-color: var(--ai-surface-border);
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .ai-ollama-usage {
+  background: var(--ai-surface-muted);
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-composer {
+  margin: 0 16px 16px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ai-surface-border);
+  background: var(--ai-surface);
+  box-shadow: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.theme-nebula .ai-composer:focus-within {
+  border-color: oklch(0.72 0.16 235 / 0.5);
+  box-shadow: var(--focus-ring);
+}
+
+.theme-nebula .ai-composer-textarea {
+  background: transparent;
+  border: none;
+  color: var(--ai-surface-text);
+  padding: 0;
+  resize: none;
+  box-shadow: none;
+}
+
+.theme-nebula .ai-composer-textarea::placeholder {
+  color: oklch(0.55 0.03 255 / 0.75);
+}
+
+.theme-nebula .ai-composer-textarea:focus-visible {
+  box-shadow: none;
+  border: none;
+  outline: none;
+}
+
+.theme-nebula .ai-web-toggle {
+  border-radius: 12px;
+  background: var(--ai-surface-secondary);
+  border: 1px solid var(--ai-surface-border);
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-web-toggle:hover {
+  background: #dde5ef;
+  color: var(--ai-surface-text);
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
+.theme-nebula .ai-web-toggle.is-on {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-color: transparent;
+  color: var(--primary-foreground);
+  box-shadow:
+    0 0 0 1px oklch(0.72 0.16 235 / 0.35),
+    0 0 18px oklch(0.72 0.16 235 / 0.22);
+}
+
+.theme-nebula .ai-profile-trigger,
+.theme-nebula .ai-mode-compact-trigger {
+  background: var(--ai-surface-secondary);
+  border: 1px solid var(--ai-surface-border);
+  color: var(--ai-surface-muted-text);
+}
+
+.theme-nebula .ai-profile-trigger:hover,
+.theme-nebula .ai-mode-compact-trigger:hover {
+  background: #dde5ef;
+  color: var(--ai-surface-text);
+}
+
+.theme-nebula .tab-chip {
+  background: oklch(0.25 0.035 264 / 0.45);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .tab-chip.is-active {
+  background: oklch(0.21 0.035 264 / 0.65);
+  color: var(--foreground);
+}
+
+.theme-nebula .tab-close {
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-send-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.theme-nebula .ai-send-btn:hover {
+  filter: brightness(1.08);
+}
+
+.theme-nebula .ai-send-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.theme-nebula .ai-doc-preview-pane {
+  background: oklch(0.21 0.035 264 / 0.72);
+  border-color: var(--border);
+}
+
+.theme-nebula .ai-doc-preview-content,
+.theme-nebula .ai-doc-preview-html {
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-profile-panel,
+.theme-nebula .ai-profile-menu,
+.theme-nebula .ai-mode-compact-menu {
+  background: oklch(0.22 0.035 264 / 0.98);
+  border-color: var(--border);
+}
+
+.theme-nebula .ai-profile-panel__tab {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-profile-panel__tab.is-active {
+  color: #fff;
+  border-bottom-color: var(--primary);
+}
+
+.theme-nebula .ai-profile-panel__search input {
+  background: oklch(0.18 0.03 264 / 0.85);
+  border-color: var(--border);
+  color: #fff;
+}
+
+.theme-nebula .ai-model-section__title {
+  color: #fff;
+}
+
+.theme-nebula .ai-model-card {
+  background: oklch(0.25 0.035 264 / 0.88);
+  border-color: var(--border);
+}
+
+.theme-nebula .ai-model-card:hover {
+  background: oklch(0.28 0.04 264 / 0.95);
+}
+
+.theme-nebula .ai-model-card.is-active {
+  background: oklch(0.3 0.06 264 / 0.95);
+  border-color: var(--primary);
+}
+
+.theme-nebula .ai-model-card__name {
+  color: #fff;
+}
+
+.theme-nebula .ai-model-card__provider,
+.theme-nebula .ai-model-card__desc,
+.theme-nebula .ai-profile-panel__empty {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-profile-panel__manage {
+  color: #fff;
+  border-color: var(--border);
+  background: oklch(0.25 0.035 264 / 0.88);
+}
+
+.theme-nebula .ai-profile-panel__manage:hover {
+  background: oklch(0.3 0.045 264 / 0.95);
+}
+
+.theme-nebula .ai-profile-menu,
+.theme-nebula .ai-mode-compact-menu {
+  background: oklch(0.21 0.035 264 / 0.95);
+  border-color: var(--border);
+}
+
+.theme-nebula .ai-profile-menu-item.is-active,
+.theme-nebula .ai-mode-menu-item.is-on {
+  background: oklch(0.72 0.16 235 / 0.15);
+  color: var(--primary);
+}
+
+.theme-nebula .ai-profiles-dialog {
+  background: oklch(0.21 0.035 264 / 0.95);
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-profiles-dialog::backdrop {
+  background: oklch(0.1 0.02 264 / 0.65);
+}
+
+/* —— 各业务页：统一深色面板（消除 styles.css 白底硬编码） —— */
+.theme-nebula {
+  --surface-panel: oklch(0.21 0.035 264 / 0.72);
+  --surface-panel-soft: oklch(0.25 0.035 264 / 0.55);
+  --surface-inset: oklch(0.16 0.03 264 / 0.55);
+}
+
+.theme-nebula .card {
+  background: var(--surface-panel);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .card h2,
+.theme-nebula .card h3,
+.theme-nebula .card label {
+  color: var(--foreground);
+}
+
+.theme-nebula .grid-form label {
+  color: var(--foreground);
+}
+
+/* 技能中心 */
+.theme-nebula .runtime-prereq-bar,
+.theme-nebula .skill-summary {
+  background: var(--surface-panel-soft);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .runtime-prereq-title,
+.theme-nebula .runtime-prereq-issue-title {
+  color: var(--foreground);
+}
+
+.theme-nebula .runtime-prereq-status,
+.theme-nebula .runtime-prereq-issue-detail,
+.theme-nebula .skill-meta,
+.theme-nebula .skill-manual-status {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .runtime-prereq-issue {
+  background: var(--surface-inset);
+  border-color: var(--border);
+}
+
+/* 启动预热横幅 */
+.startup-warmup-bar {
+  margin: 0 16px 10px;
+  border-radius: 12px;
+  border: 1px solid #d8e0eb;
+  background: #f8fafc;
+  box-shadow: none;
+  color: #111111;
+}
+
+.startup-warmup-bar__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.startup-warmup-bar__main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.startup-warmup-bar__title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111111;
+}
+
+.startup-warmup-bar__summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #111111;
+}
+
+.startup-warmup-bar__issues {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.startup-warmup-bar__issue {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #111111;
+}
+
+.startup-warmup-bar__issue strong {
+  color: #111111;
+  font-weight: 600;
+}
+
+.startup-warmup-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.startup-warmup-bar__actions button.secondary {
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid #d8e0eb;
+}
+
+.startup-warmup-bar__actions button.secondary:hover {
+  background: #eef2f6;
+  color: #111111;
+}
+
+.startup-warmup-bar.is-warning {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.startup-warmup-bar.is-error {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.theme-nebula .startup-warmup-bar__title,
+.theme-nebula .startup-warmup-bar__summary,
+.theme-nebula .startup-warmup-bar__issue,
+.theme-nebula .startup-warmup-bar.is-warning .startup-warmup-bar__title,
+.theme-nebula .startup-warmup-bar.is-error .startup-warmup-bar__title {
+  color: #111111;
+}
+
+.topbar-env-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #d8e0eb;
+  background: #eef2f6;
+  color: #111111;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.topbar-env-btn:hover {
+  background: #e2e8f0;
+  color: #111111;
+}
+
+.topbar-env-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.topbar-env-dot--ok {
+  background: #34d399;
+  box-shadow: 0 0 8px rgba(52, 211, 153, 0.5);
+}
+
+.topbar-env-dot--warn {
+  background: #fbbf24;
+}
+
+.topbar-env-dot--error {
+  background: #f87171;
+}
+
+.env-setup-dialog {
+  border: none;
+  padding: 0;
+  max-width: min(560px, calc(100vw - 32px));
+  border-radius: 16px;
+  background: transparent;
+}
+
+.env-setup-dialog::backdrop {
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.env-setup-shell {
+  padding: 22px 22px 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(160deg, #0b1830 0%, #07111f 100%);
+  color: #e2e8f0;
+}
+
+.env-setup-head h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.env-setup-sub {
+  margin: 0;
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.env-setup-steps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.env-setup-step {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #94a3b8;
+}
+
+.env-setup-step.is-active {
+  border-color: rgba(34, 211, 238, 0.45);
+  color: #7dd3fc;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.env-setup-step.is-done {
+  color: #6ee7b7;
+}
+
+.env-setup-body {
+  min-height: 120px;
+  margin-bottom: 14px;
+}
+
+.env-setup-issues {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.env-setup-issue {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.env-setup-issue strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.env-setup-progress {
+  margin-top: 10px;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 11px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.env-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.theme-nebula .skill-card {
+  background: var(--surface-panel);
+  border-color: var(--border);
+}
+
+.theme-nebula .skill-card-head h3,
+.theme-nebula .skill-desc {
+  color: var(--foreground);
+}
+
+.theme-nebula .skill-toggle {
+  color: var(--foreground);
+}
+
+.theme-nebula .skill-badge.is-on {
+  color: oklch(0.78 0.14 195);
+  background: oklch(0.72 0.16 235 / 0.15);
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
+.theme-nebula .skill-badge.is-plan {
+  color: oklch(0.82 0.12 85);
+  background: oklch(0.75 0.12 85 / 0.12);
+  border-color: oklch(0.75 0.12 85 / 0.35);
+}
+
+.theme-nebula .skill-badge.is-off {
+  color: var(--muted-foreground);
+  background: var(--surface-inset);
+  border-color: var(--border);
+}
+
+.theme-nebula .skill-deploy-tag {
+  color: oklch(0.78 0.14 195);
+  background: oklch(0.72 0.16 235 / 0.12);
+  border-color: oklch(0.72 0.16 235 / 0.3);
+}
+
+.theme-nebula .skill-deploy-tag--py {
+  color: oklch(0.78 0.14 305);
+  background: oklch(0.66 0.2 305 / 0.12);
+  border-color: oklch(0.66 0.2 305 / 0.3);
+}
+
+.theme-nebula .skill-cap-list code {
+  background: oklch(0.72 0.16 235 / 0.12);
+  color: oklch(0.82 0.12 235);
+}
+
+.theme-nebula .skill-plan-note {
+  color: oklch(0.82 0.12 85);
+}
+
+/* 记录助手 */
+.theme-nebula .record-status {
+  background: var(--surface-panel-soft);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .record-inline-check {
+  color: var(--foreground);
+}
+
+.theme-nebula #recordTranscript,
+.theme-nebula #recordAnalysis {
+  background: var(--surface-inset);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+/* 本地模型部署 */
+.theme-nebula .local-ollama-inference-card,
+.theme-nebula .local-ollama-subcard,
+.theme-nebula .local-ollama-recommend-panel {
+  background: var(--surface-panel-soft);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .local-ollama-inference-card h3,
+.theme-nebula .local-ollama-subcard h3,
+.theme-nebula .local-ollama-installed-head h3 {
+  color: var(--foreground);
+}
+
+.theme-nebula .local-ollama-thread-hint,
+.theme-nebula .local-ollama-status,
+.theme-nebula .local-ollama-recommend-meta,
+.theme-nebula .local-ollama-recommend-reason,
+.theme-nebula .local-ollama-model-meta,
+.theme-nebula .local-ollama-catalog-empty {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .local-ollama-cpu-hint {
+  background: oklch(0.72 0.16 235 / 0.1);
+  border-color: oklch(0.72 0.16 235 / 0.28);
+  color: var(--foreground);
+}
+
+.theme-nebula .local-ollama-model-list li:hover {
+  background: oklch(0.28 0.05 264 / 0.45);
+}
+
+.theme-nebula .local-ollama-catalog-group-summary:hover {
+  background: oklch(0.28 0.05 264 / 0.35);
+}
+
+/* 本地知识库 */
+.theme-nebula .kb-doc-pane,
+.theme-nebula .kb-config-box,
+.theme-nebula .kb-search-box,
+.theme-nebula .kb-graph-box {
+  background: var(--surface-panel);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .kb-doc-group {
+  background: var(--surface-inset);
+  border-color: var(--border);
+}
+
+.theme-nebula .kb-subtitle,
+.theme-nebula .kb-doc-sub,
+.theme-nebula .kb-doc-group-meta,
+.theme-nebula .kb-doc-group-arrow,
+.theme-nebula .kb-graph-actions .record-inline-check {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .kb-doc-group-title,
+.theme-nebula .kb-doc-name,
+.theme-nebula .kb-hit-top {
+  color: var(--foreground);
+}
+
+.theme-nebula .kb-doc-group-title-input {
+  background: var(--surface-inset);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .kb-graph-stage {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(34, 211, 238, 0.1), transparent 55%),
+    radial-gradient(circle at 18% 18%, oklch(0.22 0.04 264 / 0.95), oklch(0.14 0.03 264 / 0.98) 72%);
+  border-color: var(--border);
+}
+
+.theme-nebula .kb-graph-stage__btn {
+  color: var(--foreground);
+  background: oklch(0.2 0.03 264 / 0.78);
+  border-color: oklch(0.45 0.04 264 / 0.45);
+}
+
+.theme-nebula .kb-graph-stage__btn:hover {
+  border-color: rgba(94, 234, 212, 0.5);
+  background: oklch(0.24 0.04 264 / 0.92);
+}
+
+.theme-nebula .kb-graph-stage__hint {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .kb-graph-canvas {
+  background: transparent;
+  border-color: transparent;
+}
+
+.theme-nebula .kb-graph-label {
+  fill: var(--foreground);
+}
+
+.theme-nebula .kb-graph-empty {
+  fill: var(--muted-foreground);
+}
+
+.theme-nebula .kb-hit {
+  background: var(--surface-inset);
+  border-color: var(--border);
+}
+
+.theme-nebula .kb-hit-text {
+  color: var(--foreground);
+}
+
+.theme-nebula .kb-config-dialog {
+  background: oklch(0.21 0.035 264 / 0.96);
+  color: var(--foreground);
+}
+
+.theme-nebula .kb-config-dialog::backdrop {
+  background: oklch(0.1 0.02 264 / 0.65);
+}
+
+/* 检索结果弹窗：深色底 + 白色/浅色文字 */
+.theme-nebula #kbSearchResultDialog.kb-search-result-dialog,
+.theme-nebula #kbSearchResultDialog.kb-search-result-dialog .kb-search-result-shell {
+  background: oklch(0.21 0.035 264 / 0.96);
+  color: #fff;
+}
+
+.theme-nebula #kbSearchResultDialog.kb-search-result-dialog::backdrop {
+  background: oklch(0.1 0.02 264 / 0.65);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-title,
+.theme-nebula #kbSearchResultDialog .kb-search-result-query,
+.theme-nebula #kbSearchResultDialog .kb-search-result-empty,
+.theme-nebula #kbSearchResultDialog .kb-search-result-empty__title,
+.theme-nebula #kbSearchResultDialog .kb-search-result-loading,
+.theme-nebula #kbSearchResultDialog .kb-search-progress-title,
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log__msg,
+.theme-nebula #kbSearchResultDialog .kb-search-result-detail-empty,
+.theme-nebula #kbSearchResultDialog .kb-search-result-detail__title,
+.theme-nebula #kbSearchResultDialog .kb-search-result-detail__text,
+.theme-nebula #kbSearchResultDialog .kb-hit-detail__body,
+.theme-nebula #kbSearchResultDialog .kb-search-result-item,
+.theme-nebula #kbSearchResultDialog .kb-search-result-item__title {
+  color: #fff;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-meta,
+.theme-nebula #kbSearchResultDialog .kb-search-result-empty__hint,
+.theme-nebula #kbSearchResultDialog .kb-search-result-item__preview,
+.theme-nebula #kbSearchResultDialog .kb-search-result-detail__meta,
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log__time {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-item {
+  background: oklch(0.25 0.035 264 / 0.88);
+  border-color: var(--border);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-item.is-active {
+  background: oklch(0.3 0.06 264 / 0.95);
+  border-color: var(--primary);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-detail__text,
+.theme-nebula #kbSearchResultDialog .kb-hit-detail__body,
+.theme-nebula #kbSearchResultDialog .kb-hit-detail__meta {
+  background: oklch(0.18 0.03 264 / 0.75);
+  border-color: var(--border);
+  color: #fff;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-hit-detail__meta dt {
+  color: oklch(0.78 0.12 264);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-hit-detail__meta dd {
+  color: oklch(0.94 0.02 264);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-trace-chip {
+  background: oklch(0.24 0.04 264 / 0.9);
+  border-color: var(--border);
+  color: oklch(0.88 0.03 264);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log {
+  background: oklch(0.18 0.03 264 / 0.75);
+  border-color: var(--border);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-badge {
+  background: oklch(0.28 0.04 264 / 0.9);
+  color: #fff;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-foot .secondary {
+  color: #fff;
+  border-color: var(--border);
+  background: oklch(0.25 0.035 264 / 0.88);
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-close {
+  color: #fff;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-result-meta.is-error {
+  color: #fca5a5;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log__item.is-ok .kb-search-progress-log__msg {
+  color: #6ee7b7;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log__item.is-error .kb-search-progress-log__msg {
+  color: #fca5a5;
+}
+
+.theme-nebula #kbSearchResultDialog .kb-search-progress-log__item.is-done .kb-search-progress-log__msg {
+  color: #93c5fd;
+}
+
+/* 任务列表等业务页通用 */
+.theme-nebula .media-status,
+.theme-nebula .cap-routing-subsection,
+.theme-nebula .cap-routing-card,
+.theme-nebula .ai-capability-dialog .ai-profiles-manage-list {
+  background: var(--surface-panel-soft);
+  color: var(--foreground);
+}
+
+.theme-nebula .remark-history-item:not(#remarkDialog .remark-history-item) {
+  background: var(--surface-panel-soft);
+  color: var(--foreground);
+}
+
+.theme-nebula .remark-history-time:not(#remarkDialog .remark-history-time) {
+  color: var(--primary);
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-dialog-inner {
+  background: #fff;
+  color: #1d2129;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light .remark-dialog-title,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-dialog-meta,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-label,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-new-label,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-empty,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-text,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-time,
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-item {
+  color: #1d2129;
+  background: #fff;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-section {
+  background: #f8f9fa;
+  border-color: #e5e6eb;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light .remark-history-item {
+  border-color: #e5e6eb;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light #remarkNewInput {
+  background: #fff;
+  color: #1d2129;
+  border-color: #e5e6eb;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light #remarkNewInput::placeholder {
+  color: #1d2129;
+  opacity: 0.45;
+}
+
+.theme-nebula #remarkDialog.remark-dialog-light .dialog-actions .secondary {
+  background: #fff;
+  color: #1d2129;
+  border-color: #e5e6eb;
+}
+
+.theme-nebula #kbResultDialog.kb-result-dialog-light,
+.theme-nebula #kbResultDialog.kb-result-dialog-light .kb-result-dialog__head,
+.theme-nebula #kbResultDialog.kb-result-dialog-light .kb-result-dialog__body {
+  background: #fff;
+  color: #1d2129;
+}
+
+.theme-nebula #kbResultDialog.kb-result-dialog-light .kb-result-dialog__title {
+  color: #1d2129;
+}
+
+.theme-nebula #kbResultDialog.kb-result-dialog-light .kb-result-dialog__textarea,
+.theme-nebula #kbResultDialog.kb-result-dialog-light textarea {
+  background: #fff;
+  color: #1d2129;
+  -webkit-text-fill-color: #1d2129;
+  border-color: #e5e6eb;
+}
+
+.theme-nebula #kbResultDialog.kb-result-dialog-light .dialog-actions .secondary {
+  background: #fff;
+  color: #1d2129;
+  border-color: #e5e6eb;
+}
+
+.theme-nebula .cap-nav-item {
+  background: var(--surface-inset);
+  color: var(--muted-foreground);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-nav-item.is-active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  border-color: transparent;
+}
+
+.theme-nebula .cap-nav-item:hover {
+  background: oklch(0.28 0.05 264 / 0.55);
+  color: var(--foreground);
+}
+
+/* AI 能力组合：消除 TTS 开关条、联网数据源卡片等白底 */
+.theme-nebula .cap-tts-switches,
+.theme-nebula .cap-fieldset {
+  background: var(--surface-panel-soft);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-fieldset legend,
+.theme-nebula .cap-subsection-title,
+.theme-nebula .ai-profiles-section-title {
+  color: var(--foreground);
+}
+
+.theme-nebula label.cap-check,
+.theme-nebula label.cap-check.cap-check--inline {
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-tts-hint-muted,
+.theme-nebula .ai-capability-dialog .field-hint {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-search-config-grid label,
+.theme-nebula .ai-search-config-grid .record-inline-check {
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-scroll {
+  background: oklch(0.16 0.03 264 / 0.55);
+  border-color: var(--border);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-status-summary.is-online {
+  color: #4ade80;
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-status-summary.is-offline {
+  color: #f87171;
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-status-summary.is-pending,
+.theme-nebula .ai-capability-dialog .ai-search-source-state-pending {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-card {
+  background: oklch(0.23 0.035 264 / 0.88);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-list {
+  background: transparent;
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-card strong,
+.theme-nebula .ai-capability-dialog .ai-search-source-row-head,
+.theme-nebula .ai-capability-dialog .ai-search-source-row-head strong {
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-row {
+  background: oklch(0.19 0.03 264 / 0.95);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-row-controls label {
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-row-meta {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .ai-capability-dialog .ai-search-source-row select,
+.theme-nebula .ai-capability-dialog .ai-search-source-row input {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-profiles-manage-item {
+  background: var(--surface-inset);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-profiles-manage-primary {
+  color: var(--foreground);
+}
+
+.theme-nebula .ai-profiles-manage-sub {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-chat-profiles-add-section,
+.theme-nebula .cap-chat-profiles-add-col,
+.theme-nebula .cap-profile-form-control,
+.theme-nebula .cap-profile-form-control--key input {
+  background: oklch(0.19 0.03 264 / 0.95);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-profile-form-label,
+.theme-nebula .cap-profile-form-card-title {
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-profile-form-test-hint,
+.theme-nebula .cap-profile-form-toggle-text,
+.theme-nebula .cap-chat-profiles-add-hint {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-profile-form-test-foot,
+.theme-nebula .cap-profile-form-test-inner {
+  border-top-color: var(--border);
+}
+
+.theme-nebula .cap-chat-profiles-stat-card,
+.theme-nebula .cap-chat-profiles-add-section,
+.theme-nebula .cap-chat-profiles-add-col {
+  background: var(--surface-panel-soft);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-chat-profiles-grid-scroll {
+  background: oklch(0.16 0.03 264 / 0.55);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-chat-profile-card-icon--brand {
+  border-color: oklch(0.35 0.03 264 / 0.55);
+  box-shadow: 0 2px 8px oklch(0.08 0.02 264 / 0.45);
+}
+
+.theme-nebula .cap-chat-profile-card {
+  background: oklch(0.19 0.03 264 / 0.95);
+  border-color: var(--border);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-chat-profile-card-url,
+.theme-nebula .cap-chat-profiles-list-count,
+.theme-nebula .cap-chat-profiles-stat-label,
+.theme-nebula .cap-chat-profiles-empty {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-chat-profile-tag {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--border);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-chat-profiles-search,
+.theme-nebula .cap-chat-profiles-add-col input,
+.theme-nebula .cap-chat-profiles-add-col select,
+.theme-nebula .cap-chat-profiles-add-col textarea {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-chat-profile-more-menu {
+  background: oklch(0.2 0.03 264 / 0.98);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-speech-stat-card,
+.theme-nebula .cap-speech-config {
+  background: oklch(0.19 0.03 264 / 0.95);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-speech-tabs {
+  background: oklch(0.16 0.03 264 / 0.55);
+  border-bottom-color: var(--border);
+}
+
+.theme-nebula .cap-speech-tab {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-speech-tab.is-active {
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-speech-stat-meta,
+.theme-nebula .cap-speech-note,
+.theme-nebula .cap-speech-advanced summary {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-speech-control,
+.theme-nebula .cap-speech-control--key input,
+.theme-nebula .cap-speech-textarea {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-speech-note {
+  background: oklch(0.16 0.04 264 / 0.75);
+  border-color: oklch(0.35 0.06 264 / 0.45);
+}
+
+.theme-nebula .cap-image-stat-card,
+.theme-nebula .cap-image-step-card,
+.theme-nebula .cap-image-side-card {
+  background: oklch(0.19 0.03 264 / 0.95);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-image-header-hint,
+.theme-nebula .cap-image-stat-lines,
+.theme-nebula .cap-image-route-mode-label,
+.theme-nebula .cap-image-flow p,
+.theme-nebula .cap-image-validate-time,
+.theme-nebula .cap-image-char-count,
+.theme-nebula .cap-image-stat-row-label,
+.theme-nebula .cap-image-switch-hint {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-image-route-btn {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-image-route-btn.is-active {
+  color: #fff;
+  border-color: transparent;
+}
+
+.theme-nebula .cap-image-control,
+.theme-nebula .cap-image-control--key input,
+.theme-nebula .cap-image-textarea {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-image-tag {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-image-step-desc,
+.theme-nebula .cap-image-control-suffix-unit {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-image-tag-add-select {
+  color: #fff;
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+}
+
+.theme-nebula .cap-image-tag-add-select option {
+  background: oklch(0.18 0.03 264);
+  color: #fff;
+}
+
+.theme-nebula .cap-image-tag-add-select:focus {
+  color: #fff;
+}
+
+.theme-nebula .cap-image-field-help {
+  border-color: var(--input);
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-image-tag-panel,
+.theme-nebula .cap-image-control-suffix {
+  background: oklch(0.16 0.03 264 / 0.85);
+  border-color: var(--input);
+}
+
+.theme-nebula .cap-image-tag:has(input:checked) {
+  border-color: var(--input);
+  background: oklch(0.2 0.03 264 / 0.9);
+  color: #fff;
+}
+
+.theme-nebula .cap-image-tag-remove {
+  color: oklch(0.72 0.03 264);
+}
+
+.theme-nebula .cap-image-stat-route-link {
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-image-stat-toggle-ui {
+  background: oklch(0.28 0.03 264);
+}
+
+.theme-nebula .cap-image-stat-toggle input:checked + .cap-image-stat-toggle-ui {
+  background: linear-gradient(90deg, oklch(0.55 0.14 264), oklch(0.5 0.12 280));
+}
+
+.theme-nebula .cap-image-flow-card {
+  background: oklch(0.16 0.03 264 / 0.75);
+  border-color: var(--border);
+}
+
+.theme-nebula .cap-image-validate-name {
+  color: var(--foreground);
+}
+
+.theme-nebula .cap-image-validate-status-text {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula .cap-image-validate-row.is-ok .cap-image-validate-status-text {
+  color: #4ade80;
+}
+
+.theme-nebula .cap-image-validate-check {
+  background: oklch(0.28 0.03 264);
+}
+
+.theme-nebula .cap-image-validate-footer {
+  border-top-color: var(--border);
+}
+
+.theme-nebula .cap-image-footer {
+  border-top-color: var(--border);
+}
+
+.theme-nebula dialog {
+  color: var(--foreground);
+}
+
+/* 登录后任务跟进提示：仅弹窗白底黑字，主界面仍保持星云深色 */
+.theme-nebula #reminderDialog.reminder-dialog-light,
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-dialog-inner {
+  background: #fff !important;
+  color: #1d2129 !important;
+  border-color: #d8e0eb;
+  color-scheme: light;
+}
+
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-title,
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-body,
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-body p {
+  color: #1d2129 !important;
+}
+
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-ok {
+  background: #fff !important;
+  color: #1d2129 !important;
+  border: 1px solid #e5e6eb !important;
+  box-shadow: none !important;
+  filter: none;
+}
+
+.theme-nebula #reminderDialog.reminder-dialog-light .reminder-ok:hover {
+  background: #f8f9fa !important;
+  color: #1d2129 !important;
+  border-color: #cbd5e1 !important;
+  filter: none;
+}
+
+/* 每日工作跟进：主内容区白色工作台（任务列表/登记/筛选） */
+.theme-nebula .main-column:has(#panel-list:not([hidden])),
+.theme-nebula .main-column:has(#panel-new:not([hidden])),
+.theme-nebula .main-column:has(#panel-filter:not([hidden])),
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) {
+  --workbench-bg: #ffffff;
+  --workbench-text: #17202b;
+  --workbench-muted: #64748b;
+  --workbench-border: #d8e0eb;
+  --workbench-secondary: #eef2f6;
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .topbar,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .topbar,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .topbar,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .topbar {
+  background: var(--workbench-bg);
+  border-bottom-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .breadcrumb,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .breadcrumb,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .breadcrumb,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .breadcrumb {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .breadcrumb strong,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .breadcrumb strong,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .breadcrumb strong,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .breadcrumb strong {
+  color: var(--workbench-text);
+  text-shadow: none;
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .tabs-strip,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tabs-strip,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tabs-strip,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tabs-strip {
+  background: var(--workbench-bg);
+  border-bottom-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-chip,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-chip,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-chip,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-chip {
+  background: #e8ecf2;
+  color: #475569;
+  border-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-chip.is-active,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-chip.is-active,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-chip.is-active,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-chip.is-active {
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+  border-color: var(--workbench-border);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-close,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-close,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-close,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-close {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-panels,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-panels,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-panels,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-panels {
+  background: var(--workbench-bg);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .card,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .card,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .card,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .card {
+  background: var(--workbench-bg);
+  border-color: var(--workbench-border);
+  color: var(--workbench-text);
+  box-shadow: var(--shadow-card);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .card h2,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .card h3,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .card label,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .card h2,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .card h3,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .card label,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .card h2,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .card h3,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .card label,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .card h2,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .card h3,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .card label {
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .field-hint,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .field-hint,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .field-hint,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .field-hint,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .dashboard-summary {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) input,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) select,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) textarea,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) input,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) select,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) textarea,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) input,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) select,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) textarea,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) input,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) select,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) textarea {
+  background: var(--workbench-bg);
+  border-color: var(--workbench-border);
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) table th,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) table td,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) table th,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) table td {
+  color: var(--workbench-text);
+  border-bottom-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) table th,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) table th {
+  background: var(--workbench-secondary);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .task-table-v2 thead th {
+  text-align: center;
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .task-quick-search,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) #taskStats,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-info,
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .muted {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-page {
+  background: var(--workbench-secondary);
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-page:hover:not(.is-active) {
+  background: #dde5ef;
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .task-toolbar-btn {
+  background: #fff;
+  color: #1d2129;
+  border-color: var(--workbench-border);
+  font-weight: 500;
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .task-toolbar-btn:hover {
+  background: #f8f9fa;
+  color: #1d2129;
+}
+
+/* AI 助手：右侧整栏（顶栏 + 标签 + 对话区）统一白色 */
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) {
+  --workbench-bg: #ffffff;
+  --workbench-text: #17202b;
+  --workbench-muted: #64748b;
+  --workbench-border: #d8e0eb;
+  --workbench-secondary: #eef2f6;
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .topbar {
+  background: var(--workbench-bg);
+  border-bottom-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .breadcrumb {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .breadcrumb strong {
+  color: var(--workbench-text);
+  text-shadow: none;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tabs-strip {
+  background: var(--workbench-bg);
+  border-bottom-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-chip {
+  background: #e8ecf2;
+  color: #475569;
+  border-color: var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-chip.is-active {
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+  border-color: var(--workbench-border);
+  box-shadow: inset 0 -2px 0 var(--primary);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-close {
+  color: var(--workbench-muted);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-panels {
+  background: var(--workbench-bg);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) #panel-ai,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-panel-main,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-input-stack,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-status {
+  background: var(--workbench-bg);
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) #aiWebFallback.card {
+  background: var(--workbench-bg);
+  border-color: var(--workbench-border);
+  color: var(--workbench-text);
+  margin: 16px 24px;
+}

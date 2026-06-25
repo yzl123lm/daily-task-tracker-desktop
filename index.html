@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <title>鲸落AI</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./ui-nebula-theme.css" />
+  <link rel="stylesheet" href="./kb-config-layout.css" />
+</head>
+<body class="theme-nebula">
+  <div class="app-shell bg-nebula">
+    <aside class="sidebar" id="sidebar" aria-label="主导航">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-logo glow-primary" aria-hidden="true">
+          <img src="./build/icon.png" width="40" height="40" alt="" draggable="false" decoding="async" />
+        </div>
+        <div class="sidebar-brand-text">
+          <span class="sidebar-brand-title text-glow"><span class="sidebar-brand-full">鲸落AI</span><span class="sidebar-brand-abbr" aria-hidden="true">鲸</span></span>
+          <span class="sidebar-brand-sub">智能工作助手</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-group" id="dailyWorkNavGroup">
+          <button
+            type="button"
+            class="nav-item nav-item-group"
+            id="dailyWorkNavToggle"
+            data-nav-group-toggle="daily-work"
+            aria-expanded="false"
+            aria-controls="dailyWorkNavChildren"
+            title="每日工作跟进"
+          >
+            <span class="nav-text">每日工作跟进</span><span class="nav-abbr" aria-hidden="true">跟</span>
+            <span class="nav-group-arrow" aria-hidden="true">▾</span>
+          </button>
+          <div class="sidebar-nav-group-items" id="dailyWorkNavChildren">
+            <button type="button" class="nav-item nav-item-sub" data-route="new" data-title="新增待处理事项" data-breadcrumb="工作台 / 每日工作跟进 / 新增待处理事项" title="新增待处理事项">
+              <span class="nav-text">新增待处理事项</span><span class="nav-abbr" aria-hidden="true">新</span>
+            </button>
+            <button type="button" class="nav-item nav-item-sub" data-route="filter" data-title="查询筛选" data-breadcrumb="工作台 / 每日工作跟进 / 查询筛选" title="查询筛选">
+              <span class="nav-text">查询筛选</span><span class="nav-abbr" aria-hidden="true">查</span>
+            </button>
+            <button type="button" class="nav-item nav-item-sub" data-route="dashboard" data-title="数据看板" data-breadcrumb="工作台 / 每日工作跟进 / 数据看板" title="饼图/折线/柱状图仪表盘">
+              <span class="nav-text">数据看板</span><span class="nav-abbr" aria-hidden="true">板</span>
+            </button>
+            <button type="button" class="nav-item nav-item-sub" data-route="list" data-title="任务列表" data-breadcrumb="工作台 / 每日工作跟进 / 任务列表" title="任务列表">
+              <span class="nav-text">任务列表</span><span class="nav-abbr" aria-hidden="true">表</span>
+            </button>
+          </div>
+        </div>
+        <button type="button" class="nav-item nav-item-ai" data-route="ai" data-title="AI助手" data-breadcrumb="工作台 / AI助手" title="AI助手（OpenAI 兼容 API）">
+          <span class="nav-item-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg></span>
+          <span class="nav-text">AI助手</span><span class="nav-abbr" aria-hidden="true">AI</span>
+        </button>
+        <button type="button" class="nav-item" data-route="record" data-title="记录助手" data-breadcrumb="工作台 / 记录助手" title="记录助手">
+          <span class="nav-text">记录助手</span><span class="nav-abbr" aria-hidden="true">录</span>
+        </button>
+        <button type="button" class="nav-item" data-route="knowledge-base" data-title="本地知识库" data-breadcrumb="工作台 / 本地知识库" title="本地文档入库与语义检索（本机 Ollama 嵌入）">
+          <span class="nav-text">本地知识库</span><span class="nav-abbr" aria-hidden="true">库</span>
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-expanded="true" title="收起/展开侧栏">
+          <span class="sidebar-toggle-icon" aria-hidden="true">◀</span>
+          <span class="sidebar-toggle-text">收起侧栏</span>
+        </button>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar topbar-row">
+        <nav class="breadcrumb" id="breadcrumb" aria-label="面包屑"></nav>
+        <div class="topbar-actions">
+          <button type="button" class="topbar-env-btn" id="topbarEnvBtn" title="本地 AI 环境" hidden>
+            <span id="topbarEnvDot" class="topbar-env-dot" aria-hidden="true"></span>
+            <span id="topbarEnvLabel">环境</span>
+          </button>
+          <button type="button" class="topbar-cap-btn" id="topbarCapabilityBtn" title="AI 能力与应用设置">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            设置
+          </button>
+          <button type="button" class="topbar-ai-btn" id="topbarAiBtn" title="打开 AI 助手">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/><path d="M19 13l.8 2.2L22 16l-2.2.8L19 19l-.8-2.2L16 16l2.2-.8L19 13z"/></svg>
+            AI助手
+          </button>
+        </div>
+      </header>
+
+      <div id="startupWarmupBar" class="startup-warmup-bar" hidden aria-live="polite"></div>
+
+      <div class="tabs-strip" id="tabsStrip" role="tablist" aria-label="功能标签页"></div>
+
+      <div class="tab-panels">
+        <div id="panel-new" class="tab-panel" role="tabpanel" hidden>
+          <section class="card">
+            <h2>新增待处理事项</h2>
+            <div class="template-toolbar grid-form">
+              <label>
+                任务模板
+                <select id="taskTemplateSelect" aria-label="选择任务模板">
+                  <option value="">— 选择模板快速填充 —</option>
+                </select>
+              </label>
+              <div class="actions template-actions">
+                <button type="button" id="applyTaskTemplateBtn" class="secondary">应用模板</button>
+                <button type="button" id="saveTaskTemplateBtn" class="secondary">保存为模板</button>
+                <button type="button" id="deleteTaskTemplateBtn" class="secondary">删除自定义模板</button>
+              </div>
+            </div>
+            <form id="taskForm" class="grid-form" novalidate>
+              <label>
+                登记事物ID（自动生成）
+                <input id="taskId" type="text" required readonly placeholder="保存时自动生成 TASK-YYYYMMDD-NNN" autocomplete="off" aria-describedby="taskIdHint taskIdError" />
+                <span id="taskIdHint" class="field-hint">系统自动生成唯一 ID，格式 TASK-YYYYMMDD-NNN，不可手动修改。</span>
+                <span id="taskIdError" class="field-error" role="alert" hidden></span>
+              </label>
+              <label>
+                跟进问题类型
+                <input id="issueType" type="text" required placeholder="例如：订单异常、系统故障" />
+              </label>
+              <label class="full">
+                跟进事物内容
+                <textarea id="content" rows="2" required placeholder="请输入任务描述"></textarea>
+              </label>
+              <label>
+                问题反馈人
+                <input id="reporter" type="text" required />
+              </label>
+              <label>
+                问题跟进处理人员
+                <input id="handler" type="text" required />
+              </label>
+              <label>
+                优先级
+                <select id="priority" required>
+                  <option value="高">高</option>
+                  <option value="中" selected>中</option>
+                  <option value="低">低</option>
+                </select>
+              </label>
+              <label>
+                截止日期
+                <input id="deadline" type="date" />
+              </label>
+              <label>
+                状态
+                <select id="status" required>
+                  <option value="待处理">待处理</option>
+                  <option value="处理中">处理中</option>
+                  <option value="已阻塞">已阻塞</option>
+                  <option value="已挂起">已挂起</option>
+                  <option value="已完结">已完结</option>
+                  <option value="已取消">已取消</option>
+                </select>
+              </label>
+              <label class="full">
+                备注（首次可选）
+                <textarea id="remark" rows="2" placeholder="可留空，后续可追加/修改"></textarea>
+              </label>
+              <div class="actions full">
+                <button type="submit">登记任务</button>
+                <button type="button" id="resetFormBtn" class="secondary">清空</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <div id="panel-filter" class="tab-panel" role="tabpanel" hidden>
+          <section class="card">
+            <h2>查询筛选</h2>
+            <form id="filterForm" class="grid-form">
+              <label>
+                开始日期
+                <input id="startDate" type="date" />
+              </label>
+              <label>
+                结束日期
+                <input id="endDate" type="date" />
+              </label>
+              <label>
+                按登记ID查询
+                <input id="searchId" type="text" placeholder="支持模糊查询" />
+              </label>
+              <label class="full">
+                跟进事项内容关键字
+                <input id="searchContent" type="text" placeholder="模糊匹配「跟进事物内容」字段，可与其它条件组合" autocomplete="off" />
+              </label>
+              <label>
+                按状态查询
+                <select id="filterStatus">
+                  <option value="">全部</option>
+                  <option value="待处理">待处理</option>
+                  <option value="处理中">处理中</option>
+                  <option value="已阻塞">已阻塞</option>
+                  <option value="已挂起">已挂起</option>
+                  <option value="已完结">已完结</option>
+                  <option value="已取消">已取消</option>
+                </select>
+              </label>
+              <label>
+                按优先级
+                <select id="filterPriority">
+                  <option value="">全部</option>
+                  <option value="高">高</option>
+                  <option value="中">中</option>
+                  <option value="低">低</option>
+                </select>
+              </label>
+              <div class="actions full">
+                <button type="submit">应用筛选</button>
+                <button type="button" id="clearFilterBtn" class="secondary">清空筛选</button>
+              </div>
+            </form>
+          </section>
+        </div>
+
+        <div id="panel-dashboard" class="tab-panel" role="tabpanel" hidden>
+          <section class="card card-fill">
+            <div class="table-header">
+              <h2>任务数据看板</h2>
+              <div class="table-header-tools">
+                <button type="button" id="dashboardRefreshBtn" class="secondary">刷新图表</button>
+                <button type="button" id="openCustomReportBtn" class="secondary">自定义报表</button>
+              </div>
+            </div>
+            <p class="field-hint dashboard-hint">饼图展示状态分布；柱状图展示处理人待办负载；折线图展示近 14 日登记趋势。</p>
+            <div id="dashboardRoot" class="dashboard-grid">
+              <div class="chart-card">
+                <canvas data-chart="pie" height="240" aria-label="任务状态分布饼图"></canvas>
+              </div>
+              <div class="chart-card">
+                <canvas data-chart="bar" height="240" aria-label="处理人负载柱状图"></canvas>
+              </div>
+              <div class="chart-card chart-card-wide">
+                <canvas data-chart="line" height="240" aria-label="近14日登记趋势折线图"></canvas>
+              </div>
+            </div>
+            <div id="dashboardSummary" class="dashboard-summary muted" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <div id="panel-list" class="tab-panel task-list-panel" role="tabpanel" hidden>
+          <section class="card card-fill task-list-card">
+            <div class="task-list-toolbar">
+              <span id="taskStats" class="task-stats-bar" aria-live="polite"></span>
+              <label class="task-quick-search task-list-search">
+                <span class="visually-hidden">搜索</span>
+                <input id="taskListQuickSearch" type="search" placeholder="关键字筛选当前列表" autocomplete="off" />
+              </label>
+              <div class="task-list-toolbar-actions">
+                <label class="task-list-sort">
+                  <span class="task-quick-search-label">排序</span>
+                  <select id="taskListSortBy" aria-label="列表排序">
+                    <option value="default">默认（登记顺序）</option>
+                    <option value="priority">优先级</option>
+                    <option value="deadline">截止日期</option>
+                  </select>
+                </label>
+                <button type="button" id="taskExportExcelBtn" class="task-toolbar-btn">导出 Excel</button>
+                <button type="button" id="listCustomReportBtn" class="task-toolbar-btn">自定义报表</button>
+              </div>
+            </div>
+            <div id="taskListEmpty" class="task-list-empty" hidden>
+              <div class="task-list-empty-icon" aria-hidden="true">📋</div>
+              <p>暂无匹配任务数据</p>
+            </div>
+            <div class="table-wrap task-table-wrap" id="taskTableWrap">
+              <table class="task-table-v2">
+                <colgroup>
+                  <col class="col-seq" />
+                  <col class="col-id" />
+                  <col class="col-type" />
+                  <col class="col-content" />
+                  <col class="col-priority" />
+                  <col class="col-deadline" />
+                  <col class="col-risk" />
+                  <col class="col-reporter" />
+                  <col class="col-handler" />
+                  <col class="col-created" />
+                  <col class="col-remark" />
+                  <col class="col-status" />
+                  <col class="col-ops" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>序列</th>
+                    <th>登记事物ID</th>
+                    <th class="col-type-th">跟进问题类型</th>
+                    <th>跟进事物内容</th>
+                    <th>优先级</th>
+                    <th>截止日期</th>
+                    <th>风险</th>
+                    <th>问题反馈人</th>
+                    <th class="col-handler-th">跟进处理人</th>
+                    <th>登记时间</th>
+                    <th>备注</th>
+                    <th class="col-status-th">状态</th>
+                    <th class="col-ops-th">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="taskTableBody"></tbody>
+              </table>
+            </div>
+            <div id="taskCardList" class="task-card-list" hidden aria-label="任务卡片列表"></div>
+            <div id="paginationBar" class="pagination-bar task-pagination-bar" aria-label="分页"></div>
+          </section>
+        </div>
+        <div id="taskListToast" class="task-list-toast" role="status" aria-live="polite" hidden></div>
+
+        <div id="panel-ai" class="tab-panel ai-panel-stretch" role="tabpanel" hidden>
+          <div id="aiWebFallback" class="card">
+            <p>AI 助手需使用<strong>桌面版（Electron）</strong>并配置 API。支持任意提供 <strong>OpenAI 兼容</strong> <code>/v1/chat/completions</code> 的供应商（MiniMax、OpenRouter、Together、本地 Ollama 等）。若已通过浏览器打开本页，请安装桌面客户端。</p>
+          </div>
+          <div id="aiPanelMain" class="ai-panel-main" hidden>
+            <div class="ai-panel-shell gradient-border glass-strong ai-chat-card">
+              <div id="aiChatStatus" class="ai-chat-status" aria-live="polite"></div>
+              <div class="ai-doc-workspace" id="aiDocWorkspace">
+                <div id="aiDocMainCol" class="ai-doc-main-col">
+                  <div class="ai-chat-search-bar" role="search">
+                    <div class="ai-chat-search-wrap">
+                      <span class="ai-chat-search-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>
+                      </span>
+                      <input id="aiChatSearchInput" type="search" placeholder="搜索本页对话（含折叠内容）" autocomplete="off" aria-label="对话搜索" />
+                    </div>
+                    <span id="aiChatSearchMeta" class="ai-chat-search-meta"></span>
+                    <button type="button" id="aiChatSearchPrev" class="ai-icon-btn" title="上一处" aria-label="上一处">↑</button>
+                    <button type="button" id="aiChatSearchNext" class="ai-icon-btn" title="下一处" aria-label="下一处">↓</button>
+                    <button type="button" id="aiChatSearchClear" class="ai-tool-btn">清除高亮</button>
+                    <button type="button" id="aiManageMemoryBtn" class="ai-tool-btn" title="查看、编辑或删除长期记忆">管理记忆</button>
+                    <button type="button" id="aiClearMemoryBtn" class="ai-tool-btn" title="清空已沉淀的长期记忆摘要">清空长期记忆</button>
+                    <button type="button" id="aiVoiceToggleBtn" class="ai-voice-toolbar-btn ai-icon-btn" aria-pressed="false" title="自动语音播报：关闭" aria-label="语音播报">
+                      <span class="ai-voice-toggle-icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M14 5.23v13.54a1 1 0 0 1-1.66.75L7.8 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h3.8l4.54-3.53A1 1 0 0 1 14 5.23z" fill="currentColor"/>
+                          <path d="M17.5 9.5a1 1 0 0 1 1.41 0A5 5 0 0 1 20.5 13a5 5 0 0 1-1.59 3.5 1 1 0 1 1-1.41-1.42A3 3 0 0 0 18.5 13a3 3 0 0 0-1-2.08 1 1 0 0 1 0-1.42z" fill="currentColor"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </div>
+                  <div class="ai-chat-body scroll-tech">
+                    <div id="aiChatEmpty" class="ai-chat-empty">
+                      <div class="ai-chat-empty-icon animate-float-slow glow-primary" aria-hidden="true">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/></svg>
+                      </div>
+                      <h2 class="ai-chat-empty-title text-glow">开始与 AI 助手对话</h2>
+                      <p class="ai-chat-empty-desc">在下方输入框提问或下达指令，可开启联网搜索、知识库检索与长期记忆，让助手更懂你的工作。</p>
+                      <div class="ai-chat-empty-chips">
+                        <button type="button" class="ai-quick" data-prompt="today">总结今天的任务</button>
+                        <button type="button" class="ai-quick" data-prompt="weekly">生成周报</button>
+                        <button type="button" class="ai-quick" data-prompt="kb">查询本地知识库</button>
+                      </div>
+                    </div>
+                    <div id="aiChatLog" class="ai-chat-log scroll-tech" aria-live="polite"></div>
+                  </div>
+                  <div class="ai-input-stack">
+                    <div class="ai-composer" id="aiComposer" aria-label="AI 一体化输入区">
+                      <div class="ai-composer-panel" id="aiComposerPanel">
+                        <div id="aiVisionAttachBar" class="ai-vision-attach-inline" hidden>
+                          <div id="aiVisionThumbRow" class="ai-vision-thumb-row"></div>
+                        </div>
+                        <textarea
+                          id="aiUserInput"
+                          class="ai-composer-textarea"
+                          rows="1"
+                          placeholder="输入问题或指令，Enter 发送（Shift+Enter 换行）"
+                          spellcheck="true"
+                        ></textarea>
+                      </div>
+                      <div class="ai-composer-footer" role="toolbar" aria-label="模型、模式与联网">
+                        <div class="ai-composer-footer-left">
+                          <div class="ai-profile-dropdown-wrap">
+                            <button
+                              type="button"
+                              id="aiProfileTrigger"
+                              class="ai-web-toggle ai-profile-trigger"
+                              aria-haspopup="listbox"
+                              aria-expanded="false"
+                              aria-controls="aiProfileMenu"
+                              title="当前模型配置"
+                            >
+                              <span class="ai-profile-trigger-text">模型选择</span>
+                              <span class="ai-profile-trigger-chevron" aria-hidden="true">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                              </span>
+                            </button>
+                            <div id="aiProfileMenu" class="ai-profile-panel" role="listbox" aria-label="模型选择" hidden>
+                              <div class="ai-profile-panel__tabs" role="tablist" aria-label="模型来源">
+                                <button type="button" class="ai-profile-panel__tab is-active" data-profile-tab="cloud" role="tab" aria-selected="true">
+                                  <span class="ai-profile-panel__tab-icon" aria-hidden="true">☁</span>
+                                  <span>云端 API</span>
+                                </button>
+                                <button type="button" class="ai-profile-panel__tab" data-profile-tab="local" role="tab" aria-selected="false">
+                                  <span class="ai-profile-panel__tab-icon" aria-hidden="true">🖥</span>
+                                  <span>本地模型</span>
+                                </button>
+                              </div>
+                              <div class="ai-profile-panel__search-row">
+                                <label class="ai-profile-panel__search">
+                                  <span class="ai-sr-only">搜索模型</span>
+                                  <input id="aiProfileSearchInput" type="search" placeholder="搜索模型名称或提供商" autocomplete="off" />
+                                </label>
+                              </div>
+                              <div id="aiProfilePanelBody" class="ai-profile-panel__body"></div>
+                              <div class="ai-profile-panel__foot">
+                                <button type="button" id="aiProfileManageBtn" class="ai-profile-panel__manage">
+                                  <span class="ai-profile-panel__manage-icon" aria-hidden="true">⚙</span>
+                                  <span>管理模型与提供商</span>
+                                </button>
+                              </div>
+                            </div>
+                            <select id="aiProfileSelect" class="ai-sr-only" tabindex="-1" aria-hidden="true"></select>
+                          </div>
+                        </div>
+                        <div class="ai-composer-footer-right">
+                          <div class="ai-mode-compact-wrap">
+                            <button
+                              type="button"
+                              id="aiModeCompactTrigger"
+                              class="ai-mode-compact-trigger"
+                              aria-haspopup="listbox"
+                              aria-expanded="false"
+                              aria-controls="aiModeCompactMenu"
+                              title="点击展开或收起；菜单外点击关闭。Ctrl+Tab 循环切换模式"
+                            >
+                              <span id="aiModeCompactLabel">对话</span>
+                              <span class="ai-mode-compact-chevron" aria-hidden="true">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                              </span>
+                            </button>
+                            <div id="aiModeCompactMenu" class="ai-mode-compact-menu" role="listbox" aria-label="AI 功能切换" hidden>
+                              <button type="button" id="aiModeChatBtn" class="ai-mode-menu-item is-on" data-mode="chat" aria-pressed="true">
+                                <span class="ai-mode-menu-item-text">对话</span>
+                              </button>
+                              <button type="button" id="aiModeImageGenBtn" class="ai-mode-menu-item" data-mode="image-gen" aria-pressed="false">
+                                <span class="ai-mode-menu-item-text">文生图</span>
+                              </button>
+                              <button type="button" id="aiModeImageVisionBtn" class="ai-mode-menu-item" data-mode="image-vision" aria-pressed="false">
+                                <span class="ai-mode-menu-item-text">图像理解</span>
+                              </button>
+                            </div>
+                          </div>
+                          <button type="button" id="aiDocPreviewToggleBtn" class="ai-web-toggle ai-composer-web-btn" hidden title="重新打开右侧文档预览">文档预览</button>
+                          <button type="button" id="aiWebToggleBtn" class="ai-web-toggle ai-composer-web-btn" aria-pressed="false" title="联网检索（默认建议开启）：发送前由本客户端经公开接口拉取摘要写入对话；走系统代理，便于换机后仍能检索新闻。关闭则仅依赖模型自身知识。">
+                            <span class="ai-web-toggle-icon" aria-hidden="true">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+                              </svg>
+                            </span>
+                            <span class="ai-web-toggle-text">联网</span>
+                          </button>
+                          <button type="button" id="aiKbToggleBtn" class="ai-web-toggle ai-composer-web-btn" aria-pressed="false" title="控制 AI 是否允许调用本地知识库工具（kb_search）。关闭后即使技能已启用也不会调用知识库。">
+                            <span class="ai-web-toggle-text">知识库</span>
+                          </button>
+                          <button type="button" id="aiMemoryToggleBtn" class="ai-web-toggle ai-composer-web-btn" aria-pressed="false" title="长期记忆：开启后会沉淀历史问答摘要，并在后续对话中参考。">
+                            <span class="ai-web-toggle-text">长期记忆</span>
+                          </button>
+                          <button
+                            type="button"
+                            id="aiVoiceInputBtn"
+                            class="ai-web-toggle ai-composer-web-btn ai-voice-composer-btn"
+                            aria-pressed="false"
+                            aria-label="语音问答，按住说话"
+                            title="语音问答：按住说话，松开发送"
+                          >
+                            <span class="ai-voice-composer-icon ai-voice-icon-mic" aria-hidden="true">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path
+                                  d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V20h2v-2.08A7 7 0 0019 11h-2z"
+                                  fill="currentColor"
+                                />
+                              </svg>
+                            </span>
+                            <span class="ai-voice-composer-icon ai-voice-icon-stop" aria-hidden="true" hidden>
+                              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75" fill="none" />
+                                <rect x="9" y="9" width="6" height="6" rx="1.2" fill="currentColor" />
+                              </svg>
+                            </span>
+                          </button>
+                          <button type="button" id="aiSendBtn" class="ai-send-btn" aria-label="发送" title="发送">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div id="aiDocSplitHandle" class="ai-doc-split-handle" hidden aria-hidden="true"></div>
+                <aside id="aiDocPreviewPane" class="ai-doc-preview-pane" hidden>
+                  <div class="ai-doc-preview-head">
+                    <div class="ai-doc-preview-head-actions">
+                      <select id="aiDocPreviewSelect" aria-label="选择右侧预览文档"></select>
+                      <div class="ai-doc-zoom-controls" aria-label="文档缩放">
+                        <button type="button" id="aiDocZoomOutBtn" class="secondary ai-doc-zoom-btn" title="缩小">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        </button>
+                        <button type="button" id="aiDocZoomResetBtn" class="secondary" title="重置缩放">100%</button>
+                        <button type="button" id="aiDocZoomInBtn" class="secondary ai-doc-zoom-btn" title="放大">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.2-4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M11 8v6M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                        </button>
+                      </div>
+                      <button type="button" id="aiDocPreviewCloseBtn" class="secondary">关闭预览</button>
+                    </div>
+                  </div>
+                  <div class="ai-doc-preview-content-wrap">
+                    <iframe id="aiDocPreviewFrame" class="ai-doc-preview-frame" title="文档预览" hidden></iframe>
+                    <img id="aiDocPreviewImage" class="ai-doc-preview-image" alt="文档图片预览" hidden />
+                    <div id="aiDocPreviewHtml" class="ai-doc-preview-html" hidden></div>
+                    <pre id="aiDocPreviewContent" class="ai-doc-preview-content"></pre>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="panel-record" class="tab-panel" role="tabpanel" hidden>
+          <section class="card">
+            <h2>记录助手</h2>
+            <p class="field-hint">开启后可实时语音转文字；停止录音后可自动调用大模型整理分析，并支持导出 Word 文档（.doc）。</p>
+            <div class="record-toolbar">
+              <button type="button" id="recordStartBtn">开始录音</button>
+              <button type="button" id="recordStopBtn" class="secondary" disabled>停止录音</button>
+              <label class="record-inline-check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
+              <button type="button" id="recordASRSettingsBtn" class="secondary">ASR设置</button>
+              <button type="button" id="recordAnalyzeBtn" class="secondary">手动分析</button>
+              <button type="button" id="recordExportBtn" class="secondary">导出 Word</button>
+            </div>
+            <div id="recordStatus" class="record-status">待机</div>
+            <label>
+              实时转写文本
+              <textarea id="recordTranscript" rows="10" placeholder="开始录音后，这里会实时显示转写文本。"></textarea>
+            </label>
+            <label>
+              AI 整理分析结果
+              <textarea id="recordAnalysis" rows="10" placeholder="可手动点击「手动分析」或在停止录音后自动生成。"></textarea>
+            </label>
+          </section>
+        </div>
+
+        <div id="panel-media" class="tab-panel" role="tabpanel" hidden>
+          <div id="mediaWebFallback" class="card" hidden>
+            <p>图像与语音能力需在<strong>桌面版（Electron）</strong>中使用。</p>
+          </div>
+          <div id="mediaPanelMain" class="media-panel-main">
+            <section class="card">
+              <h2>文生图</h2>
+              <p class="field-hint">使用 OpenAI 兼容 <code>/v1/images/generations</code>。勾选「动感/动图」时会在提示词后追加动感说明（是否输出真 GIF/视频取决于供应商）。请先在顶栏「设置」中开启图像生成并配置 Key（统一路由下与对话模型共用）。</p>
+              <label class="full">
+                提示词
+                <textarea id="mediaGenPrompt" rows="3" placeholder="描述画面内容、风格等"></textarea>
+              </label>
+              <label class="media-inline-check"><input id="mediaMotionCheck" type="checkbox" /> 动感 / 动图倾向（追加提示后缀）</label>
+              <div class="actions">
+                <button type="button" id="mediaGenBtn">生成图片</button>
+              </div>
+              <p id="mediaGenStatus" class="media-status" aria-live="polite"></p>
+              <div class="media-preview-wrap">
+                <img id="mediaGenPreview" class="media-gen-preview" alt="生成结果" hidden />
+              </div>
+            </section>
+            <section class="card">
+              <h2>图像理解</h2>
+              <p class="field-hint">使用多模态 <code>/v1/chat/completions</code>（<code>image_url</code>）。需支持视觉的模型 ID（如 gpt-4o）。</p>
+              <label class="full">
+                选择图片
+                <input id="mediaUnderstandFile" type="file" accept="image/*" />
+              </label>
+              <label class="full">
+                提问（可选）
+                <input id="mediaUnderstandPrompt" type="text" placeholder="默认识别并描述图片" />
+              </label>
+              <div class="actions">
+                <button type="button" id="mediaUnderstandBtn" class="secondary">分析图片</button>
+              </div>
+              <p id="mediaUnderstandStatus" class="media-status" aria-live="polite"></p>
+              <label class="full">
+                结果
+                <textarea id="mediaUnderstandOut" rows="8" readonly placeholder="分析结果将显示在这里"></textarea>
+              </label>
+            </section>
+            <section class="card">
+              <h2>语音播报测试</h2>
+              <p class="field-hint">OpenAI 兼容为 <code>/v1/audio/speech</code>；国内 MiniMax 为 <code>/v1/t2a_v2</code>（程序按 Base 域名自动选择）。需开启「设置」中的语音播报。</p>
+              <label class="full">
+                测试文本
+                <input id="mediaTtsTestText" type="text" placeholder="输入要朗读的短句" value="这是一条语音合成测试。" />
+              </label>
+              <div class="actions">
+                <button type="button" id="mediaTtsTestBtn" class="secondary">试听 TTS</button>
+              </div>
+              <p id="mediaTtsStatus" class="media-status" aria-live="polite"></p>
+            </section>
+          </div>
+        </div>
+
+        <div id="panel-knowledge-base" class="tab-panel kb-panel-stretch" role="tabpanel" hidden>
+          <section class="card kb-panel-card">
+            <div class="kb-panel-head">
+              <div class="kb-panel-head__titles">
+                <h2>本地知识库</h2>
+                <p class="field-hint kb-panel-desc">向量 + 关键词 + 元数据多路召回 · 可解释排序与检索调试</p>
+              </div>
+              <button type="button" id="kbConfigOpenBtn" class="secondary kb-config-icon-btn" title="知识库配置" aria-label="知识库配置">
+                <span aria-hidden="true">⚙</span>
+              </button>
+            </div>
+            <div class="kb-stats-wrap">
+              <div id="kbStatsBar" class="kb-stats-bar" aria-label="知识库概览"></div>
+              <button type="button" id="kbStatsOpsLogBtn" class="secondary kb-stats-ops-btn" title="查看操作日志">操作日志</button>
+            </div>
+            <div class="kb-workspace">
+              <aside class="kb-left-pane">
+                <section class="kb-left-card kb-dir-panel">
+                  <div class="kb-section-head">
+                    <h3 class="kb-subtitle">知识库目录</h3>
+                    <button type="button" id="kbMainCreateLibraryBtn" class="secondary kb-dir-create-btn">+ 新建目录</button>
+                  </div>
+                  <p id="kbIngestProgress" class="kb-ingest-progress" hidden aria-live="polite"></p>
+                  <div id="kbIngestModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
+                  <div class="kb-dir-table" role="table" aria-label="知识库目录列表">
+                    <div class="kb-dir-table__head" role="row">
+                      <span role="columnheader">目录名称</span>
+                      <span role="columnheader">文档数</span>
+                      <span role="columnheader">状态</span>
+                      <span role="columnheader">操作</span>
+                    </div>
+                    <div id="kbDirTree" class="kb-dir-table__body"></div>
+                  </div>
+                </section>
+                <section class="kb-left-card kb-ingest-panel">
+                  <div class="kb-section-head">
+                    <h3 class="kb-subtitle">入库文档（按知识库目录）</h3>
+                    <span id="kbIngestTotal" class="kb-ingest-total">总数 0 份</span>
+                  </div>
+                  <div class="kb-ingest-table kb-ingest-table--summary" role="table" aria-label="入库文档汇总">
+                    <div class="kb-ingest-table__head kb-ingest-table__head--summary" role="row">
+                      <span role="columnheader">目录</span>
+                      <span role="columnheader">文档数</span>
+                      <span role="columnheader">最近更新</span>
+                    </div>
+                    <div id="kbDocSummary" class="kb-ingest-table__body"></div>
+                  </div>
+                  <button type="button" id="kbViewAllDocsBtn" class="kb-panel-link">查看全部文档 →</button>
+                  <div id="kbIngestFull" class="kb-ingest-full" hidden>
+                    <div class="kb-ingest-table kb-ingest-table--full" role="table" aria-label="全部入库文档">
+                      <div class="kb-ingest-table__head kb-ingest-table__head--full" role="row">
+                        <span role="columnheader">目录</span>
+                        <span role="columnheader">文档名称</span>
+                        <span role="columnheader">入库时间</span>
+                        <span role="columnheader">操作</span>
+                      </div>
+                      <div id="kbDocList" class="kb-ingest-table__body"></div>
+                    </div>
+                  </div>
+                </section>
+                <section class="kb-left-card kb-auto-learn-queue-box" id="kbAutoLearnQueueBox">
+                  <div class="kb-auto-learn-queue-head">
+                    <h3 class="kb-subtitle">自动学习待审核</h3>
+                    <span id="kbAutoLearnPendingBadge" class="kb-pending-badge">待审核 <span id="kbAutoLearnPendingCount">0</span></span>
+                  </div>
+                  <div class="kb-queue-table" role="table" aria-label="自动学习待审核列表">
+                    <div class="kb-queue-table__head" role="row">
+                      <span role="columnheader">标题</span>
+                      <span role="columnheader">来源</span>
+                      <span role="columnheader">发现时间</span>
+                      <span role="columnheader">操作</span>
+                    </div>
+                    <div id="kbAutoLearnQueueList" class="kb-queue-table__body">
+                      <div class="kb-queue-empty-state">
+                        <p class="kb-queue-empty__title">暂无待审核条目</p>
+                        <p class="kb-queue-empty__hint">系统将在此展示自动学习待审核内容。</p>
+                      </div>
+                    </div>
+                  </div>
+                  <button type="button" id="kbAutoLearnQueueRefreshBtn" class="kb-panel-link">查看全部记录 →</button>
+                </section>
+              </aside>
+              <div class="kb-main-pane">
+                <div class="kb-search-box kb-graph-box kb-graph-panel">
+                  <div class="kb-graph-head">
+                    <h3 class="kb-subtitle">知识图谱预览</h3>
+                    <div class="kb-graph-actions">
+                      <label class="record-inline-check"><input id="kbGraphGlobalScope" type="checkbox" checked /> 全局图谱</label>
+                      <label class="record-inline-check"><input id="kbGraphForceEnabled" type="checkbox" checked /> 力导向</label>
+                      <label class="record-inline-check"><input id="kbGraphKeepLayout" type="checkbox" checked /> 保留布局</label>
+                      <label class="record-inline-check"><input id="kbGraphOnlyDocs" type="checkbox" /> 仅文档节点</label>
+                      <button type="button" id="kbGraphResetLayoutBtn" class="secondary">重置布局</button>
+                      <button type="button" id="kbGraphRefreshBtn" class="secondary">重建图谱</button>
+                    </div>
+                  </div>
+                  <p id="kbGraphMeta" class="field-hint kb-graph-meta">尚未生成图谱。</p>
+                  <div class="kb-graph-stage" id="kbGraphStage">
+                    <div class="kb-graph-stage__grid" aria-hidden="true"></div>
+                    <div class="kb-graph-stage__vignette" aria-hidden="true"></div>
+                    <svg id="kbGraphCanvas" class="kb-graph-canvas" viewBox="0 0 820 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="知识库关系图谱"></svg>
+                    <div class="kb-graph-stage__toolbar">
+                      <button type="button" id="kbGraphFullscreenBtn" class="kb-graph-stage__btn" title="全屏观看" aria-label="全屏观看">全屏</button>
+                    </div>
+                    <p class="kb-graph-stage__hint">滚轮缩放 · 拖拽平移 · 双击文档节点打开 · 双击空白重置</p>
+                  </div>
+                </div>
+                <div class="kb-search-workbench">
+                  <div class="kb-search-box kb-search-trial-box">
+                    <div class="kb-trial-form">
+                      <div class="kb-trial-head">
+                        <h3 class="kb-subtitle">检索试用</h3>
+                        <div class="kb-trial-head__actions">
+                          <button type="button" id="kbTrialClearBtn" class="secondary kb-trial-head-btn">清空条件</button>
+                          <button type="button" id="kbTrialSettingsBtn" class="secondary kb-trial-head-btn">检索设置</button>
+                        </div>
+                      </div>
+                      <p class="field-hint kb-trial-desc">在选定的知识库范围内进行检索测试，支持多库联合检索。</p>
+                      <div class="kb-trial-scope-box">
+                        <label class="record-inline-check kb-trial-multi-check">
+                          <input id="kbTrialSearchAllLibraries" type="checkbox" checked /> 多知识库联合检索
+                        </label>
+                        <div class="kb-trial-libraries-wrap">
+                          <label class="record-inline-check kb-trial-select-all">
+                            <input id="kbTrialSelectAll" type="checkbox" checked /> 全选
+                          </label>
+                          <div id="kbTrialLibraries" class="kb-trial-libraries"></div>
+                        </div>
+                      </div>
+                      <div class="kb-trial-query-row">
+                        <label class="kb-trial-query-label">
+                          <span class="kb-trial-query-label__text">问题</span>
+                          <div class="kb-trial-query-field">
+                            <textarea id="kbTrialQuery" rows="2" maxlength="500" placeholder="请输入要问知识库的内容…" autocomplete="off"></textarea>
+                            <span id="kbTrialCharCount" class="kb-trial-char-count">0/500</span>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                    <div class="kb-trial-footer">
+                      <div class="kb-trial-footer__left">
+                        <button type="button" id="kbTrialSearchBtn" class="kb-trial-search-btn">检索</button>
+                        <button type="button" id="kbTrialResetBtn" class="secondary">重置</button>
+                      </div>
+                      <button type="button" id="kbTrialHistoryBtn" class="kb-panel-link kb-trial-history-link">检索历史 →</button>
+                    </div>
+                    <p id="kbTrialStatus" class="kb-trial-status" hidden aria-live="polite"></p>
+                    <div id="kbTrialModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
+                    <div id="kbTrialResults" class="kb-trial-results" aria-live="polite"></div>
+                    <div id="kbTrialDebug" class="kb-trial-debug" hidden aria-hidden="true"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+          <dialog id="kbOpsLogDialog" class="kb-ops-log-dialog" aria-labelledby="kbOpsLogDialogTitle">
+            <div class="kb-ops-log-shell">
+              <header class="kb-ops-log-head">
+                <div>
+                  <h3 id="kbOpsLogDialogTitle" class="kb-ops-log-title">操作日志</h3>
+                  <p id="kbOpsLogDialogMeta" class="field-hint kb-ops-log-meta">记录检索、入库与自动学习相关操作</p>
+                </div>
+                <button type="button" id="kbOpsLogCloseBtn" class="kb-btn kb-ops-log-close" aria-label="关闭">×</button>
+              </header>
+              <div class="kb-ops-log-filters" role="tablist" aria-label="日志类型">
+                <button type="button" class="kb-ops-log-filter is-active" data-kb-log-filter="all">全部</button>
+                <button type="button" class="kb-ops-log-filter" data-kb-log-filter="auto-learn">自动学习</button>
+                <button type="button" class="kb-ops-log-filter" data-kb-log-filter="search">检索</button>
+                <button type="button" class="kb-ops-log-filter" data-kb-log-filter="ingest">入库</button>
+              </div>
+              <div class="kb-ops-log-table" role="table" aria-label="操作日志列表">
+                <div class="kb-ops-log-table__head" role="row">
+                  <span role="columnheader">时间</span>
+                  <span role="columnheader">类型</span>
+                  <span role="columnheader">标题</span>
+                  <span role="columnheader">操作</span>
+                </div>
+                <div id="kbOpsLogList" class="kb-ops-log-table__body"></div>
+              </div>
+              <footer class="kb-ops-log-foot">
+                <button type="button" id="kbOpsLogRefreshBtn" class="secondary">刷新</button>
+                <button type="button" id="kbOpsLogCloseBtn2" class="secondary">关闭</button>
+              </footer>
+            </div>
+          </dialog>
+          <dialog id="kbModelHealthDialog" class="kb-model-health-dialog kb-dialog-light" aria-labelledby="kbModelHealthDialogTitle">
+            <div class="kb-mh-shell">
+              <header class="kb-mh-head">
+                <div>
+                  <h3 id="kbModelHealthDialogTitle" class="kb-mh-title">模型健康检测</h3>
+                  <p id="kbModelHealthSummary" class="kb-mh-summary field-hint">检测 Ollama 服务、嵌入模型与重排序模型是否可用</p>
+                </div>
+                <button type="button" id="kbModelHealthCloseBtn" class="kb-btn kb-mh-close" aria-label="关闭">×</button>
+              </header>
+              <div class="kb-mh-overview">
+                <span id="kbModelHealthOverallBadge" class="kb-mh-overall-badge is-unknown">未检测</span>
+                <span id="kbModelHealthCheckedAt" class="kb-mh-checked-at">最近检测：—</span>
+                <span id="kbModelHealthDuration" class="kb-mh-duration"></span>
+              </div>
+              <section class="kb-mh-history-wrap">
+                <h4 class="kb-mh-history-title">最近检测记录</h4>
+                <ul id="kbModelHealthHistory" class="kb-mh-history"></ul>
+              </section>
+              <div class="kb-mh-cards">
+                <article class="kb-mh-card" id="kbModelHealthOllamaCard">
+                  <div class="kb-mh-card__head">
+                    <h4>Ollama 服务</h4>
+                    <span class="kb-mh-status is-unknown" data-kb-mh-status="ollama">—</span>
+                  </div>
+                  <dl class="kb-mh-kv" id="kbModelHealthOllamaBody"></dl>
+                </article>
+                <article class="kb-mh-card" id="kbModelHealthEmbedCard">
+                  <div class="kb-mh-card__head">
+                    <h4>嵌入模型</h4>
+                    <span class="kb-mh-status is-unknown" data-kb-mh-status="embedding">—</span>
+                  </div>
+                  <dl class="kb-mh-kv" id="kbModelHealthEmbedBody"></dl>
+                </article>
+                <article class="kb-mh-card" id="kbModelHealthRerankCard">
+                  <div class="kb-mh-card__head">
+                    <h4>重排序模型</h4>
+                    <span class="kb-mh-status is-unknown" data-kb-mh-status="reranker">—</span>
+                  </div>
+                  <dl class="kb-mh-kv" id="kbModelHealthRerankBody"></dl>
+                </article>
+              </div>
+              <section class="kb-mh-suggestions-wrap">
+                <h4 class="kb-mh-suggestions-title">修复建议</h4>
+                <ul id="kbModelHealthSuggestions" class="kb-mh-suggestions"></ul>
+              </section>
+              <details class="kb-mh-details">
+                <summary>技术详情（JSON）</summary>
+                <pre id="kbModelHealthJson" class="kb-mh-json"></pre>
+              </details>
+              <footer class="kb-mh-foot">
+                <button type="button" id="kbModelHealthRecheckBtn" class="kb-btn kb-btn--primary">重新检测</button>
+                <button type="button" id="kbModelHealthCopyBtn" class="kb-btn">复制诊断信息</button>
+                <button type="button" id="kbModelHealthOpenConfigBtn" class="kb-btn">打开模型配置</button>
+                <button type="button" id="kbModelHealthCloseBtn2" class="kb-btn">关闭</button>
+              </footer>
+            </div>
+          </dialog>
+          <dialog id="kbSearchResultDialog" class="kb-search-result-dialog" aria-labelledby="kbSearchResultDialogTitle">
+            <div class="kb-search-result-shell">
+              <header class="kb-search-result-head">
+                <div class="kb-search-result-head__text">
+                  <h3 id="kbSearchResultDialogTitle" class="kb-search-result-title">检索结果</h3>
+                  <p id="kbSearchResultQuery" class="kb-search-result-query"></p>
+                  <p id="kbSearchResultMeta" class="field-hint kb-search-result-meta"></p>
+                  <div id="kbSearchResultModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
+                </div>
+                <button type="button" id="kbSearchResultCloseBtn" class="kb-btn kb-search-result-close" aria-label="关闭">×</button>
+              </header>
+              <div class="kb-search-result-body">
+                <aside class="kb-search-result-list-wrap" aria-label="命中列表">
+                  <div id="kbSearchResultList" class="kb-search-result-list"></div>
+                </aside>
+                <main class="kb-search-result-detail-wrap" aria-label="命中详情">
+                  <div id="kbSearchResultDetail" class="kb-search-result-detail">
+                    <p class="kb-search-result-detail-empty">选择左侧条目查看详情</p>
+                  </div>
+                </main>
+              </div>
+              <footer class="kb-search-result-foot">
+                <div class="kb-search-result-foot__left">
+                  <button type="button" id="kbSearchResultCopyBtn" class="secondary" disabled>复制片段</button>
+                  <button type="button" id="kbSearchResultLocateBtn" class="secondary" disabled>定位到目录树</button>
+                </div>
+                <div class="kb-search-result-foot__right">
+                  <button type="button" id="kbSearchResultOpenDocBtn" class="secondary" disabled>打开源文件</button>
+                  <button type="button" id="kbSearchResultCloseBtn2" class="secondary">关闭</button>
+                </div>
+              </footer>
+            </div>
+          </dialog>
+          <dialog id="kbConfigDialog" class="kb-config-dialog" aria-labelledby="kbConfigDialogTitle">
+            <div class="kb-config-shell">
+              <header class="kb-topbar">
+                <div class="kb-topbar__left">
+                  <h3 id="kbConfigDialogTitle" class="kb-topbar__title">知识库配置</h3>
+                  <span id="kbConfigSavedBadge" class="kb-topbar__status" aria-live="polite">已保存</span>
+                </div>
+                <div class="kb-topbar__actions">
+                  <button type="button" id="kbConfigVerifyBtn" class="kb-btn">验证配置</button>
+                  <button type="button" id="kbConfigPreviewBtn" class="kb-btn">预览检索</button>
+                  <button type="button" id="kbUseDefaultStorageBtn" class="kb-btn" title="恢复默认存储目录">⋯</button>
+                  <button type="button" id="kbConfigCloseBtn" class="kb-btn kb-config-close-btn" aria-label="关闭配置弹窗">×</button>
+                </div>
+              </header>
+              <div class="kb-config-body">
+                <aside class="kb-side-nav">
+                  <nav class="kb-config-nav" aria-label="配置分区">
+                    <button type="button" class="kb-config-nav-item is-active" data-section="basic">
+                      <span class="kb-config-nav-label">基础配置</span>
+                      <span class="kb-config-nav-desc">目录与基本信息</span>
+                    </button>
+                    <button type="button" class="kb-config-nav-item" data-section="retrieval">
+                      <span class="kb-config-nav-label">检索策略</span>
+                      <span class="kb-config-nav-desc">检索方式与参数</span>
+                    </button>
+                    <button type="button" class="kb-config-nav-item" data-section="automation">
+                      <span class="kb-config-nav-label">自动化</span>
+                      <span class="kb-config-nav-desc">入库与学习设置</span>
+                    </button>
+                    <button type="button" class="kb-config-nav-item" data-section="ops">
+                      <span class="kb-config-nav-label">索引与运维</span>
+                      <span class="kb-config-nav-desc">监控与操作</span>
+                    </button>
+                  </nav>
+                  <div class="kb-side-status">
+                    <p>当前目录：<strong id="kbConfigSidebarDir">—</strong></p>
+                    <p id="kbConfigSidebarChunks">共 0 条向量分片</p>
+                    <p>向量模型：<code id="kbConfigSidebarModel">bge-m3</code></p>
+                    <p>存储位置：</p>
+                    <p id="kbConfigSidebarStorage" class="kb-side-status__path" title="">—</p>
+                    <button type="button" id="kbConfigOpenDirBtn" class="kb-side-status__link">打开目录</button>
+                  </div>
+                </aside>
+                <main class="kb-main-scroll">
+                  <div class="kb-main-stack" id="kbConfigSections">
+                    <details class="kb-card" id="kbConfigSectionBasic" data-section="basic" open>
+                      <summary class="kb-card__header">
+                        <div class="kb-card__title-wrap">
+                          <span class="kb-card__title">目录与基本信息</span>
+                          <span class="kb-card__subtitle">配置知识库目录、模型与基本参数</span>
+                        </div>
+                        <span class="kb-card__chevron" aria-hidden="true"></span>
+                      </summary>
+                      <div class="kb-card__body">
+                        <div class="kb-dir-grid kb-dir-grid--compact">
+                          <div class="kb-form-field kb-dir-grid__manage">
+                            <span class="kb-label">目录管理</span>
+                            <select id="kbLibrarySelect" class="kb-select"></select>
+                          </div>
+                          <div class="kb-form-field kb-dir-grid__storage">
+                            <span class="kb-label">知识库存储目录</span>
+                            <div class="kb-path-field">
+                              <input id="kbStorageDirInput" class="kb-input" type="text" readonly placeholder="默认：应用用户目录\\knowledge-base" />
+                              <button type="button" id="kbChooseStorageDirBtn" class="kb-icon-btn" title="选择存储目录" aria-label="选择存储目录">📁</button>
+                            </div>
+                          </div>
+                          <div class="kb-form-field kb-dir-grid__new">
+                            <span class="kb-label">新建知识库目录</span>
+                            <input id="kbNewLibraryName" class="kb-input" type="text" placeholder="例如：售后SOP库" autocomplete="off" />
+                          </div>
+                          <div class="kb-dir-grid__actions">
+                            <button type="button" id="kbCreateLibraryBtn" class="kb-btn kb-btn--compact">新建并切换</button>
+                            <button type="button" id="kbChooseStorageDirTextBtn" class="kb-btn kb-btn--compact">选择目录</button>
+                          </div>
+                        </div>
+                        <div class="kb-form-grid kb-form-grid--basic-4 kb-mt-12">
+                          <div class="kb-form-field"><span class="kb-label">分片长度（字符）</span><input id="kbChunkSize" class="kb-input" type="number" min="200" max="4000" step="50" /></div>
+                          <div class="kb-form-field"><span class="kb-label">分片重叠（字符）</span><input id="kbChunkOverlap" class="kb-input" type="number" min="0" max="2000" step="10" /></div>
+                          <div class="kb-form-field"><span class="kb-label">Ollama 嵌入模型名</span><input id="kbEmbedModel" class="kb-input" type="text" placeholder="例如 bge-m3" autocomplete="off" /></div>
+                          <div class="kb-form-field"><span class="kb-label">重排模型（bge-reranker）</span><input id="kbRerankModel" class="kb-input" type="text" placeholder="dengcao/bge-reranker-v2-m3" autocomplete="off" /></div>
+                          <div class="kb-form-field"><span class="kb-label">向量候选池大小</span><input id="kbSearchCandidateK" class="kb-input" type="number" min="20" max="300" step="10" /></div>
+                        </div>
+                        <div class="kb-form-grid kb-form-grid--basic-5 kb-mt-12">
+                          <div class="kb-form-field"><span class="kb-label">默认检索条数</span><input id="kbSearchTopK" class="kb-input" type="number" min="1" max="20" step="1" /></div>
+                          <div class="kb-form-field"><span class="kb-label">最低相似度（0–1）</span><input id="kbSearchMinScore" class="kb-input" type="number" min="0" max="1" step="0.05" /></div>
+                          <div class="kb-form-field"><span class="kb-label">向量融合权重（0.1–0.95）</span><input id="kbHybridVectorWeight" class="kb-input" type="number" min="0.1" max="0.95" step="0.05" /></div>
+                          <div class="kb-form-field"><span class="kb-label">关键词候选池</span><input id="kbKeywordRecallLimit" class="kb-input" type="number" min="10" max="150" step="5" /></div>
+                          <div class="kb-form-field"><span class="kb-label">重排候选条数</span><input id="kbRerankTopN" class="kb-input" type="number" min="5" max="80" step="1" /></div>
+                          <div class="kb-form-field"><span class="kb-label">重排融合权重（0.1–0.95）</span><input id="kbRerankWeight" class="kb-input" type="number" min="0.1" max="0.95" step="0.05" /></div>
+                          <div class="kb-form-field">
+                            <span class="kb-label">重排引擎</span>
+                            <select id="kbRerankProvider" class="kb-select">
+                              <option value="auto">自动（Ollama → ONNX）</option>
+                              <option value="ollama">仅 Ollama</option>
+                              <option value="onnx">仅本地 ONNX</option>
+                            </select>
+                          </div>
+                          <div class="kb-form-field">
+                            <span class="kb-label">检索模式</span>
+                            <select id="kbSearchMode" class="kb-select">
+                              <option value="auto">自动（按问题类型）</option>
+                              <option value="hybrid">混合检索</option>
+                              <option value="semantic">语义优先</option>
+                              <option value="keyword">关键词/全文优先</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    </details>
+                    <details class="kb-card" id="kbConfigSectionRetrieval" data-section="retrieval" open>
+                      <summary class="kb-card__header">
+                        <div class="kb-card__title-wrap">
+                          <span class="kb-card__title">快速检索策略</span>
+                          <span class="kb-card__subtitle">选择分块策略并开启常用检索能力</span>
+                        </div>
+                        <span class="kb-card__chevron" aria-hidden="true"></span>
+                      </summary>
+                      <div class="kb-card__body">
+                        <div class="kb-strategy-row">
+                        <div class="kb-form-field kb-strategy-field">
+                          <span class="kb-label">分块策略</span>
+                          <select id="kbChunkStrategy" class="kb-select">
+                            <option value="semantic">语义分块（段落优先）</option>
+                            <option value="fixed">固定长度分块</option>
+                          </select>
+                          <div class="kb-help">优先按段落/语义边界切分，提升上下文完整性</div>
+                        </div>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">混合检索</span>
+                            <input id="kbHybridSearch" class="kb-switch" type="checkbox" />
+                          </div>
+                          <span class="kb-strategy-card__desc">向量 + 关键词 + 全文 + 元数据多路召回</span>
+                        </label>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">RRF 排名融合</span>
+                            <input id="kbUseRrfRanking" class="kb-switch" type="checkbox" checked />
+                          </div>
+                          <span class="kb-strategy-card__desc">替代简单线性加权，提升排序稳定性</span>
+                        </label>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">Cross-Encoder 重排</span>
+                            <input id="kbRerankEnabled" class="kb-switch" type="checkbox" checked />
+                          </div>
+                          <span class="kb-strategy-card__desc">召回后用 bge-reranker-v2-m3 精排，提升相关性</span>
+                        </label>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">关键词辅助</span>
+                            <input id="kbAiVerifyWriteback" class="kb-switch" type="checkbox" />
+                          </div>
+                          <span class="kb-strategy-card__desc">低置信时经授权联网核验后写回结果</span>
+                        </label>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">自动学习</span>
+                            <input id="kbAutoLearnEnabled" class="kb-switch" type="checkbox" />
+                          </div>
+                          <span class="kb-strategy-card__desc">AI 对话提炼关键知识写入当前知识库</span>
+                        </label>
+                        <label class="kb-strategy-card">
+                          <div class="kb-strategy-card__top">
+                            <span class="kb-strategy-card__title">人工审核写入</span>
+                            <input id="kbAutoLearnRequireConfirm" class="kb-switch" type="checkbox" />
+                          </div>
+                          <span class="kb-strategy-card__desc">待审核队列，批准后才入库</span>
+                        </label>
+                        <input id="kbAutoWebVerify" type="checkbox" hidden />
+                        </div>
+                      </div>
+                    </details>
+                    <details class="kb-card" id="kbConfigSectionAutomation" data-section="automation" open>
+                      <summary class="kb-card__header">
+                        <div class="kb-card__title-wrap">
+                          <span class="kb-card__title">问题与回答约束</span>
+                          <span class="kb-card__subtitle">控制自动学习写入的最小字数门槛</span>
+                        </div>
+                        <span class="kb-card__chevron" aria-hidden="true"></span>
+                      </summary>
+                      <div class="kb-card__body">
+                        <div class="kb-threshold-row">
+                          <label class="kb-threshold-inline">
+                            <span class="kb-label">最小问题字数</span>
+                            <input id="kbAutoLearnMinQuestionChars" class="kb-input kb-input--inline-num" type="number" min="1" max="200" value="6" />
+                            <span class="kb-help">低于该字数将提示用户补充</span>
+                          </label>
+                          <label class="kb-threshold-inline">
+                            <span class="kb-label">最小回答字数</span>
+                            <input id="kbAutoLearnMinAnswerChars" class="kb-input kb-input--inline-num" type="number" min="20" max="2000" value="80" />
+                            <span class="kb-help">低于该字数将提示模型补充</span>
+                          </label>
+                        </div>
+                      </div>
+                    </details>
+                    <details class="kb-card" id="kbConfigSectionOps" data-section="ops" open>
+                      <summary class="kb-card__header">
+                        <div class="kb-card__title-wrap">
+                          <span class="kb-card__title">监控与自动入库</span>
+                          <span class="kb-card__subtitle">控制入库策略与监控行为</span>
+                        </div>
+                        <span class="kb-card__chevron" aria-hidden="true"></span>
+                      </summary>
+                      <div class="kb-card__body kb-monitor-grid">
+                        <div class="kb-monitor-main">
+                          <div class="kb-form-field">
+                            <span class="kb-label">监控目录（自动入库）</span>
+                            <div class="kb-monitor-path-block">
+                              <div class="kb-monitor-path-row">
+                                <input id="kbWatchDirInput" class="kb-input kb-monitor-path-input" type="text" readonly placeholder="选择文件…" title="选择文件夹后，新增/修改文件将自动解析入库" />
+                                <button type="button" id="kbChooseWatchDirBtn" class="kb-btn kb-btn--compact kb-monitor-path-btn">选择目录</button>
+                              </div>
+                              <p id="kbWatchStatusHint" class="kb-watch-status-under">监听状态：未启用</p>
+                            </div>
+                          </div>
+                          <div class="kb-monitor-toggle-row">
+                            <label class="kb-switch-line kb-switch-line--inline">
+                              <input id="kbWatchDirEnabled" class="kb-switch" type="checkbox" />
+                              <span class="kb-switch-line__text">
+                                <span>启用监控目录自动入库</span>
+                                <small>保存后生效，修改文件将自动更新向量</small>
+                              </span>
+                            </label>
+                          </div>
+                          <p id="kbWatchStatusDetail" class="kb-monitor-detail field-hint" hidden></p>
+                          <p id="kbIndexHealthHint" class="kb-monitor-meta field-hint">元数据存储：SQLite（kb-store.sqlite）</p>
+                        </div>
+                        <div class="kb-index-actions">
+                          <div class="kb-index-actions__title">运维操作</div>
+                          <div class="kb-index-actions__grid">
+                            <button type="button" id="kbWatchScanNowBtn" class="kb-btn kb-btn--ops">立即扫描</button>
+                            <button type="button" id="kbRebuildEmbeddingsBtn" class="kb-btn kb-btn--ops">重建向量索引</button>
+                            <button type="button" id="kbRebuildFtsBtn" class="kb-btn kb-btn--ops">重建全文索引</button>
+                            <button type="button" id="kbIndexHealthBtn" class="kb-btn kb-btn--ops">索引健康检查</button>
+                            <button type="button" id="kbModelHealthBtn" class="kb-btn kb-btn--ops">模型健康检测</button>
+                          </div>
+                          <button type="button" id="kbOpsSaveBtn" class="kb-btn kb-btn--primary kb-btn--ops kb-index-actions__save">保存设置</button>
+                          <p id="kbOpsFeedback" class="kb-ops-feedback" role="status" aria-live="polite" hidden></p>
+                          <p class="kb-index-actions__warn">操作将影响当前知识库，请谨慎执行</p>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                </main>
+              </div>
+              <footer class="kb-footer-actions">
+                <div class="kb-footer-status">
+                  <span id="kbConfigLastSavedHint">最后保存：—</span>
+                  <span id="kbConfigAutoSaveHint" class="success">● 自动保存已开启</span>
+                </div>
+                <div class="kb-footer-buttons">
+                  <button type="button" id="kbConfigCancelBtn" class="kb-btn">取消</button>
+                  <button type="button" id="kbConfigRestoreDefaultsBtn" class="kb-btn">恢复默认</button>
+                  <button type="button" id="kbSaveSettingsBtn" class="kb-btn kb-btn--primary">保存设置</button>
+                </div>
+              </footer>
+              <p id="kbStatus" class="kb-config-status" aria-live="polite"></p>
+            </div>
+          </dialog>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <dialog id="reminderDialog" class="reminder-dialog reminder-dialog-light" aria-labelledby="reminderTitle">
+    <div class="reminder-dialog-inner">
+      <h3 id="reminderTitle" class="reminder-title">鲸落AI 任务跟进提示</h3>
+      <div id="reminderBody" class="reminder-body"></div>
+      <div class="reminder-actions">
+        <button type="button" id="reminderOkBtn" class="reminder-ok">我知道了</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="aiProfileItemEditDialog" class="ai-profiles-dialog">
+    <div class="ai-profiles-dialog-inner">
+      <h3 class="ai-profiles-dialog-title">编辑模型配置</h3>
+      <p class="field-hint">修改后保存即可；API Key 留空表示沿用已保存的密钥。</p>
+      <form id="aiProfileItemEditForm" class="grid-form">
+        <input type="hidden" id="aiItemEditId" value="" autocomplete="off" />
+        <label class="full">
+          用途说明
+          <textarea id="aiItemEditPurpose" rows="2" placeholder="选填" autocomplete="off"></textarea>
+        </label>
+        <label class="full">
+          API Base URL
+          <input id="aiItemEditBaseUrl" type="url" placeholder="根路径如 https://api.minimax.io/v1（勿含 /chat/completions）" autocomplete="off" />
+        </label>
+        <label class="full">
+          模型类型（厂商）
+          <select id="aiItemEditProvider" aria-label="编辑厂商模型类型">
+            <option value="">请选择厂商</option>
+          </select>
+        </label>
+        <label class="full">
+          可调用模型
+          <select id="aiItemEditModelType" aria-label="编辑具体模型">
+            <option value="">请先选择厂商</option>
+          </select>
+        </label>
+        <label class="full">
+          API Key（加密存储于本机）
+          <input id="aiItemEditApiKey" type="password" autocomplete="new-password" placeholder="留空表示不修改已保存的密钥" />
+        </label>
+        <div class="dialog-actions full">
+          <button type="button" id="aiItemEditClearKeyBtn" class="secondary">清除此配置密钥</button>
+          <button type="button" id="aiItemEditCancelBtn" class="secondary">取消</button>
+          <button type="submit">保存</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="aiMemoryManageDialog" class="remark-dialog-wide">
+    <div class="remark-dialog-inner">
+      <h3 class="remark-dialog-title">长期记忆管理</h3>
+      <p class="field-hint">可查看、编辑或删除已沉淀的问答记忆（最多 50 条）。</p>
+      <div id="aiMemoryManageList" class="ai-memory-manage-list"></div>
+      <div class="dialog-actions">
+        <button type="button" id="aiMemoryManageCloseBtn" class="secondary">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="customReportDialog" class="remark-dialog-wide" aria-labelledby="customReportDialogTitle">
+    <form id="customReportForm" method="dialog" class="custom-report-form">
+      <h3 id="customReportDialogTitle">自定义报表</h3>
+      <p class="field-hint">按维度分组并选择统计指标，可配合筛选条件生成汇总表。</p>
+      <div class="grid-form">
+        <label>
+          报表标题
+          <input id="customReportTitle" type="text" value="任务自定义报表" />
+        </label>
+        <label>
+          筛选 · 状态
+          <select id="customReportFilterStatus">
+            <option value="">全部</option>
+            <option value="待处理">待处理</option>
+            <option value="处理中">处理中</option>
+            <option value="已阻塞">已阻塞</option>
+            <option value="已挂起">已挂起</option>
+            <option value="已完结">已完结</option>
+            <option value="已取消">已取消</option>
+          </select>
+        </label>
+        <label>
+          筛选 · 优先级
+          <select id="customReportFilterPriority">
+            <option value="">全部</option>
+            <option value="高">高</option>
+            <option value="中">中</option>
+            <option value="低">低</option>
+          </select>
+        </label>
+        <label>
+          筛选 · 处理人
+          <input id="customReportFilterHandler" type="text" placeholder="可选" />
+        </label>
+        <label class="full">
+          筛选 · 关键字
+          <input id="customReportFilterKeyword" type="text" placeholder="匹配类型或内容" />
+        </label>
+        <fieldset class="full custom-report-fieldset">
+          <legend>分组维度（可多选）</legend>
+          <label><input type="checkbox" name="crDim" value="status" checked /> 状态</label>
+          <label><input type="checkbox" name="crDim" value="handler" /> 处理人</label>
+          <label><input type="checkbox" name="crDim" value="priority" /> 优先级</label>
+          <label><input type="checkbox" name="crDim" value="reporter" /> 反馈人</label>
+          <label><input type="checkbox" name="crDim" value="issueType" /> 问题类型</label>
+        </fieldset>
+        <fieldset class="full custom-report-fieldset">
+          <legend>统计指标（可多选）</legend>
+          <label><input type="checkbox" name="crMetric" value="count" checked /> 任务数</label>
+          <label><input type="checkbox" name="crMetric" value="overdue" /> 逾期数</label>
+          <label><input type="checkbox" name="crMetric" value="high_risk" /> 高/橙风险数</label>
+          <label><input type="checkbox" name="crMetric" value="avg_age_days" /> 平均存续天数</label>
+        </fieldset>
+      </div>
+      <div id="customReportResult" class="custom-report-result" hidden>
+        <h4>报表结果</h4>
+        <div class="table-wrap">
+          <table>
+            <thead id="customReportTableHead"></thead>
+            <tbody id="customReportTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="customReportGenerateBtn">生成报表</button>
+        <button type="button" id="customReportExportBtn" class="secondary">导出 Excel</button>
+        <button type="submit" value="close" class="secondary">关闭</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="taskContentDialog" class="remark-dialog-wide remark-dialog-light task-content-dialog" aria-labelledby="taskContentDialogTitle">
+    <div class="remark-dialog-inner">
+      <h3 id="taskContentDialogTitle" class="remark-dialog-title">跟进事物内容</h3>
+      <p id="taskContentDialogMeta" class="remark-dialog-meta"></p>
+      <div id="taskContentDetailBody" class="task-content-detail-body"></div>
+      <div class="dialog-actions">
+        <button type="button" id="taskContentCloseBtn" class="secondary">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="remarkDialog" class="remark-dialog-wide remark-dialog-light">
+    <div class="remark-dialog-inner">
+      <h3 id="remarkDialogTitle" class="remark-dialog-title">备注</h3>
+      <p id="remarkTarget" class="remark-dialog-meta"></p>
+      <div class="remark-history-section">
+        <div class="remark-history-label">变更日志（只读）</div>
+        <div id="taskChangeLogList" class="remark-history-list task-change-log-list"></div>
+      </div>
+      <div class="remark-history-section">
+        <div class="remark-history-label">历史备注（按时间从新到旧）</div>
+        <div id="remarkHistoryList" class="remark-history-list"></div>
+      </div>
+      <label class="remark-new-label">
+        新增备注
+        <textarea id="remarkNewInput" rows="3" placeholder="填写新的备注内容"></textarea>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="remarkCancelBtn" class="secondary">取消</button>
+        <button type="button" id="remarkSubmitBtn">提交</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="aiCapabilityDialog" class="ai-profiles-dialog ai-capability-dialog">
+    <div class="ai-profiles-dialog-inner">
+      <h3 class="ai-profiles-dialog-title">设置</h3>
+      <form id="aiCapabilityForm" class="grid-form cap-layout-form">
+        <div class="cap-layout full">
+          <aside class="cap-sidebar" aria-label="设置导航">
+            <button type="button" class="cap-nav-item is-active" data-cap-target="routing">通用路由</button>
+            <button type="button" class="cap-nav-item" data-cap-target="chat-profiles">管理对话模型配置</button>
+            <button type="button" class="cap-nav-item" data-cap-target="local-models">本地模型部署</button>
+            <button type="button" class="cap-nav-item" data-cap-target="speech">语音能力</button>
+            <button type="button" class="cap-nav-item" data-cap-target="image">图像能力</button>
+            <button type="button" class="cap-nav-item" data-cap-target="skills">技能中心</button>
+          </aside>
+          <section class="cap-main">
+            <div class="cap-panel is-active" data-cap-panel="routing">
+              <header class="cap-routing-header">
+                <h4 class="ai-profiles-section-title">通用路由</h4>
+                <p id="capUnifiedHint" class="field-hint cap-routing-hint">
+                  当前为<strong>统一路由</strong>：ASR、TTS、图像接口与「对话」使用同一套 Base URL 与 API Key（当前选中的模型配置）。ASR / 图像模块表单中的 Key 可留空。
+                </p>
+              </header>
+              <div class="cap-routing-body">
+                <div class="cap-routing-col cap-routing-col--left">
+                  <div class="cap-routing-subsection cap-routing-card">
+                    <h5 class="cap-subsection-title">路由模式</h5>
+                    <label class="full cap-routing-mode-label">
+                      <select id="capRoutingMode" aria-label="路由模式">
+                        <option value="unified">统一：对话模型配置 + 各模块仅填写服务参数</option>
+                        <option value="modular">分模块：ASR / TTS / 图像各自 Base URL 与 Key</option>
+                      </select>
+                    </label>
+                    <p class="field-hint cap-routing-mode-hint">统一路由下 Base URL 与 Key 来自当前对话模型配置；分模块路由下由各能力单独配置。</p>
+                  </div>
+                  <div class="cap-web-strategy-section cap-routing-card">
+                    <div class="cap-web-strategy-head">
+                      <h5 class="cap-subsection-title">联网检索策略</h5>
+                      <p class="field-hint cap-web-strategy-hint">多源检索权重、冲突甄别与时效规则；保存后对 AI 助手联网检索生效。</p>
+                    </div>
+                    <div class="cap-web-strategy-checks">
+                      <label class="record-inline-check cap-web-strategy-check"><input id="aiSearchShowSource" type="checkbox" /> 来源标注</label>
+                      <label class="record-inline-check cap-web-strategy-check"><input id="aiSearchConflictDetection" type="checkbox" /> 冲突检测</label>
+                      <label class="record-inline-check cap-web-strategy-check"><input id="aiSearchPreferFreshness" type="checkbox" /> 时效优先</label>
+                      <label class="record-inline-check cap-web-strategy-check"><input id="aiSearchSourceAttribution" type="checkbox" /> 来源评级</label>
+                    </div>
+                    <div class="cap-web-strategy-numbers">
+                      <label class="cap-web-strategy-num">
+                        每源结果数
+                        <input id="aiSearchPageSize" type="number" min="1" max="20" value="10" />
+                      </label>
+                      <label class="cap-web-strategy-num">
+                        TopN
+                        <input id="aiSearchTopN" type="number" min="1" max="10" value="5" />
+                      </label>
+                    </div>
+                    <div class="cap-web-strategy-actions">
+                      <button type="button" id="aiSearchRefreshStatusBtn" class="secondary cap-web-strategy-refresh">刷新状态</button>
+                      <button type="button" id="aiSearchConfigSaveBtn" class="cap-web-strategy-save">保存联网策略</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="cap-routing-col cap-routing-col--right">
+                  <div class="ai-search-source-card cap-web-strategy-sources">
+                    <div class="ai-search-source-head">
+                      <strong>数据源权重与开关</strong>
+                      <span id="aiSearchSourceStatusSummary" class="ai-search-source-status-summary" hidden></span>
+                    </div>
+                    <div class="ai-search-source-scroll" aria-label="数据源列表">
+                      <div id="aiSearchSourceList" class="ai-search-source-list"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="cap-panel" data-cap-panel="chat-profiles" hidden>
+              <header class="cap-chat-profiles-header">
+                <div class="cap-chat-profiles-header-main">
+                  <h4 class="ai-profiles-section-title">管理对话模型配置</h4>
+                  <p class="field-hint cap-chat-profiles-hint">
+                    通过下方「添加新配置」增加模型；在「全部配置」中可编辑或删除。请求发往 <code>Base URL/chat/completions</code>（OpenAI 兼容）。AI 助手底栏「模型选择」切换当前配置。至少保留一条配置。
+                  </p>
+                </div>
+                <div class="cap-chat-profiles-stats" aria-label="配置概览">
+                  <div class="cap-chat-profiles-stat-card">
+                    <span class="cap-chat-profiles-stat-label">已配置模型</span>
+                    <strong id="aiProfilesStatCount" class="cap-chat-profiles-stat-value">0 个</strong>
+                  </div>
+                  <div class="cap-chat-profiles-stat-card">
+                    <span class="cap-chat-profiles-stat-label">当前默认</span>
+                    <strong id="aiProfilesStatDefault" class="cap-chat-profiles-stat-value">—</strong>
+                  </div>
+                </div>
+              </header>
+
+              <section class="cap-chat-profiles-list-section">
+                <div class="cap-chat-profiles-list-toolbar">
+                  <h5 class="cap-chat-profiles-list-title">
+                    全部配置
+                    <span id="aiProfilesListCount" class="cap-chat-profiles-list-count">共 0 个配置</span>
+                  </h5>
+                  <div class="cap-chat-profiles-list-tools">
+                    <input id="aiProfilesSearchInput" class="cap-chat-profiles-search" type="search" placeholder="搜索配置…" autocomplete="off" />
+                    <button type="button" id="aiProfilesRefreshBtn" class="secondary cap-chat-profiles-refresh">刷新</button>
+                  </div>
+                </div>
+                <div class="cap-chat-profiles-grid-scroll">
+                  <ul id="aiProfilesManageList" class="ai-profiles-manage-list cap-chat-profiles-grid"></ul>
+                  <button type="button" id="aiProfilesScrollToAddBtn" class="cap-chat-profiles-add-dash">+ 添加新配置</button>
+                </div>
+              </section>
+
+              <section class="cap-chat-profiles-add-section" id="aiProfileAddBlock">
+                <div class="cap-chat-profiles-add-head">
+                  <div>
+                    <h5 class="ai-profiles-add-title">添加新配置</h5>
+                    <p class="field-hint cap-chat-profiles-add-hint">配置新的对话模型访问信息</p>
+                  </div>
+                  <button type="button" id="aiProfileClearFormBtn" class="secondary cap-chat-profiles-clear">
+                    <span class="cap-chat-profiles-clear-icon" aria-hidden="true">⌫</span>
+                    清空表单
+                  </button>
+                </div>
+                <div class="cap-chat-profiles-add-grid">
+                  <div class="cap-chat-profiles-add-col cap-profile-form-card">
+                    <div class="cap-profile-form-card-head">
+                      <span class="cap-profile-form-card-icon cap-profile-form-card-icon--basic" aria-hidden="true"></span>
+                      <span class="cap-profile-form-card-title">基础信息</span>
+                    </div>
+                    <div class="cap-profile-form-body">
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileLabel">模型名称 <span class="cap-profile-form-req">*</span></label>
+                        <input id="aiNewProfileLabel" class="cap-profile-form-control" type="text" placeholder="例如：gpt-4o" autocomplete="off" />
+                      </div>
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileProvider">提供商（厂商） <span class="cap-profile-form-req">*</span></label>
+                        <select id="aiNewProfileProvider" class="cap-profile-form-control" aria-label="选择提供商">
+                          <option value="">请选择提供商</option>
+                        </select>
+                      </div>
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileModelKind">
+                          模型类型 <span class="cap-profile-form-req">*</span>
+                          <span class="cap-profile-form-tip" title="用于标注配置用途，便于在列表中区分">ⓘ</span>
+                        </label>
+                        <select id="aiNewProfileModelKind" class="cap-profile-form-control" aria-label="选择模型类型">
+                          <option value="对话模型">对话模型</option>
+                          <option value="推理模型">推理模型</option>
+                          <option value="多模态模型">多模态模型</option>
+                        </select>
+                      </div>
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileModelType">
+                          可调用模型 <span class="cap-profile-form-req">*</span>
+                          <span class="cap-profile-form-tip" title="实际请求 chat/completions 时使用的 model 参数">ⓘ</span>
+                        </label>
+                        <select id="aiNewProfileModelType" class="cap-profile-form-control" aria-label="选择可调用模型">
+                          <option value="">请先选择提供商</option>
+                        </select>
+                      </div>
+                      <div class="cap-profile-form-row cap-profile-form-row--toggle">
+                        <span class="cap-profile-form-label">
+                          默认模型
+                          <span class="cap-profile-form-tip" title="保存后是否在 AI 助手底栏立即切换为当前模型">ⓘ</span>
+                        </span>
+                        <label class="cap-profile-form-toggle">
+                          <input id="aiNewProfileSetDefault" type="checkbox" checked />
+                          <span class="cap-profile-form-toggle-ui" aria-hidden="true"></span>
+                          <span class="cap-profile-form-toggle-text">设为当前默认模型</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="cap-chat-profiles-add-col cap-profile-form-card">
+                    <div class="cap-profile-form-card-head">
+                      <span class="cap-profile-form-card-icon cap-profile-form-card-icon--auth" aria-hidden="true">🛡</span>
+                      <span class="cap-profile-form-card-title">连接与鉴权</span>
+                    </div>
+                    <div class="cap-profile-form-body">
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileBase">API Base URL <span class="cap-profile-form-req">*</span></label>
+                        <input id="aiNewProfileBase" class="cap-profile-form-control" type="url" placeholder="例如：https://api.example.com/v1（勿含 /chat/completions）" autocomplete="off" />
+                      </div>
+                      <div class="cap-profile-form-row">
+                        <span class="cap-profile-form-label">本地/云端 <span class="cap-profile-form-req">*</span></span>
+                        <div class="cap-chat-profiles-host-toggle cap-profile-form-control cap-profile-form-control--segment" role="group" aria-label="部署类型">
+                          <button type="button" class="cap-chat-profiles-host-btn is-active" data-host-mode="cloud">云端（SaaS）</button>
+                          <button type="button" class="cap-chat-profiles-host-btn" data-host-mode="local">本地（Ollama 等）</button>
+                        </div>
+                      </div>
+                      <div class="cap-profile-form-row">
+                        <label class="cap-profile-form-label" for="aiNewProfileKey">API Key <span class="cap-profile-form-req">*</span></label>
+                        <span class="cap-chat-profiles-key-wrap cap-profile-form-control cap-profile-form-control--key">
+                          <input id="aiNewProfileKey" type="password" autocomplete="new-password" placeholder="请输入 API Key（Ollama 本地可留空）" />
+                          <button type="button" id="aiNewProfileKeyToggle" class="cap-chat-profiles-key-toggle" aria-label="显示或隐藏密钥" title="显示或隐藏">👁</button>
+                        </span>
+                      </div>
+                      <div class="cap-profile-form-row cap-profile-form-row--test">
+                        <span class="cap-profile-form-label cap-profile-form-label--empty" aria-hidden="true"></span>
+                        <div class="cap-profile-form-test-inner">
+                          <p class="cap-profile-form-test-hint">保存后可点击测试，验证模型连接是否可用。</p>
+                          <button type="button" id="aiNewProfileTestBtn" class="secondary cap-chat-profiles-test">⟳ 测试连接</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="cap-chat-profiles-add-actions dialog-actions">
+                  <button type="button" id="aiProfileAddCancelBtn" class="secondary">取消</button>
+                  <button type="button" id="aiProfileAddSubmitBtn" class="cap-chat-profiles-save">保存配置</button>
+                </div>
+              </section>
+            </div>
+
+                        <div class="cap-panel cap-panel--speech" data-cap-panel="speech" hidden>
+              <header class="cap-speech-header">
+                <span class="cap-speech-header-icon" aria-hidden="true"></span>
+                <div class="cap-speech-header-main">
+                  <h4 class="ai-profiles-section-title">语音能力</h4>
+                  <p class="field-hint cap-speech-header-hint">集成语音识别（ASR）与语音合成（TTS）配置，统一管理语音能力设置。</p>
+                </div>
+              </header>
+
+              <div class="cap-speech-stats" aria-label="语音能力概览">
+                <article class="cap-speech-stat-card cap-speech-stat-card--asr">
+                  <span class="cap-speech-stat-icon cap-speech-stat-icon--asr" aria-hidden="true"></span>
+                  <div class="cap-speech-stat-body">
+                    <div class="cap-speech-stat-head">
+                      <strong id="capSpeechAsrStatusLabel">ASR 未启用</strong>
+                      <span id="capSpeechAsrStatusDot" class="cap-speech-stat-dot" aria-hidden="true"></span>
+                    </div>
+                    <div class="cap-speech-stat-meta">
+                      <span>当前模型：<em id="capSpeechAsrModelLabel">—</em></span>
+                      <span>识别语言：<em id="capSpeechAsrLangLabel">—</em></span>
+                    </div>
+                  </div>
+                </article>
+                <article class="cap-speech-stat-card cap-speech-stat-card--tts">
+                  <span class="cap-speech-stat-icon cap-speech-stat-icon--tts" aria-hidden="true"></span>
+                  <div class="cap-speech-stat-body">
+                    <div class="cap-speech-stat-head">
+                      <strong id="capSpeechTtsStatusLabel">TTS 未启用</strong>
+                      <span id="capSpeechTtsStatusDot" class="cap-speech-stat-dot" aria-hidden="true"></span>
+                    </div>
+                    <div class="cap-speech-stat-meta">
+                      <span>当前语音：<em id="capSpeechTtsVoiceLabel">—</em></span>
+                      <span>助读状态：<em id="capSpeechTtsSpeakLabel">—</em></span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <section class="cap-speech-config">
+                <div class="cap-speech-tabs" role="tablist" aria-label="语音配置分类">
+                  <button type="button" class="cap-speech-tab is-active" role="tab" aria-selected="true" data-speech-tab="asr">语音识别 ASR</button>
+                  <button type="button" class="cap-speech-tab" role="tab" aria-selected="false" data-speech-tab="tts">语音合成 TTS</button>
+                  <div class="cap-speech-tab-toggle">
+                    <label id="capSpeechAsrToggleWrap" class="cap-profile-form-toggle cap-speech-tab-toggle-item">
+                      <input id="capAsrEnabled" type="checkbox" checked />
+                      <span class="cap-profile-form-toggle-ui" aria-hidden="true"></span>
+                      <span class="cap-profile-form-toggle-text">启用 ASR</span>
+                    </label>
+                    <label id="capSpeechTtsToggleWrap" class="cap-profile-form-toggle cap-speech-tab-toggle-item" hidden>
+                      <input id="capTtsEnabled" type="checkbox" />
+                      <span class="cap-profile-form-toggle-ui" aria-hidden="true"></span>
+                      <span class="cap-profile-form-toggle-text">启用 TTS</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="cap-speech-tab-panel is-active" data-speech-panel="asr" role="tabpanel">
+                  <div class="cap-speech-form-grid">
+                    <div class="cap-speech-form-col">
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">ASR 模型</span>
+                        <select id="capAsrModelPreset" class="cap-speech-control cap-model-preset" aria-label="ASR 模型库">
+                          <option value="">── 从库选择（按厂商）──</option>
+                          <optgroup label="OpenAI / Azure OpenAI">
+                            <option value="whisper-1">whisper-1（ASR｜通用离线转写）</option>
+                            <option value="gpt-4o-mini-transcribe">gpt-4o-mini-transcribe（ASR｜低成本实时识别）</option>
+                            <option value="gpt-4o-transcribe">gpt-4o-transcribe（ASR｜高精度语音识别）</option>
+                          </optgroup>
+                          <optgroup label="MiniMax（语音识别）">
+                            <option value="speech-01-hd">speech-01-hd（ASR｜高保真识别）</option>
+                            <option value="speech-02-hd">speech-02-hd（ASR｜高精度长音频识别）</option>
+                            <option value="speech-02-turbo">speech-02-turbo（ASR｜实时低延迟识别）</option>
+                          </optgroup>
+                          <optgroup label="阿里百炼（Qwen3 语音）">
+                            <option value="qwen3-asr">qwen3-asr（ASR｜通用语音转文字）</option>
+                            <option value="qwen3-asr-realtime">qwen3-asr-realtime（ASR｜实时流式识别）</option>
+                          </optgroup>
+                          <optgroup label="阿里百炼（OpenAI 兼容网关）">
+                            <option value="whisper-v3">whisper-v3（ASR｜通用识别）</option>
+                            <option value="paraformer-v2">paraformer-v2（ASR｜实时识别）</option>
+                          </optgroup>
+                          <optgroup label="火山方舟 / 豆包（OpenAI 兼容网关）">
+                            <option value="whisper-1">whisper-1（ASR｜通用识别）</option>
+                            <option value="doubao-asr">doubao-asr（ASR｜中文场景识别）</option>
+                          </optgroup>
+                          <optgroup label="腾讯云 / 混元（OpenAI 兼容网关）">
+                            <option value="whisper-1">whisper-1（ASR｜通用识别）</option>
+                            <option value="hunyuan-asr">hunyuan-asr（ASR｜中文语音识别）</option>
+                          </optgroup>
+                          <optgroup label="本地部署 / 自定义（OpenAI 兼容）">
+                            <option value="small">small（Whisper｜本地轻量识别）</option>
+                            <option value="medium">medium（Whisper｜本地平衡识别）</option>
+                            <option value="large-v3">large-v3（Whisper｜本地高精度识别）</option>
+                            <option value="faster-whisper-small">faster-whisper-small（ASR｜CPU 友好）</option>
+                            <option value="local:qwen3-asr-0.6b">local:qwen3-asr-0.6b（Qwen3-ASR｜本地轻量）</option>
+                            <option value="local:qwen3-asr-1.7b">local:qwen3-asr-1.7b（Qwen3-ASR｜本地高精度）</option>
+                          </optgroup>
+                        </select>
+                      </label>
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">模型 ID</span>
+                        <input id="capAsrModel" class="cap-speech-control" type="text" placeholder="例如 local:qwen3-asr-0.6b" autocomplete="off" />
+                      </label>
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">识别语言</span>
+                        <select id="capAsrLanguage" class="cap-speech-control" aria-label="ASR 识别语言">
+                          <option value="zh">中文 (zh)</option>
+                          <option value="en">English (en)</option>
+                          <option value="ja">日本語 (ja)</option>
+                          <option value="ko">한국어 (ko)</option>
+                          <option value="">自动识别</option>
+                        </select>
+                      </label>
+                      <label class="cap-speech-field cap-speech-field--prompt">
+                        <span class="cap-speech-field-label">ASR Prompt（可选）</span>
+                        <div class="cap-speech-prompt-wrap">
+                          <textarea id="capAsrPrompt" class="cap-speech-control cap-speech-textarea" rows="4" maxlength="500" placeholder="可填写行业术语或场景提示，提高识别准确率"></textarea>
+                          <span id="capAsrPromptCount" class="cap-speech-char-count">0/500</span>
+                        </div>
+                      </label>
+                    </div>
+                    <div class="cap-speech-form-col">
+                      <label class="cap-speech-field" data-cap-modular-only>
+                        <span class="cap-speech-field-label">ASR Base URL</span>
+                        <input id="capAsrBaseUrl" class="cap-speech-control" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+                      </label>
+                      <label class="cap-speech-field" data-cap-modular-only>
+                        <span class="cap-speech-field-label">ASR API Key</span>
+                        <span class="cap-chat-profiles-key-wrap cap-speech-control cap-speech-control--key">
+                          <input id="capAsrApiKey" type="password" autocomplete="new-password" placeholder="请输入 API Key" />
+                          <button type="button" id="capAsrKeyToggle" class="cap-chat-profiles-key-toggle" aria-label="显示或隐藏 ASR 密钥" title="显示或隐藏">👁</button>
+                        </span>
+                      </label>
+                      <div class="cap-speech-note" data-cap-modular-only>
+                        <strong>分模块说明</strong>
+                        <p>ASR 走 <code>/audio/transcriptions</code>，Base URL 建议填到 <code>.../v1</code>。</p>
+                      </div>
+                      <div class="cap-speech-note">
+                        <strong>使用说明</strong>
+                        <ul>
+                          <li>不同厂商 ASR 模型 ID 命名不一致，本地部署请使用分模块路由并填写网关地址。</li>
+                          <li>ASR 用于语音转文字；<b>realtime/turbo</b> 适合低延迟，<b>hd/large</b> 适合高精度转写。</li>
+                          <li>可在 Prompt 中填写术语词表，提升专业场景识别准确率。</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <details class="cap-speech-advanced">
+                    <summary>高级选项（超时设置 / 音频格式 / 采样率等）</summary>
+                    <p class="field-hint">当前版本使用默认音频参数；如需自定义超时或格式，可在分模块路由下通过网关侧配置。</p>
+                  </details>
+                </div>
+
+                <div class="cap-speech-tab-panel" data-speech-panel="tts" role="tabpanel" hidden>
+                  <div class="cap-speech-form-grid">
+                    <div class="cap-speech-form-col">
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">合成链路 / 模型</span>
+                        <select id="capTtsEngineSelect" class="cap-speech-control cap-model-preset" aria-label="TTS 合成链路或模型">
+                          <option value="">── 快捷选择 ──</option>
+                          <optgroup label="本地部署（Local）">
+                            <option value="local:qwen3-tts">local:qwen3-tts（本地 Qwen3-TTS｜免 API Key）</option>
+                          </optgroup>
+                          <optgroup label="云端调用（Cloud API）">
+                            <option value="cloud:qwen3-tts">cloud:qwen3-tts（TTS｜通用文本转语音）</option>
+                            <option value="cloud:qwen3-tts-realtime">cloud:qwen3-tts-realtime（TTS｜实时低延迟播报）</option>
+                            <option value="cloud:speech-2.8-turbo">cloud:speech-2.8-turbo（TTS｜低延迟）</option>
+                            <option value="cloud:speech-2.8-hd">cloud:speech-2.8-hd（TTS｜高音质）</option>
+                            <option value="cloud:speech-2.6-turbo">cloud:speech-2.6-turbo（TTS｜低延迟）</option>
+                            <option value="cloud:speech-2.6-hd">cloud:speech-2.6-hd（TTS｜高音质）</option>
+                            <option value="cloud:speech-02-turbo">cloud:speech-02-turbo（TTS｜低延迟）</option>
+                            <option value="cloud:speech-02-hd">cloud:speech-02-hd（TTS｜高音质）</option>
+                            <option value="cloud:speech-01-turbo">cloud:speech-01-turbo（TTS｜基础低延迟）</option>
+                            <option value="cloud:speech-01-hd">cloud:speech-01-hd（TTS｜基础高音质）</option>
+                            <option value="cloud:tts-1">cloud:tts-1（TTS｜通用）</option>
+                            <option value="cloud:tts-1-hd">cloud:tts-1-hd（TTS｜高音质）</option>
+                          </optgroup>
+                        </select>
+                      </label>
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">模型 ID</span>
+                        <input id="capTtsModel" class="cap-speech-control" type="text" placeholder="自定义模型 ID（与上栏联动）" autocomplete="off" />
+                      </label>
+                      <label class="cap-speech-field">
+                        <span class="cap-speech-field-label">音色 / voice_id</span>
+                        <select id="capTtsVoicePreset" class="cap-speech-control cap-model-preset" aria-label="TTS 音色">
+                          <option value="">── 快捷选择 ──</option>
+                          <option value="Chinese (Mandarin)_Lyrical_Voice">Chinese (Mandarin)_Lyrical_Voice</option>
+                          <option value="Chinese (Mandarin)_HK_Flight_Attendant">Chinese (Mandarin)_HK_Flight_Attendant</option>
+                          <option value="English_Graceful_Lady">English_Graceful_Lady</option>
+                          <option value="English_Insightful_Speaker">English_Insightful_Speaker</option>
+                          <option value="alloy">alloy</option>
+                          <option value="echo">echo</option>
+                          <option value="fable">fable</option>
+                          <option value="onyx">onyx</option>
+                          <option value="nova">nova</option>
+                          <option value="shimmer">shimmer</option>
+                        </select>
+                        <input id="capTtsVoice" class="cap-speech-control cap-speech-control--sub" type="text" placeholder="自定义 voice_id（与上栏联动）" autocomplete="off" />
+                      </label>
+                      <label class="cap-speech-field cap-speech-field--inline-check">
+                        <label class="cap-check cap-check--inline">
+                          <input id="capTtsSpeakReply" type="checkbox" /> AI 助手回复后自动朗读
+                        </label>
+                      </label>
+                    </div>
+                    <div class="cap-speech-form-col">
+                      <label class="cap-speech-field" data-cap-modular-only>
+                        <span class="cap-speech-field-label">TTS Base URL</span>
+                        <input id="capTtsBaseUrl" class="cap-speech-control" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+                      </label>
+                      <label class="cap-speech-field" data-cap-modular-only>
+                        <span class="cap-speech-field-label">TTS API Key</span>
+                        <span class="cap-chat-profiles-key-wrap cap-speech-control cap-speech-control--key">
+                          <input id="capTtsApiKey" type="password" autocomplete="new-password" placeholder="请输入 API Key" />
+                          <button type="button" id="capTtsKeyToggle" class="cap-chat-profiles-key-toggle" aria-label="显示或隐藏 TTS 密钥" title="显示或隐藏">👁</button>
+                        </span>
+                      </label>
+                      <div class="cap-speech-note" data-cap-modular-only>
+                        <strong>分模块说明</strong>
+                        <p>OpenAI：<code>/v1/audio/speech</code>；MiniMax：<code>/v1/t2a_v2</code>。Base 填到 <code>…/v1</code>。</p>
+                      </div>
+                      <div class="cap-speech-note">
+                        <strong>使用说明</strong>
+                        <ul>
+                          <li>TTS 为文本转语音；<b>realtime/turbo</b> 适合低延迟播报，<b>hd</b> 适合高音质场景。</li>
+                          <li>本地 <code>local:qwen3-tts</code> 可免 API Key；云端模型 ID 以服务商控制台为准。</li>
+                          <li>开启「自动朗读」后，AI 助手回复将使用当前音色播报。</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  <details class="cap-speech-advanced">
+                    <summary>高级选项（语速 / 音量 / 输出格式等）</summary>
+                    <p class="field-hint">当前版本使用服务商默认播报参数；MiniMax 与 OpenAI 兼容接口将按 Base URL 自动选择端点。</p>
+                  </details>
+                </div>
+              </section>
+            </div>
+
+                        <div class="cap-panel cap-panel--image" data-cap-panel="image" hidden>
+              <header class="cap-image-header">
+                <span class="cap-image-header-icon" aria-hidden="true"></span>
+                <div class="cap-image-header-main">
+                  <h4 class="ai-profiles-section-title">图像能力中心</h4>
+                  <p class="field-hint cap-image-header-hint">统一管理文生图与图像理解能力，支持统一路由与分模块配置。</p>
+                </div>
+              </header>
+
+              <div class="cap-image-stats" aria-label="图像能力概览">
+                <article class="cap-image-stat-card cap-image-stat-card--switch">
+                  <span class="cap-image-stat-icon cap-image-stat-icon--switch" aria-hidden="true"></span>
+                  <div class="cap-image-stat-body">
+                    <strong class="cap-image-stat-title">能力开关</strong>
+                    <div class="cap-image-stat-rows">
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">启用文生图</span>
+                        <label class="cap-image-stat-toggle">
+                          <input id="capImageGen" type="checkbox" checked />
+                          <span class="cap-image-stat-toggle-ui" aria-hidden="true"></span>
+                        </label>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">启用图像理解</span>
+                        <label class="cap-image-stat-toggle">
+                          <input id="capImageUnderstand" type="checkbox" checked />
+                          <span class="cap-image-stat-toggle-ui" aria-hidden="true"></span>
+                        </label>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">配置模式</span>
+                        <button type="button" class="cap-image-stat-route-link" id="capImageStatRouteBtn">
+                          <span id="capImageStatRouteMode">统一配置</span>
+                          <span class="cap-image-stat-route-chevron" aria-hidden="true">›</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <article class="cap-image-stat-card cap-image-stat-card--gen">
+                  <span class="cap-image-stat-icon cap-image-stat-icon--gen" aria-hidden="true"></span>
+                  <span class="cap-image-stat-dot" id="capImageStatGenDot" aria-hidden="true"></span>
+                  <div class="cap-image-stat-body">
+                    <strong class="cap-image-stat-title">生成模型</strong>
+                    <div class="cap-image-stat-rows">
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">模型</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatGenModel">—</span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">默认尺寸</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatGenSize">—</span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">分辨率</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatGenResolution">—</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <article class="cap-image-stat-card cap-image-stat-card--vision">
+                  <span class="cap-image-stat-icon cap-image-stat-icon--vision" aria-hidden="true"></span>
+                  <span class="cap-image-stat-dot" id="capImageStatVisionDot" aria-hidden="true"></span>
+                  <div class="cap-image-stat-body">
+                    <strong class="cap-image-stat-title">理解模型</strong>
+                    <div class="cap-image-stat-rows">
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">模型</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatVisionModel">—</span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">识别类型</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatVisionTags">—</span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">图片上限</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatVisionLimit">—</span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+                <article class="cap-image-stat-card cap-image-stat-card--service">
+                  <span class="cap-image-stat-icon cap-image-stat-icon--service" aria-hidden="true"></span>
+                  <div class="cap-image-stat-body">
+                    <strong class="cap-image-stat-title">服务状态</strong>
+                    <div class="cap-image-stat-rows">
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">API 连通性</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatApi">
+                          <span class="cap-image-stat-check" aria-hidden="true"></span>
+                          <span class="cap-image-stat-row-text">待检测</span>
+                        </span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">模型可用性</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatModels">
+                          <span class="cap-image-stat-check" aria-hidden="true"></span>
+                          <span class="cap-image-stat-row-text">待检测</span>
+                        </span>
+                      </div>
+                      <div class="cap-image-stat-row">
+                        <span class="cap-image-stat-row-label">服务响应延迟</span>
+                        <span class="cap-image-stat-row-value" id="capImageStatLatency">
+                          <span class="cap-image-stat-row-text">—</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <div class="cap-image-body">
+                <div class="cap-image-main">
+                  <section class="cap-image-step-card">
+                    <header class="cap-image-step-head">
+                      <span class="cap-image-step-num">1</span>
+                      <h5>基础开关与模式</h5>
+                    </header>
+                    <div class="cap-image-step-body cap-image-step-body--switches">
+                      <div class="cap-image-route-mode" role="group" aria-label="图像配置模式">
+                        <span class="cap-image-route-mode-label">配置模式</span>
+                        <button type="button" class="cap-image-route-btn is-active" data-image-route-mode="unified">统一配置</button>
+                        <button type="button" class="cap-image-route-btn" data-image-route-mode="modular">独立配置</button>
+                      </div>
+                      <p class="field-hint cap-image-switch-hint">文生图与图像理解开关可在上方「能力开关」卡片中操作。</p>
+                    </div>
+                  </section>
+
+                  <section class="cap-image-step-card">
+                    <header class="cap-image-step-head">
+                      <span class="cap-image-step-num">2</span>
+                      <div class="cap-image-step-head-text">
+                        <h5>文生图配置</h5>
+                        <p class="cap-image-step-desc">配置文生图相关的模型与参数</p>
+                      </div>
+                    </header>
+                    <div class="cap-image-step-body">
+                      <div class="cap-image-form-grid">
+                        <label class="cap-image-field">
+                          <span class="cap-image-field-label">
+                            文生图模型
+                            <button type="button" class="cap-image-field-help" title="选择或填写兼容 OpenAI images/generations 的模型 ID" aria-label="文生图模型说明">?</button>
+                          </span>
+                          <select id="capImgGenPreset" class="cap-image-control cap-model-preset" aria-label="文生图模型库">
+                            <option value="">── 从库选择 ──</option>
+                            <optgroup label="OpenAI / 兼容 images/generations">
+                              <option value="dall-e-3">dall-e-3</option>
+                              <option value="dall-e-2">dall-e-2</option>
+                            </optgroup>
+                            <optgroup label="智谱（CogView）">
+                              <option value="cogview-3-flash">cogview-3-flash</option>
+                              <option value="cogview-3-plus">cogview-3-plus</option>
+                            </optgroup>
+                            <optgroup label="MiniMax 图像模型（OpenAI 兼容网关）">
+                              <option value="MiniMax-Image-01">MiniMax-Image-01</option>
+                            </optgroup>
+                            <optgroup label="百度千帆（按可用型号）">
+                              <option value="irag-1.0">irag-1.0</option>
+                            </optgroup>
+                          </select>
+                          <input id="capImgGenModel" class="cap-image-control cap-image-control--sub" type="text" placeholder="或直接输入模型 ID" autocomplete="off" />
+                        </label>
+                        <label class="cap-image-field">
+                          <span class="cap-image-field-label">
+                            默认尺寸
+                            <button type="button" class="cap-image-field-help" title="生成图片的默认宽高，如 1024x1024" aria-label="默认尺寸说明">?</button>
+                          </span>
+                          <select id="capImgSize" class="cap-image-control" aria-label="默认尺寸">
+                            <option value="512x512">512x512</option>
+                            <option value="768x768">768x768</option>
+                            <option value="1024x1024">1024x1024</option>
+                            <option value="1024x768">1024x768</option>
+                            <option value="768x1024">768x1024</option>
+                            <option value="1536x1536">1536x1536</option>
+                          </select>
+                        </label>
+                        <label class="cap-image-field" data-cap-modular-only>
+                          <span class="cap-image-field-label">
+                            Base URL
+                            <button type="button" class="cap-image-field-help" title="文生图 API 的 OpenAI 兼容 Base URL" aria-label="Base URL 说明">?</button>
+                          </span>
+                          <input id="capImgBaseUrl" class="cap-image-control" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+                        </label>
+                        <label class="cap-image-field" data-cap-modular-only>
+                          <span class="cap-image-field-label">
+                            API Key
+                            <button type="button" class="cap-image-field-help" title="分模块路由下使用的 API Key，留空表示不修改已保存密钥" aria-label="API Key 说明">?</button>
+                          </span>
+                          <span class="cap-chat-profiles-key-wrap cap-image-control cap-image-control--key">
+                            <input id="capImgApiKey" type="password" autocomplete="new-password" placeholder="请输入 API Key" />
+                            <button type="button" id="capImgKeyToggle" class="cap-chat-profiles-key-toggle" aria-label="显示或隐藏密钥" title="显示或隐藏">👁</button>
+                          </span>
+                        </label>
+                        <label class="cap-image-field">
+                          <span class="cap-image-field-label">
+                            生成风格
+                            <button type="button" class="cap-image-field-help" title="默认图像生成风格偏好" aria-label="生成风格说明">?</button>
+                          </span>
+                          <select id="capImgGenStyle" class="cap-image-control" aria-label="生成风格">
+                            <option value="realistic">写实</option>
+                            <option value="illustration">插画</option>
+                            <option value="3d">3D 渲染</option>
+                            <option value="concept">概念艺术</option>
+                          </select>
+                        </label>
+                        <label class="cap-image-field">
+                          <span class="cap-image-field-label">
+                            分辨率
+                            <button type="button" class="cap-image-field-help" title="输出分辨率档位，影响默认像素规模" aria-label="分辨率说明">?</button>
+                          </span>
+                          <select id="capImgGenResolution" class="cap-image-control" aria-label="分辨率">
+                            <option value="sd">标清 (0.5x)</option>
+                            <option value="hd">标准 (1x)</option>
+                            <option value="uhd">超清 (2x)</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="cap-image-step-card">
+                    <header class="cap-image-step-head">
+                      <span class="cap-image-step-num">3</span>
+                      <div class="cap-image-step-head-text">
+                        <h5>图像理解配置</h5>
+                        <p class="cap-image-step-desc">配置图像理解相关的模型与参数</p>
+                      </div>
+                    </header>
+                    <div class="cap-image-step-body">
+                      <div class="cap-image-vision-grid">
+                        <label class="cap-image-field cap-image-field--vision-model">
+                          <span class="cap-image-field-label">
+                            图像理解模型
+                            <button type="button" class="cap-image-field-help" title="支持视觉输入的多模态模型 ID" aria-label="图像理解模型说明">?</button>
+                          </span>
+                          <select id="capImgVisionPreset" class="cap-image-control cap-model-preset" aria-label="视觉模型库">
+                            <option value="">── 从库选择 ──</option>
+                            <optgroup label="常用多模态（chat + 图像）">
+                              <option value="gpt-4o">gpt-4o</option>
+                              <option value="gpt-4o-mini">gpt-4o-mini</option>
+                              <option value="gpt-4-turbo">gpt-4-turbo</option>
+                            </optgroup>
+                            <optgroup label="通义千问（视觉）">
+                              <option value="qwen-vl-max-latest">qwen-vl-max-latest</option>
+                              <option value="qwen-vl-plus">qwen-vl-plus</option>
+                              <option value="qwen2.5-vl-72b-instruct">qwen2.5-vl-72b-instruct</option>
+                              <option value="qvq-max">qvq-max</option>
+                            </optgroup>
+                            <optgroup label="智谱（GLM 视觉）">
+                              <option value="glm-4v-plus">glm-4v-plus</option>
+                              <option value="glm-4.1v-thinking-flashx">glm-4.1v-thinking-flashx</option>
+                            </optgroup>
+                            <optgroup label="百度千帆（视觉）">
+                              <option value="ernie-4.0-vision">ernie-4.0-vision</option>
+                            </optgroup>
+                            <optgroup label="腾讯混元（视觉）">
+                              <option value="hunyuan-vision">hunyuan-vision</option>
+                            </optgroup>
+                            <optgroup label="MiniMax 视觉">
+                              <option value="MiniMax-Text-01">MiniMax-Text-01（多模态）</option>
+                            </optgroup>
+                          </select>
+                          <input id="capImgVisionModel" class="cap-image-control cap-image-control--sub" type="text" placeholder="或与服务商文档一致的模型 ID" autocomplete="off" />
+                        </label>
+                        <div class="cap-image-field cap-image-field--vision-tags">
+                          <span class="cap-image-field-label">
+                            识别内容类型
+                            <button type="button" class="cap-image-field-help" title="选择需要识别的图像内容类型" aria-label="识别内容类型说明">?</button>
+                          </span>
+                          <div class="cap-image-tag-panel" role="group" aria-label="识别内容类型">
+                            <div class="cap-image-tag-group">
+                              <label class="cap-image-tag"><input type="checkbox" class="cap-img-vision-tag" value="object" checked /><span class="cap-image-tag-text">物体</span><button type="button" class="cap-image-tag-remove" aria-label="移除物体">×</button></label>
+                              <label class="cap-image-tag"><input type="checkbox" class="cap-img-vision-tag" value="scene" checked /><span class="cap-image-tag-text">场景</span><button type="button" class="cap-image-tag-remove" aria-label="移除场景">×</button></label>
+                              <label class="cap-image-tag"><input type="checkbox" class="cap-img-vision-tag" value="ocr" checked /><span class="cap-image-tag-text">文字(OCR)</span><button type="button" class="cap-image-tag-remove" aria-label="移除 OCR">×</button></label>
+                              <label class="cap-image-tag"><input type="checkbox" class="cap-img-vision-tag" value="chart" /><span class="cap-image-tag-text">图表</span><button type="button" class="cap-image-tag-remove" aria-label="移除图表">×</button></label>
+                              <label class="cap-image-tag"><input type="checkbox" class="cap-img-vision-tag" value="person" checked /><span class="cap-image-tag-text">人像</span><button type="button" class="cap-image-tag-remove" aria-label="移除人像">×</button></label>
+                            </div>
+                            <select id="capImgVisionTagAdd" class="cap-image-tag-add-select" aria-label="添加识别类型">
+                              <option value="">+ 添加类型</option>
+                              <option value="object">物体</option>
+                              <option value="scene">场景</option>
+                              <option value="ocr">文字(OCR)</option>
+                              <option value="chart">图表</option>
+                              <option value="person">人像</option>
+                            </select>
+                          </div>
+                        </div>
+                        <label class="cap-image-field cap-image-field--vision-limit">
+                          <span class="cap-image-field-label">
+                            图片数量上限
+                            <button type="button" class="cap-image-field-help" title="单次请求可附带的图片数量上限" aria-label="图片数量上限说明">?</button>
+                          </span>
+                          <span class="cap-image-control-suffix">
+                            <input id="capImgVisionImageLimit" class="cap-image-control" type="number" min="1" max="20" value="9" />
+                            <span class="cap-image-control-suffix-unit">张</span>
+                          </span>
+                        </label>
+                        <label class="cap-image-field cap-image-field--vision-prompt">
+                          <span class="cap-image-field-label">
+                            提示模板
+                            <button type="button" class="cap-image-field-help" title="图像理解任务的系统提示模板" aria-label="提示模板说明">?</button>
+                          </span>
+                          <div class="cap-image-prompt-wrap">
+                            <textarea id="capImgVisionPrompt" class="cap-image-control cap-image-textarea cap-image-textarea--tall" rows="5" maxlength="200" placeholder="请详细描述图片中的主要内容、关键信息与文字内容，并以结构化 JSON 输出。"></textarea>
+                            <span id="capImgVisionPromptCount" class="cap-image-char-count">0/200</span>
+                          </div>
+                        </label>
+                        <label class="cap-image-field cap-image-field--vision-format">
+                          <span class="cap-image-field-label">
+                            输出格式
+                            <button type="button" class="cap-image-field-help" title="图像理解结果的默认输出格式" aria-label="输出格式说明">?</button>
+                          </span>
+                          <select id="capImgVisionOutputFormat" class="cap-image-control">
+                            <option value="json">JSON</option>
+                            <option value="text">纯文本</option>
+                            <option value="markdown">Markdown</option>
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+                <aside class="cap-image-aside">
+                  <section class="cap-image-side-card cap-image-side-card--flow">
+                    <h5 class="cap-image-side-title">流程预览</h5>
+                    <ol class="cap-image-flow">
+                      <li class="cap-image-flow-step">
+                        <div class="cap-image-flow-rail">
+                          <span class="cap-image-flow-icon cap-image-flow-icon--input" aria-hidden="true"></span>
+                        </div>
+                        <div class="cap-image-flow-card">
+                          <strong>输入文本 / 图片</strong>
+                          <p>用户输入生成描述或上传图片</p>
+                        </div>
+                      </li>
+                      <li class="cap-image-flow-connector" aria-hidden="true"></li>
+                      <li class="cap-image-flow-step">
+                        <div class="cap-image-flow-rail">
+                          <span class="cap-image-flow-icon cap-image-flow-icon--gen" aria-hidden="true"></span>
+                        </div>
+                        <div class="cap-image-flow-card">
+                          <strong>文生图</strong>
+                          <p>根据文本生成高质量图片</p>
+                        </div>
+                      </li>
+                      <li class="cap-image-flow-connector" aria-hidden="true"></li>
+                      <li class="cap-image-flow-step">
+                        <div class="cap-image-flow-rail">
+                          <span class="cap-image-flow-icon cap-image-flow-icon--vision" aria-hidden="true"></span>
+                        </div>
+                        <div class="cap-image-flow-card">
+                          <strong>图像理解</strong>
+                          <p>对图片进行理解与分析</p>
+                        </div>
+                      </li>
+                      <li class="cap-image-flow-connector" aria-hidden="true"></li>
+                      <li class="cap-image-flow-step">
+                        <div class="cap-image-flow-rail">
+                          <span class="cap-image-flow-icon cap-image-flow-icon--output" aria-hidden="true"></span>
+                        </div>
+                        <div class="cap-image-flow-card">
+                          <strong>输出结果</strong>
+                          <p>返回图片或结构化识别结果</p>
+                        </div>
+                      </li>
+                    </ol>
+                  </section>
+                  <section class="cap-image-side-card cap-image-side-card--validate">
+                    <h5 class="cap-image-side-title">配置校验</h5>
+                    <ul id="capImageValidateList" class="cap-image-validate-list">
+                      <li class="cap-image-validate-row" data-check="gen">
+                        <span class="cap-image-validate-label">
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                          <span class="cap-image-validate-name">生成模型</span>
+                        </span>
+                        <span class="cap-image-validate-status">
+                          <span class="cap-image-validate-status-text">待检测</span>
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                        </span>
+                      </li>
+                      <li class="cap-image-validate-row" data-check="vision">
+                        <span class="cap-image-validate-label">
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                          <span class="cap-image-validate-name">理解模型</span>
+                        </span>
+                        <span class="cap-image-validate-status">
+                          <span class="cap-image-validate-status-text">待检测</span>
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                        </span>
+                      </li>
+                      <li class="cap-image-validate-row" data-check="api">
+                        <span class="cap-image-validate-label">
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                          <span class="cap-image-validate-name">API 连接</span>
+                        </span>
+                        <span class="cap-image-validate-status">
+                          <span class="cap-image-validate-status-text">待检测</span>
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                        </span>
+                      </li>
+                      <li class="cap-image-validate-row" data-check="service">
+                        <span class="cap-image-validate-label">
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                          <span class="cap-image-validate-name">服务可用性</span>
+                        </span>
+                        <span class="cap-image-validate-status">
+                          <span class="cap-image-validate-status-text">待检测</span>
+                          <span class="cap-image-validate-check" aria-hidden="true"></span>
+                        </span>
+                      </li>
+                    </ul>
+                    <div class="cap-image-validate-footer">
+                      <p id="capImageValidateTime" class="cap-image-validate-time">校验时间：—</p>
+                      <button type="button" id="capImageValidateBtn" class="cap-image-validate-btn">重新校验</button>
+                    </div>
+                  </section>
+                </aside>
+              </div>
+
+              <div class="cap-image-footer">
+                <button type="button" id="capImageTestGenBtn" class="secondary cap-image-footer-btn">✨ 测试生成</button>
+                <button type="button" id="capImageTestVisionBtn" class="secondary cap-image-footer-btn">🧠 测试理解</button>
+                <button type="submit" form="aiCapabilityForm" class="cap-image-save-btn">保存配置</button>
+              </div>
+            </div>
+
+            <div class="cap-panel cap-panel--local-models" data-cap-panel="local-models" hidden>
+              <div id="panel-local-models" class="local-models-panel">
+                <nav class="local-models-subnav" aria-label="本地模型部署分区">
+                  <div class="local-models-subnav-tabs">
+                    <button type="button" class="local-models-subnav-btn is-active" data-local-view="overview">服务概览</button>
+                    <button type="button" class="local-models-subnav-btn" data-local-view="catalog">模型库</button>
+                    <button type="button" class="local-models-subnav-btn" data-local-view="inference">推理算力设置</button>
+                  </div>
+                  <div class="local-models-subnav-actions">
+                    <button type="button" id="localModelsOpenAiBtn" class="secondary">AI 助手</button>
+                  </div>
+                </nav>
+
+                <div class="local-models-stage">
+                <section id="localModelsOverviewView" class="local-models-view local-models-view--overview is-active">
+                  <div class="local-models-overview-grid">
+                    <article class="local-models-overview-card">
+                      <div class="local-models-overview-card-head">
+                        <h3>服务状态</h3>
+                        <span id="ollamaOverviewStatusBadge" class="local-models-status-badge is-unknown">检测中</span>
+                      </div>
+                      <dl class="local-models-overview-kv">
+                        <div>
+                          <dt>Ollama 服务地址</dt>
+                          <dd>
+                            <label class="local-models-host-edit">
+                              <input id="ollamaHostInput" type="text" placeholder="http://127.0.0.1:11434" autocomplete="off" />
+                            </label>
+                            <button type="button" id="ollamaSaveHostBtn" class="secondary local-models-host-save">保存</button>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>已连接模型</dt>
+                          <dd id="ollamaOverviewModelCount">—</dd>
+                        </div>
+                      </dl>
+                    </article>
+                    <article class="local-models-overview-card">
+                      <h3>系统环境</h3>
+                      <dl class="local-models-overview-kv">
+                        <div><dt>CPU</dt><dd id="ollamaOverviewCpuBrand">—</dd></div>
+                        <div><dt>逻辑核心</dt><dd id="ollamaOverviewLogicalCores">—</dd></div>
+                        <div><dt>系统</dt><dd id="ollamaOverviewPlatform">—</dd></div>
+                        <div><dt>建议线程</dt><dd id="ollamaOverviewSuggestedThread"><code>—</code></dd></div>
+                      </dl>
+                    </article>
+                    <article class="local-models-overview-card">
+                      <h3>快速操作</h3>
+                      <div class="local-models-quick-actions">
+                        <button type="button" id="ollamaPingBtn">检测连接</button>
+                        <button type="button" id="ollamaRefreshLocalBtn" class="secondary">刷新已安装</button>
+                        <button type="button" id="ollamaOpenApiDocsBtn" class="secondary">打开 API 文档 ↗</button>
+                      </div>
+                    </article>
+                    <article class="local-models-overview-card">
+                      <h3>适配建议</h3>
+                      <ul id="ollamaOverviewTipsList" class="local-models-tips-list">
+                        <li>正在加载本机适配建议…</li>
+                      </ul>
+                    </article>
+                  </div>
+                  <div id="ollamaStatusLine" class="local-ollama-status local-models-overview-status" aria-live="polite"></div>
+                  <div id="ollamaCpuHintBox" class="local-ollama-cpu-hint" hidden></div>
+                </section>
+
+                <section id="localModelsInferenceView" class="local-models-view local-models-view--inference" hidden>
+                  <div id="ollamaInferenceCard" class="local-ollama-inference-card">
+                    <header class="local-models-inference-head">
+                      <h3>推理算力设置</h3>
+                      <p class="field-hint local-models-inference-sub">AI 助手调用 Ollama 时生效</p>
+                    </header>
+                    <div class="local-ollama-inference-grid">
+                      <label class="full">
+                        运行设备
+                        <select id="ollamaInferenceDevice" aria-label="本机 Ollama 运行设备">
+                          <option value="gpu">优先使用显卡（由 Ollama 尽量使用 GPU 参与计算）</option>
+                          <option value="auto">自动（由 Ollama 自行选择 CPU 或 GPU 推理）</option>
+                          <option value="cpu">仅使用 CPU（由 Ollama 不使用 GPU，纯 CPU 推理）</option>
+                        </select>
+                      </label>
+                      <div class="full local-ollama-thread-row">
+                        <label class="local-ollama-thread-label">
+                          CPU 线程数
+                          <span id="ollamaThreadHint" class="local-ollama-thread-hint"></span>
+                        </label>
+                        <div class="local-ollama-thread-controls">
+                          <input id="ollamaNumThreadRange" type="range" min="1" max="64" value="8" aria-label="CPU 线程数滑块" />
+                          <input id="ollamaNumThreadInput" type="number" min="1" max="512" step="1" value="8" aria-label="CPU 线程数" />
+                        </div>
+                        <div class="local-ollama-inference-actions">
+                          <button type="button" id="ollamaThreadUseSuggestedBtn" class="secondary">恢复建议线程</button>
+                          <button type="button" id="ollamaThreadClearFixedBtn" class="secondary">不在请求中固定线程</button>
+                          <button type="button" id="ollamaSaveInferenceBtn">保存推理设置</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="ollamaInferenceStatusLine" class="local-ollama-status local-models-inference-status" aria-live="polite"></div>
+                </section>
+
+                <section id="localModelsCatalogView" class="local-models-view local-models-view--catalog" hidden>
+                  <section class="card card-fill local-models-catalog-card">
+                    <div id="ollamaCatalogStatusLine" class="local-ollama-status" aria-live="polite"></div>
+                    <p class="field-hint">
+                      请先在本机安装并启动 <strong>Ollama</strong>（默认监听 <code>http://127.0.0.1:11434</code>）。从<strong>模型库清单</strong>选择并拉取到本机，与
+                      <strong>AI 助手</strong>中「Ollama（本地）」厂商配置配合使用。
+                    </p>
+                    <div class="local-ollama-two-col">
+                      <div class="local-ollama-subcard" id="modelCatalogCard">
+                        <div class="local-ollama-catalog-head">
+                          <h3>模型库（可选安装）</h3>
+                          <button type="button" id="ollamaCatalogRecommendBtn" class="secondary local-ollama-eval-btn" title="检测本机硬件并筛选推荐可部署模型">
+                            检测推荐模型
+                          </button>
+                        </div>
+                        <p class="field-hint" style="margin-top: 0">在同一模型库中可切换「Ollama 模型」与「语音模型（ASR/TTS）」。当前页面仅展示可本地部署模型，并复用下方统一安装按钮。</p>
+                        <div class="local-ollama-search-row">
+                          <select id="modelLibraryTypeSelect" aria-label="模型库类型切换">
+                            <option value="ollama">Ollama 模型库</option>
+                            <option value="voice">语音模型库（ASR / TTS）</option>
+                          </select>
+                        </div>
+                        <div class="local-ollama-search-row">
+                          <input id="ollamaCatalogSearch" type="search" placeholder="筛选库内模型名或厂家…" autocomplete="off" />
+                        </div>
+                        <div id="ollamaCatalogList" class="local-ollama-model-list local-ollama-catalog-tree" aria-label="模型库列表（按厂家分组）"></div>
+                      </div>
+                      <div class="local-ollama-subcard" id="localInstalledCard">
+                        <div class="local-ollama-installed-head">
+                          <h3>本机已安装</h3>
+                        </div>
+                        <div id="ollamaRecommendPanel" class="local-ollama-recommend-panel" hidden>
+                          <div id="ollamaRecommendSummary" class="local-ollama-recommend-summary" aria-live="polite"></div>
+                          <ul id="ollamaRecommendList" class="local-ollama-recommend-list" aria-label="推荐模型"></ul>
+                          <div id="ollamaRecommendNotesHost" class="local-ollama-recommend-notes-host"></div>
+                          <div class="local-ollama-recommend-actions">
+                            <button type="button" id="ollamaRecommendPullAllBtn" class="secondary">一键顺序拉取全部推荐</button>
+                            <button type="button" id="ollamaRecommendCloseBtn" class="secondary">收起推荐</button>
+                          </div>
+                        </div>
+                        <ul id="ollamaLocalList" class="local-ollama-model-list" aria-label="已安装模型"></ul>
+                      </div>
+                    </div>
+                    <div class="local-ollama-pull-row">
+                      <label class="full" style="margin: 0">
+                        拉取模型名
+                        <input id="ollamaPullNameInput" type="text" placeholder="例如 llama3.2 或 qwen2.5:7b" autocomplete="off" />
+                      </label>
+                      <button type="button" id="ollamaPullBtn">拉取到本机</button>
+                      <button type="button" id="ollamaDeleteBtn" class="secondary">删除所选已安装模型</button>
+                    </div>
+                    <pre id="ollamaPullLog" class="local-ollama-log" aria-label="拉取进度"></pre>
+                    <div class="local-ollama-footer-actions">
+                      <button type="button" id="ollamaApplyAiProfileBtn" class="secondary">将当前拉取名加入 AI 模型配置（Ollama）</button>
+                    </div>
+                  </section>
+                </section>
+                </div>
+              </div>
+            </div>
+
+            <div class="cap-panel cap-panel--skills" data-cap-panel="skills" hidden>
+              <header class="cap-skills-header">
+                <h4 class="ai-profiles-section-title">技能中心</h4>
+                <p class="field-hint cap-skills-intro">展示当前客户端已加载的 Skill 能力（含优先级与上线状态）。AI 助手可调用其中已启用的工具型技能。</p>
+              </header>
+              <div id="runtimePrerequisitesBar" class="runtime-prereq-bar" aria-live="polite"></div>
+              <div id="skillSummary" class="skill-summary"></div>
+              <div id="skillList" class="skill-list cap-skills-list"></div>
+            </div>
+          </section>
+        </div>
+      </form>
+      <div class="dialog-actions full cap-capability-footer">
+        <button type="button" id="aiCapabilityDialogClose" class="secondary">关闭</button>
+        <button type="submit" form="aiCapabilityForm">保存</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="asrSettingsDialog" class="ai-profiles-dialog">
+    <div class="ai-profiles-dialog-inner">
+      <h3 class="ai-profiles-dialog-title">ASR 配置</h3>
+      <p class="field-hint">录音转文字使用 OpenAI 兼容 ASR 接口：<code>Base URL/audio/transcriptions</code>。</p>
+      <form id="asrSettingsForm" class="grid-form">
+        <label class="full">
+          API Base URL
+          <input id="asrBaseUrl" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+        </label>
+        <label class="full">
+          模型 ID
+          <input id="asrModel" type="text" placeholder="如 whisper-1 / qwen3-asr（以供应商实际可用模型 ID 为准）" autocomplete="off" />
+        </label>
+        <label>
+          语言代码
+          <input id="asrLanguage" type="text" placeholder="zh" autocomplete="off" />
+        </label>
+        <label>
+          提示词（可选）
+          <input id="asrPrompt" type="text" placeholder="术语词表/领域词提示" autocomplete="off" />
+        </label>
+        <label class="full">
+          API Key（加密存储）
+          <input id="asrApiKey" type="password" autocomplete="new-password" placeholder="留空表示不修改已保存密钥" />
+        </label>
+        <div class="dialog-actions full">
+          <button type="button" id="asrClearKeyBtn" class="secondary">清除密钥</button>
+          <button type="button" id="asrSettingsCloseBtn" class="secondary">关闭</button>
+          <button type="submit">保存</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="environmentSetupDialog" class="env-setup-dialog">
+    <div class="env-setup-shell">
+      <header class="env-setup-head">
+        <h2>本地 AI 环境配置</h2>
+        <p class="env-setup-sub">将按「Python → Ollama → 模型」顺序自动配置；知识库检索依赖 Ollama，Python 用于语音扩展等本地插件。</p>
+      </header>
+      <ol id="envSetupSteps" class="env-setup-steps">
+        <li class="env-setup-step is-active" data-step="detect">1. 检测硬件与环境</li>
+        <li class="env-setup-step" data-step="python">2. 安装 Python 3.12</li>
+        <li class="env-setup-step" data-step="ollama">3. 安装 / 启动 Ollama</li>
+        <li class="env-setup-step" data-step="models">4. 下载必备模型</li>
+        <li class="env-setup-step" data-step="verify">5. 复检并进入</li>
+      </ol>
+      <div id="envSetupBody" class="env-setup-body" aria-live="polite">
+        <p id="envSetupMessage">正在检测…</p>
+        <ul id="envSetupIssueList" class="env-setup-issues"></ul>
+        <pre id="envSetupProgress" class="env-setup-progress" hidden></pre>
+      </div>
+      <footer class="env-setup-actions">
+        <button type="button" class="secondary" id="envSetupSkipBtn">稍后配置</button>
+        <button type="button" class="secondary" id="envSetupRecheckBtn">重新检测</button>
+        <button type="button" id="envSetupAutoFixBtn">一键配置</button>
+        <button type="button" id="envSetupDoneBtn" hidden>完成</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <script src="./utils/dom.js"></script>
+  <script src="./app/taskListView.js"></script>
+  <script src="./taskEnhancements.js"></script>
+  <script src="./taskAnalytics.js"></script>
+  <script src="./skills.js"></script>
+  <script src="./localModels.js"></script>
+  <script src="./environmentSetup.js"></script>
+  <script src="./app.js"></script>
+  <script src="./utils/kbConfigLayout.js"></script>
+  <script src="./knowledgeBase.js"></script>
+  <script src="./docPreviewController.js"></script>
+  <script src="./ai/aiDocVisual.js"></script>
+  <script src="./providerBrandIcons.js"></script>
+  <script src="./ai.js"></script>
+  <script src="./capability.js"></script>
+  <script src="./media.js"></script>
+  <script src="./recorder.js"></script>
+</body>
+</html>

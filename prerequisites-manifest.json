@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "description": "客户端运行环境插件清单：评估结果中的 issue可映射到下方 remediate 动作；auto类由应用内一键执行，open_url 需打开下载页手动安装。",
+  "plugins": [
+    {
+      "id": "python312",
+      "title": "Python 3.12（推荐用于 pip 编译扩展）",
+      "issueIds": ["python_high_version", "python_missing"],
+      "remediate": "open_url",
+      "url": "https://www.python.org/downloads/release/python-31211/",
+      "auto": false
+    }
+  ]
+}

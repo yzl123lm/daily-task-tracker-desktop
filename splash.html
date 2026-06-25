@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>鲸落AI 启动中</title>
+  <link rel="stylesheet" href="./splash.css" />
+</head>
+<body>
+  <div class="splash-shell">
+    <div class="splash-glow splash-glow--a" aria-hidden="true"></div>
+    <div class="splash-glow splash-glow--b" aria-hidden="true"></div>
+    <div class="splash-grid" aria-hidden="true"></div>
+    <main class="splash-card">
+      <div class="splash-brand">
+        <img id="splashLogo" class="splash-logo" src="./build/icon.png" alt="" width="72" height="72" />
+        <div class="splash-brand-text">
+          <h1 id="splashTitle" class="splash-title">鲸落AI</h1>
+          <p id="splashSubtitle" class="splash-subtitle">智能工作助手</p>
+        </div>
+      </div>
+      <p id="splashMessage" class="splash-message">正在启动…</p>
+      <div class="splash-progress-wrap" aria-hidden="false">
+        <div class="splash-progress-track">
+          <div id="splashProgressBar" class="splash-progress-bar"></div>
+        </div>
+        <div class="splash-progress-meta">
+          <span id="splashTaskName" class="splash-task-name">准备中</span>
+          <span id="splashPercent" class="splash-percent">0%</span>
+        </div>
+      </div>
+      <p id="splashHint" class="splash-hint">首次启动可能需检测 Ollama 与知识库，请稍候</p>
+      <p id="splashVersion" class="splash-version">v—</p>
+      <p id="splashError" class="splash-error" hidden></p>
+    </main>
+  </div>
+  <script src="./splash.js"></script>
+</body>
+</html>

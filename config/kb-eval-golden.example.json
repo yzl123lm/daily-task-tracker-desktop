@@ -1,0 +1,16 @@
+[
+  {
+    "id": "KB-001",
+    "query": "bge-m3 嵌入模型",
+    "expectedDocContains": ["bge", "嵌入"],
+    "expectedSnippetContains": ["bge-m3", "嵌入"],
+    "queryType": "keyword"
+  },
+  {
+    "id": "KB-002",
+    "query": "混合检索如何提升专有名词命中率",
+    "expectedDocContains": ["检索", "混合"],
+    "expectedSnippetContains": ["混合", "关键词"],
+    "queryType": "semantic"
+  }
+]

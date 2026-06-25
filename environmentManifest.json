@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "description": "客户端本地 AI 与环境就绪清单：issue 映射到 remediate 动作。",
+  "plugins": [
+    {
+      "id": "ollama",
+      "title": "Ollama 本地推理运行时",
+      "issueIds": ["ollama_missing", "ollama_not_running"],
+      "remediate": "download_installer",
+      "installerId": "ollama_setup",
+      "url": "https://ollama.com/download",
+      "auto": true
+    },
+    {
+      "id": "bge-m3",
+      "title": "知识库嵌入模型 bge-m3",
+      "issueIds": ["bge_m3_missing"],
+      "remediate": "ollama_pull",
+      "model": "bge-m3",
+      "requiredFor": "knowledge_base",
+      "auto": true
+    },
+    {
+      "id": "chat-model",
+      "title": "本地对话模型",
+      "issueIds": ["chat_model_missing"],
+      "remediate": "ollama_pull_recommended",
+      "auto": true
+    },
+    {
+      "id": "rerank-ollama",
+      "title": "知识库重排模型 dengcao/bge-reranker-v2-m3",
+      "issueIds": ["rerank_cache_missing"],
+      "remediate": "ollama_pull",
+      "model": "dengcao/bge-reranker-v2-m3",
+      "auto": true
+    },
+    {
+      "id": "ollama-models-path",
+      "title": "Ollama 模型目录路径",
+      "issueIds": ["ollama_models_path_unsafe"],
+      "remediate": "powershell_fix",
+      "script": "fix-ollama-models-path-win.ps1",
+      "auto": true
+    },
+    {
+      "id": "python312",
+      "title": "Python 3.12",
+      "issueIds": ["python_high_version", "python_missing"],
+      "remediate": "winget_install",
+      "wingetId": "Python.Python.3.12",
+      "installerId": "python312_setup",
+      "url": "https://www.python.org/downloads/release/python-31211/",
+      "auto": true
+    }
+  ],
+  "installers": {
+    "python312_setup": {
+      "platform": "win32",
+      "downloadUrl": "https://www.python.org/ftp/python/3.12.11/python-3.12.11-amd64.exe",
+      "downloadUrls": [
+        "https://www.python.org/ftp/python/3.12.11/python-3.12.11-amd64.exe",
+        "https://npmmirror.com/mirrors/python/3.12.11/python-3.12.11-amd64.exe",
+        "https://registry.npmmirror.com/-/binary/python/3.12.11/python-3.12.11-amd64.exe"
+      ],
+      "filename": "python-3.12.11-amd64.exe",
+      "silentArgs": ["/quiet", "InstallAllUsers=0", "PrependPath=1", "Include_test=0", "SimpleInstall=1"],
+      "passiveArgs": ["/passive", "InstallAllUsers=0", "PrependPath=1", "Include_test=0", "SimpleInstall=1"],
+      "minBytes": 24000000,
+      "postInstallWaitMs": 5000,
+      "postInstallPollMs": 120000,
+      "postInstallPollIntervalMs": 3000
+    },
+    "ollama_setup": {
+      "platform": "win32",
+      "downloadUrl": "https://ollama.com/download/OllamaSetup.exe",
+      "filename": "OllamaSetup.exe",
+      "silentArgs": ["/S"],
+      "postInstallPollMs": 60000,
+      "pollIntervalMs": 2000
+    }
+  }
+}

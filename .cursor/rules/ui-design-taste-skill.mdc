@@ -1,0 +1,43 @@
+---
+description: UI/前端视觉设计默认使用 taste-skill（Anti-Slop）
+globs: "**/*.{html,css,scss,tsx,jsx,vue,svelte}"
+alwaysApply: true
+---
+
+# UI 设计默认技能：taste-skill
+
+凡涉及 **UI 设计、前端视觉、页面布局、组件样式、动效、落地页/作品集/改版** 的任务，**必须先读取并遵循**：
+
+`.cursor/skills/taste-skill/SKILL.md`（与官方 CLI 安装路径 `.agents/skills/design-taste-frontend/SKILL.md` 保持同步）
+
+（来源：[Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill)，install name: `design-taste-frontend`）
+
+## 更新方式
+
+在项目根目录执行：
+
+```bash
+npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend" -y
+```
+
+官方 CLI 会更新 `.agents/skills/design-taste-frontend/` 并写入 `skills-lock.json`。
+
+**自动更新（已配置）：** Windows 计划任务 `DailyTaskTracker-TasteSkillUpdate`，每周一 09:00 执行 `npm run taste-skill:update-sync`。首次注册：`npm run taste-skill:register-weekly-task`
+
+## 执行顺序
+
+1. **读 brief** — 按 skill 第 0 节推断设计方向，输出一行 Design Read。
+2. **设三档 dial** — `DESIGN_VARIANCE` / `MOTION_INTENSITY` / `VISUAL_DENSITY`（默认 8 / 6 / 4，以用户明确要求为准）。
+3. **写代码前** — 对照 skill 的设计系统映射、反 slop 规则与 pre-flight checklist。
+4. **交付前** — 跑 skill 第 10 节最终检查。
+
+## 变体技能（仅在用户明确指定风格时使用）
+
+| 场景 | 技能路径 |
+|------|----------|
+| 改版现有项目 | `.cursor/skills/redesign-skill/SKILL.md` |
+| 柔和高端风 | `.cursor/skills/soft-skill/SKILL.md` |
+| 极简编辑风 | `.cursor/skills/minimalist-skill/SKILL.md` |
+| 工业粗野风 | `.cursor/skills/brutalist-skill/SKILL.md` |
+
+未指定变体时，**只用** `taste-skill`，不要用 `ui-ux-pro-max`、`ui-styling`、`impeccable` 等替代默认设计规范。
