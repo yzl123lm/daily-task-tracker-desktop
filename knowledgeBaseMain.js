@@ -632,6 +632,116 @@ function storePath(userDataPath, libraryId) {
   return path.join(libraryDir(userDataPath, libraryId), "store.json");
 }
 
+function toWindowsLongPath(rawPath) {
+  if (process.platform !== "win32") {
+    return String(rawPath || "");
+  }
+  const normalized = path.resolve(String(rawPath || ""));
+  if (normalized.startsWith("\\\\?\\")) {
+    return normalized;
+  }
+  if (normalized.startsWith("\\\\")) {
+    return `\\\\?\\UNC\\${normalized.slice(2)}`;
+  }
+  return `\\\\?\\${normalized}`;
+}
+
+function pathExistsOnDisk(rawPath) {
+  const p = String(rawPath || "").trim();
+  if (!p || p.startsWith("ai://")) {
+    return false;
+  }
+  const variants = new Set([p, path.normalize(p)]);
+  if (process.platform === "win32") {
+    variants.add(toWindowsLongPath(p));
+    const slashAlt = p.replace(/\//g, "\\");
+    if (slashAlt !== p) {
+      variants.add(slashAlt);
+      variants.add(toWindowsLongPath(slashAlt));
+    }
+  }
+  for (const candidate of variants) {
+    try {
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return "";
+}
+
+function resolveFirstExistingPath(candidates) {
+  const seen = new Set();
+  for (const raw of candidates || []) {
+    const value = String(raw || "").trim();
+    if (!value || seen.has(value)) {
+      continue;
+    }
+    seen.add(value);
+    const resolved = pathExistsOnDisk(value);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  return "";
+}
+
+function findDocumentInLibraries(userDataPath, docId, preferredLibraryId = "") {
+  const targetId = String(docId || "").trim();
+  if (!targetId) {
+    return null;
+  }
+  const meta = readKbMeta(userDataPath);
+  const libs = Array.isArray(meta.libraries) ? [...meta.libraries] : [];
+  const preferred = String(preferredLibraryId || "").trim();
+  if (preferred) {
+    libs.sort((a, b) => {
+      const aHit = String(a?.id || "") === preferred ? -1 : 0;
+      const bHit = String(b?.id || "") === preferred ? -1 : 0;
+      return bHit - aHit;
+    });
+  }
+  for (const lib of libs) {
+    const libId = String(lib?.id || "").trim();
+    if (!libId) {
+      continue;
+    }
+    const st = loadStore(userDataPath, libId);
+    const doc = (st.documents || []).find((d) => String(d?.id || "") === targetId);
+    if (doc) {
+      return { libId, doc, st };
+    }
+  }
+  return null;
+}
+
+async function openPathInSystemShell(targetPath) {
+  const resolved = pathExistsOnDisk(targetPath) || String(targetPath || "").trim();
+  if (!resolved) {
+    return { ok: false, error: "文件路径无效" };
+  }
+  const shellError = await shell.openPath(resolved);
+  if (!shellError) {
+    return { ok: true, path: resolved };
+  }
+  if (process.platform === "win32") {
+    try {
+      const { spawn } = require("child_process");
+      spawn("cmd.exe", ["/d", "/s", "/c", "start", '""', resolved], {
+        detached: true,
+        stdio: "ignore",
+        windowsHide: true,
+      }).unref();
+      return { ok: true, path: resolved, via: "cmd-start" };
+    } catch (err) {
+      return { ok: false, error: `${shellError}（备用打开方式失败：${err?.message || err}）`, path: resolved };
+    }
+  }
+  return { ok: false, error: shellError, path: resolved };
+}
+
 function defaultStore() {
   const base = { ...DEFAULT_KB_RETRIEVAL_SETTINGS };
   return {
@@ -5126,19 +5236,21 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     } catch (err) {
       return { ok: false, error: err?.message || "缺少文档 id" };
     }
-    const meta = readKbMeta(ud());
-    const libId = reqLibraryId && meta.libraries.some((x) => x.id === reqLibraryId) ? reqLibraryId : activeLibraryId();
-    const st = loadStore(ud(), libId);
-    const doc = (st.documents || []).find((d) => String(d?.id || "") === docId);
-    if (!doc) {
+    const located = findDocumentInLibraries(ud(), docId, reqLibraryId);
+    if (!located) {
       return { ok: false, error: "未找到对应文档（可能已删除或不在当前知识库）" };
     }
+    const { libId, doc } = located;
+    const extraPaths = Array.isArray(p.sourcePaths)
+      ? p.sourcePaths.map((x) => String(x || "").trim()).filter(Boolean)
+      : [];
     const candidates = [
       String(doc.sourcePath || "").trim(),
-      String(doc.normalizedPath || "").trim(),
       String(p.sourcePath || "").trim(),
+      ...extraPaths,
+      String(doc.normalizedPath || "").trim(),
     ].filter((value, index, list) => value && list.indexOf(value) === index);
-    const targetPath = candidates.find((candidate) => fs.existsSync(candidate));
+    const targetPath = resolveFirstExistingPath(candidates);
     if (!targetPath) {
       const shown = candidates[0] || String(p.sourcePath || "").trim() || "（无路径）";
       return {
@@ -5173,11 +5285,15 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         };
       }
     }
-    const result = await shell.openPath(targetPath);
-    if (result) {
-      return { ok: false, error: `系统无法打开该文件：${result}（路径：${targetPath}）`, path: targetPath };
+    const opened = await openPathInSystemShell(targetPath);
+    if (!opened.ok) {
+      return {
+        ok: false,
+        error: `系统无法打开该文件：${opened.error}（路径：${opened.path || targetPath}）`,
+        path: opened.path || targetPath,
+      };
     }
-    return { ok: true, path: targetPath };
+    return { ok: true, path: opened.path || targetPath };
   });
 
   void kbWatch.syncAll();

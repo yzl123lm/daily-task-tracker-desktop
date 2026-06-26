@@ -23,3 +23,12 @@ if (-not (Test-Path -LiteralPath $releaseScript)) {
 }
 
 . $releaseScript
+
+$pushScript = Join-Path $PSScriptRoot "push-to-github.ps1"
+if (Test-Path -LiteralPath $pushScript) {
+  try {
+    & $pushScript
+  } catch {
+    Write-Warning "(ship-latest-client) GitHub push failed: $($_.Exception.Message)"
+  }
+}

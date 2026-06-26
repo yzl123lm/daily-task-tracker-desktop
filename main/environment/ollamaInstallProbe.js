@@ -92,6 +92,67 @@ async function fetchOllamaTags(host, timeoutMs = 3000) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchOllamaTagsViaCli() {
+  try {
+    const out = await execFilePromise("ollama", ["list"], { timeout: 20000 });
+    const models = [];
+    for (const line of out.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || /^NAME\s+/i.test(trimmed)) {
+        continue;
+      }
+      const name = trimmed.split(/\s+/)[0];
+      if (name && name.toLowerCase() !== "name") {
+        models.push({ name });
+      }
+    }
+    return { models };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 拉取本机 Ollama 模型清单：优先 /api/tags，失败时重试并回退 ollama list。
+ * @param {string} [host]
+ * @param {{ timeoutMs?: number, retries?: number, retryDelayMs?: number }} [options]
+ */
+async function fetchOllamaModelTags(host, options = {}) {
+  const timeoutMs = Number(options.timeoutMs) || 5000;
+  const retries = Math.max(1, Number(options.retries) || 3);
+  const retryDelayMs = Number(options.retryDelayMs) || 800;
+  const base = normalizeOllamaHost(host || readOllamaSettings().host);
+  let lastErr = null;
+
+  for (let attempt = 0; attempt < retries; attempt += 1) {
+    try {
+      const tags = await fetchOllamaTags(base, timeoutMs);
+      if (tags && typeof tags === "object") {
+        return tags;
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+    if (attempt < retries - 1) {
+      await sleep(retryDelayMs);
+    }
+  }
+
+  const cliTags = await fetchOllamaTagsViaCli();
+  if (cliTags) {
+    return cliTags;
+  }
+
+  if (lastErr) {
+    throw lastErr;
+  }
+  return { models: [] };
+}
+
 function probeOllamaModelsPathUnsafe() {
   const modelsPath = String(process.env.OLLAMA_MODELS || "").trim();
   if (modelsPath && hasNonAscii(modelsPath)) {
@@ -122,9 +183,12 @@ async function probeOllamaEnvironment(options = {}) {
   let tags = null;
   if (api.reachable) {
     try {
-      tags = await fetchOllamaTags(api.host, options.tagsTimeoutMs || 3000);
+      tags = await fetchOllamaModelTags(api.host, {
+        timeoutMs: options.tagsTimeoutMs || 5000,
+        retries: options.tagsRetries || 3,
+      });
     } catch {
-      tags = null;
+      tags = await fetchOllamaTagsViaCli();
     }
   }
   return {
@@ -140,6 +204,8 @@ module.exports = {
   probeOllamaEnvironment,
   probeOllamaApi,
   fetchOllamaTags,
+  fetchOllamaModelTags,
+  fetchOllamaTagsViaCli,
   detectOllamaInstallPaths,
   probeOllamaModelsPathUnsafe,
 };

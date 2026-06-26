@@ -4,8 +4,17 @@ const os = require("os");
 const { execFile, spawn } = require("child_process");
 const { shell } = require("electron");
 const { readOllamaSettings, normalizeOllamaHost, buildOllamaHardwareRecommendPayload } = require("../ollamaRuntime.js");
-const { probeOllamaApi } = require("./ollamaInstallProbe.js");
-const { REQUIRED_EMBED_MODEL } = require("./requiredModels.js");
+const { probeOllamaApi, fetchOllamaModelTags } = require("./ollamaInstallProbe.js");
+const { probeRerankReadiness } = require("./rerankCacheProbe.js");
+const {
+  REQUIRED_EMBED_MODEL,
+  modelInstalled,
+  findInstalledEmbedModel,
+  findInstalledChatModel,
+  findInstalledRerankModel,
+  isEmbedModelName,
+  isRerankModelName,
+} = require("./requiredModels.js");
 const { loadEnvironmentManifest, sortRemediationIssues } = require("./EnvironmentReadinessManager.js");
 const { detectPythonVersion } = require("../../runtimePrerequisites.js");
 
@@ -290,12 +299,54 @@ async function remediateDownloadInstaller(issue, ctx, onProgress) {
   return { ok: true };
 }
 
+async function resolveInstalledOllamaModel(host, modelName) {
+  const name = String(modelName || "").trim();
+  if (!name) {
+    return { installed: false, resolved: "" };
+  }
+  let tags = null;
+  try {
+    tags = await fetchOllamaModelTags(host, { timeoutMs: 8000, retries: 3 });
+  } catch {
+    tags = null;
+  }
+  if (!tags) {
+    return { installed: false, resolved: "" };
+  }
+  if (modelInstalled(tags, name)) {
+    return { installed: true, resolved: name, tags };
+  }
+  if (isEmbedModelName(name)) {
+    const found = findInstalledEmbedModel(tags);
+    if (found) {
+      return { installed: true, resolved: found, tags };
+    }
+  }
+  if (isRerankModelName(name)) {
+    const found = findInstalledRerankModel(tags);
+    if (found) {
+      return { installed: true, resolved: found, tags };
+    }
+  }
+  return { installed: false, resolved: "", tags };
+}
+
 async function pullOllamaModelStream(modelName, onProgress) {
   const name = String(modelName || "").trim();
   if (!name) {
     throw new Error("模型名为空");
   }
   const host = normalizeOllamaHost(readOllamaSettings().host);
+  const existing = await resolveInstalledOllamaModel(host, name);
+  if (existing.installed) {
+    const label = existing.resolved || name;
+    onProgress?.({
+      stage: "pull_skip",
+      message: `本机已安装 ${label}，跳过下载`,
+      model: label,
+    });
+    return { ok: true, model: label, skipped: true };
+  }
   onProgress?.({ stage: "pull_start", message: `开始拉取 ${name}…` });
   const res = await fetch(`${host}/api/pull`, {
     method: "POST",
@@ -350,6 +401,31 @@ async function remediateOllamaPullRecommended(_issue, _ctx, onProgress) {
     model = hw?.items?.[0]?.model || model;
   } catch {
     /* default */
+  }
+  const host = normalizeOllamaHost(readOllamaSettings().host);
+  let tags = null;
+  try {
+    tags = await fetchOllamaModelTags(host, { timeoutMs: 8000, retries: 3 });
+  } catch {
+    tags = null;
+  }
+  const chatInstalled = tags ? findInstalledChatModel(tags) : "";
+  if (chatInstalled) {
+    onProgress?.({
+      stage: "pull_skip",
+      message: `本机已安装对话模型 ${chatInstalled}，跳过下载`,
+      model: chatInstalled,
+    });
+    return { ok: true, model: chatInstalled, skipped: true };
+  }
+  const existing = await resolveInstalledOllamaModel(host, model);
+  if (existing.installed) {
+    onProgress?.({
+      stage: "pull_skip",
+      message: `本机已安装 ${existing.resolved || model}，跳过下载`,
+      model: existing.resolved || model,
+    });
+    return { ok: true, model: existing.resolved || model, skipped: true };
   }
   onProgress?.({ stage: "recommend", message: `按硬件推荐拉取 ${model}…` });
   return pullOllamaModelStream(model, onProgress);
@@ -469,6 +545,69 @@ async function remediateOpenUrl(issue) {
 }
 
 /**
+ * 执行修复前预检：本机已有模型/重排就绪则跳过重复下载。
+ */
+async function shouldSkipRemediationIssue(issue, ctx) {
+  const action = issue.remediateAction || issue.remediateType || "open_url";
+  const host = normalizeOllamaHost(readOllamaSettings().host);
+
+  if (issue.id === "rerank_cache_missing") {
+    let tags = null;
+    try {
+      tags = await fetchOllamaModelTags(host, { timeoutMs: 8000, retries: 3 });
+    } catch {
+      tags = null;
+    }
+    const rerank = probeRerankReadiness(ctx.userDataPath, tags);
+    if (rerank.ready) {
+      const label =
+        rerank.provider === "ollama" && rerank.ollamaRerankModel
+          ? rerank.ollamaRerankModel
+          : "重排模型";
+      return {
+        skip: true,
+        message: `本机重排已就绪（${label}），跳过下载`,
+        model: rerank.ollamaRerankModel || label,
+      };
+    }
+    return { skip: false };
+  }
+
+  if (action === "ollama_pull") {
+    const model = issue.plugin?.model || REQUIRED_EMBED_MODEL;
+    const existing = await resolveInstalledOllamaModel(host, model);
+    if (existing.installed) {
+      return {
+        skip: true,
+        message: `本机已安装 ${existing.resolved || model}，跳过下载`,
+        model: existing.resolved || model,
+      };
+    }
+    return { skip: false };
+  }
+
+  if (action === "ollama_pull_recommended") {
+    let tags = null;
+    try {
+      tags = await fetchOllamaModelTags(host, { timeoutMs: 8000, retries: 3 });
+    } catch {
+      tags = null;
+    }
+    const chatInstalled = tags ? findInstalledChatModel(tags) : "";
+    if (chatInstalled) {
+      return {
+        skip: true,
+        message: `本机已安装对话模型 ${chatInstalled}，跳过下载`,
+        model: chatInstalled,
+      };
+    }
+    return { skip: false };
+  }
+
+  return { skip: false };
+}
+
+/**
  * @param {object} issue enriched issue from evaluate
  * @param {{ appPath: string, userDataPath: string }} ctx
  * @param {(p: object) => void} [onProgress]
@@ -508,6 +647,24 @@ async function executeRemediationBatch(issues, ctx, onProgress) {
       const msg = `${issue.title} → 已跳过（需先完成 Ollama 安装并启动）`;
       onProgress?.({ stage: "skip", issueId: issue.id, message: msg });
       results.push({ issueId: issue.id, ok: false, skipped: true, error: "Ollama 未就绪" });
+      continue;
+    }
+
+    const preSkip = await shouldSkipRemediationIssue(issue, ctx);
+    if (preSkip.skip) {
+      onProgress?.({
+        stage: "pull_skip",
+        issueId: issue.id,
+        message: `${issue.title} → ${preSkip.message}`,
+        model: preSkip.model,
+      });
+      results.push({
+        issueId: issue.id,
+        ok: true,
+        skipped: true,
+        model: preSkip.model,
+        message: preSkip.message,
+      });
       continue;
     }
 

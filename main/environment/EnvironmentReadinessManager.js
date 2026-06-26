@@ -5,8 +5,10 @@ const { probeOllamaEnvironment } = require("./ollamaInstallProbe.js");
 const { probeRerankReadiness } = require("./rerankCacheProbe.js");
 const {
   REQUIRED_EMBED_MODEL,
-  modelInstalled,
+  OLLAMA_RERANK_MODEL,
+  findInstalledEmbedModel,
   findInstalledChatModel,
+  findInstalledRerankModel,
 } = require("./requiredModels.js");
 const { buildRuntimeProfile, writeRuntimeProfile } = require("./runtimeProfile.js");
 const { getActiveProfileCredentials } = require("../aiSessionStore.js");
@@ -158,13 +160,16 @@ class EnvironmentReadinessManager {
     const depth = options.depth === "full" ? "full" : "lite";
     const prereq = await evaluateRuntimePrerequisites({ appPath: this.ctx.appPath });
     const ollamaProbe = await probeOllamaEnvironment({
-      apiTimeoutMs: depth === "full" ? 4000 : 2500,
-      tagsTimeoutMs: depth === "full" ? 4000 : 3000,
+      apiTimeoutMs: depth === "full" ? 5000 : 3500,
+      tagsTimeoutMs: depth === "full" ? 8000 : 6000,
+      tagsRetries: depth === "full" ? 4 : 3,
     });
     const tags = ollamaProbe.tags;
     const rerank = probeRerankReadiness(this.ctx.userDataPath, tags);
 
-    const bgeM3InTags = tags ? modelInstalled(tags, REQUIRED_EMBED_MODEL) : false;
+    const embedModelInstalled = tags ? findInstalledEmbedModel(tags) : "";
+    const bgeM3InTags = Boolean(embedModelInstalled);
+    const rerankModelInstalled = tags ? findInstalledRerankModel(tags) : "";
     const chatModelInstalled = tags ? findInstalledChatModel(tags) : "";
     let recommendedChatModel = "";
     try {
@@ -213,8 +218,7 @@ class EnvironmentReadinessManager {
         id: "rerank_cache_missing",
         severity: "info",
         title: "重排模型未就绪",
-        detail:
-          "默认使用 Ollama 重排 dengcao/bge-reranker-v2-m3，可应用内一键拉取。",
+        detail: `默认使用 Ollama 重排 ${OLLAMA_RERANK_MODEL}，可应用内一键拉取（若本机已安装将自动跳过）。`,
         remediateType: "ollama_pull",
       });
     }
@@ -232,9 +236,11 @@ class EnvironmentReadinessManager {
       python: prereq.python,
       ollama: ollamaProbe,
       models: {
-        embedModel: REQUIRED_EMBED_MODEL,
+        embedModel: embedModelInstalled || REQUIRED_EMBED_MODEL,
         bgeM3Installed: bgeM3InTags,
         bgeM3InTags,
+        embedModelInstalled,
+        rerankModelInstalled,
         chatModelInstalled,
         recommendedChatModel,
         embedSmokeOk,

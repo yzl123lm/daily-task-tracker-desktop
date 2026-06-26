@@ -16,8 +16,11 @@ npm run ship:latest-client
 1. 执行 `npm run build` 生成 Windows 安装包与便携包；
 2. 将产物复制到项目根目录下的 **`最新客户端`**（含带时间戳的历史子目录与按版本号覆盖的扁平目录），并写入 `release-history.jsonl`；
 3. **运行 NSIS 静默安装**，将最新版安装到本机用户目录。
+4. **自动 `git commit` + `git push`** 到 GitHub（`origin` 当前分支；无改动则只 push）。跳过：`SKIP_GITHUB_PUSH=1 npm run ship:latest-client`
 
 **不要**在交付流程中设置 `SKIP_INSTALL=1`。若仅需装完不自动启动应用，可使用 `SKIP_LAUNCH_AFTER_INSTALL=1 npm run ship:latest-client`。
+
+仅推送代码、不打包：`npm run push:github`（可用 `GITHUB_COMMIT_MESSAGE` 自定义提交说明）。
 
 `npm run install:client` 与 `npm run ship:latest-client` 等价，均走上述固定流程。
 

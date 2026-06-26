@@ -1609,7 +1609,40 @@
       return false;
     }
     const sp = String(hit.sourcePath || "").trim();
-    return Boolean(sp) && !sp.startsWith("ai://");
+    if (sp.startsWith("ai://")) {
+      return false;
+    }
+    if (hit.autoLearn && !sp) {
+      return false;
+    }
+    return true;
+  }
+
+  function extractHitSourcePathCandidates(hit) {
+    const out = [];
+    const push = (value) => {
+      const v = String(value || "").trim();
+      if (v && !v.startsWith("ai://") && !out.includes(v)) {
+        out.push(v);
+      }
+    };
+    push(hit?.sourcePath);
+    const { meta } = parseHitChunkText(hit?.text || "");
+    const pathRow = meta.find((row) => row.label === "路径");
+    push(pathRow?.value);
+    return out;
+  }
+
+  function showSearchResultActionFeedback(message, isErr = false) {
+    const text = String(message || "");
+    if (el.searchResultMeta) {
+      el.searchResultMeta.textContent = text;
+      el.searchResultMeta.classList.toggle("is-error", Boolean(isErr));
+    }
+    setStatus(text, isErr);
+    if (isErr && text) {
+      showCopyableResultDialog(text, "打开源文件失败");
+    }
   }
 
   function syncSearchResultActionButtons(hit) {
@@ -1619,7 +1652,9 @@
       el.searchResultOpenDocBtn.title = canOpen
         ? "在系统默认应用中打开源文件"
         : hit?.docId
-          ? "该条目无本地源文件（可能为自动学习生成）"
+          ? hit.autoLearn
+            ? "该条目无本地源文件（可能为自动学习生成）"
+            : "该条目无可用本地路径"
           : "缺少文档信息";
     }
     if (el.searchResultCopyBtn) {
@@ -2199,25 +2234,33 @@
   async function openSelectedSearchResultDoc() {
     const index = searchResultState.selectedIndex;
     const hit = searchResultState.hits?.[index];
-    if (!hit || !canOpenHitSource(hit) || typeof api.kbOpenDocument !== "function") {
+    if (!hit?.docId) {
+      showSearchResultActionFeedback("该条目缺少文档信息，无法打开源文件。", true);
       return;
     }
+    if (!canOpenHitSource(hit) || typeof api.kbOpenDocument !== "function") {
+      showSearchResultActionFeedback("该条目无本地源文件（可能为自动学习生成）。", true);
+      return;
+    }
+    const sourcePaths = extractHitSourcePathCandidates(hit);
     try {
+      showSearchResultActionFeedback("正在打开源文件…");
       const out = await openKbDocumentWithPassword({
         docId: hit.docId,
         libraryId: String(hit.libraryId || activeLibraryIdCache || ""),
-        sourcePath: String(hit.sourcePath || "").trim(),
+        sourcePath: sourcePaths[0] || "",
+        sourcePaths,
       });
       if (out?.canceled) {
         return;
       }
       if (!out?.ok) {
-        setStatus(out?.error || "打开源文件失败", true);
+        showSearchResultActionFeedback(out?.error || "打开源文件失败", true);
       } else {
-        setStatus("已打开源文件。");
+        showSearchResultActionFeedback(`已打开源文件：${out.path || sourcePaths[0] || ""}`);
       }
     } catch (err) {
-      setStatus(err.message || String(err), true);
+      showSearchResultActionFeedback(err.message || String(err), true);
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.10.19",
+  "version": "1.10.21",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -12,6 +12,7 @@
     "build:portable": "electron-builder --win portable",
     "install:client": "npm run ship:latest-client",
     "ship:latest-client": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ship-latest-client-win.ps1",
+    "push:github": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/push-to-github.ps1",
     "release:latest-client": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/release-client-to-latest.ps1",
     "start:installed": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-installed-win.ps1",
     "start:client": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-installed-win.ps1",

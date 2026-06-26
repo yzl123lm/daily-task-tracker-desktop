@@ -143,7 +143,7 @@
       const batch = await api.environmentRemediateBatch({ autoOnly: true });
       const lines = (batch?.results || []).map((r) => {
         if (r.skipped) {
-          return `${r.issueId}: 已跳过（${r.error || "前置未就绪"}）`;
+          return `${r.issueId}: 已跳过${r.message ? `（${r.message}）` : r.error ? `（${r.error}）` : ""}`;
         }
         return `${r.issueId}: ${r.ok ? "完成" : r.error || "失败"}`;
       });
@@ -193,7 +193,8 @@
       payload?.issueId === "chat_model_missing" ||
       payload?.issueId === "rerank_cache_missing" ||
       payload?.stage === "pull" ||
-      payload?.stage === "pull_start"
+      payload?.stage === "pull_start" ||
+      payload?.stage === "pull_skip"
     ) {
       setStep("models");
     }

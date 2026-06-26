@@ -25,6 +25,18 @@ function normalizeModelTag(name) {
     .split(":")[0];
 }
 
+function modelNameMatches(installedName, requestedName) {
+  const inst = String(installedName || "").trim().toLowerCase();
+  const req = String(requestedName || "").trim().toLowerCase();
+  if (!inst || !req) {
+    return false;
+  }
+  if (inst === req || inst.startsWith(`${req}:`) || req.startsWith(`${inst}:`)) {
+    return true;
+  }
+  return normalizeModelTag(inst) === normalizeModelTag(req);
+}
+
 function isEmbedModelName(name) {
   const n = normalizeModelTag(name);
   return n === "bge-m3" || n.includes("embed") || n.includes("nomic-embed");
@@ -44,12 +56,26 @@ function isChatModelName(name) {
 }
 
 function modelInstalled(tagsData, modelName) {
-  const want = String(modelName || "").trim().toLowerCase();
+  const want = String(modelName || "").trim();
   const list = Array.isArray(tagsData?.models) ? tagsData.models : [];
   return list.some((m) => {
-    const name = String(m?.name || m?.model || "").trim().toLowerCase();
-    return name === want || name.startsWith(`${want}:`);
+    const name = String(m?.name || m?.model || "").trim();
+    return modelNameMatches(name, want);
   });
+}
+
+function findInstalledEmbedModel(tagsData) {
+  if (modelInstalled(tagsData, REQUIRED_EMBED_MODEL)) {
+    return REQUIRED_EMBED_MODEL;
+  }
+  const list = Array.isArray(tagsData?.models) ? tagsData.models : [];
+  for (const m of list) {
+    const name = String(m?.name || m?.model || "").trim();
+    if (isEmbedModelName(name)) {
+      return name;
+    }
+  }
+  return "";
 }
 
 function findInstalledChatModel(tagsData) {
@@ -84,10 +110,13 @@ module.exports = {
   REQUIRED_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
   OLLAMA_RERANK_MODEL,
+  normalizeModelTag,
+  modelNameMatches,
   isEmbedModelName,
   isChatModelName,
   isRerankModelName,
   modelInstalled,
+  findInstalledEmbedModel,
   findInstalledChatModel,
   findInstalledRerankModel,
 };
