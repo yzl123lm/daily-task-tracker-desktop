@@ -2257,7 +2257,11 @@
       if (!out?.ok) {
         showSearchResultActionFeedback(out?.error || "打开源文件失败", true);
       } else {
-        showSearchResultActionFeedback(`已打开源文件：${out.path || sourcePaths[0] || ""}`);
+        const openedPath = out.path || sourcePaths[0] || "";
+        const msg = out.relocated
+          ? `文档路径已自动更新，已打开：${openedPath}`
+          : `已打开源文件：${openedPath}`;
+        showSearchResultActionFeedback(msg);
       }
     } catch (err) {
       showSearchResultActionFeedback(err.message || String(err), true);
@@ -3990,7 +3994,11 @@
             if (!out?.ok) {
               setStatus(out?.error || "打开文档失败", true);
             } else {
-              setStatus("已打开对应文档。");
+              setStatus(
+                out.relocated
+                  ? `文档路径已自动更新，已打开：${out.path || ""}`
+                  : "已打开对应文档。"
+              );
             }
           } catch (err) {
             setStatus(err.message || String(err), true);

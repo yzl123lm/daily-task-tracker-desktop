@@ -717,6 +717,231 @@ function findDocumentInLibraries(userDataPath, docId, preferredLibraryId = "") {
   return null;
 }
 
+function walkDirectoryFiles(dirPath, recursive, onFile) {
+  let entries = [];
+  try {
+    entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const ent of entries) {
+    const full = path.join(dirPath, ent.name);
+    if (ent.isDirectory()) {
+      if (recursive) {
+        walkDirectoryFiles(full, true, onFile);
+      }
+      continue;
+    }
+    if (ent.isFile()) {
+      onFile(full);
+    }
+  }
+}
+
+function basenameEquals(filePath, targetName) {
+  return path.basename(String(filePath || "")).toLowerCase() === String(targetName || "").toLowerCase();
+}
+
+function findRelocatedDocumentFile(doc, searchRoots) {
+  const targetName = String(doc?.name || path.basename(String(doc?.sourcePath || ""))).trim();
+  if (!targetName) {
+    return "";
+  }
+  const targetMd5 = String(doc?.fileMd5 || "").trim();
+  const targetSize = Number(doc?.fileSize);
+  const basenameHits = [];
+
+  for (const root of searchRoots || []) {
+    const dir = String(root?.dir || "").trim();
+    if (!dir || !fs.existsSync(dir)) {
+      continue;
+    }
+    const recursive = root.recursive !== false;
+    walkDirectoryFiles(dir, recursive, (fp) => {
+      if (basenameEquals(fp, targetName)) {
+        basenameHits.push(path.normalize(fp));
+      }
+    });
+  }
+
+  const uniqueHits = [...new Set(basenameHits)];
+  if (!uniqueHits.length) {
+    return "";
+  }
+  if (uniqueHits.length === 1) {
+    return uniqueHits[0];
+  }
+
+  if (targetMd5) {
+    for (const fp of uniqueHits) {
+      try {
+        if (computeFileMd5(fp) === targetMd5) {
+          return fp;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  if (Number.isFinite(targetSize) && targetSize > 0) {
+    for (const fp of uniqueHits) {
+      try {
+        if (fs.statSync(fp).size === targetSize) {
+          return fp;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return uniqueHits[0];
+}
+
+function collectDocumentSearchRoots(userDataPath, libraryId, st, extraDirs = []) {
+  const roots = [];
+  const seen = new Set();
+  const add = (dir, recursive = true) => {
+    const d = path.normalize(String(dir || "").trim());
+    if (!d || d.startsWith("ai://") || seen.has(d.toLowerCase())) {
+      return;
+    }
+    seen.add(d.toLowerCase());
+    try {
+      if (fs.existsSync(d) && fs.statSync(d).isDirectory()) {
+        roots.push({ dir: d, recursive });
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const settings = st?.settings || {};
+  add(settings.watchDirPath, settings.watchDirRecursive !== false);
+
+  const meta = readKbMeta(userDataPath);
+  for (const lib of meta.libraries || []) {
+    const libId = String(lib?.id || "").trim();
+    if (!libId) {
+      continue;
+    }
+    const lst = loadStore(userDataPath, libId);
+    add(lst.settings?.watchDirPath, lst.settings?.watchDirRecursive !== false);
+  }
+
+  for (const d of st?.documents || []) {
+    const sp = String(d?.sourcePath || "").trim();
+    if (sp && !sp.startsWith("ai://") && pathExistsOnDisk(sp)) {
+      add(path.dirname(sp), true);
+    }
+  }
+
+  for (const dir of extraDirs || []) {
+    add(dir, true);
+  }
+
+  return roots;
+}
+
+function applyDocumentSourcePathUpdate(st, docId, newPath) {
+  const targetId = String(docId || "").trim();
+  const fp = path.normalize(String(newPath || "").trim());
+  if (!targetId || !fp || !pathExistsOnDisk(fp)) {
+    return null;
+  }
+  const doc = (st.documents || []).find((d) => String(d?.id || "") === targetId);
+  if (!doc) {
+    return null;
+  }
+  const previousPath = String(doc.sourcePath || "").trim();
+  if (path.normalize(previousPath) === fp) {
+    return { doc, previousPath, newPath: fp, changed: false };
+  }
+  doc.sourcePath = fp;
+  const baseName = path.basename(fp);
+  if (baseName) {
+    doc.name = baseName;
+  }
+  try {
+    const stat = fs.statSync(fp);
+    doc.fileSize = stat.size;
+    doc.fileMtime = stat.mtime.toISOString();
+    if (!doc.fileMd5) {
+      doc.fileMd5 = computeFileMd5(fp);
+    }
+  } catch {
+    /* ignore */
+  }
+  for (const chunk of st.chunks || []) {
+    if (String(chunk?.docId || "") === targetId) {
+      chunk.sourcePath = fp;
+      if (chunk.docName) {
+        chunk.docName = doc.name || baseName;
+      }
+    }
+  }
+  return { doc, previousPath, newPath: fp, changed: true };
+}
+
+function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidates = []) {
+  const candidates = [
+    String(doc?.sourcePath || "").trim(),
+    ...(extraCandidates || []).map((x) => String(x || "").trim()).filter(Boolean),
+    String(doc?.normalizedPath || "").trim(),
+  ].filter((value, index, list) => value && list.indexOf(value) === index);
+
+  const targetPath = resolveFirstExistingPath(candidates);
+  if (targetPath) {
+    return { path: targetPath, relocated: false, previousPath: "" };
+  }
+
+  const oldPath = candidates[0] || "";
+  const extraDirs = [];
+  if (oldPath && !oldPath.startsWith("ai://")) {
+    extraDirs.push(path.dirname(oldPath));
+  }
+
+  const searchRoots = collectDocumentSearchRoots(userDataPath, libraryId, st, extraDirs);
+  const relocatedPath = findRelocatedDocumentFile(doc, searchRoots);
+  if (!relocatedPath) {
+    return { path: "", relocated: false, previousPath: oldPath };
+  }
+
+  const update = applyDocumentSourcePathUpdate(st, doc.id, relocatedPath);
+  if (update?.changed) {
+    saveStore(userDataPath, libraryId, st);
+  }
+  return {
+    path: relocatedPath,
+    relocated: Boolean(update?.changed),
+    previousPath: update?.previousPath || oldPath,
+  };
+}
+
+function reconcileStaleDocumentPaths(userDataPath, libraryId) {
+  const st = loadStore(userDataPath, libraryId);
+  let updated = 0;
+  const details = [];
+  for (const doc of st.documents || []) {
+    const sp = String(doc?.sourcePath || "").trim();
+    if (!sp || sp.startsWith("ai://") || pathExistsOnDisk(sp)) {
+      continue;
+    }
+    const resolution = resolveDocumentOpenPath(userDataPath, libraryId, doc, st, []);
+    if (resolution.path && resolution.relocated) {
+      updated += 1;
+      details.push({
+        docId: doc.id,
+        name: doc.name,
+        from: resolution.previousPath,
+        to: resolution.path,
+      });
+    }
+  }
+  return { updated, details };
+}
+
 async function openPathInSystemShell(targetPath) {
   const resolved = pathExistsOnDisk(targetPath) || String(targetPath || "").trim();
   if (!resolved) {
@@ -2708,7 +2933,13 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       return { ok: false, error: "未找到对应文档" };
     }
     const fp = String(doc.sourcePath || "").trim();
-    if (!fp || !fs.existsSync(fp)) {
+    if (!fp || !pathExistsOnDisk(fp)) {
+      const resolution = resolveDocumentOpenPath(ud(), libId, doc, st, []);
+      if (resolution.path) {
+        fp = resolution.path;
+      }
+    }
+    if (!fp || !pathExistsOnDisk(fp)) {
       return { ok: false, error: "源文件不存在或路径已失效" };
     }
     const pwd = String(password || "").trim();
@@ -2996,6 +3227,33 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         dupMd5Doc = null;
       }
       if (dupMd5Doc) {
+        const oldPath = String(dupMd5Doc.sourcePath || "").trim();
+        const oldMissing = !oldPath || !pathExistsOnDisk(oldPath);
+        if (oldMissing && pathExistsOnDisk(fp) && String(dupMd5Doc.fileMd5 || "") === fileMd5) {
+          const update = applyDocumentSourcePathUpdate(st, dupMd5Doc.id, fp);
+          if (update) {
+            saveStore(ud(), libId, st);
+            upsertIngestJob(libDir, {
+              id: jobId,
+              status: "skipped",
+              filePath: fp,
+              docId: dupMd5Doc.id,
+              updatedAt: new Date().toISOString(),
+              result: { reason: "relocated", previousPath: oldPath },
+            });
+            return {
+              ok: true,
+              skipped: true,
+              reason: "relocated",
+              relocated: true,
+              path: fp,
+              name: docName,
+              docId: dupMd5Doc.id,
+              previousPath: oldPath,
+              message: `检测到文档已迁移，已自动更新路径：${docName}`,
+            };
+          }
+        }
         const skipped = buildIngestSkipPayload(fp, "duplicate-md5", dupMd5Doc, { fileMd5 });
         upsertIngestJob(libDir, {
           id: jobId,
@@ -3817,7 +4075,10 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     if (!(meta.libraries || []).some((x) => x.id === libId)) {
       return { ok: false, error: "知识库不存在" };
     }
-    return kbWatch.scanDirectory(libId, "manual-scan");
+    return kbWatch.scanDirectory(libId, "manual-scan").then((scan) => {
+      const reconciled = reconcileStaleDocumentPaths(ud(), libId);
+      return { ...scan, reconciled };
+    });
   });
 
   ipcMain.handle("kb-auto-learn-ingest", async (_e, payload) => {
@@ -5240,22 +5501,24 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     if (!located) {
       return { ok: false, error: "未找到对应文档（可能已删除或不在当前知识库）" };
     }
-    const { libId, doc } = located;
+    const { libId, doc, st } = located;
     const extraPaths = Array.isArray(p.sourcePaths)
       ? p.sourcePaths.map((x) => String(x || "").trim()).filter(Boolean)
       : [];
-    const candidates = [
-      String(doc.sourcePath || "").trim(),
+    const resolution = resolveDocumentOpenPath(ud(), libId, doc, st, [
       String(p.sourcePath || "").trim(),
       ...extraPaths,
-      String(doc.normalizedPath || "").trim(),
-    ].filter((value, index, list) => value && list.indexOf(value) === index);
-    const targetPath = resolveFirstExistingPath(candidates);
+    ]);
+    const targetPath = resolution.path;
     if (!targetPath) {
-      const shown = candidates[0] || String(p.sourcePath || "").trim() || "（无路径）";
+      const shown =
+        String(doc.sourcePath || "").trim() ||
+        String(p.sourcePath || "").trim() ||
+        extraPaths[0] ||
+        "（无路径）";
       return {
         ok: false,
-        error: `源文件不存在或路径已失效：${shown}。请确认文件未移动/删除，或在原路径重新入库。`,
+        error: `源文件不存在或路径已失效：${shown}。请确认文件未移动/删除，或在知识库监控目录（如 E:\\工作文件\\大字典3.0）中重新扫描入库。`,
         missingPath: shown,
       };
     }
@@ -5293,7 +5556,15 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         path: opened.path || targetPath,
       };
     }
-    return { ok: true, path: opened.path || targetPath };
+    return {
+      ok: true,
+      path: opened.path || targetPath,
+      relocated: resolution.relocated,
+      previousPath: resolution.previousPath || "",
+      message: resolution.relocated
+        ? `文档路径已自动更新并打开：${opened.path || targetPath}`
+        : "",
+    };
   });
 
   void kbWatch.syncAll();
