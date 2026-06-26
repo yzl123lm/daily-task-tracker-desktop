@@ -757,7 +757,21 @@ body.theme-nebula {
 
 .theme-nebula .ai-ollama-usage {
   background: var(--ai-surface-muted);
-  color: var(--ai-surface-muted-text);
+  color: #475569;
+  border-color: var(--ai-surface-border);
+}
+
+.theme-nebula .ai-ollama-usage > summary {
+  color: #334155;
+  font-weight: 600;
+}
+
+.theme-nebula .ai-ollama-usage-k {
+  color: #64748b;
+}
+
+.theme-nebula .ai-ollama-usage-v {
+  color: #17202b;
 }
 
 .theme-nebula .ai-composer {
@@ -798,12 +812,13 @@ body.theme-nebula {
   border-radius: 12px;
   background: var(--ai-surface-secondary);
   border: 1px solid var(--ai-surface-border);
-  color: var(--ai-surface-muted-text);
+  color: #334155;
+  font-weight: 600;
 }
 
 .theme-nebula .ai-web-toggle:hover {
   background: #dde5ef;
-  color: var(--ai-surface-text);
+  color: #17202b;
   border-color: oklch(0.72 0.16 235 / 0.35);
 }
 
@@ -820,13 +835,14 @@ body.theme-nebula {
 .theme-nebula .ai-mode-compact-trigger {
   background: var(--ai-surface-secondary);
   border: 1px solid var(--ai-surface-border);
-  color: var(--ai-surface-muted-text);
+  color: #334155;
+  font-weight: 600;
 }
 
 .theme-nebula .ai-profile-trigger:hover,
 .theme-nebula .ai-mode-compact-trigger:hover {
   background: #dde5ef;
-  color: var(--ai-surface-text);
+  color: #17202b;
 }
 
 .theme-nebula .tab-chip {
@@ -1113,12 +1129,26 @@ body.theme-nebula {
   background: #eef2f6;
   color: #111111;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .topbar-env-btn:hover {
   background: #e2e8f0;
   color: #111111;
+}
+
+.theme-nebula .topbar-env-btn {
+  background: oklch(0.25 0.035 264 / 0.65);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.theme-nebula .topbar-env-btn:hover {
+  background: oklch(0.28 0.05 264 / 0.75);
+  color: var(--foreground);
+  border-color: oklch(0.72 0.16 235 / 0.35);
 }
 
 .topbar-env-dot {
@@ -2255,4 +2285,30 @@ body.theme-nebula {
   border-color: var(--workbench-border);
   color: var(--workbench-text);
   margin: 16px 24px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .topbar-env-btn {
+  background: var(--workbench-secondary);
+  border: 1px solid var(--workbench-border);
+  color: var(--workbench-text);
+  font-weight: 600;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .topbar-env-btn:hover {
+  background: #dde5ef;
+  color: var(--workbench-text);
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
+.theme-nebula #panel-ai .ai-msg-actions button.secondary {
+  background: var(--ai-surface-secondary);
+  border: 1px solid var(--ai-surface-border);
+  color: #334155;
+  font-weight: 600;
+}
+
+.theme-nebula #panel-ai .ai-msg-actions button.secondary:hover {
+  background: #dde5ef;
+  color: #17202b;
+  border-color: oklch(0.72 0.16 235 / 0.35);
 }
