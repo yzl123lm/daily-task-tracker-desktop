@@ -1379,20 +1379,36 @@
     if (typeof api.kbOpenDocument !== "function") {
       return { ok: false, error: "当前环境不支持打开文档" };
     }
-    let out = await api.kbOpenDocument(payload);
-    if (out?.needsPassword) {
-      const unlocked = await unlockKbDocumentWithPrompt(payload.docId, payload.libraryId, {
-        fileName: out.name,
-        filePath: out.path,
-        message: out.error,
-        reason: "open",
+    let unsubProgress = null;
+    if (typeof api.onKbOpenDocumentProgress === "function") {
+      unsubProgress = api.onKbOpenDocumentProgress((ev) => {
+        const msg = String(ev?.message || "").trim();
+        if (msg) {
+          showSearchResultActionFeedback(msg);
+          setStatus(msg);
+        }
       });
-      if (!unlocked?.ok) {
-        return unlocked?.canceled ? { ok: false, canceled: true } : unlocked;
-      }
-      out = await api.kbOpenDocument(payload);
     }
-    return out;
+    try {
+      let out = await api.kbOpenDocument(payload);
+      if (out?.needsPassword) {
+        const unlocked = await unlockKbDocumentWithPrompt(payload.docId, payload.libraryId, {
+          fileName: out.name,
+          filePath: out.path,
+          message: out.error,
+          reason: "open",
+        });
+        if (!unlocked?.ok) {
+          return unlocked?.canceled ? { ok: false, canceled: true } : unlocked;
+        }
+        out = await api.kbOpenDocument(payload);
+      }
+      return out;
+    } finally {
+      if (typeof unsubProgress === "function") {
+        unsubProgress();
+      }
+    }
   }
 
   function showCopyableResultDialog(message, title = "提示") {
@@ -2258,9 +2274,14 @@
         showSearchResultActionFeedback(out?.error || "打开源文件失败", true);
       } else {
         const openedPath = out.path || sourcePaths[0] || "";
-        const msg = out.relocated
-          ? `文档路径已自动更新，已打开：${openedPath}`
-          : `已打开源文件：${openedPath}`;
+        let msg = `已打开源文件：${openedPath}`;
+        if (out.relocated && out.fullDiskScan) {
+          msg = `已通过全盘搜索定位并打开：${openedPath}`;
+        } else if (out.relocated) {
+          msg = `文档路径已自动更新，已打开：${openedPath}`;
+        } else if (out.scanSkipped) {
+          msg = `已打开源文件：${openedPath}`;
+        }
         showSearchResultActionFeedback(msg);
       }
     } catch (err) {

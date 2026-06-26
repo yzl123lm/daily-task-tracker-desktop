@@ -742,13 +742,196 @@ function basenameEquals(filePath, targetName) {
   return path.basename(String(filePath || "")).toLowerCase() === String(targetName || "").toLowerCase();
 }
 
+const FULL_DISK_SKIP_DIR_NAMES = new Set([
+  "windows",
+  "program files",
+  "program files (x86)",
+  "$recycle.bin",
+  "system volume information",
+  "recovery",
+  "node_modules",
+  ".git",
+  "winsxs",
+]);
+
+function shouldSkipFullDiskDir(dirName, fullPath) {
+  const name = String(dirName || "").toLowerCase();
+  if (FULL_DISK_SKIP_DIR_NAMES.has(name)) {
+    return true;
+  }
+  if (name.startsWith("$")) {
+    return true;
+  }
+  const lower = String(fullPath || "").toLowerCase();
+  if (lower.includes("\\appdata\\local\\temp\\")) {
+    return true;
+  }
+  return false;
+}
+
+function listFixedDriveRoots() {
+  const roots = [];
+  if (process.platform === "win32") {
+    for (let code = 65; code <= 90; code += 1) {
+      const letter = String.fromCharCode(code);
+      const root = `${letter}:\\`;
+      try {
+        if (fs.existsSync(root) && fs.statSync(root).isDirectory()) {
+          roots.push(root);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return roots;
+  }
+  const home = os.homedir();
+  if (home) {
+    roots.push(home);
+  }
+  if (process.platform === "darwin") {
+    try {
+      if (fs.existsSync("/Volumes")) {
+        roots.push("/Volumes");
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return roots;
+}
+
+function pickBestBasenameMatch(uniqueHits, doc) {
+  if (!uniqueHits.length) {
+    return "";
+  }
+  if (uniqueHits.length === 1) {
+    return uniqueHits[0];
+  }
+  const targetMd5 = String(doc?.fileMd5 || "").trim();
+  if (targetMd5) {
+    for (const fp of uniqueHits) {
+      try {
+        if (computeFileMd5(fp) === targetMd5) {
+          return fp;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  const targetSize = Number(doc?.fileSize);
+  if (Number.isFinite(targetSize) && targetSize > 0) {
+    for (const fp of uniqueHits) {
+      try {
+        if (fs.statSync(fp).size === targetSize) {
+          return fp;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return uniqueHits[0];
+}
+
+async function walkDirectoryFilesAsync(dirPath, recursive, onFile, options = {}) {
+  const { shouldSkipDir, shouldAbort, onDirEnter, maxDepth = 128 } = options;
+  const stack = [{ dir: path.normalize(String(dirPath || "")), depth: 0 }];
+  let scannedDirs = 0;
+
+  while (stack.length) {
+    if (shouldAbort?.()) {
+      return "aborted";
+    }
+    const item = stack.pop();
+    if (!item) {
+      continue;
+    }
+    const { dir, depth } = item;
+    if (depth > maxDepth) {
+      continue;
+    }
+    const dirName = path.basename(dir);
+    if (depth > 0 && shouldSkipDir?.(dirName, dir)) {
+      continue;
+    }
+
+    scannedDirs += 1;
+    if (scannedDirs % 40 === 0) {
+      onDirEnter?.({ dir, scannedDirs });
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const ent of entries) {
+      const full = path.join(dir, ent.name);
+      if (ent.isFile()) {
+        onFile(full);
+      } else if (ent.isDirectory() && recursive) {
+        if (!shouldSkipDir?.(ent.name, full)) {
+          stack.push({ dir: full, depth: depth + 1 });
+        }
+      }
+    }
+  }
+  return "done";
+}
+
+async function collectBasenameMatchesAsync(doc, searchRoots, options = {}) {
+  const targetName = String(doc?.name || path.basename(String(doc?.sourcePath || ""))).trim();
+  if (!targetName) {
+    return "";
+  }
+  const { onProgress, shouldAbort, fullDisk = false } = options;
+  const basenameHits = [];
+
+  for (const root of searchRoots || []) {
+    const dir = String(root?.dir || root || "").trim();
+    if (!dir || !fs.existsSync(dir)) {
+      continue;
+    }
+    const recursive = root?.recursive !== false;
+    onProgress?.({ phase: fullDisk ? "full-disk" : "quick", dir, message: `正在搜索：${dir}` });
+    await walkDirectoryFilesAsync(
+      dir,
+      recursive,
+      (fp) => {
+        if (basenameEquals(fp, targetName)) {
+          basenameHits.push(path.normalize(fp));
+        }
+      },
+      {
+        shouldSkipDir: fullDisk ? shouldSkipFullDiskDir : () => false,
+        shouldAbort,
+        onDirEnter: (detail) => {
+          onProgress?.({
+            phase: fullDisk ? "full-disk" : "quick",
+            dir: detail.dir,
+            scannedDirs: detail.scannedDirs,
+            message: `正在搜索：${detail.dir}`,
+          });
+        },
+      }
+    );
+    if (shouldAbort?.()) {
+      return "";
+    }
+  }
+
+  return pickBestBasenameMatch([...new Set(basenameHits)], doc);
+}
+
 function findRelocatedDocumentFile(doc, searchRoots) {
   const targetName = String(doc?.name || path.basename(String(doc?.sourcePath || ""))).trim();
   if (!targetName) {
     return "";
   }
-  const targetMd5 = String(doc?.fileMd5 || "").trim();
-  const targetSize = Number(doc?.fileSize);
   const basenameHits = [];
 
   for (const root of searchRoots || []) {
@@ -764,39 +947,34 @@ function findRelocatedDocumentFile(doc, searchRoots) {
     });
   }
 
-  const uniqueHits = [...new Set(basenameHits)];
-  if (!uniqueHits.length) {
-    return "";
-  }
-  if (uniqueHits.length === 1) {
-    return uniqueHits[0];
-  }
+  return pickBestBasenameMatch([...new Set(basenameHits)], doc);
+}
 
-  if (targetMd5) {
-    for (const fp of uniqueHits) {
-      try {
-        if (computeFileMd5(fp) === targetMd5) {
-          return fp;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
+function shouldRunFullDiskScan(doc, missingPath, forceFullScan) {
+  if (forceFullScan) {
+    return true;
   }
-
-  if (Number.isFinite(targetSize) && targetSize > 0) {
-    for (const fp of uniqueHits) {
-      try {
-        if (fs.statSync(fp).size === targetSize) {
-          return fp;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
+  const attempt = doc?.sourcePathLocateAttempt;
+  if (!attempt || typeof attempt !== "object") {
+    return true;
   }
+  const prevMissing = String(attempt.missingPath || "").trim();
+  const scannedAt = String(attempt.scannedAt || "").trim();
+  if (!scannedAt || !prevMissing) {
+    return true;
+  }
+  return path.normalize(prevMissing) !== path.normalize(String(missingPath || ""));
+}
 
-  return uniqueHits[0];
+function recordFullDiskScanAttempt(st, docId, missingPath) {
+  const doc = (st.documents || []).find((d) => String(d?.id || "") === String(docId || ""));
+  if (!doc) {
+    return;
+  }
+  doc.sourcePathLocateAttempt = {
+    missingPath: String(missingPath || "").trim(),
+    scannedAt: new Date().toISOString(),
+  };
 }
 
 function collectDocumentSearchRoots(userDataPath, libraryId, st, extraDirs = []) {
@@ -856,6 +1034,9 @@ function applyDocumentSourcePathUpdate(st, docId, newPath) {
   }
   const previousPath = String(doc.sourcePath || "").trim();
   if (path.normalize(previousPath) === fp) {
+    if (pathExistsOnDisk(fp)) {
+      delete doc.sourcePathLocateAttempt;
+    }
     return { doc, previousPath, newPath: fp, changed: false };
   }
   doc.sourcePath = fp;
@@ -881,10 +1062,12 @@ function applyDocumentSourcePathUpdate(st, docId, newPath) {
       }
     }
   }
+  delete doc.sourcePathLocateAttempt;
   return { doc, previousPath, newPath: fp, changed: true };
 }
 
-function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidates = []) {
+async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, extraCandidates = [], options = {}) {
+  const { onProgress, forceFullScan = false, allowFullDiskScan = true } = options;
   const candidates = [
     String(doc?.sourcePath || "").trim(),
     ...(extraCandidates || []).map((x) => String(x || "").trim()).filter(Boolean),
@@ -893,7 +1076,7 @@ function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidat
 
   const targetPath = resolveFirstExistingPath(candidates);
   if (targetPath) {
-    return { path: targetPath, relocated: false, previousPath: "" };
+    return { path: targetPath, relocated: false, previousPath: "", fullDiskScan: false, scanSkipped: true };
   }
 
   const oldPath = candidates[0] || "";
@@ -902,10 +1085,41 @@ function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidat
     extraDirs.push(path.dirname(oldPath));
   }
 
+  onProgress?.({ phase: "quick", message: "正在知识库目录中查找文档…" });
   const searchRoots = collectDocumentSearchRoots(userDataPath, libraryId, st, extraDirs);
-  const relocatedPath = findRelocatedDocumentFile(doc, searchRoots);
+  let relocatedPath = findRelocatedDocumentFile(doc, searchRoots);
+  let fullDiskScan = false;
+
+  if (!relocatedPath && allowFullDiskScan && shouldRunFullDiskScan(doc, oldPath, forceFullScan)) {
+    fullDiskScan = true;
+    onProgress?.({
+      phase: "full-disk",
+      message: "原路径已失效，正在全盘搜索文档（找到后将记录新路径，下次不再扫描）…",
+    });
+    const driveRoots = listFixedDriveRoots().map((dir) => ({ dir, recursive: true }));
+    relocatedPath = await collectBasenameMatchesAsync(doc, driveRoots, {
+      fullDisk: true,
+      onProgress,
+    });
+    if (!relocatedPath) {
+      recordFullDiskScanAttempt(st, doc.id, oldPath);
+      saveStore(userDataPath, libraryId, st);
+    }
+  }
+
   if (!relocatedPath) {
-    return { path: "", relocated: false, previousPath: oldPath };
+    const attempt = doc?.sourcePathLocateAttempt;
+    const alreadyScanned =
+      attempt &&
+      path.normalize(String(attempt.missingPath || "")) === path.normalize(String(oldPath || ""));
+    return {
+      path: "",
+      relocated: false,
+      previousPath: oldPath,
+      fullDiskScan,
+      scanSkipped: false,
+      alreadyScanned: Boolean(alreadyScanned),
+    };
   }
 
   const update = applyDocumentSourcePathUpdate(st, doc.id, relocatedPath);
@@ -916,6 +1130,34 @@ function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidat
     path: relocatedPath,
     relocated: Boolean(update?.changed),
     previousPath: update?.previousPath || oldPath,
+    fullDiskScan,
+    scanSkipped: false,
+  };
+}
+
+function resolveDocumentOpenPath(userDataPath, libraryId, doc, st, extraCandidates = [], options = {}) {
+  const searchRoots = collectDocumentSearchRoots(userDataPath, libraryId, st, []);
+  const candidates = [
+    String(doc?.sourcePath || "").trim(),
+    ...(extraCandidates || []).map((x) => String(x || "").trim()).filter(Boolean),
+    String(doc?.normalizedPath || "").trim(),
+  ].filter((value, index, list) => value && list.indexOf(value) === index);
+  const targetPath = resolveFirstExistingPath(candidates);
+  if (targetPath) {
+    return { path: targetPath, relocated: false, previousPath: "" };
+  }
+  const relocatedPath = findRelocatedDocumentFile(doc, searchRoots);
+  if (!relocatedPath) {
+    return { path: "", relocated: false, previousPath: candidates[0] || "" };
+  }
+  const update = applyDocumentSourcePathUpdate(st, doc.id, relocatedPath);
+  if (update?.changed) {
+    saveStore(userDataPath, libraryId, st);
+  }
+  return {
+    path: relocatedPath,
+    relocated: Boolean(update?.changed),
+    previousPath: update?.previousPath || candidates[0] || "",
   };
 }
 
@@ -2934,7 +3176,9 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     }
     const fp = String(doc.sourcePath || "").trim();
     if (!fp || !pathExistsOnDisk(fp)) {
-      const resolution = resolveDocumentOpenPath(ud(), libId, doc, st, []);
+      const resolution = await resolveDocumentOpenPathAsync(ud(), libId, doc, st, [], {
+        allowFullDiskScan: true,
+      });
       if (resolution.path) {
         fp = resolution.path;
       }
@@ -5485,7 +5729,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     }
   });
 
-  ipcMain.handle("kb-open-document", async (_e, payload) => {
+  ipcMain.handle("kb-open-document", async (event, payload) => {
     const p = payload && typeof payload === "object" ? payload : {};
     let docId = "";
     let reqLibraryId = "";
@@ -5505,10 +5749,27 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     const extraPaths = Array.isArray(p.sourcePaths)
       ? p.sourcePaths.map((x) => String(x || "").trim()).filter(Boolean)
       : [];
-    const resolution = resolveDocumentOpenPath(ud(), libId, doc, st, [
+    const sendProgress = (detail) => {
+      try {
+        if (event?.sender && !event.sender.isDestroyed()) {
+          event.sender.send("kb-open-document-progress", {
+            docId,
+            libraryId: libId,
+            ...detail,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    const resolution = await resolveDocumentOpenPathAsync(ud(), libId, doc, st, [
       String(p.sourcePath || "").trim(),
       ...extraPaths,
-    ]);
+    ], {
+      onProgress: sendProgress,
+      forceFullScan: p.forceFullScan === true,
+      allowFullDiskScan: true,
+    });
     const targetPath = resolution.path;
     if (!targetPath) {
       const shown =
@@ -5516,10 +5777,15 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         String(p.sourcePath || "").trim() ||
         extraPaths[0] ||
         "（无路径）";
+      const suffix = resolution.alreadyScanned
+        ? "已执行过全盘搜索仍未找到，请确认文件是否存在或文件名是否变更。"
+        : "请确认文件未移动/删除，或文件名是否变更。";
       return {
         ok: false,
-        error: `源文件不存在或路径已失效：${shown}。请确认文件未移动/删除，或在知识库监控目录（如 E:\\工作文件\\大字典3.0）中重新扫描入库。`,
+        error: `源文件不存在或路径已失效：${shown}。${suffix}`,
         missingPath: shown,
+        alreadyScanned: Boolean(resolution.alreadyScanned),
+        fullDiskScan: Boolean(resolution.fullDiskScan),
       };
     }
     if (doc.encryptionStatus === "locked") {
@@ -5561,8 +5827,12 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       path: opened.path || targetPath,
       relocated: resolution.relocated,
       previousPath: resolution.previousPath || "",
+      fullDiskScan: Boolean(resolution.fullDiskScan),
+      scanSkipped: Boolean(resolution.scanSkipped),
       message: resolution.relocated
-        ? `文档路径已自动更新并打开：${opened.path || targetPath}`
+        ? resolution.fullDiskScan
+          ? `已通过全盘搜索定位并更新路径：${opened.path || targetPath}`
+          : `文档路径已自动更新并打开：${opened.path || targetPath}`
         : "",
     };
   });

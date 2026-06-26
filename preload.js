@@ -215,6 +215,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   kbOpenDocument: (payload) => ipcRenderer.invoke("kb-open-document", payload),
 
+  onKbOpenDocumentProgress: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("kb-open-document-progress", handler);
+    return () => ipcRenderer.removeListener("kb-open-document-progress", handler);
+  },
+
   kbUnlockDocument: (payload) => ipcRenderer.invoke("kb-unlock-document", payload),
 
   kbSubmitDocumentPassword: (payload) => ipcRenderer.invoke("kb-submit-document-password", payload),
