@@ -966,6 +966,11 @@ dialog::backdrop {
   cursor: not-allowed;
 }
 
+.pagination-group-btn {
+  color: #000000;
+  font-weight: 600;
+}
+
 .muted {
   color: #6b7280;
   font-size: 12px;

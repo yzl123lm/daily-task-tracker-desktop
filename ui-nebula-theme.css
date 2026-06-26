@@ -2209,6 +2209,36 @@ body.theme-nebula {
   background: #dde5ef;
 }
 
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-group-btn,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .pagination-group-btn,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .pagination-group-btn,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .pagination-group-btn,
+.theme-nebula .task-pagination-bar button.pagination-group-btn.secondary {
+  background: var(--workbench-secondary, #eef2f6);
+  border: 1px solid var(--workbench-border, #d8e0eb);
+  color: #000000;
+  font-weight: 600;
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-group-btn:hover:not(:disabled),
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .pagination-group-btn:hover:not(:disabled),
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .pagination-group-btn:hover:not(:disabled),
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .pagination-group-btn:hover:not(:disabled),
+.theme-nebula .task-pagination-bar button.pagination-group-btn.secondary:hover:not(:disabled) {
+  background: #dde5ef;
+  color: #000000;
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
+.theme-nebula .main-column:has(#panel-list:not([hidden])) .pagination-group-btn:disabled,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .pagination-group-btn:disabled,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .pagination-group-btn:disabled,
+.theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .pagination-group-btn:disabled {
+  opacity: 0.55;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .task-toolbar-btn {
   background: #fff;
   color: #1d2129;
