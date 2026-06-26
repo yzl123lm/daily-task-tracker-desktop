@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "客户端本地 AI 与环境就绪清单：issue 映射到 remediate 动作。",
+  "description": "客户端本地 AI 与环境就绪清单：issue 映射到 remediate 动作。支持 Windows 与 macOS（mac 上 Ollama/Python 安装为打开官网或 brew，见 README）。",
   "plugins": [
     {
       "id": "ollama",
@@ -78,6 +78,14 @@
       "silentArgs": ["/S"],
       "postInstallPollMs": 60000,
       "pollIntervalMs": 2000
+    },
+    "ollama_setup_darwin": {
+      "platform": "darwin",
+      "downloadUrl": "https://ollama.com/download/Ollama.dmg",
+      "filename": "Ollama.dmg",
+      "manualInstall": true,
+      "postInstallPollMs": 90000,
+      "pollIntervalMs": 3000
     }
   }
 }

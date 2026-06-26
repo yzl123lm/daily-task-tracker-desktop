@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.10.21",
+  "version": "1.10.22",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -8,6 +8,10 @@
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:mac:dmg": "electron-builder --mac dmg",
+    "build:mac:zip": "electron-builder --mac zip",
+    "build:all": "electron-builder --win --mac",
     "build:nsis": "electron-builder --win nsis",
     "build:portable": "electron-builder --win portable",
     "install:client": "npm run ship:latest-client",
@@ -142,6 +146,21 @@
       "createDesktopShortcut": false,
       "createStartMenuShortcut": false,
       "perMachine": false
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "identity": null,
+      "hardenedRuntime": false
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "build/icon.png"
     }
   }
 }
