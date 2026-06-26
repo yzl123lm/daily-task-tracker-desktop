@@ -37,7 +37,9 @@ git checkout -b feat/your-topic
 npm run start
 ```
 
-3. 若修改了 Electron 客户端相关文件（`main.js`、`preload.js`、`index.html`、打包配置等），迭代发布前请执行：
+macOS 打包（需在 Mac 上）：`npm run build:mac`（产物为 DMG + ZIP）。
+
+3. 若修改了 Electron 客户端相关文件（`main.js`、`preload.js`、`index.html`、打包配置等），**Windows** 迭代发布前请执行：
 
 ```bash
 npm run ship:latest-client
