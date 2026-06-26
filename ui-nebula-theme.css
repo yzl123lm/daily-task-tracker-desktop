@@ -1561,6 +1561,55 @@ body.theme-nebula {
   color: #fca5a5;
 }
 
+/* 定位源文件弹窗：深色底 + 白色文字（磁盘选项等） */
+.theme-nebula #kbSourceLocateDialog.kb-source-locate-dialog,
+.theme-nebula #kbSourceLocateDialog.kb-source-locate-dialog .kb-source-locate-shell {
+  background: oklch(0.21 0.035 264 / 0.96);
+  color: #fff;
+}
+
+.theme-nebula #kbSourceLocateDialog.kb-source-locate-dialog::backdrop {
+  background: oklch(0.1 0.02 264 / 0.65);
+}
+
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-title,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-section-title,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-drive-item,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-drive-item span,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-scan-status,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-picked-path {
+  color: #fff;
+}
+
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-doc,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-missing,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-scan-dir,
+.theme-nebula #kbSourceLocateDialog .field-hint {
+  color: var(--muted-foreground);
+}
+
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-section {
+  background: oklch(0.25 0.035 264 / 0.88);
+  border-color: var(--border);
+}
+
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-head,
+.theme-nebula #kbSourceLocateDialog .kb-source-locate-foot {
+  border-color: var(--border);
+}
+
+.theme-nebula #kbSourceLocateDialog button.secondary {
+  color: #fff;
+  border-color: var(--border);
+  background: oklch(0.25 0.035 264 / 0.88);
+}
+
+.theme-nebula #kbSourceLocateDialog button.secondary:hover {
+  color: #fff;
+  background: oklch(0.28 0.05 264 / 0.95);
+  border-color: oklch(0.72 0.16 235 / 0.35);
+}
+
 .theme-nebula #kbSearchResultDialog .kb-search-progress-log__item.is-ok .kb-search-progress-log__msg {
   color: #6ee7b7;
 }
