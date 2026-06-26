@@ -10,6 +10,7 @@ const SUPPORTED_WATCH_EXTS = new Set([
   ".markdown",
   ".doc",
   ".docx",
+  ".pptx",
   ".pdf",
   ".xlsx",
   ".xls",

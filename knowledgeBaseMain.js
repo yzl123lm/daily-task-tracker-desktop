@@ -251,6 +251,7 @@ const CANONICAL_KB_EXTS = new Set([
   ".markdown",
   ".doc",
   ".docx",
+  ".pptx",
   ".pdf",
   ".xlsx",
   ".xls",
@@ -2235,6 +2236,88 @@ function runExcelComExtract(srcPath, password) {
   }
 }
 
+function decodeXmlTextEntities(text) {
+  return decodeHtmlEntities(
+    String(text || "")
+      .replace(/&#(\d+);/g, (_, n) => {
+        const code = Number(n);
+        return Number.isFinite(code) ? String.fromCharCode(code) : _;
+      })
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
+        const code = parseInt(hex, 16);
+        return Number.isFinite(code) ? String.fromCharCode(code) : _;
+      })
+  );
+}
+
+function extractPptxXmlTexts(xml) {
+  const texts = [];
+  const re = /<(?:a|w):t(?:\s[^>]*)?>([\s\S]*?)<\/(?:a|w):t>/gi;
+  const source = String(xml || "");
+  let match = re.exec(source);
+  while (match) {
+    const part = decodeXmlTextEntities(match[1]).replace(/\s+/g, " ").trim();
+    if (part) {
+      texts.push(part);
+    }
+    match = re.exec(source);
+  }
+  return texts;
+}
+
+async function parsePptxBuffer(buf) {
+  let JSZip;
+  try {
+    JSZip = require("jszip");
+  } catch (err) {
+    throw new Error(`pptx 解析依赖不可用：${err?.message || err}`);
+  }
+  const zip = await JSZip.loadAsync(buf);
+  const entries = Object.keys(zip.files || {});
+  const slideNames = entries
+    .filter((name) => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
+    .sort((a, b) => {
+      const na = Number((a.match(/slide(\d+)/i) || [])[1] || 0);
+      const nb = Number((b.match(/slide(\d+)/i) || [])[1] || 0);
+      return na - nb;
+    });
+  const chunks = [];
+  let slideNo = 0;
+  for (const name of slideNames) {
+    const file = zip.file(name);
+    if (!file) {
+      continue;
+    }
+    slideNo += 1;
+    const xml = await file.async("string");
+    const texts = extractPptxXmlTexts(xml);
+    if (texts.length) {
+      chunks.push(`【幻灯片 ${slideNo}】\n${texts.join("\n")}`);
+    }
+  }
+  const noteNames = entries
+    .filter((name) => /^ppt\/notesSlides\/notesSlide\d+\.xml$/i.test(name))
+    .sort((a, b) => {
+      const na = Number((a.match(/notesSlide(\d+)/i) || [])[1] || 0);
+      const nb = Number((b.match(/notesSlide(\d+)/i) || [])[1] || 0);
+      return na - nb;
+    });
+  let noteNo = 0;
+  for (const name of noteNames) {
+    const file = zip.file(name);
+    if (!file) {
+      continue;
+    }
+    noteNo += 1;
+    const xml = await file.async("string");
+    const texts = extractPptxXmlTexts(xml);
+    if (texts.length) {
+      chunks.push(`【备注 ${noteNo}】\n${texts.join("\n")}`);
+    }
+  }
+  return chunks.join("\n\n").trim();
+}
+
 function parseSpreadsheetBuffer(buf, sourcePath, passwords = []) {
   const attempts = [...new Set([""].concat(passwords || []).map((x) => String(x || "").trim()))];
   let lastErr = null;
@@ -2281,6 +2364,9 @@ async function parseBufferToText(extRaw, buf, sourcePath = "", options = {}) {
   if (ext === ".docx") {
     const r = await mammoth.extractRawText({ buffer: buf });
     return r.value || "";
+  }
+  if (ext === ".pptx") {
+    return parsePptxBuffer(buf);
   }
   if (ext === ".doc") {
     const head = buf.slice(0, Math.min(buf.length, 64)).toString("latin1").trimStart();
@@ -2387,7 +2473,7 @@ async function parseBufferToText(extRaw, buf, sourcePath = "", options = {}) {
     return maybeText;
   }
   throw new Error(
-    `不支持的文件类型：${ext || "（无扩展名）"}。当前支持 .txt .md .markdown .doc .docx .pdf .xlsx .xls .png .jpg .jpeg .bmp .webp .tif .tiff，并可自动适配 .csv .json .log .rtf .html .htm .xml .yml .yaml`
+    `不支持的文件类型：${ext || "（无扩展名）"}。当前支持 .txt .md .markdown .doc .docx .pptx .pdf .xlsx .xls .png .jpg .jpeg .bmp .webp .tif .tiff，并可自动适配 .csv .json .log .rtf .html .htm .xml .yml .yaml`
   );
 }
 
@@ -4727,6 +4813,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
             "pdf",
             "doc",
             "docx",
+            "pptx",
             "xlsx",
             "xls",
             "png",
