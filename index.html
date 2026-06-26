@@ -868,9 +868,45 @@
                   <button type="button" id="kbSearchResultLocateBtn" class="secondary" disabled>定位到目录树</button>
                 </div>
                 <div class="kb-search-result-foot__right">
+                  <button type="button" id="kbSearchResultRelocateBtn" class="secondary" disabled title="手动指定迁移后的文件路径">指定路径</button>
                   <button type="button" id="kbSearchResultOpenDocBtn" class="secondary" disabled>打开源文件</button>
                   <button type="button" id="kbSearchResultCloseBtn2" class="secondary">关闭</button>
                 </div>
+              </footer>
+            </div>
+          </dialog>
+          <dialog id="kbSourceLocateDialog" class="kb-source-locate-dialog" aria-labelledby="kbSourceLocateDialogTitle">
+            <div class="kb-source-locate-shell">
+              <header class="kb-source-locate-head">
+                <h3 id="kbSourceLocateDialogTitle" class="kb-source-locate-title">定位源文件</h3>
+                <p id="kbSourceLocateDocName" class="kb-source-locate-doc"></p>
+                <p id="kbSourceLocateMissing" class="kb-source-locate-missing"></p>
+              </header>
+              <div id="kbSourceLocateSetup" class="kb-source-locate-setup">
+                <section class="kb-source-locate-section">
+                  <h4 class="kb-source-locate-section-title">手动指定（推荐）</h4>
+                  <p class="field-hint">若记得文件迁移后的位置，可直接选择文件并确认。</p>
+                  <div class="kb-source-locate-manual-row">
+                    <button type="button" id="kbSourceLocatePickBtn" class="secondary">浏览选择文件…</button>
+                    <button type="button" id="kbSourceLocateConfirmPickBtn" class="primary" disabled>确认并打开</button>
+                  </div>
+                  <p id="kbSourceLocatePickedPath" class="kb-source-locate-picked-path"></p>
+                </section>
+                <section class="kb-source-locate-section">
+                  <h4 class="kb-source-locate-section-title">按磁盘搜索</h4>
+                  <p class="field-hint">勾选要搜索的磁盘，可缩短搜索时间（找到后将记录新路径，下次不再扫描）。</p>
+                  <div id="kbSourceLocateDriveList" class="kb-source-locate-drive-list"></div>
+                  <button type="button" id="kbSourceLocateStartScanBtn" class="secondary">开始搜索</button>
+                </section>
+              </div>
+              <div id="kbSourceLocateScanPanel" class="kb-source-locate-scan" hidden>
+                <p id="kbSourceLocateScanStatus" class="kb-source-locate-scan-status">正在搜索…</p>
+                <div class="kb-source-locate-progress" aria-hidden="true"><span class="kb-source-locate-progress-bar"></span></div>
+                <p id="kbSourceLocateScanDir" class="kb-source-locate-scan-dir"></p>
+                <p class="field-hint">搜索进度在独立窗口展示，不会影响检索结果列表。</p>
+              </div>
+              <footer class="kb-source-locate-foot">
+                <button type="button" id="kbSourceLocateCancelBtn" class="secondary">取消</button>
               </footer>
             </div>
           </dialog>

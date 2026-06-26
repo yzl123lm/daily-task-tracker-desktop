@@ -1067,7 +1067,12 @@ function applyDocumentSourcePathUpdate(st, docId, newPath) {
 }
 
 async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, extraCandidates = [], options = {}) {
-  const { onProgress, forceFullScan = false, allowFullDiskScan = true } = options;
+  const {
+    onProgress,
+    forceFullScan = false,
+    allowFullDiskScan = true,
+    scanDrives = null,
+  } = options;
   const candidates = [
     String(doc?.sourcePath || "").trim(),
     ...(extraCandidates || []).map((x) => String(x || "").trim()).filter(Boolean),
@@ -1090,13 +1095,38 @@ async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, ex
   let relocatedPath = findRelocatedDocumentFile(doc, searchRoots);
   let fullDiskScan = false;
 
-  if (!relocatedPath && allowFullDiskScan && shouldRunFullDiskScan(doc, oldPath, forceFullScan)) {
+  if (!relocatedPath && allowFullDiskScan) {
+    const canAutoFullScan = shouldRunFullDiskScan(doc, oldPath, forceFullScan);
+    const selectedDrives = Array.isArray(scanDrives)
+      ? scanDrives.map((d) => String(d || "").trim()).filter(Boolean)
+      : [];
+
+    if (!selectedDrives.length) {
+      const attempt = doc?.sourcePathLocateAttempt;
+      const alreadyScanned =
+        !canAutoFullScan ||
+        (attempt &&
+          path.normalize(String(attempt.missingPath || "")) === path.normalize(String(oldPath || "")));
+      return {
+        path: "",
+        needsLocate: true,
+        relocated: false,
+        previousPath: oldPath,
+        fullDiskScan: false,
+        scanSkipped: false,
+        alreadyScanned: Boolean(alreadyScanned),
+        drives: listFixedDriveRoots(),
+        docName: String(doc?.name || path.basename(oldPath) || "").trim(),
+      };
+    }
+
     fullDiskScan = true;
     onProgress?.({
       phase: "full-disk",
-      message: "原路径已失效，正在全盘搜索文档（找到后将记录新路径，下次不再扫描）…",
+      message: `正在所选磁盘搜索文档（${selectedDrives.join("、")}）…`,
+      drives: selectedDrives,
     });
-    const driveRoots = listFixedDriveRoots().map((dir) => ({ dir, recursive: true }));
+    const driveRoots = selectedDrives.map((dir) => ({ dir: path.normalize(dir), recursive: true }));
     relocatedPath = await collectBasenameMatchesAsync(doc, driveRoots, {
       fullDisk: true,
       onProgress,
@@ -1132,6 +1162,47 @@ async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, ex
     previousPath: update?.previousPath || oldPath,
     fullDiskScan,
     scanSkipped: false,
+  };
+}
+
+function validateAndApplyManualDocumentPath(userDataPath, libraryId, st, doc, manualPath) {
+  const fp = path.normalize(String(manualPath || "").trim());
+  if (!fp || !pathExistsOnDisk(fp)) {
+    return { ok: false, error: "所选文件不存在或无法访问。" };
+  }
+  const expectedName = String(doc?.name || path.basename(String(doc?.sourcePath || ""))).trim();
+  if (expectedName && !basenameEquals(fp, expectedName)) {
+    const targetMd5 = String(doc?.fileMd5 || "").trim();
+    if (targetMd5) {
+      try {
+        if (computeFileMd5(fp) !== targetMd5) {
+          return {
+            ok: false,
+            error: `所选文件「${path.basename(fp)}」与库内文档「${expectedName}」内容不一致，请重新选择。`,
+          };
+        }
+      } catch (err) {
+        return { ok: false, error: err?.message || String(err) };
+      }
+    } else {
+      return {
+        ok: false,
+        error: `文件名不一致：期望「${expectedName}」，当前为「${path.basename(fp)}」。`,
+      };
+    }
+  }
+  const update = applyDocumentSourcePathUpdate(st, doc.id, fp);
+  if (!update) {
+    return { ok: false, error: "无法更新文档路径。" };
+  }
+  if (update.changed) {
+    saveStore(userDataPath, libraryId, st);
+  }
+  return {
+    ok: true,
+    path: fp,
+    relocated: Boolean(update.changed),
+    previousPath: update.previousPath || "",
   };
 }
 
@@ -5729,6 +5800,34 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     }
   });
 
+  ipcMain.handle("kb-list-fixed-drives", async () => {
+    return { ok: true, drives: listFixedDriveRoots() };
+  });
+
+  ipcMain.handle("kb-choose-relocate-file", async (event, payload) => {
+    const p = payload && typeof payload === "object" ? payload : {};
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const docName = String(p.docName || "").trim();
+    const ext = path.extname(docName).replace(/^\./, "").toLowerCase();
+    const filters =
+      ext && ext !== "*"
+        ? [
+            { name: docName || "目标文档", extensions: [ext] },
+            { name: "所有文件", extensions: ["*"] },
+          ]
+        : [{ name: "所有文件", extensions: ["*"] }];
+    const res = await dialog.showOpenDialog(win || undefined, {
+      title: "选择迁移后的源文件",
+      properties: ["openFile"],
+      filters,
+      defaultPath: String(p.defaultDir || "").trim() || undefined,
+    });
+    if (res.canceled || !res.filePaths?.[0]) {
+      return { ok: false, canceled: true };
+    }
+    return { ok: true, path: res.filePaths[0] };
+  });
+
   ipcMain.handle("kb-open-document", async (event, payload) => {
     const p = payload && typeof payload === "object" ? payload : {};
     let docId = "";
@@ -5749,6 +5848,14 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     const extraPaths = Array.isArray(p.sourcePaths)
       ? p.sourcePaths.map((x) => String(x || "").trim()).filter(Boolean)
       : [];
+
+    if (String(p.manualPath || "").trim()) {
+      const manual = validateAndApplyManualDocumentPath(ud(), libId, st, doc, p.manualPath);
+      if (!manual.ok) {
+        return manual;
+      }
+    }
+
     const sendProgress = (detail) => {
       try {
         if (event?.sender && !event.sender.isDestroyed()) {
@@ -5762,15 +5869,40 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         /* ignore */
       }
     };
-    const resolution = await resolveDocumentOpenPathAsync(ud(), libId, doc, st, [
-      String(p.sourcePath || "").trim(),
-      ...extraPaths,
-    ], {
-      onProgress: sendProgress,
-      forceFullScan: p.forceFullScan === true,
-      allowFullDiskScan: true,
-    });
-    const targetPath = resolution.path;
+    const scanDrives = Array.isArray(p.scanDrives)
+      ? p.scanDrives.map((x) => String(x || "").trim()).filter(Boolean)
+      : null;
+    const resolution = await resolveDocumentOpenPathAsync(
+      ud(),
+      libId,
+      doc,
+      st,
+      [String(p.sourcePath || "").trim(), ...extraPaths],
+      {
+        onProgress: sendProgress,
+        forceFullScan: p.forceFullScan === true,
+        allowFullDiskScan: p.allowFullDiskScan !== false,
+        scanDrives,
+      }
+    );
+
+    if (resolution.needsLocate) {
+      return {
+        ok: false,
+        needsLocate: true,
+        drives: resolution.drives || listFixedDriveRoots(),
+        docName: resolution.docName || doc.name || "",
+        missingPath: resolution.previousPath || String(doc.sourcePath || "").trim(),
+        docId,
+        libraryId: libId,
+        alreadyScanned: Boolean(resolution.alreadyScanned),
+      };
+    }
+
+    const targetPath =
+      String(p.manualPath || "").trim() && pathExistsOnDisk(p.manualPath)
+        ? path.normalize(String(p.manualPath).trim())
+        : resolution.path;
     if (!targetPath) {
       const shown =
         String(doc.sourcePath || "").trim() ||
@@ -5778,8 +5910,8 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         extraPaths[0] ||
         "（无路径）";
       const suffix = resolution.alreadyScanned
-        ? "已执行过全盘搜索仍未找到，请确认文件是否存在或文件名是否变更。"
-        : "请确认文件未移动/删除，或文件名是否变更。";
+        ? "可手动指定新路径，或选择磁盘后重新搜索。"
+        : "可手动指定新路径，或选择磁盘搜索。";
       return {
         ok: false,
         error: `源文件不存在或路径已失效：${shown}。${suffix}`,

@@ -215,6 +215,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   kbOpenDocument: (payload) => ipcRenderer.invoke("kb-open-document", payload),
 
+  kbListFixedDrives: () => ipcRenderer.invoke("kb-list-fixed-drives"),
+
+  kbChooseRelocateFile: (payload) => ipcRenderer.invoke("kb-choose-relocate-file", payload),
+
   onKbOpenDocumentProgress: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

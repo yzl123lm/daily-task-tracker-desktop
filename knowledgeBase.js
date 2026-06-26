@@ -87,6 +87,7 @@
     searchResultCloseBtn: document.getElementById("kbSearchResultCloseBtn"),
     searchResultCloseBtn2: document.getElementById("kbSearchResultCloseBtn2"),
     searchResultOpenDocBtn: document.getElementById("kbSearchResultOpenDocBtn"),
+    searchResultRelocateBtn: document.getElementById("kbSearchResultRelocateBtn"),
     searchResultCopyBtn: document.getElementById("kbSearchResultCopyBtn"),
     searchResultLocateBtn: document.getElementById("kbSearchResultLocateBtn"),
     dirTree: document.getElementById("kbDirTree"),
@@ -1375,17 +1376,18 @@
     return out;
   }
 
-  async function openKbDocumentWithPassword(payload) {
+  async function openKbDocumentWithPassword(payload, options = {}) {
     if (typeof api.kbOpenDocument !== "function") {
       return { ok: false, error: "当前环境不支持打开文档" };
     }
+    const progressMode = options.progressMode || "none";
     let unsubProgress = null;
-    if (typeof api.onKbOpenDocumentProgress === "function") {
+    let progressState = null;
+    if (progressMode === "locate-dialog" && typeof api.onKbOpenDocumentProgress === "function") {
+      progressState = createSourceLocateProgressState();
       unsubProgress = api.onKbOpenDocumentProgress((ev) => {
-        const msg = String(ev?.message || "").trim();
-        if (msg) {
-          showSearchResultActionFeedback(msg);
-          setStatus(msg);
+        if (ev?.phase === "full-disk") {
+          updateSourceLocateScanProgress(progressState, ev);
         }
       });
     }
@@ -1408,7 +1410,225 @@
       if (typeof unsubProgress === "function") {
         unsubProgress();
       }
+      if (progressState) {
+        finishSourceLocateScanProgress(progressState);
+      }
     }
+  }
+
+  const sourceLocateUi = {
+    dialog: document.getElementById("kbSourceLocateDialog"),
+    docName: document.getElementById("kbSourceLocateDocName"),
+    missing: document.getElementById("kbSourceLocateMissing"),
+    setup: document.getElementById("kbSourceLocateSetup"),
+    scanPanel: document.getElementById("kbSourceLocateScanPanel"),
+    scanStatus: document.getElementById("kbSourceLocateScanStatus"),
+    scanDir: document.getElementById("kbSourceLocateScanDir"),
+    driveList: document.getElementById("kbSourceLocateDriveList"),
+    pickedPath: document.getElementById("kbSourceLocatePickedPath"),
+    pickBtn: document.getElementById("kbSourceLocatePickBtn"),
+    confirmPickBtn: document.getElementById("kbSourceLocateConfirmPickBtn"),
+    startScanBtn: document.getElementById("kbSourceLocateStartScanBtn"),
+    cancelBtn: document.getElementById("kbSourceLocateCancelBtn"),
+  };
+
+  let sourceLocateSession = null;
+
+  function createSourceLocateProgressState() {
+    showSourceLocateScanPanel(true);
+    if (sourceLocateUi.scanStatus) {
+      sourceLocateUi.scanStatus.textContent = "正在搜索文档，请稍候…";
+    }
+    if (sourceLocateUi.scanDir) {
+      sourceLocateUi.scanDir.textContent = "";
+    }
+    return { lastUpdateAt: 0, pendingDir: "", pendingMessage: "" };
+  }
+
+  function updateSourceLocateScanProgress(state, ev) {
+    if (!state) {
+      return;
+    }
+    state.pendingDir = String(ev?.dir || "").trim();
+    state.pendingMessage = String(ev?.message || "").trim();
+    const now = Date.now();
+    if (now - state.lastUpdateAt < 450) {
+      return;
+    }
+    state.lastUpdateAt = now;
+    if (sourceLocateUi.scanStatus) {
+      sourceLocateUi.scanStatus.textContent = state.pendingMessage || "正在搜索文档，请稍候…";
+    }
+    if (sourceLocateUi.scanDir) {
+      sourceLocateUi.scanDir.textContent = state.pendingDir
+        ? `当前目录：${state.pendingDir}`
+        : "";
+    }
+  }
+
+  function finishSourceLocateScanProgress(state) {
+    if (state && state.pendingDir && sourceLocateUi.scanDir) {
+      sourceLocateUi.scanDir.textContent = `当前目录：${state.pendingDir}`;
+    }
+    showSourceLocateScanPanel(false);
+  }
+
+  function showSourceLocateScanPanel(active) {
+    if (sourceLocateUi.setup) {
+      sourceLocateUi.setup.hidden = Boolean(active);
+    }
+    if (sourceLocateUi.scanPanel) {
+      sourceLocateUi.scanPanel.hidden = !active;
+    }
+    if (sourceLocateUi.startScanBtn) {
+      sourceLocateUi.startScanBtn.disabled = Boolean(active);
+    }
+    if (sourceLocateUi.pickBtn) {
+      sourceLocateUi.pickBtn.disabled = Boolean(active);
+    }
+    if (sourceLocateUi.confirmPickBtn) {
+      sourceLocateUi.confirmPickBtn.disabled = Boolean(active) || !sourceLocateSession?.pickedPath;
+    }
+  }
+
+  function renderSourceLocateDriveList(drives, selected) {
+    if (!sourceLocateUi.driveList) {
+      return;
+    }
+    sourceLocateUi.driveList.innerHTML = "";
+    const selectedSet = new Set((selected || []).map((d) => String(d || "").toUpperCase()));
+    (drives || []).forEach((drive) => {
+      const value = String(drive || "").trim();
+      if (!value) {
+        return;
+      }
+      const label = document.createElement("label");
+      label.className = "kb-source-locate-drive-item";
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = value;
+      input.checked = selectedSet.size ? selectedSet.has(value.toUpperCase()) : true;
+      const text = document.createElement("span");
+      text.textContent = value;
+      label.appendChild(input);
+      label.appendChild(text);
+      sourceLocateUi.driveList.appendChild(label);
+    });
+  }
+
+  function getSelectedSourceLocateDrives() {
+    if (!sourceLocateUi.driveList) {
+      return [];
+    }
+    return Array.from(sourceLocateUi.driveList.querySelectorAll('input[type="checkbox"]:checked'))
+      .map((node) => String(node.value || "").trim())
+      .filter(Boolean);
+  }
+
+  async function fetchFixedDrives() {
+    if (typeof api.kbListFixedDrives === "function") {
+      const out = await api.kbListFixedDrives();
+      if (out?.ok && Array.isArray(out.drives) && out.drives.length) {
+        return out.drives;
+      }
+    }
+    return ["C:\\"];
+  }
+
+  function openSourceLocateDialog(context) {
+    const dlg = sourceLocateUi.dialog;
+    if (!dlg || typeof dlg.showModal !== "function") {
+      return Promise.resolve(null);
+    }
+    return new Promise((resolve) => {
+      sourceLocateSession = {
+        resolve,
+        context: { ...(context || {}) },
+        pickedPath: "",
+      };
+      if (sourceLocateUi.docName) {
+        sourceLocateUi.docName.textContent = `文档：${context?.docName || "（未知）"}`;
+      }
+      if (sourceLocateUi.missing) {
+        const missing = String(context?.missingPath || "").trim();
+        sourceLocateUi.missing.textContent = missing ? `原路径已失效：${missing}` : "原路径已失效。";
+        if (context?.alreadyScanned) {
+          sourceLocateUi.missing.textContent += " 上次搜索未找到，可手动指定或重新选择磁盘搜索。";
+        }
+      }
+      if (sourceLocateUi.pickedPath) {
+        sourceLocateUi.pickedPath.textContent = "";
+      }
+      if (sourceLocateUi.confirmPickBtn) {
+        sourceLocateUi.confirmPickBtn.disabled = true;
+      }
+      showSourceLocateScanPanel(false);
+      renderSourceLocateDriveList(context?.drives || [], context?.defaultDrives);
+      dlg.showModal();
+    });
+  }
+
+  function closeSourceLocateDialog(result) {
+    const dlg = sourceLocateUi.dialog;
+    if (dlg?.open) {
+      dlg.close();
+    }
+    const resolve = sourceLocateSession?.resolve;
+    sourceLocateSession = null;
+    showSourceLocateScanPanel(false);
+    if (typeof resolve === "function") {
+      resolve(result || null);
+    }
+  }
+
+  async function runKbOpenWithLocateFlow(basePayload, context = {}) {
+    let out = await openKbDocumentWithPassword({
+      ...basePayload,
+      allowFullDiskScan: true,
+    });
+    if (out?.ok || out?.canceled) {
+      return out;
+    }
+    if (!out?.needsLocate && !context.forceLocate) {
+      return out;
+    }
+    const drives = out?.drives?.length ? out.drives : await fetchFixedDrives();
+    const locateChoice = await openSourceLocateDialog({
+      docName: out?.docName || context.docName || "",
+      missingPath: out?.missingPath || basePayload.sourcePath || "",
+      drives,
+      alreadyScanned: Boolean(out?.alreadyScanned),
+      defaultDrives: drives.filter((d) => /^E:/i.test(String(d || ""))),
+      basePayload,
+    });
+    if (!locateChoice) {
+      return { ok: false, canceled: true };
+    }
+    if (locateChoice.openResult) {
+      return locateChoice.openResult;
+    }
+    if (locateChoice.manualPath) {
+      return openKbDocumentWithPassword(
+        {
+          ...basePayload,
+          manualPath: locateChoice.manualPath,
+          allowFullDiskScan: false,
+        },
+        { progressMode: "none" }
+      );
+    }
+    return { ok: false, canceled: true };
+  }
+
+  function formatOpenDocSuccessMessage(out, fallbackPath = "") {
+    const openedPath = out?.path || fallbackPath || "";
+    if (out?.relocated && out?.fullDiskScan) {
+      return `已通过磁盘搜索定位并打开：${openedPath}`;
+    }
+    if (out?.relocated) {
+      return `文档路径已更新并打开：${openedPath}`;
+    }
+    return `已打开源文件：${openedPath}`;
   }
 
   function showCopyableResultDialog(message, title = "提示") {
@@ -1672,6 +1892,13 @@
             ? "该条目无本地源文件（可能为自动学习生成）"
             : "该条目无可用本地路径"
           : "缺少文档信息";
+    }
+    if (el.searchResultRelocateBtn) {
+      const canOpen = canOpenHitSource(hit);
+      el.searchResultRelocateBtn.disabled = !canOpen;
+      el.searchResultRelocateBtn.title = canOpen
+        ? "手动指定迁移后的文件路径，或选择磁盘搜索"
+        : "该条目无法指定源文件路径";
     }
     if (el.searchResultCopyBtn) {
       const hasText = Boolean(String(hit?.text || "").trim());
@@ -2247,7 +2474,7 @@
     }
   }
 
-  async function openSelectedSearchResultDoc() {
+  async function openSelectedSearchResultDoc(options = {}) {
     const index = searchResultState.selectedIndex;
     const hit = searchResultState.hits?.[index];
     if (!hit?.docId) {
@@ -2259,34 +2486,62 @@
       return;
     }
     const sourcePaths = extractHitSourcePathCandidates(hit);
+    const basePayload = {
+      docId: hit.docId,
+      libraryId: String(hit.libraryId || activeLibraryIdCache || ""),
+      sourcePath: sourcePaths[0] || "",
+      sourcePaths,
+    };
     try {
       showSearchResultActionFeedback("正在打开源文件…");
-      const out = await openKbDocumentWithPassword({
-        docId: hit.docId,
-        libraryId: String(hit.libraryId || activeLibraryIdCache || ""),
-        sourcePath: sourcePaths[0] || "",
-        sourcePaths,
-      });
+      const out = options.forceLocate
+        ? await (async () => {
+            const drives = await fetchFixedDrives();
+            const locateChoice = await openSourceLocateDialog({
+              docName: hit.sourceFile || hit.docName || pathBasename(sourcePaths[0] || ""),
+              missingPath: sourcePaths[0] || "",
+              drives,
+              defaultDrives: drives.filter((d) => /^E:/i.test(String(d || ""))),
+              basePayload,
+            });
+            if (!locateChoice) {
+              return { ok: false, canceled: true };
+            }
+            if (locateChoice.openResult) {
+              return locateChoice.openResult;
+            }
+            if (locateChoice.manualPath) {
+              return openKbDocumentWithPassword({
+                ...basePayload,
+                manualPath: locateChoice.manualPath,
+                allowFullDiskScan: false,
+              });
+            }
+            return { ok: false, canceled: true };
+          })()
+        : await runKbOpenWithLocateFlow(basePayload, {
+            docName: hit.sourceFile || hit.docName || "",
+          });
       if (out?.canceled) {
         return;
       }
       if (!out?.ok) {
         showSearchResultActionFeedback(out?.error || "打开源文件失败", true);
       } else {
-        const openedPath = out.path || sourcePaths[0] || "";
-        let msg = `已打开源文件：${openedPath}`;
-        if (out.relocated && out.fullDiskScan) {
-          msg = `已通过全盘搜索定位并打开：${openedPath}`;
-        } else if (out.relocated) {
-          msg = `文档路径已自动更新，已打开：${openedPath}`;
-        } else if (out.scanSkipped) {
-          msg = `已打开源文件：${openedPath}`;
-        }
-        showSearchResultActionFeedback(msg);
+        showSearchResultActionFeedback(formatOpenDocSuccessMessage(out, sourcePaths[0] || ""));
       }
     } catch (err) {
       showSearchResultActionFeedback(err.message || String(err), true);
     }
+  }
+
+  function pathBasename(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "";
+    }
+    const parts = text.split(/[/\\]/);
+    return parts[parts.length - 1] || text;
   }
 
   function renderTrialResultHint(summary, hitCount) {
@@ -4005,10 +4260,10 @@
         const node = scene?.nodeMap?.get?.(nodeId);
         if (node && node.type === "doc" && node.docId && typeof api.kbOpenDocument === "function") {
           try {
-            const out = await openKbDocumentWithPassword({
+            const out = await runKbOpenWithLocateFlow({
               docId: node.docId,
               libraryId: String(node.libraryId || graphViewState.activeLibraryId || ""),
-            });
+            }, { docName: node.label || node.name || "" });
             if (out?.canceled) {
               return;
             }
@@ -5123,6 +5378,78 @@
   el.searchResultCloseBtn2?.addEventListener("click", closeSearchResultDialog);
   el.searchResultOpenDocBtn?.addEventListener("click", () => {
     void openSelectedSearchResultDoc();
+  });
+  el.searchResultRelocateBtn?.addEventListener("click", () => {
+    void openSelectedSearchResultDoc({ forceLocate: true });
+  });
+  sourceLocateUi.pickBtn?.addEventListener("click", async () => {
+    if (!sourceLocateSession || typeof api.kbChooseRelocateFile !== "function") {
+      return;
+    }
+    const ctx = sourceLocateSession.context || {};
+    const out = await api.kbChooseRelocateFile({
+      docName: ctx.docName || "",
+      defaultDir: String(ctx.missingPath || "").replace(/[/\\][^/\\]+$/, ""),
+    });
+    if (out?.canceled) {
+      return;
+    }
+    if (!out?.ok || !out.path) {
+      setStatus(out?.error || "未选择文件", true);
+      return;
+    }
+    sourceLocateSession.pickedPath = out.path;
+    if (sourceLocateUi.pickedPath) {
+      sourceLocateUi.pickedPath.textContent = `已选择：${out.path}`;
+    }
+    if (sourceLocateUi.confirmPickBtn) {
+      sourceLocateUi.confirmPickBtn.disabled = false;
+    }
+  });
+  sourceLocateUi.confirmPickBtn?.addEventListener("click", () => {
+    if (!sourceLocateSession?.pickedPath) {
+      return;
+    }
+    closeSourceLocateDialog({ manualPath: sourceLocateSession.pickedPath });
+  });
+  sourceLocateUi.startScanBtn?.addEventListener("click", async () => {
+    const scanDrives = getSelectedSourceLocateDrives();
+    if (!scanDrives.length) {
+      setStatus("请至少选择一个磁盘。", true);
+      return;
+    }
+    if (!sourceLocateSession?.context?.basePayload) {
+      return;
+    }
+    showSourceLocateScanPanel(true);
+    if (sourceLocateUi.cancelBtn) {
+      sourceLocateUi.cancelBtn.disabled = true;
+    }
+    try {
+      const out = await openKbDocumentWithPassword(
+        {
+          ...sourceLocateSession.context.basePayload,
+          scanDrives,
+          forceFullScan: true,
+          allowFullDiskScan: true,
+        },
+        { progressMode: "locate-dialog" }
+      );
+      closeSourceLocateDialog({ openResult: out });
+    } catch (err) {
+      closeSourceLocateDialog({ openResult: { ok: false, error: err?.message || String(err) } });
+    } finally {
+      if (sourceLocateUi.cancelBtn) {
+        sourceLocateUi.cancelBtn.disabled = false;
+      }
+    }
+  });
+  sourceLocateUi.cancelBtn?.addEventListener("click", () => {
+    closeSourceLocateDialog(null);
+  });
+  sourceLocateUi.dialog?.addEventListener("cancel", (ev) => {
+    ev.preventDefault();
+    closeSourceLocateDialog(null);
   });
   el.searchResultCopyBtn?.addEventListener("click", () => {
     void copySearchResultSnippet();
