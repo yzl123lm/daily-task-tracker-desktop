@@ -1,12 +1,21 @@
 const path = require("path");
 const fs = require("fs");
-const { BrowserWindow, shell } = require("electron");
+const { BrowserWindow, shell, dialog } = require("electron");
 const { assertHttpUrl } = require("../../utils/ipcValidate.js");
 const { EnvironmentReadinessManager } = require("../environment/EnvironmentReadinessManager.js");
 const { executeRemediation, executeRemediationBatch } = require("../environment/remediationExecutor.js");
 const { readRuntimeProfile } = require("../environment/runtimeProfile.js");
 const { applyFeatureDegradation } = require("../environment/featureGates.js");
 const { executeRemediation: execOne } = require("../environment/remediationExecutor.js");
+const {
+  readInstallPaths,
+  writeInstallPaths,
+  validateInstallPaths,
+  deriveInstallPathKinds,
+  ensureInstallDirectories,
+  buildDefaultInstallPaths,
+  listFixedDriveRoots,
+} = require("../environment/environmentInstallPaths.js");
 
 function createManager(app) {
   return new EnvironmentReadinessManager({
@@ -30,6 +39,57 @@ function registerEnvironmentHandlers(ipcMain, { app }) {
   const getCtx = () => ({
     appPath: app.getAppPath(),
     userDataPath: app.getPath("userData"),
+  });
+
+  function buildRemediationCtx(extra = {}) {
+    const userDataPath = getCtx().userDataPath;
+    const installPaths = extra.installPaths || readInstallPaths(userDataPath);
+    return { ...getCtx(), installPaths, ...extra };
+  }
+
+  ipcMain.handle("environment-get-install-paths", () => {
+    const userDataPath = getCtx().userDataPath;
+    return {
+      ok: true,
+      paths: readInstallPaths(userDataPath),
+      defaults: buildDefaultInstallPaths(),
+      drives: listFixedDriveRoots(),
+    };
+  });
+
+  ipcMain.handle("environment-choose-install-path", async (event, payload) => {
+    const kind = String(payload?.kind || "").trim();
+    const current = String(payload?.currentPath || "").trim();
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const res = await dialog.showOpenDialog(win || undefined, {
+      title:
+        kind === "pythonInstallDir"
+          ? "选择 Python 安装目录"
+          : kind === "ollamaInstallDir"
+            ? "选择 Ollama 安装目录"
+            : "选择大模型存储目录",
+      defaultPath: current || undefined,
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (res.canceled || !res.filePaths?.length) {
+      return { ok: false, canceled: true };
+    }
+    return { ok: true, path: res.filePaths[0], kind };
+  });
+
+  ipcMain.handle("environment-save-install-paths", (_event, payload) => {
+    try {
+      const kinds = payload?.kinds && typeof payload.kinds === "object" ? payload.kinds : {};
+      const validated = validateInstallPaths(payload?.paths || {}, kinds);
+      ensureInstallDirectories(validated, kinds);
+      const saved = writeInstallPaths(getCtx().userDataPath, {
+        ...validated,
+        confirmedAt: new Date().toISOString(),
+      });
+      return { ok: true, paths: saved };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
+    }
   });
 
   ipcMain.handle("runtime-prerequisites-open-url", async (_event, payload) => {
@@ -91,7 +151,9 @@ function registerEnvironmentHandlers(ipcMain, { app }) {
       return { ok: false, error: "未找到对应环境问题" };
     }
     try {
-      const result = await executeRemediation(issue, getCtx(), (p) => broadcastProgress(event, p));
+      const result = await executeRemediation(issue, buildRemediationCtx(payload), (p) =>
+        broadcastProgress(event, p)
+      );
       const after = await manager.evaluate({ depth: payload?.depth === "full" ? "full" : "lite" });
       applyFeatureDegradation(after.profile, getCtx().userDataPath);
       broadcastProgress(event, { stage: "done", issueId, result, profile: after.profile });
@@ -113,7 +175,9 @@ function registerEnvironmentHandlers(ipcMain, { app }) {
     if (autoOnly) {
       plan = plan.filter((i) => i.autoAvailable);
     }
-    const batch = await executeRemediationBatch(plan, getCtx(), (p) => broadcastProgress(event, p));
+    const batch = await executeRemediationBatch(plan, buildRemediationCtx(payload), (p) =>
+      broadcastProgress(event, p)
+    );
     const after = await manager.evaluate({ depth: "full" });
     applyFeatureDegradation(after.profile, getCtx().userDataPath);
     broadcastProgress(event, { stage: "batch_done", profile: after.profile, batch });
@@ -146,7 +210,7 @@ function registerEnvironmentHandlers(ipcMain, { app }) {
       return { ok: false, error: "该问题需手动处理，请使用打开的说明页面。" };
     }
     try {
-      const result = await execOne(issue, getCtx(), (p) => broadcastProgress(event, p));
+      const result = await execOne(issue, buildRemediationCtx(payload), (p) => broadcastProgress(event, p));
       const after = await manager.evaluate({ depth: "lite" });
       return { ok: true, result, after: after.report };
     } catch (err) {
@@ -161,7 +225,7 @@ function registerEnvironmentHandlers(ipcMain, { app }) {
     plan = plan.filter((i) => i.autoAvailable);
     const installResult =
       plan.length > 0
-        ? await executeRemediationBatch(plan, getCtx(), (p) => broadcastProgress(event, p))
+        ? await executeRemediationBatch(plan, buildRemediationCtx(), (p) => broadcastProgress(event, p))
         : null;
     const after = await manager.evaluate({ depth: "full" });
     applyFeatureDegradation(after.profile, getCtx().userDataPath);

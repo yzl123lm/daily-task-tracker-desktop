@@ -17,12 +17,55 @@ const {
 } = require("./requiredModels.js");
 const { loadEnvironmentManifest, sortRemediationIssues } = require("./EnvironmentReadinessManager.js");
 const { detectPythonVersion } = require("../../runtimePrerequisites.js");
+const { normalizeInstallDir } = require("./environmentInstallPaths.js");
 
 const OLLAMA_DEPENDENT_ACTIONS = new Set(["ollama_pull", "ollama_pull_recommended", "powershell_fix"]);
 const INSTALLER_OK_EXIT_CODES = new Set([0, 3010]);
 
 function isInstallerSuccessExit(code) {
   return code === null || INSTALLER_OK_EXIT_CODES.has(Number(code));
+}
+
+function getInstallPathsFromCtx(ctx) {
+  return ctx?.installPaths && typeof ctx.installPaths === "object" ? ctx.installPaths : {};
+}
+
+function buildPythonInstallerArgs(spec, installPaths, mode = "silent") {
+  const key = mode === "passive" ? "passiveArgs" : "silentArgs";
+  const base = Array.isArray(spec?.[key]) ? [...spec[key]] : ["/quiet", "InstallAllUsers=0", "PrependPath=1"];
+  const target = normalizeInstallDir(installPaths?.pythonInstallDir);
+  if (!target) {
+    return base;
+  }
+  return [...base.filter((a) => !String(a).startsWith("TargetDir=")), `TargetDir=${target}`];
+}
+
+function buildOllamaInstallerArgs(spec, installPaths) {
+  const base = Array.isArray(spec?.silentArgs) ? [...spec.silentArgs] : ["/S"];
+  const target = normalizeInstallDir(installPaths?.ollamaInstallDir);
+  if (!target) {
+    return base;
+  }
+  const withoutDir = base.filter((a) => !/^\/D=/i.test(String(a)));
+  return [...withoutDir, `/D=${target}`];
+}
+
+function buildWingetInstallArgs(wingetId, installPaths, kind) {
+  const args = [
+    "install",
+    "-e",
+    "--id",
+    wingetId,
+    "--accept-package-agreements",
+    "--accept-source-agreements",
+    "--disable-interactivity",
+  ];
+  const key = kind === "python" ? "pythonInstallDir" : kind === "ollama" ? "ollamaInstallDir" : "";
+  const location = key ? normalizeInstallDir(installPaths?.[key]) : "";
+  if (location) {
+    args.push("--location", location);
+  }
+  return args;
 }
 
 function resolveDownloadUrls(spec) {
@@ -172,18 +215,26 @@ async function downloadInstallerFile(spec, destPath, onProgress) {
   throw lastErr || new Error("所有下载镜像均失败。请配置系统代理/VPN 后重试，或在 PowerShell 执行：winget install -e --id Ollama.Ollama");
 }
 
-async function tryStartOllamaApp(onProgress) {
+async function tryStartOllamaApp(onProgress, customInstallDir) {
   if (process.platform !== "win32") {
     return false;
   }
-  const localAppData = String(process.env.LOCALAPPDATA || "").trim();
-  if (!localAppData) {
-    return false;
+  const candidates = [];
+  const customDir = normalizeInstallDir(customInstallDir);
+  if (customDir) {
+    candidates.push(
+      path.join(customDir, "Ollama.exe"),
+      path.join(customDir, "ollama app.exe"),
+      path.join(customDir, "ollama.exe")
+    );
   }
-  const candidates = [
-    path.join(localAppData, "Programs", "Ollama", "Ollama.exe"),
-    path.join(localAppData, "Programs", "Ollama", "ollama app.exe"),
-  ];
+  const localAppData = String(process.env.LOCALAPPDATA || "").trim();
+  if (localAppData) {
+    candidates.push(
+      path.join(localAppData, "Programs", "Ollama", "Ollama.exe"),
+      path.join(localAppData, "Programs", "Ollama", "ollama app.exe")
+    );
+  }
   for (const exe of candidates) {
     if (!fs.existsSync(exe)) {
       continue;
@@ -205,7 +256,55 @@ async function waitForOllamaAfterInstall(spec, onProgress) {
   );
 }
 
+async function applyOllamaModelsPath(modelsDir, ctx, onProgress) {
+  const target = normalizeInstallDir(modelsDir);
+  if (!target || process.platform !== "win32") {
+    return { ok: false, skipped: true };
+  }
+  fs.mkdirSync(target, { recursive: true });
+  onProgress?.({ stage: "models_path", message: `设置大模型存储目录：${target}` });
+  const escaped = target.replace(/'/g, "''");
+  await execFilePromise(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-Command",
+      `[Environment]::SetEnvironmentVariable('OLLAMA_MODELS','${escaped}','User'); $env:OLLAMA_MODELS='${escaped}'`,
+    ],
+    { timeout: 30000 }
+  );
+  process.env.OLLAMA_MODELS = target;
+  const pyScript = path.join(ctx.appPath, "scripts", "update-ollama-app-models-path.py");
+  if (fs.existsSync(pyScript)) {
+    for (const pyCmd of ["python", "py"]) {
+      try {
+        const args = pyCmd === "py" ? ["-3", pyScript, target] : [pyScript, target];
+        await execFilePromise(pyCmd, args, { timeout: 30000 });
+        break;
+      } catch {
+        /* try next python launcher */
+      }
+    }
+  }
+  try {
+    await execFilePromise(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        "Get-Process -Name 'ollama*','llama-server' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue",
+      ],
+      { timeout: 20000 }
+    );
+  } catch {
+    /* ignore */
+  }
+  await tryStartOllamaApp(onProgress, getInstallPathsFromCtx(ctx).ollamaInstallDir);
+  return { ok: true, path: target };
+}
+
 async function installOllamaWindows(issue, ctx, onProgress) {
+  const installPaths = getInstallPathsFromCtx(ctx);
   const manifest = loadEnvironmentManifest(ctx.appPath);
   const installerId = issue.plugin?.installerId || "ollama_setup";
   const spec = manifest.installers?.[installerId];
@@ -216,7 +315,7 @@ async function installOllamaWindows(issue, ctx, onProgress) {
   }
 
   if (issue.id === "ollama_not_running") {
-    const started = await tryStartOllamaApp(onProgress);
+    const started = await tryStartOllamaApp(onProgress, installPaths.ollamaInstallDir);
     if (started) {
       try {
         await waitForOllamaAfterInstall(spec, onProgress);
@@ -228,19 +327,15 @@ async function installOllamaWindows(issue, ctx, onProgress) {
   }
 
   if (wingetId && (await isWingetAvailable())) {
-    onProgress?.({ stage: "winget", message: `正在通过 winget 安装 ${wingetId}（不依赖 ollama.com 下载）…` });
+    const locHint = installPaths.ollamaInstallDir ? ` → ${installPaths.ollamaInstallDir}` : "";
+    onProgress?.({
+      stage: "winget",
+      message: `正在通过 winget 安装 ${wingetId}${locHint}（不依赖 ollama.com 下载）…`,
+    });
     try {
       await execFilePromise(
         "winget",
-        [
-          "install",
-          "-e",
-          "--id",
-          wingetId,
-          "--accept-package-agreements",
-          "--accept-source-agreements",
-          "--disable-interactivity",
-        ],
+        buildWingetInstallArgs(wingetId, installPaths, "ollama"),
         { timeout: 900000 }
       );
       await waitForOllamaAfterInstall(spec, onProgress);
@@ -262,7 +357,7 @@ async function installOllamaWindows(issue, ctx, onProgress) {
   const dest = path.join(tempDir, spec.filename || "OllamaSetup.exe");
   try {
     await downloadInstallerFile(spec, dest, onProgress);
-    const args = Array.isArray(spec.silentArgs) ? spec.silentArgs : ["/S"];
+    const args = buildOllamaInstallerArgs(spec, installPaths);
     await spawnInstallerAndWait(dest, args, onProgress, "Ollama");
     await waitForOllamaAfterInstall(spec, onProgress);
     return { ok: true, method: "silent_installer" };
@@ -285,16 +380,19 @@ async function runSilentInstaller(spec, onProgress, label, options = {}) {
   if (!spec || process.platform !== "win32") {
     return false;
   }
+  const installPaths = options.installPaths || {};
   const tempDir = path.join(os.tmpdir(), "jingluo-env-setup");
   const dest = path.join(tempDir, spec.filename || "installer.exe");
   await downloadInstallerFile(spec, dest, onProgress);
 
   const argSets = [];
-  if (Array.isArray(spec.silentArgs) && spec.silentArgs.length) {
-    argSets.push(spec.silentArgs);
+  const silentArgs = buildPythonInstallerArgs(spec, installPaths, "silent");
+  const passiveArgs = buildPythonInstallerArgs(spec, installPaths, "passive");
+  if (silentArgs.length) {
+    argSets.push(silentArgs);
   }
-  if (Array.isArray(spec.passiveArgs) && spec.passiveArgs.length) {
-    argSets.push(spec.passiveArgs);
+  if (passiveArgs.length && JSON.stringify(passiveArgs) !== JSON.stringify(silentArgs)) {
+    argSets.push(passiveArgs);
   }
   if (!argSets.length) {
     argSets.push(["/S"]);
@@ -558,6 +656,10 @@ async function remediatePowershellFix(_issue, ctx, onProgress) {
   if (process.platform !== "win32") {
     return { ok: false, error: "仅 Windows 支持路径修复脚本" };
   }
+  const modelsDir = normalizeInstallDir(getInstallPathsFromCtx(ctx).ollamaModelsDir);
+  if (modelsDir) {
+    return applyOllamaModelsPath(modelsDir, ctx, onProgress);
+  }
   const scriptPath = path.join(ctx.appPath, "scripts", "fix-ollama-models-path-win.ps1");
   if (!fs.existsSync(scriptPath)) {
     throw new Error("未找到 fix-ollama-models-path-win.ps1");
@@ -572,6 +674,7 @@ async function remediatePowershellFix(_issue, ctx, onProgress) {
 }
 
 async function remediateWingetInstall(issue, ctx, onProgress) {
+  const installPaths = getInstallPathsFromCtx(ctx);
   const wingetId = issue.plugin?.wingetId;
   const manifest = loadEnvironmentManifest(ctx.appPath);
   const installerId = issue.plugin?.installerId;
@@ -587,19 +690,18 @@ async function remediateWingetInstall(issue, ctx, onProgress) {
   }
 
   if (wingetId && (await isWingetAvailable())) {
-    onProgress?.({ stage: "winget", message: `正在通过 winget 安装 ${wingetId}…` });
+    const wingetKind = isPythonIssue ? "python" : isOllamaIssue ? "ollama" : "";
+    const locHint =
+      wingetKind === "python" && installPaths.pythonInstallDir
+        ? ` → ${installPaths.pythonInstallDir}`
+        : wingetKind === "ollama" && installPaths.ollamaInstallDir
+          ? ` → ${installPaths.ollamaInstallDir}`
+          : "";
+    onProgress?.({ stage: "winget", message: `正在通过 winget 安装 ${wingetId}${locHint}…` });
     try {
       await execFilePromise(
         "winget",
-        [
-          "install",
-          "-e",
-          "--id",
-          wingetId,
-          "--accept-package-agreements",
-          "--accept-source-agreements",
-          "--disable-interactivity",
-        ],
+        buildWingetInstallArgs(wingetId, installPaths, wingetKind),
         { timeout: 600000 }
       );
       if (isPythonIssue) {
@@ -628,6 +730,7 @@ async function remediateWingetInstall(issue, ctx, onProgress) {
       const out = await runSilentInstaller(spec, onProgress, issue.plugin?.title || wingetId, {
         verifyPython: isPythonIssue,
         allowInteractive: true,
+        installPaths,
       });
       return { ok: true, method: out?.method || "silent_installer", path: out?.path };
     } catch (installErr) {
@@ -750,6 +853,27 @@ async function executeRemediationBatch(issues, ctx, onProgress) {
   const plan = sortRemediationIssues(issues);
   const results = [];
   let ollamaReady = await isOllamaApiReachable();
+  const modelsDir = normalizeInstallDir(getInstallPathsFromCtx(ctx).ollamaModelsDir);
+  const needsModelsPath = plan.some((issue) => {
+    const action = issue.remediateAction || issue.remediateType || "open_url";
+    return (
+      OLLAMA_DEPENDENT_ACTIONS.has(action) ||
+      issue.id === "bge_m3_missing" ||
+      issue.id === "chat_model_missing" ||
+      issue.id === "rerank_cache_missing"
+    );
+  });
+  if (modelsDir && needsModelsPath) {
+    try {
+      await applyOllamaModelsPath(modelsDir, ctx, onProgress);
+      ollamaReady = await isOllamaApiReachable();
+    } catch (err) {
+      onProgress?.({
+        stage: "models_path_warn",
+        message: `大模型目录设置未完全生效：${err?.message || err}，将继续尝试安装…`,
+      });
+    }
+  }
 
   for (const issue of plan) {
     const action = issue.remediateAction || issue.remediateType || "open_url";

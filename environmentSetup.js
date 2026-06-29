@@ -20,8 +20,22 @@
     steps: document.getElementById("envSetupSteps"),
   };
 
+  const pathDialog = document.getElementById("environmentInstallPathDialog");
+  const pathEl = {
+    rowPython: document.getElementById("envPathRowPython"),
+    rowOllama: document.getElementById("envPathRowOllama"),
+    rowModels: document.getElementById("envPathRowModels"),
+    inputPython: document.getElementById("envPathPython"),
+    inputOllama: document.getElementById("envPathOllama"),
+    inputModels: document.getElementById("envPathModels"),
+    warning: document.getElementById("envPathWarning"),
+    cancelBtn: document.getElementById("envPathCancelBtn"),
+    confirmBtn: document.getElementById("envPathConfirmBtn"),
+  };
+
   let lastProfile = null;
   let busy = false;
+  let pathDialogSession = null;
 
   function setStep(active) {
     el.steps?.querySelectorAll(".env-setup-step").forEach((node) => {
@@ -100,6 +114,172 @@
     return profile;
   }
 
+  function deriveInstallKinds(profile) {
+    const issues = Array.isArray(profile?.issues) ? profile.issues : [];
+    const ids = new Set(issues.map((i) => i.id));
+    return {
+      python: ids.has("python_missing") || ids.has("python_high_version"),
+      ollama: ids.has("ollama_missing") || ids.has("ollama_not_running"),
+      models:
+        ids.has("bge_m3_missing") ||
+        ids.has("chat_model_missing") ||
+        ids.has("rerank_cache_missing") ||
+        ids.has("ollama_models_path_unsafe"),
+    };
+  }
+
+  function needsInstallPathPrompt(profile) {
+    const kinds = deriveInstallKinds(profile);
+    return kinds.python || kinds.ollama || kinds.models;
+  }
+
+  function updatePathWarning(paths) {
+    if (!pathEl.warning) {
+      return;
+    }
+    const onC =
+      /^c:/i.test(String(paths?.pythonInstallDir || "")) ||
+      /^c:/i.test(String(paths?.ollamaInstallDir || "")) ||
+      /^c:/i.test(String(paths?.ollamaModelsDir || ""));
+    if (onC) {
+      pathEl.warning.hidden = false;
+      pathEl.warning.textContent =
+        "当前路径位于 C 盘，可能占用系统盘空间。若有 D/E 等非系统盘，建议改用该盘目录。";
+      return;
+    }
+    pathEl.warning.hidden = true;
+    pathEl.warning.textContent = "";
+  }
+
+  function fillPathDialog(paths, kinds) {
+    if (pathEl.rowPython) {
+      pathEl.rowPython.hidden = !kinds.python;
+    }
+    if (pathEl.rowOllama) {
+      pathEl.rowOllama.hidden = !kinds.ollama;
+    }
+    if (pathEl.rowModels) {
+      pathEl.rowModels.hidden = !kinds.models;
+    }
+    if (pathEl.inputPython && kinds.python) {
+      pathEl.inputPython.value = paths?.pythonInstallDir || "";
+    }
+    if (pathEl.inputOllama && kinds.ollama) {
+      pathEl.inputOllama.value = paths?.ollamaInstallDir || "";
+    }
+    if (pathEl.inputModels && kinds.models) {
+      pathEl.inputModels.value = paths?.ollamaModelsDir || "";
+    }
+    updatePathWarning(paths);
+  }
+
+  function readPathDialogValues(kinds) {
+    const paths = {};
+    if (kinds.python && pathEl.inputPython) {
+      paths.pythonInstallDir = String(pathEl.inputPython.value || "").trim();
+    }
+    if (kinds.ollama && pathEl.inputOllama) {
+      paths.ollamaInstallDir = String(pathEl.inputOllama.value || "").trim();
+    }
+    if (kinds.models && pathEl.inputModels) {
+      paths.ollamaModelsDir = String(pathEl.inputModels.value || "").trim();
+    }
+    return paths;
+  }
+
+  function openInstallPathDialog(profile) {
+    if (!pathDialog || typeof pathDialog.showModal !== "function") {
+      return Promise.resolve({ confirmed: true, paths: null, kinds: deriveInstallKinds(profile) });
+    }
+    const kinds = deriveInstallKinds(profile);
+    if (!kinds.python && !kinds.ollama && !kinds.models) {
+      return Promise.resolve({ confirmed: true, paths: null, kinds });
+    }
+    return new Promise((resolve) => {
+      pathDialogSession = { resolve, kinds };
+      void api.environmentGetInstallPaths?.().then((out) => {
+        const paths = out?.paths || out?.defaults || {};
+        fillPathDialog(paths, kinds);
+        pathDialog.showModal();
+      });
+    });
+  }
+
+  pathDialog?.querySelectorAll(".env-install-path-browse").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const kind = btn.getAttribute("data-kind");
+      const inputMap = {
+        pythonInstallDir: pathEl.inputPython,
+        ollamaInstallDir: pathEl.inputOllama,
+        ollamaModelsDir: pathEl.inputModels,
+      };
+      const input = inputMap[kind];
+      const out = await api.environmentChooseInstallPath?.({
+        kind,
+        currentPath: input?.value || "",
+      });
+      if (out?.ok && out.path && input) {
+        input.value = out.path;
+        updatePathWarning(readPathDialogValues(pathDialogSession?.kinds || deriveInstallKinds(lastProfile)));
+      }
+    });
+  });
+
+  pathEl.cancelBtn?.addEventListener("click", () => {
+    pathDialog?.close();
+    pathDialogSession?.resolve?.({ confirmed: false });
+    pathDialogSession = null;
+  });
+
+  pathEl.confirmBtn?.addEventListener("click", async () => {
+    const kinds = pathDialogSession?.kinds || deriveInstallKinds(lastProfile);
+    const paths = readPathDialogValues(kinds);
+    const saved = await api.environmentSaveInstallPaths?.({ paths, kinds });
+    if (!saved?.ok) {
+      if (pathEl.warning) {
+        pathEl.warning.hidden = false;
+        pathEl.warning.textContent = saved?.error || "路径无效，请重新选择。";
+      }
+      return;
+    }
+    pathDialog?.close();
+    pathDialogSession?.resolve?.({ confirmed: true, paths: saved.paths, kinds });
+    pathDialogSession = null;
+  });
+
+  pathDialog?.addEventListener("cancel", (ev) => {
+    ev.preventDefault();
+    pathDialogSession?.resolve?.({ confirmed: false });
+    pathDialogSession = null;
+  });
+
+  async function runAutoFixBatch() {
+    setStep("python");
+    const batch = await api.environmentRemediateBatch({ autoOnly: true });
+    const lines = (batch?.results || []).map((r) => {
+      if (r.skipped) {
+        return `${r.issueId}: 已跳过${r.message ? `（${r.message}）` : r.error ? `（${r.error}）` : ""}`;
+      }
+      return `${r.issueId}: ${r.ok ? "完成" : r.error || "失败"}`;
+    });
+    if (lines.length) {
+      appendProgress(lines.join("\n"));
+    }
+    setStep("verify");
+    await refreshUi(true);
+    const stillNoPython = lastProfile?.core?.pythonReady !== true;
+    const manualPython = (batch?.results || []).some(
+      (r) =>
+        (r.issueId === "python_missing" || r.issueId === "python_high_version") &&
+        (r.manual || r.needsUserAction)
+    );
+    if (stillNoPython && manualPython && el.message) {
+      el.message.textContent =
+        "Python 需在本机安装窗口中手动完成（勾选 Add to PATH）。完成后请点击「重新检测」，再继续 Ollama 与模型下载。";
+    }
+    return batch;
+  }
+
   async function openWizard() {
     if (!dialog.open) {
       if (el.progress) {
@@ -138,30 +318,20 @@
     if (el.message) {
       el.message.textContent = "正在按 Python → Ollama → 模型 顺序自动配置，请勿关闭窗口…";
     }
-    setStep("python");
     try {
-      const batch = await api.environmentRemediateBatch({ autoOnly: true });
-      const lines = (batch?.results || []).map((r) => {
-        if (r.skipped) {
-          return `${r.issueId}: 已跳过${r.message ? `（${r.message}）` : r.error ? `（${r.error}）` : ""}`;
+      if (!lastProfile) {
+        await refreshUi(false);
+      }
+      if (needsInstallPathPrompt(lastProfile)) {
+        const picked = await openInstallPathDialog(lastProfile);
+        if (!picked?.confirmed) {
+          if (el.message) {
+            el.message.textContent = "已取消安装。请重新选择路径后再试，或点击「稍后配置」。";
+          }
+          return;
         }
-        return `${r.issueId}: ${r.ok ? "完成" : r.error || "失败"}`;
-      });
-      if (lines.length) {
-        appendProgress(lines.join("\n"));
       }
-      setStep("verify");
-      await refreshUi(true);
-      const stillNoPython = lastProfile?.core?.pythonReady !== true;
-      const manualPython = (batch?.results || []).some(
-        (r) =>
-          (r.issueId === "python_missing" || r.issueId === "python_high_version") &&
-          (r.manual || r.needsUserAction)
-      );
-      if (stillNoPython && manualPython && el.message) {
-        el.message.textContent =
-          "Python 需在本机安装窗口中手动完成（勾选 Add to PATH）。完成后请点击「重新检测」，再继续 Ollama 与模型下载。";
-      }
+      await runAutoFixBatch();
     } catch (err) {
       if (el.message) {
         el.message.textContent = `自动配置失败：${err?.message || err}`;

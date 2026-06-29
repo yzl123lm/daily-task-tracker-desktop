@@ -2439,7 +2439,7 @@
     <div class="env-setup-shell">
       <header class="env-setup-head">
         <h2>本地 AI 环境配置</h2>
-        <p class="env-setup-sub">将按「Python → Ollama → 模型」顺序自动配置；知识库检索依赖 Ollama，Python 用于语音扩展等本地插件。</p>
+        <p class="env-setup-sub">将按「Python → Ollama → 模型」顺序自动配置；开始安装前会弹出路径选择，默认优先非 C 盘。</p>
       </header>
       <ol id="envSetupSteps" class="env-setup-steps">
         <li class="env-setup-step is-active" data-step="detect">1. 检测硬件与环境</li>
@@ -2458,6 +2458,43 @@
         <button type="button" class="secondary" id="envSetupRecheckBtn">重新检测</button>
         <button type="button" id="envSetupAutoFixBtn">一键配置</button>
         <button type="button" id="envSetupDoneBtn" hidden>完成</button>
+      </footer>
+    </div>
+  </dialog>
+
+  <dialog id="environmentInstallPathDialog" class="env-setup-dialog env-install-path-dialog">
+    <div class="env-setup-shell">
+      <header class="env-setup-head">
+        <h2>选择安装路径</h2>
+        <p class="env-setup-sub">插件与大模型体积较大，建议选择非 C 盘目录。大模型路径请使用英文字符，避免中文导致 Ollama 无法读取。</p>
+      </header>
+      <div class="env-install-path-form">
+        <label class="env-install-path-row" id="envPathRowPython" hidden>
+          <span class="env-install-path-label">Python 3.12 安装目录</span>
+          <div class="env-install-path-field">
+            <input type="text" id="envPathPython" class="env-install-path-input" readonly />
+            <button type="button" class="secondary env-install-path-browse" data-kind="pythonInstallDir">浏览…</button>
+          </div>
+        </label>
+        <label class="env-install-path-row" id="envPathRowOllama" hidden>
+          <span class="env-install-path-label">Ollama 安装目录</span>
+          <div class="env-install-path-field">
+            <input type="text" id="envPathOllama" class="env-install-path-input" readonly />
+            <button type="button" class="secondary env-install-path-browse" data-kind="ollamaInstallDir">浏览…</button>
+          </div>
+        </label>
+        <label class="env-install-path-row" id="envPathRowModels" hidden>
+          <span class="env-install-path-label">大模型存储目录</span>
+          <div class="env-install-path-field">
+            <input type="text" id="envPathModels" class="env-install-path-input" readonly />
+            <button type="button" class="secondary env-install-path-browse" data-kind="ollamaModelsDir">浏览…</button>
+          </div>
+        </label>
+      </div>
+      <p id="envPathWarning" class="env-install-path-warn" hidden></p>
+      <footer class="env-setup-actions">
+        <button type="button" class="secondary" id="envPathCancelBtn">取消</button>
+        <button type="button" id="envPathConfirmBtn">确认并开始安装</button>
       </footer>
     </div>
   </dialog>

@@ -121,6 +121,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   environmentRemediateBatch: (payload) => ipcRenderer.invoke("environment-remediate-batch", payload),
 
+  environmentGetInstallPaths: () => ipcRenderer.invoke("environment-get-install-paths"),
+
+  environmentChooseInstallPath: (payload) => ipcRenderer.invoke("environment-choose-install-path", payload),
+
+  environmentSaveInstallPaths: (payload) => ipcRenderer.invoke("environment-save-install-paths", payload),
+
   onEnvironmentProfile: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

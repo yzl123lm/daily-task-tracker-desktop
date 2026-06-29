@@ -1273,6 +1273,53 @@ body.theme-nebula {
   justify-content: flex-end;
 }
 
+.env-install-path-dialog {
+  max-width: min(620px, calc(100vw - 32px));
+}
+
+.env-install-path-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.env-install-path-row {
+  display: grid;
+  gap: 6px;
+}
+
+.env-install-path-label {
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.env-install-path-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.env-install-path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.72);
+  color: #f8fafc;
+  font-size: 12px;
+}
+
+.env-install-path-browse {
+  flex-shrink: 0;
+}
+
+.env-install-path-warn {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #fbbf24;
+}
+
 .theme-nebula .skill-card {
   background: var(--surface-panel);
   border-color: var(--border);
