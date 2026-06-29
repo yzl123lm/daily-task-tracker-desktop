@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { execFile, spawn } = require("child_process");
-const { shell } = require("electron");
+const { shell, net } = require("electron");
 const { readOllamaSettings, normalizeOllamaHost, buildOllamaHardwareRecommendPayload } = require("../ollamaRuntime.js");
 const { probeOllamaApi, fetchOllamaModelTags } = require("./ollamaInstallProbe.js");
 const { probeRerankReadiness } = require("./rerankCacheProbe.js");
@@ -116,9 +116,13 @@ async function isOllamaApiReachable() {
 async function downloadFile(url, destPath, onProgress) {
   onProgress?.({ stage: "download", message: `正在下载…`, url });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 600000);
+  const timer = setTimeout(() => controller.abort(), 900000);
+  const headers = {
+    "User-Agent": "JingluoAI-EnvSetup/1.0 (Windows; Electron)",
+  };
   try {
-    const res = await fetch(url, { redirect: "follow", signal: controller.signal });
+    const fetchImpl = typeof net?.fetch === "function" ? net.fetch.bind(net) : fetch;
+    const res = await fetchImpl(url, { redirect: "follow", signal: controller.signal, headers });
     if (!res.ok) {
       throw new Error(`HTTP ${res.status}`);
     }
@@ -127,6 +131,12 @@ async function downloadFile(url, destPath, onProgress) {
     fs.writeFileSync(destPath, buf);
     onProgress?.({ stage: "download_done", message: "下载完成", path: destPath, url });
     return destPath;
+  } catch (err) {
+    const msg = String(err?.message || err || "fetch failed");
+    if (/fetch failed|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|AbortError|aborted|network|证书|certificate/i.test(msg)) {
+      throw new Error(`${msg}（请检查网络；若无法访问 ollama.com，将自动尝试 GitHub 镜像或 winget）`);
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -159,7 +169,116 @@ async function downloadInstallerFile(spec, destPath, onProgress) {
       }
     }
   }
-  throw lastErr || new Error("所有下载镜像均失败");
+  throw lastErr || new Error("所有下载镜像均失败。请配置系统代理/VPN 后重试，或在 PowerShell 执行：winget install -e --id Ollama.Ollama");
+}
+
+async function tryStartOllamaApp(onProgress) {
+  if (process.platform !== "win32") {
+    return false;
+  }
+  const localAppData = String(process.env.LOCALAPPDATA || "").trim();
+  if (!localAppData) {
+    return false;
+  }
+  const candidates = [
+    path.join(localAppData, "Programs", "Ollama", "Ollama.exe"),
+    path.join(localAppData, "Programs", "Ollama", "ollama app.exe"),
+  ];
+  for (const exe of candidates) {
+    if (!fs.existsSync(exe)) {
+      continue;
+    }
+    onProgress?.({ stage: "start_ollama", message: "正在启动 Ollama…" });
+    spawn(exe, [], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+    return true;
+  }
+  return false;
+}
+
+async function waitForOllamaAfterInstall(spec, onProgress) {
+  const host = normalizeOllamaHost(readOllamaSettings().host);
+  await pollOllamaReady(
+    host,
+    Number(spec?.postInstallPollMs) || 60000,
+    Number(spec?.pollIntervalMs) || 2000,
+    onProgress
+  );
+}
+
+async function installOllamaWindows(issue, ctx, onProgress) {
+  const manifest = loadEnvironmentManifest(ctx.appPath);
+  const installerId = issue.plugin?.installerId || "ollama_setup";
+  const spec = manifest.installers?.[installerId];
+  const wingetId = String(issue.plugin?.wingetId || "Ollama.Ollama").trim();
+  if (!spec || process.platform !== "win32") {
+    await shell.openExternal(issue.remediateUrl || issue.plugin?.url || "https://github.com/ollama/ollama/releases/latest");
+    return { ok: true, manual: true };
+  }
+
+  if (issue.id === "ollama_not_running") {
+    const started = await tryStartOllamaApp(onProgress);
+    if (started) {
+      try {
+        await waitForOllamaAfterInstall(spec, onProgress);
+        return { ok: true, method: "start_app" };
+      } catch {
+        onProgress?.({ stage: "start_retry", message: "自动启动未成功，尝试重新安装/修复 Ollama…" });
+      }
+    }
+  }
+
+  if (wingetId && (await isWingetAvailable())) {
+    onProgress?.({ stage: "winget", message: `正在通过 winget 安装 ${wingetId}（不依赖 ollama.com 下载）…` });
+    try {
+      await execFilePromise(
+        "winget",
+        [
+          "install",
+          "-e",
+          "--id",
+          wingetId,
+          "--accept-package-agreements",
+          "--accept-source-agreements",
+          "--disable-interactivity",
+        ],
+        { timeout: 900000 }
+      );
+      await waitForOllamaAfterInstall(spec, onProgress);
+      return { ok: true, method: "winget" };
+    } catch (err) {
+      onProgress?.({
+        stage: "winget_fallback",
+        message: `winget 安装失败（${err?.message || err}），改从 GitHub 等镜像下载安装包…`,
+      });
+    }
+  } else if (wingetId) {
+    onProgress?.({
+      stage: "winget_fallback",
+      message: "本机未安装 winget，改从 GitHub 等镜像下载 Ollama 安装包…",
+    });
+  }
+
+  const tempDir = path.join(os.tmpdir(), "jingluo-env-setup");
+  const dest = path.join(tempDir, spec.filename || "OllamaSetup.exe");
+  try {
+    await downloadInstallerFile(spec, dest, onProgress);
+    const args = Array.isArray(spec.silentArgs) ? spec.silentArgs : ["/S"];
+    await spawnInstallerAndWait(dest, args, onProgress, "Ollama");
+    await waitForOllamaAfterInstall(spec, onProgress);
+    return { ok: true, method: "silent_installer" };
+  } catch (installErr) {
+    onProgress?.({
+      stage: "installer_fallback",
+      message: `自动安装未完成：${installErr?.message || installErr}。正在打开 GitHub 发布页，可手动下载安装。`,
+    });
+    await shell.openExternal("https://github.com/ollama/ollama/releases/latest");
+    return {
+      ok: true,
+      manual: true,
+      needsUserAction: true,
+      error: String(installErr?.message || installErr),
+    };
+  }
 }
 
 async function runSilentInstaller(spec, onProgress, label, options = {}) {
@@ -249,19 +368,6 @@ function execFilePromise(cmd, args, opts = {}) {
   });
 }
 
-async function downloadFile(url, destPath, onProgress) {
-  onProgress?.({ stage: "download", message: `正在下载…`, url });
-  const res = await fetch(url, { redirect: "follow" });
-  if (!res.ok) {
-    throw new Error(`下载失败 HTTP ${res.status}`);
-  }
-  const buf = Buffer.from(await res.arrayBuffer());
-  fs.mkdirSync(path.dirname(destPath), { recursive: true });
-  fs.writeFileSync(destPath, buf);
-  onProgress?.({ stage: "download_done", message: "下载完成", path: destPath });
-  return destPath;
-}
-
 async function pollOllamaReady(host, maxMs, intervalMs, onProgress) {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
@@ -277,8 +383,11 @@ async function pollOllamaReady(host, maxMs, intervalMs, onProgress) {
 }
 
 async function remediateDownloadInstaller(issue, ctx, onProgress) {
-  const manifest = loadEnvironmentManifest(ctx.appPath);
   const installerId = issue.plugin?.installerId || "ollama_setup";
+  if (installerId === "ollama_setup" || issue.id === "ollama_missing" || issue.id === "ollama_not_running") {
+    return installOllamaWindows(issue, ctx, onProgress);
+  }
+  const manifest = loadEnvironmentManifest(ctx.appPath);
   const spec = manifest.installers?.[installerId];
   if (!spec || process.platform !== "win32") {
     await shell.openExternal(issue.remediateUrl || issue.plugin?.url || "https://ollama.com/download");
@@ -468,6 +577,10 @@ async function remediateWingetInstall(issue, ctx, onProgress) {
   const installerId = issue.plugin?.installerId;
   const spec = installerId ? manifest.installers?.[installerId] : null;
   const isPythonIssue = issue.id === "python_missing" || issue.id === "python_high_version";
+  const isOllamaIssue = issue.id === "ollama_missing" || issue.id === "ollama_not_running";
+  if (isOllamaIssue) {
+    return installOllamaWindows(issue, ctx, onProgress);
+  }
   if (!wingetId && !spec) {
     await shell.openExternal(issue.remediateUrl || issue.plugin?.url || "https://www.python.org/downloads/");
     return { ok: true, manual: true };

@@ -75,9 +75,9 @@ function buildOllamaIssues(ollamaProbe, modelsInfo) {
       id: "ollama_missing",
       severity: "error",
       title: "未安装 Ollama",
-      detail: "本地知识库嵌入与本地对话依赖 Ollama。可应用内下载官方安装包并静默安装。",
-      remediateType: "download_installer",
-      remediateUrl: "https://ollama.com/download",
+      detail: "本地知识库嵌入与本地对话依赖 Ollama。将优先通过 winget 或 GitHub 镜像下载（无需访问 ollama.com）；若失败可配置系统代理/VPN。",
+      remediateType: "winget_install",
+      remediateUrl: "https://github.com/ollama/ollama/releases/latest",
     });
   } else if (!ollamaProbe.api.reachable) {
     issues.push({
@@ -85,8 +85,8 @@ function buildOllamaIssues(ollamaProbe, modelsInfo) {
       severity: "error",
       title: "Ollama 未运行",
       detail: ollamaProbe.api.error || "无法连接 Ollama API，请启动 Ollama 后重试。",
-      remediateType: "download_installer",
-      remediateUrl: "https://ollama.com/download",
+      remediateType: "winget_install",
+      remediateUrl: "https://github.com/ollama/ollama/releases/latest",
     });
   }
   if (ollamaProbe.pathUnsafe?.unsafe) {

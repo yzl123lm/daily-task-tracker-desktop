@@ -6,9 +6,10 @@
       "id": "ollama",
       "title": "Ollama 本地推理运行时",
       "issueIds": ["ollama_missing", "ollama_not_running"],
-      "remediate": "download_installer",
+      "remediate": "winget_install",
       "installerId": "ollama_setup",
-      "url": "https://ollama.com/download",
+      "wingetId": "Ollama.Ollama",
+      "url": "https://github.com/ollama/ollama/releases/latest",
       "auto": true
     },
     {
@@ -73,10 +74,16 @@
     },
     "ollama_setup": {
       "platform": "win32",
-      "downloadUrl": "https://ollama.com/download/OllamaSetup.exe",
+      "downloadUrl": "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe",
+      "downloadUrls": [
+        "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe",
+        "https://ollama.com/download/OllamaSetup.exe",
+        "https://github.com/ollama/ollama/releases/download/v0.30.8/OllamaSetup.exe"
+      ],
       "filename": "OllamaSetup.exe",
       "silentArgs": ["/S"],
-      "postInstallPollMs": 60000,
+      "minBytes": 300000000,
+      "postInstallPollMs": 90000,
       "pollIntervalMs": 2000
     },
     "ollama_setup_darwin": {
