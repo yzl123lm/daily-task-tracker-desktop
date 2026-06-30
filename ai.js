@@ -197,6 +197,7 @@ const QUICK_PROMPTS = {
   today: "根据「任务列表摘要」，总结今天的任务进展、重点待办与风险。",
   weekly: "根据「任务列表摘要」，生成本周工作周报（完成情况、进行中、下周计划）。",
   kb: "结合本地知识库与任务摘要，检索并回答我关心的问题；若知识库无相关内容请明确说明。",
+  blocked: "查询当前所有已阻塞、已挂起或逾期的任务，列出优先级、处理人与阻塞原因，并给出解除建议。",
   generate:
     "根据下方「任务列表摘要」，生成若干条合理的待办任务建议（可含优先级说明）。若摘要为空则说明无法生成。",
   daily: "根据「任务列表摘要」，整理今日工作日报要点（已完成、进行中、待办、风险）。",
@@ -2501,18 +2502,85 @@ function initAI() {
     syncSendEnabled();
   }
 
+  function mountPromptDockComposer() {
+    const dockSlot = document.getElementById("jlPromptDockComposer");
+    const inputStack = document.querySelector("#panel-ai .ai-input-stack");
+    if (!dockSlot || !inputStack || inputStack.dataset.jlDockMounted === "1") {
+      return;
+    }
+    dockSlot.appendChild(inputStack);
+    inputStack.dataset.jlDockMounted = "1";
+  }
+
+  function inferJlResultCardType(role, text, { isError = false, imageUrl = "", imageBase64 = "", userDocs = [] } = {}) {
+    if (imageUrl || imageBase64) {
+      return "image";
+    }
+    if (Array.isArray(userDocs) && userDocs.length) {
+      return "doc";
+    }
+    if (isError) {
+      return "text";
+    }
+    const t = String(text || "");
+    if (role === "assistant") {
+      if (/知识库|kb_search|检索命中|来源文档|引用片段/i.test(t)) {
+        return "kb";
+      }
+      if (/任务列表|task_|待办|已创建任务|已更新任务|登记事物/i.test(t)) {
+        return "task";
+      }
+      if (/周报|日报|统计|看板|完成率|风险分析/i.test(t)) {
+        return "chart";
+      }
+    }
+    return "text";
+  }
+
+  function showAiLoadingCard(statusText) {
+    if (!chatLog) {
+      return;
+    }
+    let el = document.getElementById("aiLoadingCard");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "aiLoadingCard";
+      el.className = "ai-msg ai-msg-assistant jl-result-card jl-skeleton-blur ai-loading-card";
+      el.dataset.type = "text";
+      el.innerHTML = '<div class="jl-skeleton-blur__label"></div>';
+      chatLog.appendChild(el);
+    }
+    const label = el.querySelector(".jl-skeleton-blur__label");
+    if (label) {
+      label.textContent = statusText || "生成中…";
+    }
+    scrollChatToBottom();
+  }
+
+  function hideAiLoadingCard() {
+    document.getElementById("aiLoadingCard")?.remove();
+  }
+
   function appendBubble(
     role,
     text,
     { isError = false, imageUrl = "", imageBase64 = "", imageAlt = "生成图片", ollamaUsage = null, userDocs = [] } = {},
   ) {
+    hideAiLoadingCard();
     const row = document.createElement("div");
-    row.className = `ai-msg ai-msg-${role}` + (isError ? " ai-msg-error" : "");
+    const cardType = inferJlResultCardType(role, text, {
+      isError,
+      imageUrl,
+      imageBase64,
+      userDocs,
+    });
+    row.className = `ai-msg ai-msg-${role} jl-result-card` + (isError ? " ai-msg-error is-error" : "");
+    row.dataset.type = cardType;
     const label = document.createElement("div");
-    label.className = "ai-msg-label";
+    label.className = "ai-msg-label jl-result-card__header";
     label.textContent = role === "user" ? "我" : role === "assistant" ? "助手" : "系统";
     const body = document.createElement("div");
-    body.className = "ai-msg-body";
+    body.className = "ai-msg-body jl-result-card__body";
     const q = (searchInput?.value || "").trim();
     if ((imageUrl || imageBase64) && role === "assistant" && !isError) {
       body.dataset.rawText = text || "";
@@ -2932,6 +3000,10 @@ function initAI() {
   }
 
   window.onAIPanelVisible = () => {
+    mountPromptDockComposer();
+    if (typeof window.syncJlPromptDock === "function") {
+      window.syncJlPromptDock("ai");
+    }
     refreshAIState();
   };
 
@@ -4009,11 +4081,15 @@ function initAI() {
     if (chatStatusEl) {
       if (aiMode === "image-gen") {
         chatStatusEl.textContent = "文生图生成中…";
+        showAiLoadingCard("文生图生成中…");
       } else if (aiMode === "image-vision") {
         chatStatusEl.textContent = "图像理解中…";
+        showAiLoadingCard("图像理解中…");
       } else {
         const useWeb = isWebSearchOn();
-        chatStatusEl.textContent = useWeb ? "联网检索与生成中…" : "思考中…";
+        const status = useWeb ? "联网检索与生成中…" : "思考中…";
+        chatStatusEl.textContent = status;
+        showAiLoadingCard(status);
       }
       chatStatusEl.classList.add("is-busy");
     }
@@ -4103,6 +4179,7 @@ function initAI() {
         chatStatusEl.textContent = "";
         chatStatusEl.classList.remove("is-busy");
       }
+      hideAiLoadingCard();
       syncSendEnabled();
     }
     return true;
@@ -4262,6 +4339,15 @@ function initAI() {
   document.querySelectorAll(".ai-quick").forEach((btn) => {
     btn.addEventListener("click", () => {
       const key = btn.dataset.prompt;
+      if (key === "record") {
+        if (typeof window.openOrFocusTab === "function") {
+          window.openOrFocusTab("record");
+        }
+        queueMicrotask(() => {
+          document.getElementById("recordStartBtn")?.click();
+        });
+        return;
+      }
       const preset = QUICK_PROMPTS[key];
       if (!preset || !inputEl) {
         return;
@@ -4272,6 +4358,42 @@ function initAI() {
       syncSendEnabled();
     });
   });
+
+  const promptAttachInput = document.getElementById("aiPromptAttachInput");
+  if (promptAttachInput) {
+    promptAttachInput.addEventListener("change", () => {
+      const files = promptAttachInput.files;
+      if (!files?.length) {
+        return;
+      }
+      const hasDoc = asFileList(files).some((f) => isWorkDocFile(f));
+      if (hasDoc) {
+        void addWorkDocFilesToInput(files);
+      } else {
+        addVisionFiles(files);
+      }
+      promptAttachInput.value = "";
+    });
+  }
+
+  mountPromptDockComposer();
+
+  const composerFooterLeft = document.querySelector(".ai-composer-footer-left");
+  if (composerFooterLeft && promptAttachInput && !document.getElementById("aiPromptAttachBtn")) {
+    const attachBtn = document.createElement("button");
+    attachBtn.type = "button";
+    attachBtn.id = "aiPromptAttachBtn";
+    attachBtn.className = "ai-prompt-attach-btn jl-tooltip";
+    attachBtn.dataset.tip = "添加附件";
+    attachBtn.setAttribute("aria-label", "添加附件");
+    attachBtn.title = "添加图片或文档附件";
+    attachBtn.innerHTML =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    attachBtn.addEventListener("click", () => {
+      promptAttachInput.click();
+    });
+    composerFooterLeft.insertBefore(attachBtn, composerFooterLeft.firstChild);
+  }
 
   if (sendBtn && inputEl) {
     sendBtn.addEventListener("click", () => {

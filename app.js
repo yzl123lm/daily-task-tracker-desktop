@@ -17,6 +17,33 @@ const ROUTES = {
   },
 };
 
+const JL_SPACE_TO_ROUTE = {
+  ai: "ai",
+  tasks: "list",
+  kb: "knowledge-base",
+  data: "dashboard",
+  record: "record",
+};
+
+const ROUTE_TO_JL_SPACE = {
+  ai: "ai",
+  new: "tasks",
+  filter: "tasks",
+  list: "tasks",
+  dashboard: "data",
+  record: "record",
+  "knowledge-base": "kb",
+};
+
+const JL_SPACE_LABELS = {
+  ai: "AI 工作台",
+  tasks: "任务空间",
+  kb: "知识空间",
+  data: "数据空间",
+  record: "记录空间",
+  capability: "能力中心",
+};
+
 const taskForm = document.getElementById("taskForm");
 const filterForm = document.getElementById("filterForm");
 const taskTableBody = document.getElementById("taskTableBody");
@@ -1427,8 +1454,111 @@ function parseHashRoute() {
   if (h && ROUTES[h]) {
     return h;
   }
-  return "list";
+  return "ai";
 }
+
+function syncJlPromptDock(route) {
+  const show = route === "ai";
+  document.body.classList.toggle("jl-route-ai", show);
+  const dock = document.getElementById("jlPromptDock");
+  if (!dock) {
+    return;
+  }
+  dock.hidden = !show;
+  dock.setAttribute("aria-hidden", show ? "false" : "true");
+}
+
+window.syncJlPromptDock = syncJlPromptDock;
+
+function updateJlSideRailActive(route) {
+  const space = ROUTE_TO_JL_SPACE[route] || "tasks";
+  document.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.jlSpace === space);
+  });
+  const pill = document.getElementById("jlWorkspacePill");
+  if (pill) {
+    pill.textContent = JL_SPACE_LABELS[space] || "工作台";
+  }
+}
+
+function openJlRightDrawer(title, content) {
+  const drawer = document.getElementById("jlRightDrawer");
+  const backdrop = document.getElementById("jlRightDrawerBackdrop");
+  const titleEl = document.getElementById("jlRightDrawerTitle");
+  const bodyEl = document.getElementById("jlRightDrawerBody");
+  if (!drawer || !bodyEl) {
+    return;
+  }
+  if (titleEl) {
+    titleEl.textContent = title || "详情";
+  }
+  bodyEl.innerHTML = "";
+  if (typeof content === "string") {
+    bodyEl.innerHTML = content;
+  } else if (content) {
+    bodyEl.appendChild(content);
+  }
+  drawer.hidden = false;
+  drawer.setAttribute("aria-hidden", "false");
+  drawer.classList.add("is-open");
+  if (backdrop) {
+    backdrop.hidden = false;
+    backdrop.setAttribute("aria-hidden", "false");
+    backdrop.classList.add("is-visible");
+  }
+}
+
+function closeJlRightDrawer() {
+  const drawer = document.getElementById("jlRightDrawer");
+  const backdrop = document.getElementById("jlRightDrawerBackdrop");
+  if (drawer) {
+    drawer.classList.remove("is-open");
+    drawer.hidden = true;
+    drawer.setAttribute("aria-hidden", "true");
+  }
+  if (backdrop) {
+    backdrop.classList.remove("is-visible");
+    backdrop.hidden = true;
+    backdrop.setAttribute("aria-hidden", "true");
+  }
+}
+
+function initJlAppShell() {
+  const rail = document.getElementById("jlSideRail");
+  if (!rail) {
+    return;
+  }
+
+  rail.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const space = btn.dataset.jlSpace;
+      if (space === "capability") {
+        document.getElementById("topbarCapabilityBtn")?.click();
+        rail.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((b) => {
+          b.classList.toggle("is-active", b.dataset.jlSpace === "capability");
+        });
+        return;
+      }
+      const route = JL_SPACE_TO_ROUTE[space];
+      if (route) {
+        openOrFocusTab(route);
+      }
+    });
+  });
+
+  rail.querySelectorAll(".jl-side-rail__flyout [data-route]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      openOrFocusTab(btn.dataset.route);
+    });
+  });
+
+  document.getElementById("jlRightDrawerClose")?.addEventListener("click", closeJlRightDrawer);
+  document.getElementById("jlRightDrawerBackdrop")?.addEventListener("click", closeJlRightDrawer);
+}
+
+window.openJlRightDrawer = openJlRightDrawer;
+window.closeJlRightDrawer = closeJlRightDrawer;
 
 function updateBreadcrumb(route) {
   const meta = ROUTES[route];
@@ -1485,6 +1615,8 @@ function activateRoute(route, { syncHash = true } = {}) {
   }
   updateBreadcrumb(route);
   updateSidebarActive(route);
+  updateJlSideRailActive(route);
+  syncJlPromptDock(route);
   syncDailyWorkExpandedByRoute(route);
   renderTabsStrip();
   if (syncHash) {
@@ -3034,6 +3166,7 @@ function initSidebarCollapse() {
 }
 
 initShell();
+initJlAppShell();
 initSidebarCollapse();
 void initStartupWarmupBar();
 applyDailyWorkExpanded(false);
