@@ -1507,20 +1507,35 @@
     </div>
   </dialog>
 
-  <dialog id="taskAttachRootDialog" class="remark-dialog-light task-attach-root-dialog">
-    <div class="remark-dialog-inner">
-      <h3 class="remark-dialog-title">任务附件存储路径</h3>
-      <p class="remark-dialog-meta">首次登记任务前，请确认附件与图片的保存位置。默认建议使用本地知识库「每日任务」目录，可按需修改。</p>
-      <label class="full">
-        存储根目录
+  <dialog id="taskAttachRootDialog" class="task-attach-root-dialog">
+    <div class="task-attach-root-dialog-inner">
+      <header class="task-attach-root-dialog-header">
+        <span class="task-attach-root-dialog-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 7a2 2 0 012-2h5l2 2h9a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </span>
+        <h3 class="task-attach-root-dialog-title">任务附件存储路径</h3>
+        <button type="button" id="taskAttachRootCloseBtn" class="task-attach-root-dialog-close" aria-label="关闭">×</button>
+      </header>
+      <div class="task-attach-root-info" role="note">
+        <span class="task-attach-root-info-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 10v5M12 8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <div class="task-attach-root-info-text">
+          <p class="task-attach-root-info-strong">首次登记任务前，请确认附件与图片的保存位置。</p>
+          <p class="task-attach-root-info-desc">推荐使用本地知识库「每日任务」目录，后续可根据需要随时修改。</p>
+        </div>
+      </div>
+      <label class="task-attach-root-field-label">
+        <span class="task-attach-root-field-label-text">存储根目录</span>
         <div class="task-attach-root-field">
           <input type="text" id="taskAttachRootInput" readonly />
-          <button type="button" id="taskAttachRootBrowseBtn" class="secondary">浏览…</button>
+          <button type="button" id="taskAttachRootBrowseBtn" class="task-attach-root-browse-btn">浏览…</button>
         </div>
       </label>
-      <div class="dialog-actions">
-        <button type="button" id="taskAttachRootCancelBtn" class="secondary">取消</button>
-        <button type="button" id="taskAttachRootConfirmBtn">确认</button>
+      <p class="task-attach-root-hint">· 建议使用本地知识库路径，以确保文件访问稳定与安全。</p>
+      <div class="task-attach-root-actions">
+        <button type="button" id="taskAttachRootCancelBtn" class="task-attach-root-btn-secondary">取消</button>
+        <button type="button" id="taskAttachRootConfirmBtn" class="task-attach-root-btn-primary">确认</button>
       </div>
     </div>
   </dialog>

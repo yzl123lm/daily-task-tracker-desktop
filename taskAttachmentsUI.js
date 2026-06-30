@@ -17,6 +17,7 @@
     rootInput: document.getElementById("taskAttachRootInput"),
     rootBrowseBtn: document.getElementById("taskAttachRootBrowseBtn"),
     rootCancelBtn: document.getElementById("taskAttachRootCancelBtn"),
+    rootCloseBtn: document.getElementById("taskAttachRootCloseBtn"),
     rootConfirmBtn: document.getElementById("taskAttachRootConfirmBtn"),
     attachmentsWrap: document.getElementById("taskContentAttachments"),
     attachmentsBody: document.getElementById("taskContentAttachmentsBody"),
@@ -340,6 +341,12 @@
   });
 
   el.rootCancelBtn?.addEventListener("click", () => {
+    el.rootDialog?.close();
+    rootDialogSession?.resolve?.({ confirmed: false });
+    rootDialogSession = null;
+  });
+
+  el.rootCloseBtn?.addEventListener("click", () => {
     el.rootDialog?.close();
     rootDialogSession?.resolve?.({ confirmed: false });
     rootDialogSession = null;
