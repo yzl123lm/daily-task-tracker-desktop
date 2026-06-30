@@ -93,87 +93,205 @@
 
       <div class="tab-panels">
         <div id="panel-new" class="tab-panel" role="tabpanel" hidden>
-          <section class="card">
-            <h2>新增待处理事项</h2>
-            <div class="template-toolbar grid-form">
-              <label>
-                任务模板
-                <select id="taskTemplateSelect" aria-label="选择任务模板">
-                  <option value="">— 选择模板快速填充 —</option>
-                </select>
-              </label>
-              <div class="actions template-actions">
-                <button type="button" id="applyTaskTemplateBtn" class="secondary">应用模板</button>
-                <button type="button" id="saveTaskTemplateBtn" class="secondary">保存为模板</button>
-                <button type="button" id="deleteTaskTemplateBtn" class="secondary">删除自定义模板</button>
-              </div>
-            </div>
-            <form id="taskForm" class="grid-form" novalidate>
-              <label>
-                登记事物ID（自动生成）
-                <input id="taskId" type="text" required readonly placeholder="保存时自动生成 TASK-YYYYMMDD-NNN" autocomplete="off" aria-describedby="taskIdHint taskIdError" />
-                <span id="taskIdHint" class="field-hint">系统自动生成唯一 ID，格式 TASK-YYYYMMDD-NNN，不可手动修改。</span>
-                <span id="taskIdError" class="field-error" role="alert" hidden></span>
-              </label>
-              <label>
-                跟进问题类型
-                <input id="issueType" type="text" required placeholder="例如：订单异常、系统故障" />
-              </label>
-              <label class="full">
-                跟进事物内容
-                <textarea id="content" rows="2" required placeholder="请输入任务描述"></textarea>
-              </label>
-              <label>
-                问题反馈人
-                <input id="reporter" type="text" required />
-              </label>
-              <label>
-                问题跟进处理人员
-                <input id="handler" type="text" required />
-              </label>
-              <label>
-                优先级
-                <select id="priority" required>
-                  <option value="高">高</option>
-                  <option value="中" selected>中</option>
-                  <option value="低">低</option>
-                </select>
-              </label>
-              <label>
-                截止日期
-                <input id="deadline" type="date" />
-              </label>
-              <label>
-                状态
-                <select id="status" required>
-                  <option value="待处理">待处理</option>
-                  <option value="处理中">处理中</option>
-                  <option value="已阻塞">已阻塞</option>
-                  <option value="已挂起">已挂起</option>
-                  <option value="已完结">已完结</option>
-                  <option value="已取消">已取消</option>
-                </select>
-              </label>
-              <div class="full task-attach-field">
-                <div class="task-attach-head">附件上传</div>
-                <div class="task-attach-toolbar">
-                  <button type="button" id="taskAttachPickBtn" class="secondary">选择文件 / 图片</button>
-                  <button type="button" id="taskAttachClearBtn" class="secondary" hidden>清空待上传</button>
-                  <input type="file" id="taskAttachFileInput" class="task-attach-file-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" hidden />
+          <div class="task-new-page">
+            <nav class="task-new-stepper" aria-label="登记流程">
+              <ol class="task-new-stepper-list">
+                <li class="task-new-step is-active">
+                  <span class="task-new-step-num" aria-hidden="true">1</span>
+                  <span class="task-new-step-text">
+                    <span class="task-new-step-label">选择模板</span>
+                    <span class="task-new-step-desc">快速选用预设模板</span>
+                  </span>
+                </li>
+                <li class="task-new-step">
+                  <span class="task-new-step-num" aria-hidden="true">2</span>
+                  <span class="task-new-step-text">
+                    <span class="task-new-step-label">填写基础信息</span>
+                    <span class="task-new-step-desc">登记 ID 与问题描述</span>
+                  </span>
+                </li>
+                <li class="task-new-step">
+                  <span class="task-new-step-num" aria-hidden="true">3</span>
+                  <span class="task-new-step-text">
+                    <span class="task-new-step-label">指派与时限</span>
+                    <span class="task-new-step-desc">人员、优先级与截止</span>
+                  </span>
+                </li>
+                <li class="task-new-step">
+                  <span class="task-new-step-num" aria-hidden="true">4</span>
+                  <span class="task-new-step-text">
+                    <span class="task-new-step-label">附件与备注</span>
+                    <span class="task-new-step-desc">上传材料与补充说明</span>
+                  </span>
+                </li>
+                <li class="task-new-step">
+                  <span class="task-new-step-num" aria-hidden="true">5</span>
+                  <span class="task-new-step-text">
+                    <span class="task-new-step-label">提交</span>
+                    <span class="task-new-step-desc">确认并登记任务</span>
+                  </span>
+                </li>
+              </ol>
+            </nav>
+
+            <form id="taskForm" class="task-new-form" novalidate>
+              <section class="task-new-section" aria-labelledby="taskNewSec1Title">
+                <header class="task-new-section-aside">
+                  <span class="task-new-section-num" aria-hidden="true">1</span>
+                  <div class="task-new-section-head">
+                    <h3 id="taskNewSec1Title" class="task-new-section-title">模板选择</h3>
+                    <p class="task-new-section-desc">选择合适的模板以快速创建任务</p>
+                  </div>
+                </header>
+                <div class="task-new-section-body">
+                  <label class="task-new-field">
+                    <span class="task-new-field-label">任务模板</span>
+                    <select id="taskTemplateSelect" aria-label="选择任务模板">
+                      <option value="">— 选择模板快速填充 —</option>
+                    </select>
+                  </label>
+                  <div class="task-new-template-extra">
+                    <button type="button" id="applyTaskTemplateBtn" class="secondary">应用模板</button>
+                    <button type="button" id="saveTaskTemplateBtn" class="secondary">保存为模板</button>
+                    <button type="button" id="deleteTaskTemplateBtn" class="secondary">删除自定义模板</button>
+                  </div>
                 </div>
-                <ul id="taskAttachPendingList" class="task-attach-pending-list"></ul>
-                <span class="field-hint">登记任务后将自动保存至本地知识库「每日任务」目录（跟进问题类型+创建日期）</span>
-              </div>
-              <label class="full">
-                备注（首次可选）
-                <textarea id="remark" rows="2" placeholder="可留空，后续可追加/修改"></textarea>
-              </label>
-              <div class="actions full">
-                <button type="submit">登记任务</button>
-                <button type="button" id="resetFormBtn" class="secondary">清空</button>
-              </div>
+              </section>
+
+              <section class="task-new-section" aria-labelledby="taskNewSec2Title">
+                <header class="task-new-section-aside">
+                  <span class="task-new-section-num" aria-hidden="true">2</span>
+                  <div class="task-new-section-head">
+                    <h3 id="taskNewSec2Title" class="task-new-section-title">基础信息</h3>
+                    <p class="task-new-section-desc">填写事物基本信息</p>
+                  </div>
+                </header>
+                <div class="task-new-section-body task-new-section-body--grid">
+                  <label class="task-new-field">
+                    <span class="task-new-field-label">登记事物ID（自动生成）</span>
+                    <input id="taskId" type="text" required readonly placeholder="保存时自动生成 TASK-YYYYMMDD-NNN" autocomplete="off" aria-describedby="taskIdHint taskIdError" />
+                    <span id="taskIdHint" class="field-hint">系统自动生成唯一 ID，格式 TASK-YYYYMMDD-NNN，不可手动修改。</span>
+                    <span id="taskIdError" class="field-error" role="alert" hidden></span>
+                  </label>
+                  <label class="task-new-field">
+                    <span class="task-new-field-label">跟进问题类型</span>
+                    <input id="issueType" type="text" required placeholder="例如：订单异常、系统故障" />
+                  </label>
+                  <label class="task-new-field task-new-field--full">
+                    <span class="task-new-field-label">跟进事物内容</span>
+                    <span class="field-with-counter">
+                      <textarea id="content" rows="4" maxlength="500" required placeholder="请输入任务描述，说明具体情况、期望结果等…"></textarea>
+                      <span id="contentCharCount" class="field-char-count" aria-live="polite">0 / 500</span>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="task-new-section" aria-labelledby="taskNewSec3Title">
+                <header class="task-new-section-aside">
+                  <span class="task-new-section-num" aria-hidden="true">3</span>
+                  <div class="task-new-section-head">
+                    <h3 id="taskNewSec3Title" class="task-new-section-title">指派与时限</h3>
+                    <p class="task-new-section-desc">指定人员并设置处理时限</p>
+                  </div>
+                </header>
+                <div class="task-new-section-body task-new-section-body--assign">
+                  <label class="task-new-field">
+                    <span class="task-new-field-label">问题反馈人</span>
+                    <input id="reporter" type="text" required placeholder="请输入反馈人姓名" />
+                  </label>
+                  <label class="task-new-field task-new-field--icon">
+                    <span class="task-new-field-label">问题跟进处理人员</span>
+                    <span class="task-new-input-icon-wrap">
+                      <input id="handler" type="text" required placeholder="请输入处理人员姓名或选择" />
+                    </span>
+                  </label>
+                  <label class="task-new-field task-new-field--priority">
+                    <span class="task-new-field-label">优先级</span>
+                    <span class="priority-select-wrap" data-priority="中">
+                      <span class="priority-dot" aria-hidden="true"></span>
+                      <select id="priority" required>
+                        <option value="高">高</option>
+                        <option value="中" selected>中</option>
+                        <option value="低">低</option>
+                      </select>
+                    </span>
+                  </label>
+                  <label class="task-new-field task-new-field--date">
+                    <span class="task-new-field-label">截止日期</span>
+                    <span class="task-new-input-icon-wrap task-new-input-icon-wrap--date">
+                      <input id="deadline" type="date" placeholder="选择日期" />
+                    </span>
+                  </label>
+                  <label class="task-new-field">
+                    <span class="task-new-field-label">状态</span>
+                    <select id="status" required>
+                      <option value="待处理">待处理</option>
+                      <option value="处理中">处理中</option>
+                      <option value="已阻塞">已阻塞</option>
+                      <option value="已挂起">已挂起</option>
+                      <option value="已完结">已完结</option>
+                      <option value="已取消">已取消</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="task-new-section" aria-labelledby="taskNewSec4Title">
+                <header class="task-new-section-aside">
+                  <span class="task-new-section-num" aria-hidden="true">4</span>
+                  <div class="task-new-section-head">
+                    <h3 id="taskNewSec4Title" class="task-new-section-title">附件与备注</h3>
+                    <p class="task-new-section-desc">上传附件并补充更多信息</p>
+                  </div>
+                </header>
+                <div class="task-new-section-body">
+                  <div class="task-new-field task-new-field--full">
+                    <span class="task-new-field-label">附件上传</span>
+                    <div class="task-attach-field">
+                      <div id="taskAttachDropzone" class="task-attach-dropzone" tabindex="0" role="button" aria-label="点击或拖拽上传附件">
+                        <span class="task-attach-dropzone-icon" aria-hidden="true">
+                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <p class="task-attach-dropzone-title"><strong>点击上传</strong> 或拖拽文件到此处</p>
+                        <p class="task-attach-dropzone-hint">支持图片、文档、表格等格式，单个文件不超过 50MB</p>
+                      </div>
+                      <div class="task-attach-toolbar">
+                        <button type="button" id="taskAttachPickBtn" class="secondary visually-hidden-focusable">选择文件 / 图片</button>
+                        <button type="button" id="taskAttachClearBtn" class="secondary" hidden>清空待上传</button>
+                        <input type="file" id="taskAttachFileInput" class="task-attach-file-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" hidden />
+                      </div>
+                      <ul id="taskAttachPendingList" class="task-attach-pending-list"></ul>
+                      <span class="field-hint">登记任务后将自动保存至本地知识库「每日任务」目录（跟进问题类型+创建日期）</span>
+                    </div>
+                  </div>
+                  <label class="task-new-field task-new-field--full">
+                    <span class="task-new-field-label">备注（首次可选）</span>
+                    <span class="field-with-counter">
+                      <textarea id="remark" rows="3" maxlength="500" placeholder="可留空，后续可追加/修改…"></textarea>
+                      <span id="remarkCharCount" class="field-char-count" aria-live="polite">0 / 500</span>
+                    </span>
+                  </label>
+                </div>
+              </section>
+
+              <section class="task-new-section task-new-section--submit" aria-labelledby="taskNewSec5Title">
+                <header class="task-new-section-aside">
+                  <span class="task-new-section-num" aria-hidden="true">5</span>
+                  <div class="task-new-section-head">
+                    <h3 id="taskNewSec5Title" class="task-new-section-title">提交</h3>
+                    <p class="task-new-section-desc">确认信息并提交任务</p>
+                  </div>
+                </header>
+                <div class="task-new-section-body">
+                  <div class="task-new-submit-actions">
+                    <button type="submit" class="task-new-submit-primary">登记任务</button>
+                    <button type="button" id="resetFormBtn" class="secondary task-new-submit-secondary">清空</button>
+                  </div>
+                </div>
+              </section>
             </form>
-          </section>
+          </div>
         </div>
 
         <div id="panel-filter" class="tab-panel" role="tabpanel" hidden>

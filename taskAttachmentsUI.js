@@ -10,6 +10,7 @@
   const el = {
     pickBtn: document.getElementById("taskAttachPickBtn"),
     clearBtn: document.getElementById("taskAttachClearBtn"),
+    dropzone: document.getElementById("taskAttachDropzone"),
     fileInput: document.getElementById("taskAttachFileInput"),
     list: document.getElementById("taskAttachPendingList"),
     rootDialog: document.getElementById("taskAttachRootDialog"),
@@ -20,6 +21,24 @@
     attachmentsWrap: document.getElementById("taskContentAttachments"),
     attachmentsBody: document.getElementById("taskContentAttachmentsBody"),
   };
+
+  async function triggerPickAttachments() {
+    const out = await pickAttachmentsViaDialog();
+    if (out?.ok && out.paths?.length) {
+      await addPendingFromPaths(out.paths);
+      return;
+    }
+    if (out?.canceled) {
+      return;
+    }
+    if (el.fileInput) {
+      el.fileInput.click();
+      return;
+    }
+    if (out?.error) {
+      alert(`无法打开文件选择窗口：${out.error}`);
+    }
+  }
 
   function formatSize(bytes) {
     const n = Number(bytes) || 0;
@@ -269,21 +288,35 @@
     });
   }
 
-  el.pickBtn?.addEventListener("click", async () => {
-    const out = await pickAttachmentsViaDialog();
-    if (out?.ok && out.paths?.length) {
-      await addPendingFromPaths(out.paths);
-      return;
+  el.pickBtn?.addEventListener("click", () => {
+    void triggerPickAttachments();
+  });
+
+  el.dropzone?.addEventListener("click", () => {
+    void triggerPickAttachments();
+  });
+
+  el.dropzone?.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      ev.preventDefault();
+      void triggerPickAttachments();
     }
-    if (out?.canceled) {
-      return;
-    }
-    if (el.fileInput) {
-      el.fileInput.click();
-      return;
-    }
-    if (out?.error) {
-      alert(`无法打开文件选择窗口：${out.error}`);
+  });
+
+  el.dropzone?.addEventListener("dragover", (ev) => {
+    ev.preventDefault();
+    el.dropzone.classList.add("is-dragover");
+  });
+
+  el.dropzone?.addEventListener("dragleave", () => {
+    el.dropzone.classList.remove("is-dragover");
+  });
+
+  el.dropzone?.addEventListener("drop", (ev) => {
+    ev.preventDefault();
+    el.dropzone.classList.remove("is-dragover");
+    if (ev.dataTransfer?.files?.length) {
+      void addPendingFromFileList(ev.dataTransfer.files);
     }
   });
 

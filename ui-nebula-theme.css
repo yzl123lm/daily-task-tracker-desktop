@@ -2235,6 +2235,23 @@ body.theme-nebula {
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card h2,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card h3,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card label,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section {
+  background: var(--workbench-bg);
+  border-color: var(--workbench-border);
+  color: var(--workbench-text);
+  box-shadow: var(--shadow-card);
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section-title,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field-label {
+  color: var(--workbench-text);
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section-desc,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .field-char-count {
+  color: var(--workbench-muted);
+}
+
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .card h2,
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .card h3,
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .card label,
@@ -2273,14 +2290,25 @@ body.theme-nebula {
 }
 
 /* 登记页：模板与表单操作按钮文字改为白色，提升深色按钮对比度 */
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .template-actions button,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) #taskForm .actions button {
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-template-extra button,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-primary {
   color: #ffffff;
 }
 
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .template-actions button:hover,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) #taskForm .actions button:hover {
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-template-extra button:hover,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-primary:hover {
   color: #ffffff;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-secondary {
+  color: var(--workbench-text);
+  background: var(--workbench-bg);
+  border: 1px solid var(--workbench-border);
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-secondary:hover {
+  color: var(--workbench-text);
+  background: var(--workbench-secondary);
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-toolbar button,

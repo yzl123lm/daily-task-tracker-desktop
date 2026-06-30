@@ -14,6 +14,8 @@ credentials.json
 dist/
 dist-alt/
 dist-ship*/
+dist_build_*/
+dist_locked_*/
 *.exe
 *.blockmap
 release-history.jsonl

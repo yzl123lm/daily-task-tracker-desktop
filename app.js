@@ -25,6 +25,39 @@ const breadcrumbEl = document.getElementById("breadcrumb");
 const tabsStrip = document.getElementById("tabsStrip");
 const taskIdInput = document.getElementById("taskId");
 const taskIdErrorEl = document.getElementById("taskIdError");
+const taskContentInput = document.getElementById("content");
+const taskRemarkInput = document.getElementById("remark");
+const taskContentCharCount = document.getElementById("contentCharCount");
+const taskRemarkCharCount = document.getElementById("remarkCharCount");
+const taskPrioritySelect = document.getElementById("priority");
+const taskPriorityWrap = document.querySelector(".priority-select-wrap");
+
+function syncTaskNewCharCounter(inputEl, counterEl) {
+  if (!inputEl || !counterEl) {
+    return;
+  }
+  const max = Number(inputEl.getAttribute("maxlength")) || 500;
+  const len = String(inputEl.value || "").length;
+  counterEl.textContent = `${len} / ${max}`;
+}
+
+function syncTaskNewPriorityDot() {
+  if (!taskPriorityWrap || !taskPrioritySelect) {
+    return;
+  }
+  taskPriorityWrap.setAttribute("data-priority", taskPrioritySelect.value || "中");
+}
+
+function resetTaskNewFormUi() {
+  syncTaskNewCharCounter(taskContentInput, taskContentCharCount);
+  syncTaskNewCharCounter(taskRemarkInput, taskRemarkCharCount);
+  syncTaskNewPriorityDot();
+}
+
+taskContentInput?.addEventListener("input", () => syncTaskNewCharCounter(taskContentInput, taskContentCharCount));
+taskRemarkInput?.addEventListener("input", () => syncTaskNewCharCounter(taskRemarkInput, taskRemarkCharCount));
+taskPrioritySelect?.addEventListener("change", syncTaskNewPriorityDot);
+resetTaskNewFormUi();
 
 const reminderDialog = document.getElementById("reminderDialog");
 const reminderBody = document.getElementById("reminderBody");
@@ -2603,6 +2636,7 @@ taskForm.addEventListener("submit", async (event) => {
   if (priorityEl) {
     priorityEl.value = "中";
   }
+  resetTaskNewFormUi();
   refreshAutoTaskId();
   clearTaskIdDuplicateError();
   resetListPagination();
@@ -2616,6 +2650,7 @@ resetFormBtn.addEventListener("click", () => {
   if (priorityEl) {
     priorityEl.value = "中";
   }
+  resetTaskNewFormUi();
   refreshAutoTaskId();
   clearTaskIdDuplicateError();
 });
