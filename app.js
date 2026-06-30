@@ -1205,10 +1205,28 @@ function showTaskListToast(message, isError = false) {
   taskListToastEl.textContent = message;
   taskListToastEl.hidden = false;
   taskListToastEl.classList.toggle("is-error", !!isError);
+  taskListToastEl.classList.remove("is-visible");
+  void taskListToastEl.offsetWidth;
+  taskListToastEl.classList.add("is-visible");
   clearTimeout(taskListToastTimer);
   taskListToastTimer = window.setTimeout(() => {
-    taskListToastEl.hidden = true;
+    taskListToastEl.classList.remove("is-visible");
+    window.setTimeout(() => {
+      if (!taskListToastEl.classList.contains("is-visible")) {
+        taskListToastEl.hidden = true;
+      }
+    }, 240);
   }, 3200);
+}
+
+function playJlEnterAnimation(el, className, durationMs = 320) {
+  if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+  window.setTimeout(() => el.classList.remove(className), durationMs);
 }
 
 function setTaskTableLoading(loading) {
@@ -1612,6 +1630,9 @@ function syncJlPromptDock(route) {
   }
   dock.hidden = !show;
   dock.setAttribute("aria-hidden", show ? "false" : "true");
+  if (show) {
+    playJlEnterAnimation(dock, "jl-prompt-dock-enter", 360);
+  }
 }
 
 window.syncJlPromptDock = syncJlPromptDock;
@@ -1647,6 +1668,7 @@ function openJlRightDrawer(title, content) {
   drawer.hidden = false;
   drawer.setAttribute("aria-hidden", "false");
   drawer.classList.add("is-open");
+  playJlEnterAnimation(bodyEl, "jl-drawer-body-enter", 280);
   if (backdrop) {
     backdrop.hidden = false;
     backdrop.setAttribute("aria-hidden", "false");
@@ -1758,6 +1780,7 @@ function activateRoute(route, { syncHash = true } = {}) {
   const panel = document.getElementById(ROUTES[route].panelId);
   if (panel) {
     panel.hidden = false;
+    playJlEnterAnimation(panel, "jl-panel-enter", 260);
   }
   updateBreadcrumb(route);
   updateSidebarActive(route);

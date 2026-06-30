@@ -2638,6 +2638,7 @@ function initAI() {
       body.appendChild(buildOllamaUsageDetailsEl(ollamaUsage));
     }
     chatLog.appendChild(row);
+    row.style.setProperty("--jl-card-index", String(chatLog.querySelectorAll(".jl-result-card").length - 1));
     syncChatEmptyState();
     scrollChatToBottom();
     if (q) {

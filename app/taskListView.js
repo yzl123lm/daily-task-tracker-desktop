@@ -189,7 +189,7 @@
     if (taskCardListEl) {
       taskCardListEl.innerHTML = "";
       const cardFrag = document.createDocumentFragment();
-      pageSlice.forEach((task) => {
+      pageSlice.forEach((task, cardIndex) => {
         const risk = calcTaskRisk(task);
         const terminal = task.status === "已完结" || task.status === "已取消";
         const deadlineRaw = task.deadline || "";
@@ -202,8 +202,9 @@
         const statusKey = String(task.status || "待处理");
         const priorityKey = String(task.priority || "中");
         const card = document.createElement("article");
-        card.className = "task-card jl-task-card";
+        card.className = "task-card jl-task-card jl-perf-surface";
         card.dataset.id = task.id;
+        card.style.setProperty("--jl-card-index", String(cardIndex));
         card.dataset.priority = priorityKey;
         card.dataset.status = statusKey;
         card.tabIndex = 0;
