@@ -54,6 +54,68 @@ if (Test-Path -LiteralPath $dist) {
   Get-ChildItem -LiteralPath $dist -File -Filter "*.blockmap" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
+function Stop-InstalledClientProcesses {
+  param([Parameter(Mandatory = $true)][string]$InstallDir)
+  $stopped = 0
+  Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.ExecutablePath -and $_.ExecutablePath -like "*\daily-task-tracker-desktop\*"
+    } |
+    ForEach-Object {
+      try {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
+        $stopped += 1
+      } catch {
+        Write-Warning "(release-client-to-latest) Failed to stop PID $($_.ProcessId)"
+      }
+    }
+  if ($stopped -gt 0) {
+    Write-Host "(release-client-to-latest) Stopped $stopped running client process(es) before build."
+    Start-Sleep -Seconds 2
+  }
+}
+
+function Stop-DistLockingProcesses {
+  param([Parameter(Mandatory = $true)][string]$DistRoot)
+  $distNorm = ($DistRoot.TrimEnd('\') + '\')
+  $stopped = 0
+  Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.ExecutablePath -and $_.ExecutablePath -like "$distNorm*"
+    } |
+    ForEach-Object {
+      try {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
+        $stopped += 1
+      } catch {
+        Write-Warning "(release-client-to-latest) Failed to stop dist PID $($_.ProcessId)"
+      }
+    }
+  if ($stopped -gt 0) {
+    Write-Host "(release-client-to-latest) Stopped $stopped process(es) locking dist before build."
+    Start-Sleep -Seconds 2
+  }
+}
+
+function Clear-DistWinUnpacked {
+  param([Parameter(Mandatory = $true)][string]$DistRoot)
+  $unpacked = Join-Path $DistRoot "win-unpacked"
+  if (-not (Test-Path -LiteralPath $unpacked)) {
+    return
+  }
+  try {
+    Remove-Item -LiteralPath $unpacked -Recurse -Force -ErrorAction Stop
+    Write-Host "(release-client-to-latest) Cleared dist\win-unpacked before build."
+  } catch {
+    Write-Warning "(release-client-to-latest) Could not remove dist\win-unpacked: $($_.Exception.Message)"
+  }
+}
+
+$instDirEarly = Join-Path (Join-Path $env:LOCALAPPDATA "Programs") "daily-task-tracker-desktop"
+Stop-InstalledClientProcesses -InstallDir $instDirEarly
+Stop-DistLockingProcesses -DistRoot $dist
+Clear-DistWinUnpacked -DistRoot $dist
+
 $iconScript = Join-Path $PSScriptRoot "generate-app-icon.py"
 if (Test-Path -LiteralPath $iconScript) {
   $iconPython = $null
@@ -146,27 +208,7 @@ $instParent = Join-Path $env:LOCALAPPDATA "Programs"
 $instDir = Join-Path $instParent "daily-task-tracker-desktop"
 New-Item -ItemType Directory -Force -Path $instDir | Out-Null
 
-# NSIS upgrade uninstall fails when app.asar is locked (exit code 2).
-function Stop-InstalledClientProcesses {
-  param([Parameter(Mandatory = $true)][string]$InstallDir)
-  $stopped = 0
-  Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-    Where-Object {
-      $_.ExecutablePath -and $_.ExecutablePath -like "*\daily-task-tracker-desktop\*"
-    } |
-    ForEach-Object {
-      try {
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop
-        $stopped += 1
-      } catch {
-        Write-Warning "(release-client-to-latest) Failed to stop PID $($_.ProcessId)"
-      }
-    }
-  if ($stopped -gt 0) {
-    Write-Host "(release-client-to-latest) Stopped $stopped running client process(es) before install."
-    Start-Sleep -Seconds 2
-  }
-}
+Stop-InstalledClientProcesses -InstallDir $instDir
 
 function Clear-LeftoverInstallArtifacts {
   param([Parameter(Mandatory = $true)][string]$InstallDir)
