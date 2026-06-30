@@ -2272,6 +2272,17 @@ body.theme-nebula {
   color: var(--workbench-text);
 }
 
+/* 登记页：模板与表单操作按钮文字改为白色，提升深色按钮对比度 */
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .template-actions button,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) #taskForm .actions button {
+  color: #ffffff;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .template-actions button:hover,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) #taskForm .actions button:hover {
+  color: #ffffff;
+}
+
 .theme-nebula .main-column:has(#panel-list:not([hidden])) table th,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) table td,
 .theme-nebula .main-column:has(#panel-dashboard:not([hidden])) table th,
