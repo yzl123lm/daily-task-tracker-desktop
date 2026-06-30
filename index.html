@@ -296,52 +296,84 @@
         </div>
 
         <div id="panel-filter" class="tab-panel" role="tabpanel" hidden>
-          <section class="card">
-            <h2>查询筛选</h2>
-            <form id="filterForm" class="grid-form">
-              <label>
-                开始日期
-                <input id="startDate" type="date" />
-              </label>
-              <label>
-                结束日期
-                <input id="endDate" type="date" />
-              </label>
-              <label>
-                按登记ID查询
-                <input id="searchId" type="text" placeholder="支持模糊查询" />
-              </label>
-              <label class="full">
-                跟进事项内容关键字
-                <input id="searchContent" type="text" placeholder="模糊匹配「跟进事物内容」字段，可与其它条件组合" autocomplete="off" />
-              </label>
-              <label>
-                按状态查询
-                <select id="filterStatus">
-                  <option value="">全部</option>
-                  <option value="待处理">待处理</option>
-                  <option value="处理中">处理中</option>
-                  <option value="已阻塞">已阻塞</option>
-                  <option value="已挂起">已挂起</option>
-                  <option value="已完结">已完结</option>
-                  <option value="已取消">已取消</option>
-                </select>
-              </label>
-              <label>
-                按优先级
-                <select id="filterPriority">
-                  <option value="">全部</option>
-                  <option value="高">高</option>
-                  <option value="中">中</option>
-                  <option value="低">低</option>
-                </select>
-              </label>
-              <div class="actions full">
-                <button type="submit">应用筛选</button>
-                <button type="button" id="clearFilterBtn" class="secondary">清空筛选</button>
-              </div>
-            </form>
-          </section>
+          <div class="filter-page">
+            <section class="filter-card" aria-labelledby="filterCardTitle">
+              <header class="filter-card-header">
+                <span class="filter-card-icon" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M14 2v6h6M9 13h6M9 17h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="15.5" cy="15.5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M17.5 17.5L19 19" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </span>
+                <div class="filter-card-head">
+                  <h2 id="filterCardTitle" class="filter-card-title">查询筛选</h2>
+                  <p class="filter-card-desc">通过条件筛选，快速定位您需要的跟进事项</p>
+                </div>
+              </header>
+
+              <form id="filterForm" class="filter-form" novalidate>
+                <div class="filter-form-row filter-form-row--3">
+                  <label class="filter-field">
+                    <span class="filter-field-label">开始日期</span>
+                    <span class="filter-input-icon-wrap filter-input-icon-wrap--date">
+                      <input id="startDate" type="date" aria-label="开始日期" />
+                    </span>
+                  </label>
+                  <label class="filter-field">
+                    <span class="filter-field-label">结束日期</span>
+                    <span class="filter-input-icon-wrap filter-input-icon-wrap--date">
+                      <input id="endDate" type="date" aria-label="结束日期" />
+                    </span>
+                  </label>
+                  <label class="filter-field">
+                    <span class="filter-field-label">按登记ID查询</span>
+                    <span class="filter-input-icon-wrap filter-input-icon-wrap--search">
+                      <input id="searchId" type="text" placeholder="支持模糊查询" autocomplete="off" />
+                    </span>
+                  </label>
+                </div>
+
+                <div class="filter-form-row filter-form-row--full">
+                  <label class="filter-field">
+                    <span class="filter-field-label">跟进事项内容关键字</span>
+                    <input id="searchContent" type="text" placeholder="模糊匹配「跟进事项内容」字段，可与其它条件组合" autocomplete="off" />
+                  </label>
+                </div>
+
+                <div class="filter-form-row filter-form-row--2">
+                  <label class="filter-field">
+                    <span class="filter-field-label">按状态查询</span>
+                    <select id="filterStatus" aria-label="按状态查询">
+                      <option value="">全部</option>
+                      <option value="待处理">待处理</option>
+                      <option value="处理中">处理中</option>
+                      <option value="已阻塞">已阻塞</option>
+                      <option value="已挂起">已挂起</option>
+                      <option value="已完结">已完结</option>
+                      <option value="已取消">已取消</option>
+                    </select>
+                  </label>
+                  <label class="filter-field">
+                    <span class="filter-field-label">按优先级</span>
+                    <select id="filterPriority" aria-label="按优先级">
+                      <option value="">全部</option>
+                      <option value="高">高</option>
+                      <option value="中">中</option>
+                      <option value="低">低</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="filter-form-actions">
+                  <button type="submit" class="filter-btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    应用筛选
+                  </button>
+                  <button type="button" id="clearFilterBtn" class="filter-btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12a8 8 0 0113.66-5.66M20 12a8 8 0 01-13.66 5.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v4h-4M4 20v-4h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    清空筛选
+                  </button>
+                </div>
+              </form>
+            </section>
+          </div>
         </div>
 
         <div id="panel-dashboard" class="tab-panel" role="tabpanel" hidden>

@@ -2216,13 +2216,14 @@ body.theme-nebula {
 }
 
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-panels,
-.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-panels,
 .theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-panels {
   background: var(--workbench-bg);
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-panels,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) #panel-new {
+.theme-nebula .main-column:has(#panel-new:not([hidden])) #panel-new,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-panels,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) #panel-filter {
   background: #f0f2f5;
 }
 
@@ -2243,6 +2244,58 @@ body.theme-nebula {
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card h2,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card h3,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card label,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-card {
+  background: #ffffff;
+  border-color: #f0f0f0;
+  box-shadow: none;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-card-title,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-field-label {
+  color: #262626;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-card-desc {
+  color: #8c8c8c;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-card-icon {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.08);
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-field input,
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-field select {
+  background: #ffffff;
+  border-color: #d9d9d9;
+  color: #262626;
+  border-radius: 6px;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-btn-primary {
+  color: #ffffff !important;
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-btn-primary:hover {
+  color: #ffffff !important;
+  background: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-btn-secondary {
+  color: #1677ff !important;
+  background: #ffffff !important;
+  border: 1px solid #1677ff !important;
+}
+
+.theme-nebula .main-column:has(#panel-filter:not([hidden])) .filter-btn-secondary:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+  background: rgba(22, 119, 255, 0.04) !important;
+}
+
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section {
   background: #ffffff;
   border-color: #f0f0f0;
