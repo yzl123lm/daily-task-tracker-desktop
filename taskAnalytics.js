@@ -31,15 +31,24 @@
   ];
 
   const CHART_COLORS = [
-    "#3b82f6",
-    "#10b981",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#06b6d4",
-    "#64748b",
-    "#ec4899",
+    "#5b50ff",
+    "#34d399",
+    "#fbbf24",
+    "#f87171",
+    "#a855f7",
+    "#00e5ff",
+    "#94a3b8",
+    "#f472b6",
   ];
+
+  const CHART_THEME = {
+    title: "#c9d1e0",
+    axis: "rgba(148, 163, 184, 0.28)",
+    label: "#94a3b8",
+    empty: "#64748b",
+    line: "#00e5ff",
+    lineDot: "#5b50ff",
+  };
 
   function readTemplates() {
     try {
@@ -148,10 +157,10 @@
   }
 
   function drawTitle(ctx, text, w) {
-    ctx.fillStyle = "#334155";
+    ctx.fillStyle = CHART_THEME.title;
     ctx.font = "600 13px Microsoft YaHei, Segoe UI, sans-serif";
     ctx.fillText(text, 12, 18);
-    ctx.strokeStyle = "#e2e8f0";
+    ctx.strokeStyle = CHART_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(12, 24);
     ctx.lineTo(w - 12, 24);
@@ -163,7 +172,7 @@
     drawTitle(ctx, title, w);
     const total = data.reduce((s, x) => s + x.value, 0);
     if (!total) {
-      ctx.fillStyle = "#94a3b8";
+      ctx.fillStyle = CHART_THEME.empty;
       ctx.font = "12px Microsoft YaHei, sans-serif";
       ctx.fillText("暂无数据", w / 2 - 24, h / 2);
       return;
@@ -187,7 +196,7 @@
     data.forEach((item, i) => {
       ctx.fillStyle = CHART_COLORS[i % CHART_COLORS.length];
       ctx.fillRect(lx, ly, 10, 10);
-      ctx.fillStyle = "#475569";
+      ctx.fillStyle = CHART_THEME.label;
       ctx.font = "11px Microsoft YaHei, sans-serif";
       const pct = Math.round((item.value / total) * 100);
       ctx.fillText(`${item.label} ${item.value} (${pct}%)`, lx + 16, ly + 9);
@@ -199,7 +208,7 @@
     const { ctx, w, h } = setupCanvas(canvas, 240);
     drawTitle(ctx, title, w);
     if (!data.length) {
-      ctx.fillStyle = "#94a3b8";
+      ctx.fillStyle = CHART_THEME.empty;
       ctx.font = "12px Microsoft YaHei, sans-serif";
       ctx.fillText("暂无数据", w / 2 - 24, h / 2);
       return;
@@ -216,7 +225,7 @@
       const y = bottom - bh;
       ctx.fillStyle = CHART_COLORS[i % CHART_COLORS.length];
       ctx.fillRect(x, y, barW, bh);
-      ctx.fillStyle = "#64748b";
+      ctx.fillStyle = CHART_THEME.label;
       ctx.font = "10px Microsoft YaHei, sans-serif";
       ctx.textAlign = "center";
       ctx.fillText(String(item.value), x + barW / 2, y - 4);
@@ -234,7 +243,7 @@
     const { ctx, w, h } = setupCanvas(canvas, 240);
     drawTitle(ctx, title, w);
     if (!data.length) {
-      ctx.fillStyle = "#94a3b8";
+      ctx.fillStyle = CHART_THEME.empty;
       ctx.font = "12px Microsoft YaHei, sans-serif";
       ctx.fillText("暂无数据", w / 2 - 24, h / 2);
       return;
@@ -245,12 +254,12 @@
     const top = 36;
     const bottom = h - 32;
     const step = (right - left) / Math.max(1, data.length - 1);
-    ctx.strokeStyle = "#e2e8f0";
+    ctx.strokeStyle = CHART_THEME.axis;
     ctx.beginPath();
     ctx.moveTo(left, bottom);
     ctx.lineTo(right, bottom);
     ctx.stroke();
-    ctx.strokeStyle = "#3b82f6";
+    ctx.strokeStyle = CHART_THEME.line;
     ctx.lineWidth = 2;
     ctx.beginPath();
     data.forEach((item, i) => {
@@ -266,22 +275,60 @@
     data.forEach((item, i) => {
       const x = left + i * step;
       const y = bottom - ((bottom - top) * item.value) / max;
-      ctx.fillStyle = "#3b82f6";
+      ctx.fillStyle = CHART_THEME.lineDot;
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
       if (i % 2 === 0 || i === data.length - 1) {
-        ctx.fillStyle = "#64748b";
+        ctx.fillStyle = CHART_THEME.label;
         ctx.font = "10px Microsoft YaHei, sans-serif";
         ctx.fillText(item.label, x - 10, bottom + 14);
       }
     });
   }
 
+  function renderMetricCards(container, taskList, helpers) {
+    if (!container) {
+      return;
+    }
+    const counts = typeof helpers?.getSummaryCounts === "function" ? helpers.getSummaryCounts() : {};
+    const today = typeof helpers?.localDateKey === "function" ? helpers.localDateKey() : "";
+    const calcRisk = helpers?.calcTaskRisk;
+    const overdue = (taskList || []).filter(
+      (t) =>
+        t.deadline &&
+        t.deadline < today &&
+        t.status !== "已完结" &&
+        t.status !== "已取消",
+    ).length;
+    const highRisk = (taskList || []).filter((t) => {
+      const r = typeof calcRisk === "function" ? calcRisk(t) : { tier: "none" };
+      return r.tier === "red" || r.tier === "orange";
+    }).length;
+    const cards = [
+      { label: "全部任务", value: (taskList || []).length, tone: "default" },
+      { label: "进行中", value: counts.incomplete ?? 0, tone: "default" },
+      { label: "待处理", value: counts.dai ?? 0, tone: "default" },
+      { label: "已阻塞", value: counts.blocked ?? 0, tone: counts.blocked > 0 ? "danger" : "default" },
+      { label: "逾期", value: overdue, tone: overdue > 0 ? "warning" : "default" },
+      { label: "高风险", value: highRisk, tone: highRisk > 0 ? "danger" : "default" },
+    ];
+    container.innerHTML = cards
+      .map(
+        (c) => `
+      <article class="jl-metric-card" data-tone="${c.tone}">
+        <span class="jl-metric-card__label">${c.label}</span>
+        <span class="jl-metric-card__value">${c.value}</span>
+      </article>`,
+      )
+      .join("");
+  }
+
   function mountDashboard(root, tasks, helpers) {
     if (!root) {
       return;
     }
+    renderMetricCards(helpers?.metricsEl, tasks, helpers);
     const statusList = helpers?.statusList || [];
     const activeStatuses = helpers?.activeStatuses || [];
     const statusData = aggregateStatus(tasks, statusList);

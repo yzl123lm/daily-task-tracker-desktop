@@ -90,6 +90,7 @@
     searchResultRelocateBtn: document.getElementById("kbSearchResultRelocateBtn"),
     searchResultCopyBtn: document.getElementById("kbSearchResultCopyBtn"),
     searchResultLocateBtn: document.getElementById("kbSearchResultLocateBtn"),
+    searchResultFollowUpBtn: document.getElementById("kbSearchResultFollowUpBtn"),
     dirTree: document.getElementById("kbDirTree"),
     ingestProgress: document.getElementById("kbIngestProgress"),
     docSummary: document.getElementById("kbDocSummary"),
@@ -1881,6 +1882,66 @@
     }
   }
 
+  function followUpKbHit(hit, query) {
+    if (!hit) {
+      return;
+    }
+    const title = formatHitTitle(hit);
+    const snippet = String(hit.text || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 240);
+    const q = String(query || searchResultState.query || "").trim();
+    const prompt = [
+      `请基于知识库文档「${title}」继续解答我的问题。`,
+      q ? `\n我的问题：${q}` : "",
+      snippet ? `\n\n参考片段：\n${snippet}` : "",
+    ].join("");
+    closeSearchResultDialog();
+    window.location.hash = "#/ai";
+    window.setTimeout(() => {
+      const input = document.getElementById("aiUserInput");
+      if (!input) {
+        return;
+      }
+      input.value = prompt;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    }, 120);
+  }
+
+  function buildKbHitCardHtml(hit, index, query) {
+    const score = Number(hit.finalScore ?? hit.score ?? 0);
+    const preview = String(hit.text || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    const previewShort = preview.length > 120 ? `${preview.slice(0, 120)}…` : preview || "（无预览）";
+    return [
+      `<div class="jl-kb-card__source">${htmlEsc(formatHitTitle(hit))}</div>`,
+      `<p class="jl-kb-card__snippet">${htmlEsc(previewShort)}</p>`,
+      `<div class="jl-kb-card__foot">`,
+      `<span class="jl-kb-card__score">相关度 ${score.toFixed(3)}</span>`,
+      `<button type="button" class="jl-btn jl-btn--ghost kb-kb-followup-btn" data-kb-followup="${index}">继续追问</button>`,
+      `</div>`,
+    ].join("");
+  }
+
+  function wireKbHitCardActions(root, hits, query) {
+    if (!root) {
+      return;
+    }
+    root.querySelectorAll(".kb-kb-followup-btn").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const idx = Number(btn.getAttribute("data-kb-followup"));
+        const hit = hits?.[idx];
+        if (hit) {
+          followUpKbHit(hit, query);
+        }
+      });
+    });
+  }
+
   function syncSearchResultActionButtons(hit) {
     if (el.searchResultOpenDocBtn) {
       const canOpen = canOpenHitSource(hit);
@@ -1911,6 +1972,11 @@
       el.searchResultLocateBtn.title = canLocate
         ? "在左侧目录树与入库文档列表中高亮该文档"
         : "该条目缺少文档信息，无法定位";
+    }
+    if (el.searchResultFollowUpBtn) {
+      const hasText = Boolean(String(hit?.text || "").trim());
+      el.searchResultFollowUpBtn.disabled = !hasText;
+      el.searchResultFollowUpBtn.title = hasText ? "将当前片段带入 AI 助手继续追问" : "当前条目无可追问正文";
     }
   }
 
@@ -2229,7 +2295,7 @@
     setStatus(
       `${summary}（阈值 ≥ ${Number(pending.minScore ?? 0.55).toFixed(2)}，候选池 ${pending.searchCandidateK || "—"}）。`
     );
-    renderTrialResultHint(summary, (pending.hits || []).length);
+    renderTrialResultHint(summary, (pending.hits || []).length, pending.hits || [], query || activeSearchQueryText);
     if (pending.debug && el.trialDebug) {
       const d = pending.debug;
       el.trialDebug.hidden = false;
@@ -2435,24 +2501,27 @@
     }
     el.searchResultList.innerHTML = "";
     hits.forEach((hit, index) => {
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "kb-search-result-item";
-      const score = Number(hit.finalScore ?? hit.score ?? 0);
-      const preview = String(hit.text || "").trim().replace(/\s+/g, " ");
-      const previewShort = preview.length > 96 ? `${preview.slice(0, 96)}…` : preview || "（无预览）";
-      item.innerHTML = [
-        `<span class="kb-search-result-item__head">`,
-        `<span class="kb-search-result-item__title">${htmlEsc(formatHitTitle(hit))}</span>`,
-        `<span class="kb-search-result-item__score">${score.toFixed(3)}</span>`,
-        `</span>`,
-        `<span class="kb-search-result-item__preview">${htmlEsc(previewShort)}</span>`,
-      ].join("");
-      item.addEventListener("click", () => {
+      const item = document.createElement("article");
+      item.className = "kb-search-result-item jl-kb-card";
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+      item.dataset.index = String(index);
+      item.innerHTML = buildKbHitCardHtml(hit, index, query);
+      item.addEventListener("click", (ev) => {
+        if (ev.target.closest(".kb-kb-followup-btn")) {
+          return;
+        }
         selectSearchResultHit(index);
+      });
+      item.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") {
+          ev.preventDefault();
+          selectSearchResultHit(index);
+        }
       });
       el.searchResultList.appendChild(item);
     });
+    wireKbHitCardActions(el.searchResultList, hits, query);
     selectSearchResultHit(0);
   }
 
@@ -2544,7 +2613,7 @@
     return parts[parts.length - 1] || text;
   }
 
-  function renderTrialResultHint(summary, hitCount) {
+  function renderTrialResultHint(summary, hitCount, hits, query) {
     if (!el.trialResults) {
       return;
     }
@@ -2553,9 +2622,28 @@
     hint.className = "field-hint kb-trial-result-hint";
     hint.textContent =
       hitCount > 0
-        ? `${summary}。详细内容已在弹窗中展示，可点击条目浏览。`
+        ? `${summary}。下方为命中预览，可继续追问或打开弹窗浏览详情。`
         : `${summary}。详细说明见检索结果弹窗。`;
     el.trialResults.appendChild(hint);
+    if (Array.isArray(hits) && hits.length) {
+      const grid = document.createElement("div");
+      grid.className = "jl-kb-card-grid";
+      hits.slice(0, 5).forEach((hit, index) => {
+        const card = document.createElement("article");
+        card.className = "jl-kb-card kb-trial-hit-card";
+        card.innerHTML = buildKbHitCardHtml(hit, index, query);
+        card.addEventListener("click", (ev) => {
+          if (ev.target.closest(".kb-kb-followup-btn")) {
+            return;
+          }
+          openSearchResultDialog(query);
+          selectSearchResultHit(index);
+        });
+        grid.appendChild(card);
+      });
+      wireKbHitCardActions(grid, hits.slice(0, 5), query);
+      el.trialResults.appendChild(grid);
+    }
     el.trialResults.classList.add("is-active");
   }
 
@@ -5170,7 +5258,7 @@
         `${summary}（阈值 ≥ ${Number(out.minScore ?? 0.55).toFixed(2)}，候选池 ${out.searchCandidateK || "—"}）。`
       );
       populateSearchResultDialog(out, q);
-      renderTrialResultHint(summary, (out.hits || []).length);
+      renderTrialResultHint(summary, (out.hits || []).length, out.hits || [], q);
       if (out.debug && el.trialDebug) {
         const d = out.debug;
         el.trialDebug.hidden = false;
@@ -5381,6 +5469,10 @@
   });
   el.searchResultRelocateBtn?.addEventListener("click", () => {
     void openSelectedSearchResultDoc({ forceLocate: true });
+  });
+  el.searchResultFollowUpBtn?.addEventListener("click", () => {
+    const hit = searchResultState.hits?.[searchResultState.selectedIndex];
+    followUpKbHit(hit, searchResultState.query);
   });
   sourceLocateUi.pickBtn?.addEventListener("click", async () => {
     if (!sourceLocateSession || typeof api.kbChooseRelocateFile !== "function") {

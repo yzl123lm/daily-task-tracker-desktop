@@ -424,8 +424,9 @@
                 <button type="button" id="openCustomReportBtn" class="secondary">自定义报表</button>
               </div>
             </div>
-            <p class="field-hint dashboard-hint">饼图展示状态分布；柱状图展示处理人待办负载；折线图展示近 14 日登记趋势。</p>
-            <div id="dashboardRoot" class="dashboard-grid">
+            <p class="field-hint dashboard-hint">指标卡概览任务健康度；下方图表展示状态分布、处理人负载与登记趋势。</p>
+            <div id="dashboardMetrics" class="dashboard-metrics jl-dashboard-metrics" aria-label="任务指标概览"></div>
+            <div id="dashboardRoot" class="dashboard-grid jl-dashboard-grid">
               <div class="chart-card">
                 <canvas data-chart="pie" height="240" aria-label="任务状态分布饼图"></canvas>
               </div>
@@ -449,6 +450,10 @@
                 <input id="taskListQuickSearch" type="search" placeholder="关键字筛选当前列表" autocomplete="off" />
               </label>
               <div class="task-list-toolbar-actions">
+                <div class="task-list-view-toggle" role="group" aria-label="列表视图">
+                  <button type="button" id="taskViewCardsBtn" class="task-view-btn is-active" data-view="cards" title="卡片视图">卡片</button>
+                  <button type="button" id="taskViewTableBtn" class="task-view-btn" data-view="table" title="表格视图">表格</button>
+                </div>
                 <label class="task-list-sort">
                   <span class="task-quick-search-label">排序</span>
                   <select id="taskListSortBy" aria-label="列表排序">
@@ -502,7 +507,7 @@
                 <tbody id="taskTableBody"></tbody>
               </table>
             </div>
-            <div id="taskCardList" class="task-card-list" hidden aria-label="任务卡片列表"></div>
+            <div id="taskCardList" class="task-card-list jl-task-card-grid" hidden aria-label="任务卡片列表"></div>
             <div id="paginationBar" class="pagination-bar task-pagination-bar" aria-label="分页"></div>
           </section>
         </div>
@@ -1101,6 +1106,7 @@
                 <div class="kb-search-result-foot__left">
                   <button type="button" id="kbSearchResultCopyBtn" class="secondary" disabled>复制片段</button>
                   <button type="button" id="kbSearchResultLocateBtn" class="secondary" disabled>定位到目录树</button>
+                  <button type="button" id="kbSearchResultFollowUpBtn" class="secondary jl-btn jl-btn--ghost" disabled>继续追问</button>
                 </div>
                 <div class="kb-search-result-foot__right">
                   <button type="button" id="kbSearchResultRelocateBtn" class="secondary" disabled title="手动指定迁移后的文件路径">指定路径</button>

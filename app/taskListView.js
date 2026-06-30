@@ -199,25 +199,41 @@
             : escapeHtml(deadlineRaw)
           : `<span class="placeholder-dash">-</span>`;
 
+        const statusKey = String(task.status || "待处理");
+        const priorityKey = String(task.priority || "中");
         const card = document.createElement("article");
-        card.className = "task-card";
+        card.className = "task-card jl-task-card";
         card.dataset.id = task.id;
+        card.dataset.priority = priorityKey;
+        card.dataset.status = statusKey;
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `任务 ${task.taskId}，点击查看详情`);
         card.innerHTML = `
-        <header class="task-card-head">
+        <div class="jl-floating-toolbar" aria-hidden="true">
+          <button type="button" class="jl-floating-toolbar__btn" data-action="openRemark" data-id="${escapeHtmlAttr(task.id)}" title="备注">📝</button>
+          ${
+            !terminal
+              ? `<button type="button" class="jl-floating-toolbar__btn" data-action="complete" data-id="${escapeHtmlAttr(task.id)}" title="完结">✓</button>`
+              : ""
+          }
+        </div>
+        <header class="task-card-head jl-task-card__head">
           <span class="mono-id">${escapeHtml(task.taskId)}</span>
           ${priorityTagHtml(task.priority)}
           ${statusTagHtml(task.status)}
         </header>
+        <h3 class="jl-task-card__title">${escapeHtml(task.content || "（无内容）")}</h3>
         <div class="task-card-type">${issueTypeTagHtml(task.issueType, task.id)}</div>
-        <p class="task-card-content">${escapeHtml(task.content)}</p>
-        <dl class="task-card-meta">
+        <dl class="task-card-meta jl-task-card__meta">
           <div><dt>截止</dt><dd>${deadlineHtml}</dd></div>
           <div><dt>风险</dt><dd>${riskTierBadge(risk)}</dd></div>
-          <div><dt>反馈人</dt><dd>${personMetaHtml(task.reporter)}</dd></div>
           <div><dt>处理人</dt><dd>${personMetaHtml(task.handler)}</dd></div>
+          <div><dt>反馈人</dt><dd>${personMetaHtml(task.reporter)}</dd></div>
           <div><dt>登记</dt><dd>${createdAtCellHtml(task.createdAt)}</dd></div>
         </dl>
-        <div class="task-card-actions">
+        <div class="task-card-actions jl-task-card__actions">
+          <button type="button" class="task-ops-btn secondary jl-btn jl-btn--ghost" data-action="openTaskDrawer" data-id="${escapeHtmlAttr(task.id)}">详情</button>
           <button type="button" class="task-ops-btn secondary" data-action="openRemark" data-id="${escapeHtmlAttr(task.id)}">备注</button>
           ${
             !terminal

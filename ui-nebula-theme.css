@@ -3171,6 +3171,170 @@ body.theme-nebula {
   color: var(--jl-text-secondary);
 }
 
+.jl-task-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 4px 2px 12px;
+}
+
+.jl-task-card-grid .jl-task-card {
+  cursor: pointer;
+  outline: none;
+}
+
+.jl-task-card-grid .jl-task-card:focus-visible {
+  box-shadow: var(--jl-shadow-hover), 0 0 0 2px rgba(91, 80, 255, 0.45);
+}
+
+.task-list-view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--jl-radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--jl-glass-border);
+  gap: 2px;
+}
+
+.task-view-btn {
+  border: 0;
+  background: transparent;
+  color: var(--jl-text-secondary);
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--jl-radius-pill);
+  cursor: pointer;
+  transition: background var(--jl-duration-base) var(--jl-ease-out);
+}
+
+.task-view-btn.is-active {
+  background: rgba(91, 80, 255, 0.22);
+  color: var(--jl-text-primary);
+}
+
+.jl-task-drawer__meta {
+  font-size: 12px;
+  color: var(--jl-text-muted);
+  margin: 0 0 10px;
+}
+
+.jl-task-drawer__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.jl-task-drawer__section {
+  margin-bottom: 16px;
+}
+
+.jl-task-drawer__label {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--jl-text-secondary);
+  letter-spacing: 0.04em;
+}
+
+.jl-task-drawer__content {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--jl-text-primary);
+}
+
+.jl-task-drawer__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.jl-task-drawer__facts dt {
+  color: var(--jl-text-muted);
+  font-size: 11px;
+}
+
+.jl-task-drawer__facts dd {
+  margin: 2px 0 0;
+  color: var(--jl-text-primary);
+}
+
+.jl-task-drawer__remark {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--jl-text-secondary);
+}
+
+.jl-task-drawer__attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jl-task-drawer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--jl-glass-border);
+}
+
+.jl-kb-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.jl-kb-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.kb-search-result-item.jl-kb-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(0, 229, 255, 0.14);
+}
+
+.kb-search-result-item.jl-kb-card.is-active {
+  border-color: rgba(0, 229, 255, 0.42);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.12);
+}
+
+.kb-trial-hit-card {
+  cursor: pointer;
+}
+
+.dashboard-metrics.jl-dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.dashboard-grid.jl-dashboard-grid .chart-card {
+  background: var(--jl-glass-bg);
+  border: 1px solid var(--jl-glass-border);
+  border-radius: var(--jl-radius-md);
+  box-shadow: var(--jl-shadow-card);
+  padding: 8px;
+}
+
+.dashboard-grid.jl-dashboard-grid canvas {
+  display: block;
+  width: 100%;
+}
+
 /* --- 知识库引用卡片 --- */
 .jl-kb-card {
   padding: 14px 16px;

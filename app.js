@@ -1,7 +1,9 @@
 /** 数据键保持不变，升级版本后仍读取旧版登记的任务 */
 const STORAGE_KEY = "daily_task_tracker_v1";
 const SIDEBAR_COLLAPSED_KEY = "daily_task_tracker_sidebar_collapsed";
+const TASK_LIST_VIEW_KEY = "daily_task_tracker_list_view_v1";
 const DAILY_WORK_CHILD_ROUTES = new Set(["new", "filter", "list", "dashboard"]);
+const ACTIVE_TASK_STATUSES = ["待处理", "处理中", "已阻塞", "已挂起"];
 
 const ROUTES = {
   new: { panelId: "panel-new", title: "新增待处理事项", breadcrumb: "工作台 / 每日工作跟进 / 新增待处理事项" },
@@ -512,6 +514,10 @@ const customReportTableBodyEl = document.getElementById("customReportTableBody")
 const taskListEmptyEl = document.getElementById("taskListEmpty");
 const taskTableWrapEl = document.getElementById("taskTableWrap");
 const taskCardListEl = document.getElementById("taskCardList");
+const taskViewCardsBtn = document.getElementById("taskViewCardsBtn");
+const taskViewTableBtn = document.getElementById("taskViewTableBtn");
+const dashboardMetricsEl = document.getElementById("dashboardMetrics");
+let taskListViewMode = localStorage.getItem(TASK_LIST_VIEW_KEY) === "table" ? "table" : "cards";
 const taskListToastEl = document.getElementById("taskListToast");
 
 let lastCustomReport = null;
@@ -916,6 +922,147 @@ function openRemarkModal(taskId) {
   remarkDialog.showModal();
 }
 
+function applyTaskListViewMode(mode) {
+  taskListViewMode = mode === "table" ? "table" : "cards";
+  localStorage.setItem(TASK_LIST_VIEW_KEY, taskListViewMode);
+  taskViewCardsBtn?.classList.toggle("is-active", taskListViewMode === "cards");
+  taskViewTableBtn?.classList.toggle("is-active", taskListViewMode === "table");
+  render();
+}
+
+function syncTaskListViewVisibility(isEmpty) {
+  const cards = taskListViewMode === "cards";
+  if (taskTableWrapEl) {
+    taskTableWrapEl.hidden = isEmpty || cards;
+  }
+  if (taskCardListEl) {
+    taskCardListEl.hidden = isEmpty || !cards;
+  }
+}
+
+function buildTaskDrawerHtml(task) {
+  const risk = calcTaskRisk(task);
+  const terminal = task.status === "已完结" || task.status === "已取消";
+  const remark = latestRemark(task);
+  const riskHtml = tlv().riskTierBadge?.(risk) || "—";
+  const statusHtml = tlv().statusTagHtml?.(task.status) || escapeHtml(task.status);
+  const priorityHtml = tlv().priorityTagHtml?.(task.priority) || escapeHtml(task.priority);
+  return `
+    <div class="jl-task-drawer" data-task-id="${escapeHtmlAttr(task.id)}">
+      <p class="jl-task-drawer__meta">登记事物ID：${escapeHtml(task.taskId || "—")}</p>
+      <div class="jl-task-drawer__tags">${statusHtml} ${priorityHtml} ${riskHtml}</div>
+      <section class="jl-task-drawer__section">
+        <h4 class="jl-task-drawer__label">跟进事物内容</h4>
+        <div class="jl-task-drawer__content">${escapeHtml(String(task.content || "（暂无内容）"))}</div>
+      </section>
+      <dl class="jl-task-drawer__facts">
+        <div><dt>问题类型</dt><dd>${escapeHtml(task.issueType || "—")}</dd></div>
+        <div><dt>处理人</dt><dd>${escapeHtml(task.handler || "—")}</dd></div>
+        <div><dt>反馈人</dt><dd>${escapeHtml(task.reporter || "—")}</dd></div>
+        <div><dt>截止日期</dt><dd>${escapeHtml(task.deadline || "—")}</dd></div>
+        <div><dt>登记时间</dt><dd>${escapeHtml(task.createdAt || "—")}</dd></div>
+      </dl>
+      <section class="jl-task-drawer__section">
+        <h4 class="jl-task-drawer__label">最新备注</h4>
+        <p class="jl-task-drawer__remark">${escapeHtml(remark || "暂无备注")}</p>
+      </section>
+      <section class="jl-task-drawer__section" id="jlDrawerTaskAttachmentsWrap">
+        <h4 class="jl-task-drawer__label">附件与图片</h4>
+        <div id="jlDrawerTaskAttachments" class="jl-task-drawer__attachments"></div>
+      </section>
+      <div class="jl-task-drawer__actions">
+        <button type="button" class="jl-btn jl-btn--ghost" data-drawer-action="openRemark" data-id="${escapeHtmlAttr(task.id)}">备注 / 历史</button>
+        ${
+          !terminal
+            ? `<button type="button" class="jl-btn jl-btn--primary" data-drawer-action="complete" data-id="${escapeHtmlAttr(task.id)}">标记完结</button>`
+            : ""
+        }
+      </div>
+    </div>`;
+}
+
+function wireTaskDrawerActions(rootEl) {
+  if (!rootEl) {
+    return;
+  }
+  rootEl.querySelectorAll("[data-drawer-action]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const action = btn.dataset.drawerAction;
+      const id = btn.dataset.id;
+      if (!id) {
+        return;
+      }
+      if (action === "openRemark") {
+        closeJlRightDrawer();
+        openRemarkModal(id);
+        return;
+      }
+      if (action === "complete") {
+        const task = tasks.find((t) => t.id === id);
+        if (!task) {
+          return;
+        }
+        applyTaskFieldChange(task, "status", "已完结");
+        task.completedAt = nowString();
+        te().appendSystemRemark?.(task, "任务已标记为已完结", nowString());
+        saveTasks();
+        closeJlRightDrawer();
+        render();
+      }
+    });
+  });
+}
+
+async function renderTaskDrawerAttachments(task) {
+  const container = document.getElementById("jlDrawerTaskAttachments");
+  const wrap = document.getElementById("jlDrawerTaskAttachmentsWrap");
+  const api = window.electronAPI;
+  if (!container || !api?.taskAttachmentList) {
+    if (wrap) {
+      wrap.hidden = true;
+    }
+    return;
+  }
+  container.innerHTML = `<p class="field-hint">正在加载附件…</p>`;
+  const out = await api.taskAttachmentList({ task });
+  const files = Array.isArray(out?.files) ? out.files : [];
+  if (!files.length) {
+    wrap.hidden = true;
+    container.innerHTML = "";
+    return;
+  }
+  wrap.hidden = false;
+  container.innerHTML = files
+    .map((f) => {
+      if (f.isImage && f.dataUrl) {
+        return `<figure class="task-content-attach-image"><img src="${escapeHtmlAttr(f.dataUrl)}" alt="${escapeHtmlAttr(f.name)}" loading="lazy" /><figcaption><button type="button" class="task-content-attach-open" data-path="${escapeHtmlAttr(f.path)}">${escapeHtml(f.name)}</button></figcaption></figure>`;
+      }
+      return `<button type="button" class="task-content-attach-doc" data-path="${escapeHtmlAttr(f.path)}">📄 ${escapeHtml(f.name)}</button>`;
+    })
+    .join("");
+  container.querySelectorAll("[data-path]").forEach((node) => {
+    node.addEventListener("click", () => {
+      const p = node.getAttribute("data-path");
+      if (p) {
+        void api.taskAttachmentOpenFile?.({ path: p });
+      }
+    });
+  });
+}
+
+function openTaskDetailDrawer(taskId) {
+  const task = tasks.find((t) => t.id === taskId);
+  if (!task || typeof openJlRightDrawer !== "function") {
+    openTaskContentModal(taskId);
+    return;
+  }
+  openJlRightDrawer(String(task.issueType || "任务详情"), buildTaskDrawerHtml(task));
+  const body = document.getElementById("jlRightDrawerBody");
+  wireTaskDrawerActions(body);
+  void renderTaskDrawerAttachments(task);
+}
+
 function openTaskContentModal(taskId) {
   const task = tasks.find((t) => t.id === taskId);
   if (!task || !taskContentDialog) {
@@ -1095,12 +1242,7 @@ function render() {
   if (taskListEmptyEl) {
     taskListEmptyEl.hidden = !isEmpty;
   }
-  if (taskTableWrapEl) {
-    taskTableWrapEl.hidden = isEmpty;
-  }
-  if (taskCardListEl) {
-    taskCardListEl.hidden = isEmpty;
-  }
+  syncTaskListViewVisibility(isEmpty);
 
   if (!isEmpty && typeof tlv().renderTaskListPage === "function") {
     tlv().renderTaskListPage({
@@ -1197,7 +1339,11 @@ function renderDashboard() {
   }
   TA.mountDashboard(dashboardRootEl, tasks, {
     statusList: taskStatusList(),
-    activeStatuses: ["待处理", "处理中", "已阻塞", "已挂起"],
+    activeStatuses: ACTIVE_TASK_STATUSES,
+    metricsEl: dashboardMetricsEl,
+    getSummaryCounts: getTaskSummaryCounts,
+    calcTaskRisk,
+    localDateKey: () => (te().localDateKey ? te().localDateKey() : localDateKeyFromDate(new Date())),
   });
   if (dashboardSummaryEl) {
     const total = tasks.length;
@@ -3055,14 +3201,27 @@ function handleTaskListActionClick(event) {
     return;
   }
 
-  if (action === "viewTaskContent") {
-    openTaskContentModal(id);
+  if (action === "viewTaskContent" || action === "openTaskDrawer") {
+    openTaskDetailDrawer(id);
   }
 }
 
 taskTableBody.addEventListener("click", handleTaskListActionClick);
 if (taskCardListEl) {
-  taskCardListEl.addEventListener("click", handleTaskListActionClick);
+  taskCardListEl.addEventListener("click", (event) => {
+    handleTaskListActionClick(event);
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target.closest("[data-action]")) {
+      return;
+    }
+    const card = target.closest(".jl-task-card[data-id]");
+    if (card?.dataset.id) {
+      openTaskDetailDrawer(card.dataset.id);
+    }
+  });
 }
 
 function handleTaskListActionKeydown(event) {
@@ -3073,18 +3232,33 @@ function handleTaskListActionKeydown(event) {
   if (!(target instanceof HTMLElement)) {
     return;
   }
+  const actionEl = target.closest("[data-action][data-id]");
+  if (actionEl) {
+    return;
+  }
+  const card = target.closest(".jl-task-card[data-id]");
+  if (card?.dataset.id) {
+    event.preventDefault();
+    openTaskDetailDrawer(card.dataset.id);
+    return;
+  }
   const el = target.closest('[data-action="viewTaskContent"][data-id]');
   if (!el) {
     return;
   }
   event.preventDefault();
-  openTaskContentModal(el.dataset.id);
+  openTaskDetailDrawer(el.dataset.id);
 }
 
 taskTableBody.addEventListener("keydown", handleTaskListActionKeydown);
 if (taskCardListEl) {
   taskCardListEl.addEventListener("keydown", handleTaskListActionKeydown);
 }
+
+taskViewCardsBtn?.addEventListener("click", () => applyTaskListViewMode("cards"));
+taskViewTableBtn?.addEventListener("click", () => applyTaskListViewMode("table"));
+taskViewCardsBtn?.classList.toggle("is-active", taskListViewMode === "cards");
+taskViewTableBtn?.classList.toggle("is-active", taskListViewMode === "table");
 
 remarkCancelBtn.addEventListener("click", () => {
   remarkNewInput.value = "";
