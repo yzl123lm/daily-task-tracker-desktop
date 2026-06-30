@@ -2216,10 +2216,18 @@ body.theme-nebula {
 }
 
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .tab-panels,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-panels,
 .theme-nebula .main-column:has(#panel-filter:not([hidden])) .tab-panels,
 .theme-nebula .main-column:has(#panel-dashboard:not([hidden])) .tab-panels {
   background: var(--workbench-bg);
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .tab-panels,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) #panel-new {
+  background: #f0f2f5;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-page-title {
+  color: #262626;
 }
 
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card,
@@ -2236,20 +2244,22 @@ body.theme-nebula {
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card h3,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) .card label,
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section {
-  background: var(--workbench-bg);
-  border-color: var(--workbench-border);
+  background: #ffffff;
+  border-color: #f0f0f0;
   color: var(--workbench-text);
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section-title,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field-label {
-  color: var(--workbench-text);
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field-label,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-page-title {
+  color: #262626;
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section-desc,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .field-char-count {
-  color: var(--workbench-muted);
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .field-char-count,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-kb-hint {
+  color: #8c8c8c;
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .card h2,
@@ -2289,26 +2299,64 @@ body.theme-nebula {
   color: var(--workbench-text);
 }
 
-/* 登记页：模板与表单操作按钮文字改为白色，提升深色按钮对比度 */
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-template-extra button,
+/* 登记页：主按钮白字；次按钮与模板操作为白底灰边 */
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-primary {
-  color: #ffffff;
+  color: #ffffff !important;
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-primary:hover {
+  color: #ffffff !important;
+  background: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-template-extra button,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-secondary {
+  color: #262626 !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-template-extra button:hover,
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-primary:hover {
-  color: #ffffff;
-}
-
-.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-secondary {
-  color: var(--workbench-text);
-  background: var(--workbench-bg);
-  border: 1px solid var(--workbench-border);
-}
-
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-submit-secondary:hover {
-  color: var(--workbench-text);
-  background: var(--workbench-secondary);
+  color: #1677ff !important;
+  border-color: #1677ff !important;
+  background: #ffffff !important;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-step.is-active .task-new-step-label {
+  color: #1677ff;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-step.is-active .task-new-step-num,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-section-num {
+  background: #1677ff;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field input,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field select,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field textarea {
+  background: #ffffff;
+  border-color: #d9d9d9;
+  color: #262626;
+  border-radius: 6px;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-new-field input[readonly] {
+  background: #f5f5f5;
+  color: #8c8c8c;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-dropzone {
+  background: #fafafa;
+  border-color: #d9d9d9;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-dropzone-title strong,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-dropzone-icon {
+  color: #1677ff;
 }
 
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-toolbar button,

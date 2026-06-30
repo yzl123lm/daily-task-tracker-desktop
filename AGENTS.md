@@ -7,6 +7,10 @@ Rules:
 - If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
 - After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current
 
+## 客户端迭代交付
+
+每次完成桌面客户端相关改动并准备交付时，**必须自动**执行 `npm run ship:latest-client`（打包 → 归档到 `最新客户端` → 本机静默安装），无需用户另行要求「打包安装」。详见 `.cursor/rules/client-ship-after-change.mdc`。
+
 ## UI design (taste-skill)
 
 For UI design, frontend visuals, layout, styling, motion, landing pages, portfolios, or redesigns:

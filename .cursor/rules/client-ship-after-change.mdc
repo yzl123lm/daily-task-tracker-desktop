@@ -1,27 +1,49 @@
 ---
-description: 桌面客户端迭代后必须归档到「最新客户端」并执行安装程序
+description: 每次桌面客户端迭代完成后必须自动打包、归档并静默安装最新版
 alwaysApply: true
 ---
 
 # 客户端发布（写死）
 
-在修改了 **Electron 桌面客户端** 相关交付物（`main.js`、`preload.js`、`index.html`、与安装/打包相关的 `package.json` 配置等）并准备交付时，**必须**在项目根执行：
+## 何时必须执行
+
+在完成 **Electron 桌面客户端** 相关迭代（修改了 `main.js`、`preload.js`、`index.html`、`app.js`、`styles.css`、渲染层 JS/CSS、与安装/打包相关的 `package.json` 等）并准备交付时，**Agent 必须主动**在项目根执行，**无需用户再提醒「打包/安装」**：
 
 ```bash
 npm run ship:latest-client
 ```
 
-该命令会：
+若本次迭代有面向用户的客户端改动，**先 bump `package.json` 的 `version`**，再执行上述命令。
+
+## 命令行为
 
 1. 执行 `npm run build` 生成 Windows 安装包与便携包；
-2. 将产物复制到项目根目录下的 **`最新客户端`**（含带时间戳的历史子目录与按版本号覆盖的扁平目录），并写入 `release-history.jsonl`；
-3. **运行 NSIS 静默安装**，将最新版安装到本机用户目录。
-4. **自动 `git commit` + `git push`** 到 GitHub（`origin` 当前分支；无改动则只 push）。跳过：`SKIP_GITHUB_PUSH=1 npm run ship:latest-client`
+2. 将产物复制到 **`最新客户端`**（时间戳历史子目录 + 按版本号扁平目录），并写入 `release-history.jsonl`；
+3. **运行 NSIS 静默安装**到本机用户目录；
+4. 可选：`git commit` + `git push`（脚本内置；跳过：`SKIP_GITHUB_PUSH=1`）。
 
-**不要**在交付流程中设置 `SKIP_INSTALL=1`。若仅需装完不自动启动应用，可使用 `SKIP_LAUNCH_AFTER_INSTALL=1 npm run ship:latest-client`。
+## 禁止与例外
 
-仅推送代码、不打包：`npm run push:github`（可用 `GITHUB_COMMIT_MESSAGE` 自定义提交说明）。
+- **不要**在交付流程中设置 `SKIP_INSTALL=1`。
+- 装完不自动启动应用：`SKIP_LAUNCH_AFTER_INSTALL=1 npm run ship:latest-client`。
+- 仅推送代码、不打包：`npm run push:github`。
+- 仅本地调试打包、不归档不安装：`npm run build` 或 `SKIP_INSTALL=1 npm run release:latest-client`（**不得**作为迭代交付的默认收尾）。
 
-`npm run install:client` 与 `npm run ship:latest-client` 等价，均走上述固定流程。
+`npm run install:client` 与 `npm run ship:latest-client` 等价。
 
-若仅需打包而不归档、不安装，可使用 `npm run build` 或带 `SKIP_INSTALL=1` 的 `npm run release:latest-client`（仅限本地调试，不作为迭代交付的默认步骤）。
+## 安装失败时
+
+若 `dist` 被占用导致打包/安装失败：
+
+1. 确认无并行 `ship:latest-client` 任务；
+2. 关闭正在运行的「鲸落AI」客户端后重试；
+3. 脚本会自动改到 `dist_build_*` 目录构建；若静默安装失败，可用 `最新客户端\<version>\` 下的 Setup 安装包手动补装。
+
+## Agent 收尾检查
+
+迭代交付前确认：
+
+- [ ] 版本号已递增（如有客户端改动）
+- [ ] 已执行 `npm run ship:latest-client`
+- [ ] `最新客户端\<version>\` 下存在 Setup 与便携包
+- [ ] 已向用户简要说明安装结果与版本号

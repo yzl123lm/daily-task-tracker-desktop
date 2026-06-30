@@ -94,6 +94,7 @@
       <div class="tab-panels">
         <div id="panel-new" class="tab-panel" role="tabpanel" hidden>
           <div class="task-new-page">
+            <h2 class="task-new-page-title">新增待处理事项</h2>
             <nav class="task-new-stepper" aria-label="登记流程">
               <ol class="task-new-stepper-list">
                 <li class="task-new-step is-active">
@@ -245,13 +246,13 @@
                     <p class="task-new-section-desc">上传附件并补充更多信息</p>
                   </div>
                 </header>
-                <div class="task-new-section-body">
-                  <div class="task-new-field task-new-field--full">
+                <div class="task-new-section-body task-new-section-body--attach-remark">
+                  <div class="task-new-attach-col">
                     <span class="task-new-field-label">附件上传</span>
                     <div class="task-attach-field">
                       <div id="taskAttachDropzone" class="task-attach-dropzone" tabindex="0" role="button" aria-label="点击或拖拽上传附件">
                         <span class="task-attach-dropzone-icon" aria-hidden="true">
-                          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16V4m0 0L8 8m4-4 4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M32 31H16a5 5 0 01-.4-9.98A7.5 7.5 0 0123.5 14.5 7.5 7.5 0 0132.2 20 5 5 0 0132 31z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M24 27V19M24 19l-4 4M24 19l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </span>
                         <p class="task-attach-dropzone-title"><strong>点击上传</strong> 或拖拽文件到此处</p>
                         <p class="task-attach-dropzone-hint">支持图片、文档、表格等格式，单个文件不超过 50MB</p>
@@ -262,16 +263,16 @@
                         <input type="file" id="taskAttachFileInput" class="task-attach-file-input" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" hidden />
                       </div>
                       <ul id="taskAttachPendingList" class="task-attach-pending-list"></ul>
-                      <span class="field-hint">登记任务后将自动保存至本地知识库「每日任务」目录（跟进问题类型+创建日期）</span>
                     </div>
                   </div>
-                  <label class="task-new-field task-new-field--full">
+                  <label class="task-new-field task-new-remark-col">
                     <span class="task-new-field-label">备注（首次可选）</span>
-                    <span class="field-with-counter">
-                      <textarea id="remark" rows="3" maxlength="500" placeholder="可留空，后续可追加/修改…"></textarea>
+                    <span class="field-with-counter field-with-counter--fill">
+                      <textarea id="remark" rows="5" maxlength="500" placeholder="可留空，后续可追加/修改…"></textarea>
                       <span id="remarkCharCount" class="field-char-count" aria-live="polite">0 / 500</span>
                     </span>
                   </label>
+                  <p class="task-new-kb-hint field-hint">登记任务后将自动保存至本地知识库「每日任务」目录（跟进问题类型+创建日期）</p>
                 </div>
               </section>
 
