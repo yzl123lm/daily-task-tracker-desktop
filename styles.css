@@ -5380,9 +5380,35 @@ label.cap-check:last-child {
   align-items: center;
   justify-content: space-between;
   gap: 10px 12px;
-  padding-top: 8px;
-  margin-top: 2px;
-  border-top: 1px solid rgba(100, 116, 139, 0.18);
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: none;
+}
+
+.ai-chat-empty-card {
+  max-width: 520px;
+  width: 100%;
+  padding: 36px 32px 28px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ai-chat-empty-icon {
+  line-height: 0;
+  margin-bottom: 20px;
+}
+
+.ai-quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ai-profile-trigger-icon {
+  display: inline-flex;
+  line-height: 0;
 }
 
 .ai-composer-footer-left {
@@ -5931,29 +5957,66 @@ label.cap-check:last-child {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0;
+  padding: 14px 20px;
+  background: #fff;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 0;
+}
+
+.ai-chat-search-bar-main {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ai-chat-search-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  background: #f8fafc;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  justify-content: flex-end;
+}
+
+.ai-chat-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 180px;
+  max-width: 520px;
+}
+
+.ai-chat-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #bfbfbf;
+  pointer-events: none;
+  line-height: 0;
 }
 
 .ai-chat-search-bar input[type="search"] {
-  flex: 1;
-  min-width: 160px;
-  max-width: 420px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 11px 7px 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
+  color: #262626;
+  background: #fff;
 }
 
 .ai-chat-search-meta {
   font-size: 12px;
-  color: #64748b;
-  min-width: 7em;
+  color: #8c8c8c;
+  min-width: 5em;
+  white-space: nowrap;
 }
 
 .ai-voice-toggle {

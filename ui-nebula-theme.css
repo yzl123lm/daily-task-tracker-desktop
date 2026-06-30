@@ -2603,3 +2603,239 @@ body.theme-nebula {
   color: #17202b;
   border-color: oklch(0.72 0.16 235 / 0.35);
 }
+
+/* ── AI 助手：样例图布局与配色 ── */
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) {
+  background: #f5f7fa;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-panels {
+  background: #f5f7fa;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .tab-chip.is-active {
+  color: #1677ff;
+  box-shadow: inset 0 -2px 0 #1677ff;
+}
+
+.theme-nebula #panel-ai {
+  --ai-primary: #1677ff;
+  --ai-primary-hover: #4096ff;
+  --ai-surface: #ffffff;
+  --ai-surface-muted: #fafafa;
+  --ai-surface-text: #262626;
+  --ai-surface-muted-text: #8c8c8c;
+  --ai-surface-border: #d9d9d9;
+  --ai-surface-secondary: #f5f5f5;
+  --ai-active-soft: #e6f4ff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) #panel-ai,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-panel-main,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-panel-shell {
+  background: #f5f7fa;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-search-bar {
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-search-bar input[type="search"] {
+  border-radius: 6px;
+  border-color: #d9d9d9;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-tool-btn {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border-color: #d9d9d9;
+  background: #fff;
+  color: #595959;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-tool-btn:hover {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #fff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border-color: #d9d9d9;
+  background: #fff;
+  color: #595959;
+  font-size: 14px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-icon-btn:hover {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #fff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-voice-toolbar-btn {
+  background: #1677ff !important;
+  border: none !important;
+  color: #fff !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-voice-toolbar-btn:hover {
+  background: #4096ff !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-body {
+  background: #f5f7fa;
+  padding: 20px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty {
+  padding: 12px 20px 24px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-card {
+  margin: 0 auto;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-icon {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 20px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-desc {
+  font-size: 14px;
+  color: #8c8c8c;
+  max-width: 400px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-quick {
+  border-radius: 6px;
+  border: 1px solid rgba(22, 119, 255, 0.35);
+  background: #fff;
+  color: #1677ff;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-quick:hover {
+  border-color: #1677ff;
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-log {
+  background: transparent;
+  padding: 0 4px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-input-stack {
+  background: #f5f7fa;
+  padding: 0 20px 20px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer {
+  margin: 0;
+  padding: 14px 16px 12px;
+  border-radius: 10px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer:focus-within {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-textarea {
+  min-height: 72px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-textarea::placeholder {
+  color: #bfbfbf;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-mode-compact-trigger {
+  border-radius: 6px;
+  border-color: #d9d9d9;
+  background: #fff;
+  color: #595959;
+  font-size: 13px;
+  font-weight: 400;
+  padding: 6px 12px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle:hover,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger:hover,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-mode-compact-trigger:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+  background: #fff;
+  filter: none;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle.is-on {
+  background: #e6f4ff !important;
+  border-color: rgba(22, 119, 255, 0.35) !important;
+  color: #1677ff !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle.is-on:hover {
+  background: #bae0ff !important;
+  color: #1677ff !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-send-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #1677ff !important;
+  color: #fff !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-send-btn:hover:not(:disabled) {
+  background: #4096ff !important;
+  filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-footer {
+  border-top: none;
+  padding-top: 10px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger-icon,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle-icon {
+  color: #1677ff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle.is-on .ai-web-toggle-icon {
+  color: #1677ff;
+}
+
