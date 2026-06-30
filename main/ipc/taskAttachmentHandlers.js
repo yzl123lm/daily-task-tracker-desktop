@@ -52,12 +52,15 @@ function registerTaskAttachmentHandlers(ipcMain, { app }) {
 
   ipcMain.handle("task-attachment-pick-files", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender);
-    const res = await dialog.showOpenDialog(win || undefined, {
+    const parent = win && !win.isDestroyed() ? win : BrowserWindow.getFocusedWindow() || undefined;
+    const res = await dialog.showOpenDialog(parent, {
       title: "选择附件或图片",
       properties: ["openFile", "multiSelections"],
       filters: [
-        { name: "文档与图片", extensions: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "png", "jpg", "jpeg", "gif", "webp", "bmp"] },
-        { name: "所有文件", extensions: ["*"] },
+        {
+          name: "文档与图片",
+          extensions: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "png", "jpg", "jpeg", "gif", "webp", "bmp"],
+        },
       ],
     });
     if (res.canceled || !res.filePaths?.length) {

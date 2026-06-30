@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.10.34",
+  "version": "1.10.35",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -97,6 +97,7 @@
       "providerBrandIcons.js",
       "docPreviewController.js",
       "environmentSetup.js",
+      "taskAttachmentsUI.js",
       "capability.js",
       "media.js",
       "skills.js",

@@ -10,6 +10,7 @@
   const el = {
     pickBtn: document.getElementById("taskAttachPickBtn"),
     clearBtn: document.getElementById("taskAttachClearBtn"),
+    fileInput: document.getElementById("taskAttachFileInput"),
     list: document.getElementById("taskAttachPendingList"),
     rootDialog: document.getElementById("taskAttachRootDialog"),
     rootInput: document.getElementById("taskAttachRootInput"),
@@ -117,6 +118,27 @@
       return { ok: false, canceled: true };
     }
     return { ok: true, rootDir: picked.rootDir };
+  }
+
+  async function addPendingFromFileList(fileList) {
+    const list = Array.from(fileList || []);
+    for (const file of list) {
+      if (file) {
+        pendingFiles.push(file);
+      }
+    }
+    renderPendingList();
+  }
+
+  async function pickAttachmentsViaDialog() {
+    if (typeof api.taskAttachmentPickFiles !== "function") {
+      return { ok: false, error: "附件接口未就绪" };
+    }
+    try {
+      return await api.taskAttachmentPickFiles();
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
+    }
   }
 
   async function addPendingFromPaths(paths) {
@@ -248,9 +270,27 @@
   }
 
   el.pickBtn?.addEventListener("click", async () => {
-    const out = await api.taskAttachmentPickFiles?.();
+    const out = await pickAttachmentsViaDialog();
     if (out?.ok && out.paths?.length) {
       await addPendingFromPaths(out.paths);
+      return;
+    }
+    if (out?.canceled) {
+      return;
+    }
+    if (el.fileInput) {
+      el.fileInput.click();
+      return;
+    }
+    if (out?.error) {
+      alert(`无法打开文件选择窗口：${out.error}`);
+    }
+  });
+
+  el.fileInput?.addEventListener("change", () => {
+    if (el.fileInput?.files?.length) {
+      void addPendingFromFileList(el.fileInput.files);
+      el.fileInput.value = "";
     }
   });
 
