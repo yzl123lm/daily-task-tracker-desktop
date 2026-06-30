@@ -10,6 +10,7 @@ const {
   copySourceFiles,
   listAttachmentFiles,
   fileToDataUrl,
+  deleteTaskAttachmentDirectory,
 } = require("../taskAttachments.js");
 
 function registerTaskAttachmentHandlers(ipcMain, { app }) {
@@ -158,6 +159,15 @@ function registerTaskAttachmentHandlers(ipcMain, { app }) {
       const filePath = assertAbsolutePath(payload?.path, { mustExist: true, label: "附件" });
       shell.showItemInFolder(filePath);
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err?.message || err) };
+    }
+  });
+
+  ipcMain.handle("task-attachment-delete-for-task", (_event, payload) => {
+    try {
+      const task = payload?.task && typeof payload.task === "object" ? payload.task : {};
+      return deleteTaskAttachmentDirectory(userDataPath(), task);
     } catch (err) {
       return { ok: false, error: String(err?.message || err) };
     }

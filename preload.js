@@ -147,6 +147,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   taskAttachmentShowInFolder: (payload) => ipcRenderer.invoke("task-attachment-show-in-folder", payload),
 
+  taskAttachmentDeleteForTask: (payload) => ipcRenderer.invoke("task-attachment-delete-for-task", payload),
+
   onEnvironmentProfile: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

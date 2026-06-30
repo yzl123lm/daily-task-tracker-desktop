@@ -876,6 +876,34 @@ function openTaskContentModal(taskId) {
   void window.TaskAttachmentsUI?.renderTaskContentAttachments?.(task);
 }
 
+function taskPayloadForAttachmentDelete(task) {
+  return {
+    id: task.id,
+    taskId: task.taskId,
+    issueType: task.issueType,
+    createdAtIsoDate: task.createdAtIsoDate,
+    attachmentDir: task.attachmentDir,
+  };
+}
+
+async function deleteTaskWithAttachments(task) {
+  const api = window.electronAPI;
+  if (api?.taskAttachmentDeleteForTask) {
+    const out = await api.taskAttachmentDeleteForTask({ task: taskPayloadForAttachmentDelete(task) });
+    if (out?.ok === false && out?.error) {
+      const go = window.confirm(`附件目录删除失败：${out.error}\n仍要删除任务记录吗？`);
+      if (!go) {
+        return false;
+      }
+    }
+  }
+  tasks = tasks.filter((item) => item.id !== task.id);
+  saveTasks();
+  resetListPagination();
+  render();
+  return true;
+}
+
 function statusTag(status) {
   return status === "已完结" ? "success" : status === "处理中" ? "secondary" : "danger";
 }
@@ -1636,13 +1664,12 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
       if (task.status === "已取消") {
         return { ok: false, error: "已取消任务须保留历史，不可删除" };
       }
-      const delId = task.id;
-      tasks = tasks.filter((t) => t.id !== delId);
-      saveTasks();
-      render();
-      resetListPagination();
+      const deleted = await deleteTaskWithAttachments(task);
+      if (!deleted) {
+        return { ok: false, error: "已取消删除" };
+      }
       openOrFocusTab("list");
-      return { ok: true, message: "已删除任务", id: delId };
+      return { ok: true, message: "已删除任务及关联附件目录", id: task.id };
     }
     if (name === "task_complete") {
       const task = aiFindTaskForTool(a);
@@ -2819,13 +2846,14 @@ function handleTaskListActionClick(event) {
       alert("已取消任务须保留历史记录，不可删除。");
       return;
     }
-    if (!confirm(`确定删除登记事物「${task.taskId}」？此操作不可恢复。`)) {
+    if (
+      !confirm(
+        `确定删除登记事物「${task.taskId}」？\n将同时删除该任务在「每日任务」下的附件目录及目录内所有文档与图片，此操作不可恢复。`
+      )
+    ) {
       return;
     }
-    tasks = tasks.filter((item) => item.id !== id);
-    saveTasks();
-    resetListPagination();
-    render();
+    void deleteTaskWithAttachments(task);
     return;
   }
 

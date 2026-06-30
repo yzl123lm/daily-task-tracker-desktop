@@ -281,6 +281,74 @@ function fileToDataUrl(filePath) {
   }
 }
 
+function isPathUnderRoot(targetPath, rootDir) {
+  const target = path.normalize(path.resolve(String(targetPath || "")));
+  const root = path.normalize(path.resolve(String(rootDir || "")));
+  if (!target || !root) {
+    return false;
+  }
+  return target === root || target.startsWith(`${root}${path.sep}`);
+}
+
+function findTaskAttachmentDirForDelete(userDataPath, task) {
+  const taskId = String(task?.taskId || "").trim();
+  const settings = readSettings(userDataPath);
+  const rootDir = settings.rootDir;
+  if (!rootDir) {
+    return "";
+  }
+  const saved = path.normalize(String(task?.attachmentDir || "").trim());
+  if (saved && fs.existsSync(saved) && isPathUnderRoot(saved, rootDir)) {
+    const marker = readMarker(saved);
+    if (!marker?.taskId || !taskId || marker.taskId === taskId) {
+      return saved;
+    }
+  }
+  if (!fs.existsSync(rootDir)) {
+    return "";
+  }
+  let entries = [];
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    return "";
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) {
+      continue;
+    }
+    const dir = path.join(rootDir, ent.name);
+    const marker = readMarker(dir);
+    if (taskId && marker?.taskId === taskId) {
+      return dir;
+    }
+  }
+  return "";
+}
+
+function deleteTaskAttachmentDirectory(userDataPath, task) {
+  const settings = readSettings(userDataPath);
+  const rootDir = settings.rootDir;
+  const dir = findTaskAttachmentDirForDelete(userDataPath, task);
+  if (!dir) {
+    return { ok: true, skipped: true, reason: "not_found" };
+  }
+  if (!rootDir || !isPathUnderRoot(dir, rootDir)) {
+    return { ok: false, error: "附件目录不在允许的存储根路径下，已跳过删除" };
+  }
+  const marker = readMarker(dir);
+  const taskId = String(task?.taskId || "").trim();
+  if (marker?.taskId && taskId && marker.taskId !== taskId) {
+    return { ok: false, error: "附件目录归属校验失败，已跳过删除" };
+  }
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    return { ok: true, deletedDir: dir };
+  } catch (err) {
+    return { ok: false, error: String(err?.message || err) };
+  }
+}
+
 module.exports = {
   DEFAULT_ROOT_DIR,
   SETTINGS_FILENAME,
@@ -288,6 +356,8 @@ module.exports = {
   writeSettings,
   prepareTaskAttachmentDir,
   resolveTaskAttachmentDir,
+  findTaskAttachmentDirForDelete,
+  deleteTaskAttachmentDirectory,
   saveBufferFiles,
   copySourceFiles,
   listAttachmentFiles,
