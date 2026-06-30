@@ -2359,6 +2359,21 @@ body.theme-nebula {
   color: #1677ff;
 }
 
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .priority-select-wrap {
+  background: #ffffff;
+  border-color: #d9d9d9;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .priority-select-wrap:focus-within {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12);
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .priority-select-wrap select {
+  background: transparent;
+  border: none;
+}
+
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-toolbar button,
 .theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-pending-remove {
   color: #ffffff;
