@@ -2482,6 +2482,9 @@ function initAI() {
     if (modeCompactLabel) {
       modeCompactLabel.textContent = MODE_LABELS[aiMode] || "对话";
     }
+    if (modeCompactTrigger) {
+      modeCompactTrigger.dataset.mode = aiMode;
+    }
     closeModeMenu();
     if (searchInput) {
       searchInput.placeholder = aiMode === "chat" ? "搜索本页对话（含折叠内容）" : "搜索当前会话记录";

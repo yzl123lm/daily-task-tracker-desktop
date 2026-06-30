@@ -2754,11 +2754,11 @@ body.theme-nebula {
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer {
   margin: 0;
-  padding: 14px 16px 12px;
-  border-radius: 10px;
-  border: 1px solid #d9d9d9;
+  padding: 16px 18px 14px;
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
   background: #fff;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer:focus-within {
@@ -2767,9 +2767,11 @@ body.theme-nebula {
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-textarea {
-  min-height: 72px;
+  min-height: 80px;
   font-size: 14px;
   line-height: 1.6;
+  padding: 4px 2px 8px;
+  color: #262626;
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-textarea::placeholder {
@@ -2788,6 +2790,33 @@ body.theme-nebula {
   padding: 6px 12px;
 }
 
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-mode-compact-trigger,
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-composer-pill-btn {
+  border: none;
+  background: transparent;
+  color: #595959;
+  font-weight: 400;
+  padding: 5px 10px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-mode-compact-trigger {
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 500;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-mode-compact-trigger:hover {
+  background: #bae0ff;
+  border-color: transparent;
+  color: #1677ff;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-composer-pill-btn:hover {
+  background: #f0f0f0;
+  border-color: transparent;
+  color: #262626;
+}
+
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle:hover,
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger:hover,
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-mode-compact-trigger:hover {
@@ -2803,6 +2832,12 @@ body.theme-nebula {
   color: #1677ff !important;
   box-shadow: none !important;
   filter: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-composer-pill-btn.is-on {
+  background: #e6f4ff !important;
+  border: none !important;
+  color: #1677ff !important;
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle.is-on:hover {
@@ -2827,11 +2862,37 @@ body.theme-nebula {
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-footer {
   border-top: none;
-  padding-top: 10px;
+  padding-top: 12px;
+  gap: 10px;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill {
+  border-color: #ebebeb;
+  background: #fafafa;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-voice-composer-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid #d9d9d9;
+  background: #fff;
+  color: #262626;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-voice-composer-btn:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+  background: #fff;
+  filter: none;
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger-icon,
-.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-web-toggle-icon {
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-composer-toolbar-pill .ai-web-toggle-icon {
+  color: inherit;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-profile-trigger-icon {
   color: #1677ff;
 }
 
