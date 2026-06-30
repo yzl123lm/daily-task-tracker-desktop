@@ -4284,6 +4284,26 @@ function initAI() {
     });
   }
 
+  window.__getAiComposerPendingFiles = function __getAiComposerPendingFiles() {
+    const files = [];
+    pendingVisionEntries.forEach((entry) => {
+      if (entry?.file) {
+        files.push(entry.file);
+      }
+    });
+    pendingDocEntries.forEach((entry) => {
+      if (entry?.file) {
+        files.push(entry.file);
+      }
+    });
+    return files;
+  };
+
+  window.clearAiComposerPendingFiles = function clearAiComposerPendingFiles() {
+    clearVisionAttachment();
+    clearDocAttachment();
+  };
+
   setAiMode("chat");
   syncChatEmptyState();
   syncSendEnabled();

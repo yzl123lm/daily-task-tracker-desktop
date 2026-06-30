@@ -154,6 +154,15 @@
                   <option value="已取消">已取消</option>
                 </select>
               </label>
+              <div class="full task-attach-field">
+                <div class="task-attach-head">附件上传</div>
+                <div class="task-attach-toolbar">
+                  <button type="button" id="taskAttachPickBtn" class="secondary">选择文件 / 图片</button>
+                  <button type="button" id="taskAttachClearBtn" class="secondary" hidden>清空待上传</button>
+                </div>
+                <ul id="taskAttachPendingList" class="task-attach-pending-list"></ul>
+                <span class="field-hint">登记任务后将自动保存至本地知识库「每日任务」目录（跟进问题类型+创建日期）</span>
+              </div>
               <label class="full">
                 备注（首次可选）
                 <textarea id="remark" rows="2" placeholder="可留空，后续可追加/修改"></textarea>
@@ -1312,8 +1321,30 @@
       <h3 id="taskContentDialogTitle" class="remark-dialog-title">跟进事物内容</h3>
       <p id="taskContentDialogMeta" class="remark-dialog-meta"></p>
       <div id="taskContentDetailBody" class="task-content-detail-body"></div>
+      <div id="taskContentAttachments" class="task-content-attachments" hidden>
+        <div class="task-content-attachments-head">附件与图片</div>
+        <div id="taskContentAttachmentsBody" class="task-content-attachments-body"></div>
+      </div>
       <div class="dialog-actions">
         <button type="button" id="taskContentCloseBtn" class="secondary">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="taskAttachRootDialog" class="remark-dialog-light task-attach-root-dialog">
+    <div class="remark-dialog-inner">
+      <h3 class="remark-dialog-title">任务附件存储路径</h3>
+      <p class="remark-dialog-meta">首次登记任务前，请确认附件与图片的保存位置。默认建议使用本地知识库「每日任务」目录，可按需修改。</p>
+      <label class="full">
+        存储根目录
+        <div class="task-attach-root-field">
+          <input type="text" id="taskAttachRootInput" readonly />
+          <button type="button" id="taskAttachRootBrowseBtn" class="secondary">浏览…</button>
+        </div>
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="taskAttachRootCancelBtn" class="secondary">取消</button>
+        <button type="button" id="taskAttachRootConfirmBtn">确认</button>
       </div>
     </div>
   </dialog>
@@ -2505,6 +2536,7 @@
   <script src="./taskAnalytics.js"></script>
   <script src="./skills.js"></script>
   <script src="./localModels.js"></script>
+  <script src="./taskAttachmentsUI.js"></script>
   <script src="./environmentSetup.js"></script>
   <script src="./app.js"></script>
   <script src="./utils/kbConfigLayout.js"></script>

@@ -127,6 +127,26 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   environmentSaveInstallPaths: (payload) => ipcRenderer.invoke("environment-save-install-paths", payload),
 
+  taskAttachmentGetSettings: () => ipcRenderer.invoke("task-attachment-get-settings"),
+
+  taskAttachmentSetRoot: (payload) => ipcRenderer.invoke("task-attachment-set-root", payload),
+
+  taskAttachmentChooseRoot: (payload) => ipcRenderer.invoke("task-attachment-choose-root", payload),
+
+  taskAttachmentPickFiles: () => ipcRenderer.invoke("task-attachment-pick-files"),
+
+  taskAttachmentPrepareDir: (payload) => ipcRenderer.invoke("task-attachment-prepare-dir", payload),
+
+  taskAttachmentSaveBuffers: (payload) => ipcRenderer.invoke("task-attachment-save-buffers", payload),
+
+  taskAttachmentCopyFiles: (payload) => ipcRenderer.invoke("task-attachment-copy-files", payload),
+
+  taskAttachmentList: (payload) => ipcRenderer.invoke("task-attachment-list", payload),
+
+  taskAttachmentOpenFile: (payload) => ipcRenderer.invoke("task-attachment-open-file", payload),
+
+  taskAttachmentShowInFolder: (payload) => ipcRenderer.invoke("task-attachment-show-in-folder", payload),
+
   onEnvironmentProfile: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

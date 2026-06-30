@@ -434,6 +434,7 @@
       blockDependency: String(raw.blockDependency ?? t.blockDependency ?? ""),
       suspendedAt: String(raw.suspendedAt ?? t.suspendedAt ?? ""),
       cancelledAt: String(raw.cancelledAt ?? t.cancelledAt ?? ""),
+      attachmentDir: String(raw.attachmentDir ?? t.attachmentDir ?? ""),
     };
   }
 

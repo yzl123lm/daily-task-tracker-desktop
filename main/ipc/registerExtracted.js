@@ -1,6 +1,7 @@
 const { registerExportHandlers } = require("./exportHandlers");
 const { registerLunarHandlers } = require("./lunarHandlers");
 const { registerEnvironmentHandlers } = require("./environmentHandlers");
+const { registerTaskAttachmentHandlers } = require("./taskAttachmentHandlers");
 const { registerAiSessionHandlers } = require("./aiSessionHandlers");
 const { registerEmbeddingHandlers } = require("./embeddingHandlers");
 const { registerModularSettingsHandlers } = require("../credentialSettings");
@@ -14,6 +15,7 @@ function registerExtractedIpcHandlers(ipcMain, { app }) {
   registerOllamaVoiceHandlers(ipcMain);
   registerLunarHandlers(ipcMain, { app });
   registerEnvironmentHandlers(ipcMain, { app });
+  registerTaskAttachmentHandlers(ipcMain, { app });
 }
 
 module.exports = { registerExtractedIpcHandlers };

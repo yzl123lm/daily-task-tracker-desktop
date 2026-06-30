@@ -637,6 +637,7 @@ function createTask(data) {
     blockDependency: String(data.blockDependency || "").trim(),
     suspendedAt: "",
     cancelledAt: "",
+    attachmentDir: String(data.attachmentDir || "").trim(),
   };
 }
 
@@ -872,6 +873,7 @@ function openTaskContentModal(taskId) {
     taskContentDetailBody.textContent = content || "（暂无跟进事物内容）";
   }
   taskContentDialog.showModal();
+  void window.TaskAttachmentsUI?.renderTaskContentAttachments?.(task);
 }
 
 function statusTag(status) {
@@ -1518,7 +1520,7 @@ function aiFindTaskForTool(ref) {
   return null;
 }
 
-window.runAITaskTool = function runAITaskTool(name, args) {
+window.runAITaskTool = async function runAITaskTool(name, args) {
   const a = args && typeof args === "object" ? args : {};
   try {
     if (name === "task_list_snapshot") {
@@ -1563,6 +1565,14 @@ window.runAITaskTool = function runAITaskTool(name, args) {
       };
       const task = createTask(data);
       TE.recordChangeLog?.(task, { at: nowString(), operator: "AI", field: "create", oldValue: "", newValue: task.taskId });
+      const hadComposerFiles = (window.getAiComposerPendingFiles?.() || []).length > 0;
+      const attachOut = await window.saveAiAttachmentsToTask?.(task);
+      if (attachOut?.ok && attachOut.attachmentDir) {
+        task.attachmentDir = attachOut.attachmentDir;
+      }
+      if (hadComposerFiles && attachOut?.ok) {
+        window.clearAiComposerPendingFiles?.();
+      }
       tasks.unshift(task);
       saveTasks();
       render();
@@ -2483,7 +2493,7 @@ taskIdInput.addEventListener("input", () => {
   clearTaskIdDuplicateError();
 });
 
-taskForm.addEventListener("submit", (event) => {
+taskForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   clearTaskIdDuplicateError();
 
@@ -2531,6 +2541,25 @@ taskForm.addEventListener("submit", (event) => {
     formData.blockDependency = dep;
   }
 
+  const draftTask = {
+    taskId: trimmedId,
+    issueType: formData.issueType,
+    createdAtIsoDate: localDateKeyFromDate(new Date()),
+  };
+  const attachUi = window.TaskAttachmentsUI;
+  let attachmentDir = "";
+  if (attachUi?.prepareTaskWithAttachments) {
+    const prep = await attachUi.prepareTaskWithAttachments(draftTask);
+    if (!prep?.ok) {
+      if (!prep?.canceled) {
+        alert(prep?.error || "任务附件目录创建失败。");
+      }
+      return;
+    }
+    attachmentDir = prep.attachmentDir || "";
+  }
+
+  formData.attachmentDir = attachmentDir;
   const task = createTask(formData);
   te().recordChangeLog?.(task, {
     at: nowString(),
@@ -2542,6 +2571,7 @@ taskForm.addEventListener("submit", (event) => {
   tasks.unshift(task);
   saveTasks();
   taskForm.reset();
+  attachUi?.clearPending?.();
   const priorityEl = document.getElementById("priority");
   if (priorityEl) {
     priorityEl.value = "中";
@@ -2554,6 +2584,7 @@ taskForm.addEventListener("submit", (event) => {
 
 resetFormBtn.addEventListener("click", () => {
   taskForm.reset();
+  window.TaskAttachmentsUI?.clearPending?.();
   const priorityEl = document.getElementById("priority");
   if (priorityEl) {
     priorityEl.value = "中";

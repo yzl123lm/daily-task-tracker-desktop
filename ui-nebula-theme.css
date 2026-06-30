@@ -2283,6 +2283,16 @@ body.theme-nebula {
   color: #ffffff;
 }
 
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-toolbar button,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-pending-remove {
+  color: #ffffff;
+}
+
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-toolbar button:hover,
+.theme-nebula .main-column:has(#panel-new:not([hidden])) .task-attach-pending-remove:hover {
+  color: #ffffff;
+}
+
 .theme-nebula .main-column:has(#panel-list:not([hidden])) table th,
 .theme-nebula .main-column:has(#panel-list:not([hidden])) table td,
 .theme-nebula .main-column:has(#panel-dashboard:not([hidden])) table th,

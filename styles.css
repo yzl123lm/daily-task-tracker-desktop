@@ -10995,3 +10995,136 @@ body.kb-graph-fullscreen-open {
   font-size: 14px;
 }
 
+.task-attach-field {
+  display: grid;
+  gap: 8px;
+}
+
+.task-attach-head {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #17202b);
+}
+
+.task-attach-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-attach-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.task-attach-pending-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #d8e0eb);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.task-attach-pending-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.task-attach-pending-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.task-attach-pending-remove {
+  min-width: 28px;
+  padding: 2px 8px;
+}
+
+.task-attach-root-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-attach-root-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-content-attachments {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #d8e0eb);
+}
+
+.task-content-attachments-head {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--text, #17202b);
+}
+
+.task-content-attachments-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.task-content-attachments-loading {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.task-content-attach-image {
+  margin: 0;
+  width: min(180px, 100%);
+  border: 1px solid var(--border, #d8e0eb);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.task-content-attach-image img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.task-content-attach-image figcaption {
+  padding: 6px 8px;
+}
+
+.task-content-attach-open,
+.task-content-attach-doc {
+  border: 1px solid var(--border, #d8e0eb);
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #17202b;
+}
+
+.task-content-attach-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-content-attach-size {
+  color: #64748b;
+  font-size: 12px;
+}
+
