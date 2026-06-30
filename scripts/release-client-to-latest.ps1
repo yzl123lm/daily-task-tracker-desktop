@@ -111,10 +111,33 @@ function Clear-DistWinUnpacked {
   }
 }
 
+function Test-DistAppAsarLocked {
+  param([Parameter(Mandatory = $true)][string]$DistRoot)
+  $probe = Join-Path $DistRoot "win-unpacked\resources\app.asar"
+  if (-not (Test-Path -LiteralPath $probe)) {
+    return $false
+  }
+  try {
+    $stream = [System.IO.File]::Open($probe, [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    $stream.Close()
+    return $false
+  } catch {
+    return $true
+  }
+}
+
 $instDirEarly = Join-Path (Join-Path $env:LOCALAPPDATA "Programs") "daily-task-tracker-desktop"
 Stop-InstalledClientProcesses -InstallDir $instDirEarly
 Stop-DistLockingProcesses -DistRoot $dist
 Clear-DistWinUnpacked -DistRoot $dist
+
+$buildOutName = "dist"
+if (Test-DistAppAsarLocked -DistRoot $dist) {
+  $buildOutName = "dist_build_" + (Get-Date -Format "yyyyMMdd-HHmmss")
+  Write-Warning "(release-client-to-latest) dist is locked; building to $buildOutName instead."
+}
+$dist = Join-Path $ProjectRoot $buildOutName
+New-Item -ItemType Directory -Force -Path $dist | Out-Null
 
 $iconScript = Join-Path $PSScriptRoot "generate-app-icon.py"
 if (Test-Path -LiteralPath $iconScript) {
@@ -144,7 +167,11 @@ if (Test-Path -LiteralPath $iconScript) {
 }
 
 Write-Host "(release-client-to-latest) npm run build..."
-npm run build
+if ($buildOutName -eq "dist") {
+  npm run build
+} else {
+  npx electron-builder --win --config.directories.output=$buildOutName
+}
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 if (-not (Test-Path -LiteralPath $dist)) {
