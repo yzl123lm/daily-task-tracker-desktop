@@ -32,6 +32,7 @@ const {
   registerStartupIpc,
 } = require("./main/startup/bootstrapApplication.js");
 const { registerExtractedIpcHandlers } = require("./main/ipc/registerExtracted.js");
+const { registerWorkbenchWindowIpc } = require("./main/workbenchWindow.js");
 const { assertMaxBase64Size } = require("./utils/ipcValidate.js");
 const {
   readOllamaSettings,
@@ -2474,6 +2475,7 @@ app.on("before-quit", () => {
 
 app.whenReady().then(async () => {
   registerExtractedIpcHandlers(ipcMain, { app });
+  registerWorkbenchWindowIpc(ipcMain);
   registerStartupIpc(ipcMain);
   kbHandlers = registerKnowledgeBaseHandlers(ipcMain, {
     getUserDataPath: () => app.getPath("userData"),

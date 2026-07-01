@@ -19,6 +19,7 @@ const { KB_CONFIG_LAYOUT } = require("../utils/kbConfigLayout.js");
 
 function createWindow(options = {}) {
   const showOnReady = options.showOnReady !== false;
+  const windowMode = options.windowMode === "workbench" ? "workbench" : "ai";
   const iconPath = resolveAppIconPath();
   const mainWindow = new BrowserWindow({
     width: KB_CONFIG_LAYOUT.window.defaultWidth,
@@ -27,7 +28,7 @@ function createWindow(options = {}) {
     minHeight: KB_CONFIG_LAYOUT.window.minHeight,
     backgroundColor: KB_CONFIG_LAYOUT.window.backgroundColor,
     autoHideMenuBar: true,
-    title: "鲸落AI",
+    title: windowMode === "workbench" ? "鲸落AI · 工作台" : "鲸落AI",
     show: false,
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
@@ -55,7 +56,9 @@ function createWindow(options = {}) {
     mainWindow.webContents.openDevTools({ mode: "detach" });
   }
 
-  mainWindow.loadFile(path.join(__dirname, "..", "index.html"));
+  mainWindow.loadFile(path.join(__dirname, "..", "index.html"), {
+    query: { window: windowMode },
+  });
   return mainWindow;
 }
 

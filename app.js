@@ -44,7 +44,51 @@ const JL_SPACE_LABELS = {
   data: "数据空间",
   record: "记录空间",
   capability: "能力中心",
+  workbench: "工作台",
 };
+
+const WINDOW_MODE = (() => {
+  const q = new URLSearchParams(window.location.search);
+  return q.get("window") === "workbench" ? "workbench" : "ai";
+})();
+
+const WORKBENCH_TASK_ROUTES = new Set(["new", "filter", "list"]);
+const WORKBENCH_CAP_MODULES = new Set(["local-models", "capability"]);
+
+const WORKBENCH_MODULE_BY_ROUTE = {
+  list: "tasks",
+  new: "tasks",
+  filter: "tasks",
+  dashboard: "dashboard",
+  record: "record",
+  "knowledge-base": "knowledge-base",
+};
+
+function isAiWindow() {
+  return WINDOW_MODE === "ai";
+}
+
+function isWorkbenchWindow() {
+  return WINDOW_MODE === "workbench";
+}
+
+async function openWorkbenchModule(routeOrModule, options = {}) {
+  const api = window.electronAPI;
+  const target = String(routeOrModule || "list").trim() || "list";
+  if (isWorkbenchWindow()) {
+    activateWorkbenchTarget(target, options);
+    return;
+  }
+  if (typeof api?.openWorkbenchWindow === "function") {
+    await api.openWorkbenchWindow({ route: target, ...options });
+    return;
+  }
+  if (ROUTES[target]) {
+    openOrFocusTab(target);
+  }
+}
+
+window.openWorkbenchModule = openWorkbenchModule;
 
 const taskForm = document.getElementById("taskForm");
 const filterForm = document.getElementById("filterForm");
@@ -1598,30 +1642,42 @@ function setHashRoute(route) {
 function parseHashRoute() {
   const h = (window.location.hash || "").replace(/^#\/?/, "").split("/")[0];
   if (h === "local-models") {
-    queueMicrotask(() => {
-      if (typeof window.openCapabilityLocalModels === "function") {
-        window.openCapabilityLocalModels();
-      }
-    });
-    return "list";
+    if (isWorkbenchWindow()) {
+      return "local-models";
+    }
+    queueMicrotask(() => void openWorkbenchModule("local-models"));
+    return isAiWindow() ? "ai" : "list";
   }
-  if (h === "skills") {
-    queueMicrotask(() => {
-      if (typeof window.openCapabilitySkills === "function") {
-        window.openCapabilitySkills();
-      } else {
-        document.getElementById("topbarCapabilityBtn")?.click();
-      }
-    });
-    return "list";
+  if (h === "skills" || h === "capability") {
+    if (isWorkbenchWindow()) {
+      return "capability";
+    }
+    queueMicrotask(() => void openWorkbenchModule("capability"));
+    return isAiWindow() ? "ai" : "list";
   }
   if (h && ROUTES[h]) {
+    if (isAiWindow() && h !== "ai") {
+      queueMicrotask(() => void openWorkbenchModule(h));
+      return "ai";
+    }
+    if (isWorkbenchWindow() && h === "ai") {
+      return "list";
+    }
     return h;
   }
-  return "ai";
+  return isWorkbenchWindow() ? "list" : "ai";
 }
 
 function syncJlPromptDock(route) {
+  if (!isAiWindow()) {
+    const dock = document.getElementById("jlPromptDock");
+    if (dock) {
+      dock.hidden = true;
+      dock.setAttribute("aria-hidden", "true");
+    }
+    document.body.classList.remove("jl-route-ai");
+    return;
+  }
   const show = route === "ai";
   document.body.classList.toggle("jl-route-ai", show);
   const dock = document.getElementById("jlPromptDock");
@@ -1638,15 +1694,128 @@ function syncJlPromptDock(route) {
 window.syncJlPromptDock = syncJlPromptDock;
 
 function updateJlSideRailActive(route) {
-  const space = ROUTE_TO_JL_SPACE[route] || "tasks";
+  if (isWorkbenchWindow()) {
+    return;
+  }
+  const space = isAiWindow() ? "ai" : ROUTE_TO_JL_SPACE[route] || "tasks";
   document.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.jlSpace === space);
   });
   const pill = document.getElementById("jlWorkspacePill");
   if (pill) {
-    pill.textContent = JL_SPACE_LABELS[space] || "工作台";
+    pill.textContent = isAiWindow() ? "AI 工作台" : JL_SPACE_LABELS[space] || "工作台";
   }
 }
+
+function closeWorkbenchCapInline() {
+  const dlg = document.getElementById("aiCapabilityDialog");
+  if (!dlg) {
+    return;
+  }
+  dlg.classList.remove("jl-cap-workbench-inline");
+  if (dlg.open) {
+    dlg.close();
+  }
+  document.body.classList.remove("jl-workbench-cap-open");
+}
+
+function openWorkbenchCapInline(panelKey) {
+  const dlg = document.getElementById("aiCapabilityDialog");
+  if (!dlg) {
+    return;
+  }
+  hideAllPanels();
+  dlg.classList.add("jl-cap-workbench-inline");
+  document.body.classList.add("jl-workbench-cap-open");
+  const apply = () => {
+    if (typeof window.__capSetActivePanel === "function") {
+      window.__capSetActivePanel(panelKey);
+    }
+    if (!dlg.open && typeof dlg.showModal === "function") {
+      dlg.showModal();
+    }
+  };
+  if (typeof window.__capLoadForm === "function") {
+    void window.__capLoadForm().then(apply);
+  } else {
+    apply();
+  }
+}
+
+function syncWorkbenchNavActive(routeOrModule) {
+  const nav = document.getElementById("jlWorkbenchNav");
+  if (!nav) {
+    return;
+  }
+  const key = WORKBENCH_MODULE_BY_ROUTE[routeOrModule] || routeOrModule;
+  nav.querySelectorAll(".jl-workbench-nav__item").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.wbModule === key);
+  });
+  nav.querySelectorAll(".jl-workbench-nav__subitem").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.wbRoute === routeOrModule);
+  });
+  const sub = nav.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
+  if (sub) {
+    sub.hidden = key !== "tasks";
+  }
+}
+
+function activateWorkbenchTarget(target, options = {}) {
+  const key = String(target || "list").trim() || "list";
+  if (key === "local-models" || key === "capability") {
+    syncWorkbenchNavActive(key);
+    openWorkbenchCapInline(key === "capability" ? "routing" : "local-models");
+    if (key === "local-models" && typeof window.onLocalModelsPanelVisible === "function") {
+      void window.onLocalModelsPanelVisible();
+    }
+    if (key === "capability" && typeof window.renderSkillCenter === "function") {
+      window.renderSkillCenter();
+    }
+    updateBreadcrumb(key === "local-models" ? "local-models" : "capability");
+    return;
+  }
+  if (!ROUTES[key] || key === "ai") {
+    return;
+  }
+  closeWorkbenchCapInline();
+  syncWorkbenchNavActive(key);
+  openTabs = [key];
+  activateRoute(key, { syncHash: true, skipWorkbenchGuard: true });
+  if (options.capPanel && typeof window.__capSetActivePanel === "function") {
+    openWorkbenchCapInline(options.capPanel);
+  }
+}
+
+function initWorkbenchNav() {
+  const nav = document.getElementById("jlWorkbenchNav");
+  if (!nav) {
+    return;
+  }
+  nav.hidden = false;
+  nav.querySelectorAll("[data-wb-route], [data-wb-cap]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const route = btn.dataset.wbRoute;
+      const cap = btn.dataset.wbCap;
+      if (cap) {
+        activateWorkbenchTarget(cap === "routing" ? "capability" : "local-models");
+        return;
+      }
+      if (route) {
+        activateWorkbenchTarget(route);
+      }
+    });
+  });
+  window.electronAPI?.onWorkbenchNavigate?.((payload) => {
+    if (payload?.route) {
+      activateWorkbenchTarget(payload.route, payload);
+    }
+  });
+  const qRoute = new URLSearchParams(window.location.search).get("route");
+  activateWorkbenchTarget(qRoute || "list");
+}
+
+window.openWorkbenchCapInline = openWorkbenchCapInline;
+window.closeWorkbenchCapInline = closeWorkbenchCapInline;
 
 function openJlRightDrawer(title, content) {
   const drawer = document.getElementById("jlRightDrawer");
@@ -1700,11 +1869,26 @@ function initJlAppShell() {
   rail.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const space = btn.dataset.jlSpace;
+      if (space === "workbench") {
+        void openWorkbenchModule("list");
+        return;
+      }
       if (space === "capability") {
+        if (isAiWindow()) {
+          void openWorkbenchModule("capability");
+          return;
+        }
         document.getElementById("topbarCapabilityBtn")?.click();
         rail.querySelectorAll(".jl-side-rail__btn[data-jl-space]").forEach((b) => {
           b.classList.toggle("is-active", b.dataset.jlSpace === "capability");
         });
+        return;
+      }
+      if (isAiWindow() && space !== "ai") {
+        const route = JL_SPACE_TO_ROUTE[space];
+        if (route) {
+          void openWorkbenchModule(route);
+        }
         return;
       }
       const route = JL_SPACE_TO_ROUTE[space];
@@ -1730,6 +1914,17 @@ window.closeJlRightDrawer = closeJlRightDrawer;
 
 function updateBreadcrumb(route) {
   const meta = ROUTES[route];
+  if (route === "local-models") {
+    breadcrumbEl.innerHTML = `<strong>工作台 / 本地模型部署</strong>`;
+    return;
+  }
+  if (route === "capability") {
+    breadcrumbEl.innerHTML = `<strong>工作台 / 能力中心</strong>`;
+    return;
+  }
+  if (!meta) {
+    return;
+  }
   breadcrumbEl.innerHTML = `<strong>${meta.breadcrumb}</strong>`;
 }
 
@@ -1771,22 +1966,37 @@ function hideAllPanels() {
   });
 }
 
-function activateRoute(route, { syncHash = true } = {}) {
-  if (!ROUTES[route]) {
+function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = {}) {
+  if (isAiWindow() && route !== "ai" && !skipWorkbenchGuard) {
+    void openWorkbenchModule(route);
+    return;
+  }
+  if (isWorkbenchWindow() && route === "ai") {
     route = "list";
+  }
+  if (!ROUTES[route]) {
+    route = isWorkbenchWindow() ? "list" : "ai";
   }
   activeRoute = route;
   hideAllPanels();
   const panel = document.getElementById(ROUTES[route].panelId);
   if (panel) {
     panel.hidden = false;
-    playJlEnterAnimation(panel, "jl-panel-enter", 260);
+    if (isWorkbenchWindow()) {
+      playJlEnterAnimation(panel, "jl-panel-enter", 260);
+    } else if (isAiWindow()) {
+      playJlEnterAnimation(panel, "jl-panel-enter", 260);
+    }
   }
   updateBreadcrumb(route);
   updateSidebarActive(route);
   updateJlSideRailActive(route);
   syncJlPromptDock(route);
   syncDailyWorkExpandedByRoute(route);
+  if (isWorkbenchWindow()) {
+    syncWorkbenchNavActive(route);
+    closeWorkbenchCapInline();
+  }
   renderTabsStrip();
   if (syncHash) {
     setHashRoute(route);
@@ -1806,6 +2016,13 @@ function activateRoute(route, { syncHash = true } = {}) {
 }
 
 function renderTabsStrip() {
+  if (isAiWindow() || isWorkbenchWindow()) {
+    if (tabsStrip) {
+      tabsStrip.hidden = true;
+      tabsStrip.innerHTML = "";
+    }
+    return;
+  }
   openTabs = openTabs.filter((route) => ROUTES[route]);
   tabsStrip.innerHTML = "";
   openTabs.forEach((route) => {
@@ -3329,9 +3546,18 @@ if (taskContentCloseBtn && taskContentDialog) {
 }
 
 function initShell() {
-  const fromHash = parseHashRoute();
-  openTabs = [fromHash];
-  activateRoute(fromHash, { syncHash: true });
+  document.body.classList.toggle("jl-window-ai", isAiWindow());
+  document.body.classList.toggle("jl-window-workbench", isWorkbenchWindow());
+  const sideRail = document.getElementById("jlSideRail");
+  if (sideRail) {
+    sideRail.hidden = isWorkbenchWindow();
+  }
+  if (isWorkbenchWindow()) {
+    initWorkbenchNav();
+    return;
+  }
+  openTabs = ["ai"];
+  activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
 }
 
 function initSidebarCollapse() {

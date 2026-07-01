@@ -4341,7 +4341,9 @@ function initAI() {
     btn.addEventListener("click", () => {
       const key = btn.dataset.prompt;
       if (key === "record") {
-        if (typeof window.openOrFocusTab === "function") {
+        if (typeof window.openWorkbenchModule === "function") {
+          void window.openWorkbenchModule("record");
+        } else if (typeof window.openOrFocusTab === "function") {
           window.openOrFocusTab("record");
         }
         queueMicrotask(() => {

@@ -325,5 +325,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   searchRuleConfigSet: (payload) => ipcRenderer.invoke("search-rule-config-set", payload),
 
+  openWorkbenchWindow: (payload) => ipcRenderer.invoke("workbench-window-open", payload),
+
+  getWindowMode: () => {
+    const mode = new URLSearchParams(window.location.search).get("window");
+    return mode === "workbench" ? "workbench" : "ai";
+  },
+
+  onWorkbenchNavigate: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("workbench-navigate", handler);
+    return () => ipcRenderer.removeListener("workbench-navigate", handler);
+  },
+
 });
 

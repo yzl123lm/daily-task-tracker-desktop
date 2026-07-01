@@ -4524,3 +4524,248 @@ body.jl-route-ai .jl-workspace-body {
   }
 }
 
+/* =============================================================================
+   jl-* 双窗口：AI 首页（Codex 风） + 工作台独立窗口
+   ============================================================================= */
+
+body.jl-window-ai .jl-side-rail__btn--legacy {
+  display: none !important;
+}
+
+body.jl-window-ai .tabs-strip {
+  display: none !important;
+}
+
+body.jl-window-ai .jl-top-status__left .breadcrumb {
+  opacity: 0.85;
+}
+
+body.jl-window-ai #panel-ai {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  padding: 0 0 4px;
+}
+
+body.jl-window-ai #panel-ai .ai-panel-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  max-width: 920px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+body.jl-window-ai #panel-ai .ai-panel-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-search-bar {
+  margin-bottom: 8px;
+  border-radius: var(--jl-radius-md);
+}
+
+body.jl-window-ai #panel-ai .ai-chat-body {
+  flex: 1;
+  min-height: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log {
+  max-width: 100%;
+  margin: 0 auto;
+  padding-bottom: 12px;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-card {
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+body.jl-window-ai .jl-prompt-dock {
+  max-width: 920px;
+  width: calc(100% - 32px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body.jl-window-ai .jl-workbench-nav,
+body.jl-window-ai #jlWorkbenchNav {
+  display: none !important;
+}
+
+/* --- 工作台窗口 --- */
+body.jl-window-workbench .jl-side-rail {
+  display: none !important;
+}
+
+body.jl-window-workbench .jl-prompt-dock {
+  display: none !important;
+}
+
+body.jl-window-workbench .jl-workspace-body {
+  display: flex;
+  min-height: 0;
+}
+
+body.jl-window-workbench .jl-workbench-nav {
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  flex-shrink: 0;
+  padding: 16px 12px;
+  border-right: 1px solid var(--jl-glass-border);
+  background: rgba(6, 8, 15, 0.72);
+  overflow: auto;
+}
+
+body.jl-window-workbench .jl-workbench-nav__head {
+  padding: 4px 8px 14px;
+}
+
+body.jl-window-workbench .jl-workbench-nav__title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--jl-text-primary);
+}
+
+body.jl-window-workbench .jl-workbench-nav__hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--jl-text-muted);
+}
+
+body.jl-window-workbench .jl-workbench-nav__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+body.jl-window-workbench .jl-workbench-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--jl-radius-md);
+  background: transparent;
+  color: var(--jl-text-secondary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--jl-duration-fast),
+    border-color var(--jl-duration-fast),
+    color var(--jl-duration-fast);
+}
+
+body.jl-window-workbench .jl-workbench-nav__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--jl-text-primary);
+}
+
+body.jl-window-workbench .jl-workbench-nav__item.is-active {
+  background: rgba(91, 80, 255, 0.16);
+  border-color: rgba(91, 80, 255, 0.28);
+  color: var(--jl-text-primary);
+}
+
+body.jl-window-workbench .jl-workbench-nav__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 8px 36px;
+}
+
+body.jl-window-workbench .jl-workbench-nav__subitem {
+  padding: 7px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--jl-text-muted);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+body.jl-window-workbench .jl-workbench-nav__subitem.is-active,
+body.jl-window-workbench .jl-workbench-nav__subitem:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--jl-text-primary);
+}
+
+body.jl-window-workbench .jl-workbench-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.jl-window-workbench .jl-workbench-stage .jl-workspace-canvas {
+  flex: 1;
+}
+
+body.jl-window-workbench #jlWorkspacePill {
+  display: none;
+}
+
+/* 能力中心 / 本地模型：工作台内嵌 */
+body.jl-window-workbench #aiCapabilityDialog.jl-cap-workbench-inline {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+body.jl-window-workbench #aiCapabilityDialog.jl-cap-workbench-inline::backdrop {
+  background: transparent;
+}
+
+body.jl-window-workbench #aiCapabilityDialog.jl-cap-workbench-inline .ai-profiles-dialog-inner {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+body.jl-window-workbench #aiCapabilityDialog.jl-cap-workbench-inline .ai-profiles-dialog-title {
+  display: none;
+}
+
+body.jl-window-workbench.jl-workbench-cap-open .jl-workbench-stage .tab-panels {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+body.jl-window-workbench.jl-workbench-cap-open .jl-workbench-stage {
+  position: relative;
+}
+
+body.jl-window-workbench.jl-workbench-cap-open #aiCapabilityDialog.jl-cap-workbench-inline {
+  z-index: 5;
+}
+
