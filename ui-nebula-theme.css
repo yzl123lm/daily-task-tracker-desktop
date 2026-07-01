@@ -4664,7 +4664,7 @@ body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatEmpty:not([hidden])) {
 body.jl-window-ai #panel-ai .ai-chat-empty {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 640px;
+  max-width: 760px;
   justify-content: flex-start;
   align-items: center;
   padding: 8px 20px 24px;
@@ -4673,7 +4673,7 @@ body.jl-window-ai #panel-ai .ai-chat-empty {
 
 body.jl-window-ai #panel-ai .ai-chat-empty-card {
   width: 100%;
-  max-width: 640px;
+  max-width: 760px;
   margin: 0 auto;
   padding: 0;
   background: transparent !important;
@@ -4777,17 +4777,17 @@ body.jl-window-ai #panel-ai .ai-chat-empty-action__label {
 
 body.jl-window-ai.jl-route-ai .jl-prompt-dock {
   flex: 0 0 auto;
-  width: min(640px, calc(100% - 24px));
-  max-width: 640px;
+  width: min(760px, calc(100% - 24px));
+  max-width: 760px;
   margin: 0 auto 14px;
-  padding: 10px 12px 10px;
+  padding: 14px 16px 12px;
   gap: 0;
   position: relative;
   z-index: 1;
-  background: rgba(248, 250, 252, 0.96) !important;
-  border: 1px solid rgba(226, 232, 240, 0.85) !important;
-  border-radius: 14px;
-  box-shadow: 0 2px 14px rgba(148, 163, 184, 0.14);
+  background: #fff !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(148, 163, 184, 0.12);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -4805,64 +4805,70 @@ body.jl-window-ai .jl-prompt-dock .ai-composer {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-panel {
-  padding: 0 2px 2px;
+  padding: 0 2px 4px;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-textarea {
-  min-height: 38px !important;
-  max-height: 112px !important;
-  padding: 4px 6px !important;
-  font-size: 13px !important;
-  line-height: 1.5 !important;
+  min-height: 44px !important;
+  max-height: 120px !important;
+  padding: 6px 8px !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
   color: #334155 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder {
   color: #94a3b8 !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
 }
 
+/* 样例图：单行工具栏 — + / 模型 / 功能组 / 语音 / 发送 */
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
+  display: flex !important;
+  flex-direction: row;
+  flex-wrap: nowrap !important;
   align-items: center;
-  padding-top: 8px !important;
+  justify-content: flex-start;
+  padding-top: 10px !important;
   margin-top: 0 !important;
   gap: 8px !important;
   border-top: none;
-  flex-wrap: nowrap !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left {
-  grid-column: 1;
-  grid-row: 1;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 4px !important;
+  gap: 6px !important;
   min-width: 0;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left .ai-profile-dropdown-wrap {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 200px;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
-  grid-column: 1 / -1;
-  grid-row: 2;
-  width: 100%;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
-  gap: 4px;
-  overflow: visible;
-  padding: 3px 4px !important;
-  border-radius: 9px;
+  justify-content: center;
+  flex-wrap: nowrap !important;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 3px !important;
+  border-radius: 10px;
   background: #f4f4f5 !important;
-  border: 1px solid #e4e4e7 !important;
+  border: 1px solid #ebebeb !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill::-webkit-scrollbar {
+  display: none;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-wrap,
@@ -4872,9 +4878,11 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-bt
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-actions {
-  grid-column: 2;
-  grid-row: 1;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
@@ -4882,12 +4890,13 @@ body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
   align-items: center;
   max-width: 100%;
   width: auto;
+  white-space: nowrap;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: none;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4912,10 +4921,12 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-bt
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger,
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
-  min-height: 26px !important;
-  padding: 3px 7px !important;
+  min-height: 28px !important;
+  padding: 4px 9px !important;
   font-size: 12px !important;
   white-space: nowrap;
+  border: none !important;
+  border-radius: 7px !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-web-toggle-text,
@@ -4924,23 +4935,23 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-tri
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-prompt-attach-btn {
-  width: 28px !important;
-  height: 28px !important;
-  margin-right: 2px;
-  border: 1px solid #e4e4e7 !important;
+  width: 30px !important;
+  height: 30px !important;
+  margin-right: 0;
+  border: 1px solid #e5e7eb !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #71717a !important;
+  color: #64748b !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
-  padding: 4px 8px !important;
+  padding: 5px 10px !important;
   font-size: 12px !important;
-  min-height: 28px;
-  border: 1px solid #e4e4e7 !important;
+  min-height: 30px;
+  border: 1px solid #e5e7eb !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #52525b !important;
+  color: #475569 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text {
@@ -4953,11 +4964,11 @@ body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-icon {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-send-btn {
-  width: 32px !important;
-  height: 32px !important;
+  width: 34px !important;
+  height: 34px !important;
   border-radius: 999px !important;
   background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
-  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.28);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.32);
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-send-btn:hover:not(:disabled) {
@@ -4965,12 +4976,12 @@ body.jl-window-ai .jl-prompt-dock .ai-send-btn:hover:not(:disabled) {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-voice-composer-btn {
-  width: 28px !important;
-  height: 28px !important;
-  border: 1px solid #e4e4e7 !important;
+  width: 30px !important;
+  height: 30px !important;
+  border: 1px solid #e5e7eb !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #71717a !important;
+  color: #64748b !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-textarea,
@@ -5136,8 +5147,8 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
 
 body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
   flex: 1 1 auto;
-  width: min(640px, 100%);
-  max-width: 640px;
+  width: min(760px, 100%);
+  max-width: 760px;
   min-width: 0;
   min-height: 0;
   display: flex;
