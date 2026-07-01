@@ -893,16 +893,10 @@ function initCapabilityModule() {
   });
 
   btn.addEventListener("click", async () => {
-    if (window.electronAPI?.getWindowMode?.() === "ai" && typeof window.openWorkbenchModule === "function") {
-      await window.openWorkbenchModule("capability");
-      return;
-    }
     await loadForm();
     setActivePanel("routing");
     if (document.body.classList.contains("jl-window-workbench")) {
       if (typeof window.openWorkbenchCapInline === "function") {
-        await loadForm();
-        setActivePanel("routing");
         window.openWorkbenchCapInline("routing");
       }
       return;

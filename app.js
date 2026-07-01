@@ -3614,6 +3614,7 @@ function initWindowChrome() {
     const anchor = capBtn?.parentElement === trailing ? capBtn : controls;
     trailing.insertBefore(envBtn, anchor);
     envBtn.dataset.jlTrailingMounted = "1";
+    envBtn.hidden = false;
   }
   if (topbarAiBtn) {
     topbarAiBtn.hidden = true;
@@ -3622,24 +3623,37 @@ function initWindowChrome() {
   if (!api?.windowChromeMinimize) {
     return;
   }
-  const syncMaxIcon = async () => {
-    if (!maxBtn || !api.windowChromeIsMaximized) {
-      return;
-    }
-    const out = await api.windowChromeIsMaximized();
-    const maximized = !!out?.maximized;
-    maxBtn.innerHTML = maximized
-      ? '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="0.6" width="7.2" height="7.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M0.6 2.8v6.6h6.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
-      : '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.6" y="0.6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
-    maxBtn.setAttribute("aria-label", maximized ? "还原" : "最大化");
-    maxBtn.title = maximized ? "还原" : "最大化";
-  };
-  minBtn?.addEventListener("click", () => void api.windowChromeMinimize());
-  maxBtn?.addEventListener("click", () => {
-    void api.windowChromeMaximize().then(() => syncMaxIcon());
-  });
-  closeBtn?.addEventListener("click", () => void api.windowChromeClose());
-  void syncMaxIcon();
+  if (controls?.dataset.jlChromeBound !== "1") {
+    controls.dataset.jlChromeBound = "1";
+    const syncMaxIcon = async () => {
+      if (!maxBtn || !api.windowChromeIsMaximized) {
+        return;
+      }
+      const out = await api.windowChromeIsMaximized();
+      const maximized = !!out?.maximized;
+      maxBtn.innerHTML = maximized
+        ? '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="0.6" width="7.2" height="7.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M0.6 2.8v6.6h6.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
+        : '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.6" y="0.6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+      maxBtn.setAttribute("aria-label", maximized ? "还原" : "最大化");
+      maxBtn.title = maximized ? "还原" : "最大化";
+    };
+    minBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void api.windowChromeMinimize();
+    });
+    maxBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void api.windowChromeMaximize().then(() => syncMaxIcon());
+    });
+    closeBtn?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      void api.windowChromeClose();
+    });
+    void syncMaxIcon();
+  }
 }
 
 function initSidebarCollapse() {
