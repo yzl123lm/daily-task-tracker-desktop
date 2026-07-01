@@ -5010,14 +5010,14 @@ body.jl-window-ai #panel-ai .ai-chat-log {
   background: transparent;
   border: none;
   border-radius: 0;
-  gap: 0;
+  gap: 14px;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card {
-  width: 100%;
+  width: auto;
   max-width: 100%;
   margin: 0 !important;
-  padding: 10px 4px !important;
+  padding: 0 4px !important;
   background: transparent !important;
   border: none !important;
   border-radius: 0 !important;
@@ -5026,35 +5026,77 @@ body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card {
   -webkit-backdrop-filter: none !important;
 }
 
-body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-user,
+/* 助手：左侧对齐 */
 body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant {
-  align-self: stretch;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
   margin-left: 0 !important;
-  margin-right: 0 !important;
+  margin-right: auto !important;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant .ai-msg-label {
+  text-align: left;
+  color: #64748b !important;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant .ai-msg-body {
+  text-align: left;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant .ai-msg-actions {
+  justify-content: flex-start;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-loading-card.jl-skeleton-blur {
+  align-self: flex-start;
+  width: 100%;
   max-width: 100%;
 }
 
-body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card__header,
-body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-label {
-  margin-bottom: 4px;
-  padding: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: none;
-  color: var(--jl-ai-text-muted) !important;
+/* 我：右侧对齐 */
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-user {
+  align-self: flex-end;
+  width: auto;
+  max-width: min(82%, 520px);
+  margin-left: auto !important;
+  margin-right: 0 !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-user .ai-msg-label {
   text-align: right;
+  color: #64748b !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-user .ai-msg-body {
   text-align: right;
+  margin-left: auto;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  color: #1e293b;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card__header,
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-label {
+  margin-bottom: 5px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--jl-ai-text-muted) !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card__body,
 body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-body {
+  padding: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant .ai-msg-body {
   padding: 0;
 }
 
