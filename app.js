@@ -56,9 +56,9 @@ const WORKBENCH_TASK_ROUTES = new Set(["new", "filter", "list"]);
 const WORKBENCH_CAP_MODULES = new Set(["local-models", "capability"]);
 
 const WORKBENCH_MODULE_BY_ROUTE = {
-  list: "tasks",
-  new: "tasks",
-  filter: "tasks",
+  list: "workbench",
+  new: "new",
+  filter: "filter",
   dashboard: "dashboard",
   record: "record",
   "knowledge-base": "knowledge-base",
@@ -1747,17 +1747,13 @@ function syncWorkbenchNavActive(routeOrModule) {
   if (!nav) {
     return;
   }
-  const key = WORKBENCH_MODULE_BY_ROUTE[routeOrModule] || routeOrModule;
-  nav.querySelectorAll(".jl-workbench-nav__item").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.wbModule === key);
+  const route = ROUTES[routeOrModule] ? routeOrModule : "list";
+  nav.querySelectorAll(".jl-workbench-nav__item[data-wb-route]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.wbRoute === route);
   });
-  nav.querySelectorAll(".jl-workbench-nav__subitem").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.wbRoute === routeOrModule);
+  nav.querySelectorAll(".jl-workbench-nav__subitem[data-wb-route]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.wbRoute === route);
   });
-  const sub = nav.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
-  if (sub) {
-    sub.hidden = isAiWindow() ? false : key !== "tasks";
-  }
 }
 
 function activateWorkbenchTarget(target, options = {}) {
