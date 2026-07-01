@@ -3566,13 +3566,23 @@ function initWindowChrome() {
   if (!isAiWindow()) {
     return;
   }
+  const trailing = document.getElementById("jlTitlebarTrailing");
   const controls = document.getElementById("jlWindowControls");
   const minBtn = document.getElementById("winMinBtn");
   const maxBtn = document.getElementById("winMaxBtn");
   const closeBtn = document.getElementById("winCloseBtn");
   const topbarAiBtn = document.getElementById("topbarAiBtn");
+  const capBtn = document.getElementById("topbarCapabilityBtn");
+  if (trailing) {
+    trailing.hidden = false;
+  }
   if (controls) {
     controls.hidden = false;
+  }
+  if (capBtn && trailing && capBtn.dataset.jlTrailingMounted !== "1") {
+    capBtn.classList.add("jl-titlebar-settings", "topbar-cap-btn");
+    trailing.insertBefore(capBtn, controls);
+    capBtn.dataset.jlTrailingMounted = "1";
   }
   if (topbarAiBtn) {
     topbarAiBtn.hidden = true;
@@ -3586,8 +3596,12 @@ function initWindowChrome() {
       return;
     }
     const out = await api.windowChromeIsMaximized();
-    maxBtn.textContent = out?.maximized ? "❐" : "□";
-    maxBtn.setAttribute("aria-label", out?.maximized ? "还原" : "最大化");
+    const maximized = !!out?.maximized;
+    maxBtn.innerHTML = maximized
+      ? '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="2.2" y="0.6" width="7.2" height="7.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M0.6 2.8v6.6h6.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>'
+      : '<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="0.6" y="0.6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
+    maxBtn.setAttribute("aria-label", maximized ? "还原" : "最大化");
+    maxBtn.title = maximized ? "还原" : "最大化";
   };
   minBtn?.addEventListener("click", () => void api.windowChromeMinimize());
   maxBtn?.addEventListener("click", () => {

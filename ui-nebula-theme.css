@@ -4553,10 +4553,10 @@ body.jl-window-ai #panel-ai .ai-panel-main {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  max-width: 920px;
+  max-width: none;
   width: 100%;
-  margin: 0 auto;
-  padding: 0 20px;
+  margin: 0;
+  padding: 0 28px 8px;
 }
 
 body.jl-window-ai #panel-ai .ai-panel-shell {
@@ -4570,32 +4570,76 @@ body.jl-window-ai #panel-ai .ai-panel-shell {
   padding: 0;
 }
 
+body.jl-window-ai #panel-ai .ai-doc-main-col {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 body.jl-window-ai #panel-ai .ai-chat-search-bar {
-  margin-bottom: 8px;
-  border-radius: var(--jl-radius-md);
+  display: none !important;
+}
+
+body.jl-window-ai #panel-ai .ai-input-stack {
+  display: none !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatLog:not(:empty)) {
+  justify-content: flex-start;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty {
+  flex: 0 0 auto;
+  width: 100%;
+  justify-content: center;
+  padding: 24px 16px;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log {
-  max-width: 100%;
+  max-width: min(920px, 100%);
+  width: 100%;
   margin: 0 auto;
   padding-bottom: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty-card {
-  max-width: 520px;
+  max-width: 560px;
+  width: min(560px, 100%);
   margin: 0 auto;
 }
 
-body.jl-window-ai .jl-prompt-dock {
-  max-width: 920px;
+body.jl-window-ai.jl-route-ai .jl-main-workspace {
+  min-height: 0;
+}
+
+body.jl-window-ai.jl-route-ai .jl-workspace-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-window-ai.jl-route-ai .jl-prompt-dock {
+  order: 99;
+  flex: 0 0 auto;
+  margin-top: auto;
+  max-width: min(920px, calc(100% - 32px));
   width: calc(100% - 32px);
   margin-left: auto;
   margin-right: auto;
+  margin-bottom: 14px;
+  z-index: 25;
 }
 
 body.jl-window-ai .jl-workbench-nav,
@@ -4790,6 +4834,7 @@ body.jl-window-ai .jl-app-shell {
   --jl-ai-text: #111827;
   --jl-ai-text-muted: #374151;
   --jl-ai-radius-window: 16px;
+  --jl-window-controls-width: 176px;
   margin: 8px;
   width: calc(100% - 16px);
   height: calc(100% - 16px);
@@ -4797,6 +4842,7 @@ body.jl-window-ai .jl-app-shell {
   max-height: calc(100% - 16px);
   border-radius: var(--jl-ai-radius-window);
   overflow: hidden;
+  position: relative;
   border: 1px solid var(--jl-ai-glass-border);
   box-shadow:
     0 24px 64px rgba(37, 99, 235, 0.18),
@@ -4835,6 +4881,11 @@ body.jl-window-ai .jl-top-status {
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.45) !important;
   color: var(--jl-ai-text);
+  padding-right: calc(var(--jl-window-controls-width) + 8px) !important;
+}
+
+body.jl-window-ai .jl-top-status__right {
+  margin-right: 0;
 }
 
 body.jl-window-ai .jl-top-status__left .breadcrumb,
@@ -4870,33 +4921,94 @@ body.jl-window-ai .topbar-env-btn {
   color: var(--jl-ai-text) !important;
 }
 
-body.jl-window-ai .jl-window-controls {
+body.jl-window-ai .jl-titlebar-trailing {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 60;
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 0 var(--jl-ai-radius-window) 0 0;
+  overflow: hidden;
+  border-left: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+body.jl-window-ai #topbarAiBtn {
+  display: none !important;
+}
+
+body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-left: 8px;
+  justify-content: center;
+  width: 44px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0;
+  font-size: 0;
+  line-height: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+body.jl-window-ai .jl-window-controls {
+  position: static;
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 body.jl-window-ai .jl-window-controls__btn {
-  width: 34px;
-  height: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.35);
+  width: 44px;
+  height: 36px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--jl-ai-text);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+body.jl-window-ai .jl-window-controls__btn + .jl-window-controls__btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.28);
 }
 
 body.jl-window-ai .jl-window-controls__btn:hover {
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 body.jl-window-ai .jl-window-controls__btn--close:hover {
-  background: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.92);
   color: #fff;
-  border-color: rgba(239, 68, 68, 0.9);
 }
 
 /* 覆盖旧版 AI 白底样式 */
