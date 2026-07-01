@@ -4612,13 +4612,17 @@ body.jl-window-ai #panel-ai .ai-chat-body {
 
 body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatEmpty:not([hidden])) {
   justify-content: center;
+  align-items: center;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty {
   flex: 0 0 auto;
   width: 100%;
+  max-width: 560px;
   justify-content: center;
+  align-items: center;
   padding: 16px;
+  margin: 0 auto;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log {
@@ -4709,7 +4713,7 @@ body.jl-window-ai.jl-route-ai .jl-main-workspace {
   flex-direction: column;
 }
 
-body.jl-window-ai.jl-route-ai .jl-workspace-body {
+body.jl-window-ai .jl-workspace-body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -4727,9 +4731,20 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  margin: 0 auto;
 }
 
-body.jl-window-ai.jl-route-ai .jl-workspace-canvas,
+body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 body.jl-window-ai.jl-route-ai .main-column,
 body.jl-window-ai.jl-route-ai .tab-panels,
 body.jl-window-ai.jl-route-ai #panel-ai {
@@ -4742,12 +4757,16 @@ body.jl-window-ai.jl-route-ai #panel-ai {
 }
 
 body.jl-window-ai.jl-route-ai .jl-prompt-dock {
-  order: 99;
   flex: 0 0 auto;
-  width: min(920px, calc(100% - 32px));
-  max-width: min(920px, calc(100% - 32px));
-  margin: 0 auto 14px;
-  z-index: 25;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 14px;
+  position: relative;
+  z-index: 1;
+}
+
+body.jl-window-ai #panel-ai .ai-doc-workspace {
+  flex-direction: column;
 }
 
 body.jl-window-ai .jl-workbench-nav,
@@ -5167,6 +5186,10 @@ body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-inp
 body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-status {
   background: transparent !important;
   color: var(--jl-ai-text) !important;
+}
+
+body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) {
+  background: transparent !important;
 }
 
 body.jl-window-ai.theme-nebula #panel-ai {
