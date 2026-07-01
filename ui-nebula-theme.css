@@ -3743,6 +3743,48 @@ body.theme-nebula {
   display: none !important;
 }
 
+/* --- 左：工作台分割区（图标栏 + 模块导航） --- */
+.jl-workbench-split {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.jl-window-ai .jl-workbench-split {
+  flex: 0 0 var(--jl-workbench-split-width, 22%);
+  width: var(--jl-workbench-split-width, 22%);
+  min-width: 220px;
+  max-width: 360px;
+  border-right: 1px solid rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+body.jl-window-ai .jl-workbench-split .jl-side-rail {
+  width: 64px;
+  flex-shrink: 0;
+  height: 100%;
+  border-right: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(6, 8, 15, 0.55);
+}
+
+body.jl-window-ai .jl-main-workspace {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+body.jl-window-workbench .jl-workbench-split {
+  flex-shrink: 0;
+}
+
+body.jl-window-workbench .jl-workbench-split .jl-side-rail {
+  display: none !important;
+}
+
 /* --- 64px 极简图标导航 --- */
 .jl-side-rail {
   width: 64px;
@@ -4720,19 +4762,21 @@ body.jl-window-ai .jl-workspace-body {
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
 }
 
 body.jl-window-ai.jl-route-ai .jl-workbench-stage {
   flex: 1 1 auto;
-  width: min(920px, calc(100% - 32px));
-  max-width: min(920px, calc(100% - 32px));
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  margin: 0 auto;
+  margin: 0;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
@@ -4771,7 +4815,44 @@ body.jl-window-ai #panel-ai .ai-doc-workspace {
 
 body.jl-window-ai .jl-workbench-nav,
 body.jl-window-ai #jlWorkbenchNav {
-  display: none !important;
+  display: flex !important;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: auto;
+  min-width: 0;
+  padding: 14px 10px 16px;
+  border-right: none;
+  background: transparent;
+  overflow: auto;
+  color: var(--jl-ai-text);
+}
+
+body.jl-window-ai .jl-workbench-nav__title {
+  color: var(--jl-ai-text);
+}
+
+body.jl-window-ai .jl-workbench-nav__hint {
+  color: var(--jl-ai-text-muted);
+}
+
+body.jl-window-ai .jl-workbench-nav__item,
+body.jl-window-ai .jl-workbench-nav__subitem {
+  color: var(--jl-ai-text-muted);
+  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+body.jl-window-ai .jl-workbench-nav__item:hover,
+body.jl-window-ai .jl-workbench-nav__subitem:hover {
+  background: rgba(255, 255, 255, 0.22);
+  color: var(--jl-ai-text);
+}
+
+body.jl-window-ai .jl-workbench-nav__item.is-active,
+body.jl-window-ai .jl-workbench-nav__subitem.is-active {
+  background: rgba(255, 255, 255, 0.32);
+  color: var(--jl-ai-text);
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
 /* --- 工作台窗口 --- */
@@ -4962,6 +5043,7 @@ body.jl-window-ai .jl-app-shell {
   --jl-ai-text-muted: #374151;
   --jl-ai-radius-window: 12px;
   --jl-titlebar-trailing-width: 280px;
+  --jl-workbench-split-width: 22%;
   margin: 0;
   width: 100%;
   height: 100%;
@@ -4997,6 +5079,8 @@ body.jl-window-ai .jl-top-status {
 }
 
 body.jl-window-ai .jl-side-rail,
+body.jl-window-ai .jl-workbench-split,
+body.jl-window-ai .jl-workbench-split *,
 body.jl-window-ai .jl-titlebar-trailing,
 body.jl-window-ai .jl-titlebar-trailing *,
 body.jl-window-ai .jl-window-controls,

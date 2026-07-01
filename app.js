@@ -1786,16 +1786,26 @@ function activateWorkbenchTarget(target, options = {}) {
   }
 }
 
-function initWorkbenchNav() {
+function bindWorkbenchNavClicks() {
   const nav = document.getElementById("jlWorkbenchNav");
-  if (!nav) {
+  if (!nav || nav.dataset.jlNavBound === "1") {
     return;
   }
-  nav.hidden = false;
+  nav.dataset.jlNavBound = "1";
   nav.querySelectorAll("[data-wb-route], [data-wb-cap]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const route = btn.dataset.wbRoute;
       const cap = btn.dataset.wbCap;
+      if (isAiWindow()) {
+        if (cap) {
+          void openWorkbenchModule(cap === "routing" ? "capability" : "local-models", { capPanel: cap });
+          return;
+        }
+        if (route) {
+          void openWorkbenchModule(route);
+        }
+        return;
+      }
       if (cap) {
         activateWorkbenchTarget(cap === "routing" ? "capability" : "local-models");
         return;
@@ -1805,6 +1815,15 @@ function initWorkbenchNav() {
       }
     });
   });
+}
+
+function initWorkbenchNav() {
+  const nav = document.getElementById("jlWorkbenchNav");
+  if (!nav) {
+    return;
+  }
+  nav.hidden = false;
+  bindWorkbenchNavClicks();
   window.electronAPI?.onWorkbenchNavigate?.((payload) => {
     if (payload?.route) {
       activateWorkbenchTarget(payload.route, payload);
@@ -3550,8 +3569,13 @@ function initShell() {
   document.body.classList.toggle("jl-window-ai", isAiWindow());
   document.body.classList.toggle("jl-window-workbench", isWorkbenchWindow());
   const sideRail = document.getElementById("jlSideRail");
+  const workbenchNav = document.getElementById("jlWorkbenchNav");
   if (sideRail) {
     sideRail.hidden = isWorkbenchWindow();
+  }
+  if (workbenchNav) {
+    workbenchNav.hidden = false;
+    bindWorkbenchNavClicks();
   }
   initWindowChrome();
   if (isWorkbenchWindow()) {

@@ -23,6 +23,7 @@
         </button>
       </div>
     </div>
+    <aside class="jl-workbench-split" id="jlWorkbenchSplit" aria-label="工作台">
     <nav class="jl-side-rail" id="jlSideRail" aria-label="工作空间导航">
       <div class="jl-side-rail__brand jl-tooltip" data-tip="鲸落AI">
         <img src="./build/icon.png" width="32" height="32" alt="鲸落AI" draggable="false" decoding="async" />
@@ -58,6 +59,45 @@
         </button>
       </div>
     </nav>
+
+    <nav class="jl-workbench-nav" id="jlWorkbenchNav" hidden aria-label="工作台模块">
+          <header class="jl-workbench-nav__head">
+            <h2 class="jl-workbench-nav__title">工作台</h2>
+            <p class="jl-workbench-nav__hint">选择模块展开对应页面</p>
+          </header>
+          <div class="jl-workbench-nav__list">
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="tasks" data-wb-route="list">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">📋</span>
+              <span class="jl-workbench-nav__label">任务管理</span>
+            </button>
+            <div class="jl-workbench-nav__sub" data-wb-sub="tasks">
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="list">任务列表</button>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="new">新增事项</button>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="filter">查询筛选</button>
+            </div>
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="knowledge-base" data-wb-route="knowledge-base">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">📚</span>
+              <span class="jl-workbench-nav__label">本地知识库</span>
+            </button>
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="dashboard" data-wb-route="dashboard">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">📊</span>
+              <span class="jl-workbench-nav__label">数据看板</span>
+            </button>
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="record" data-wb-route="record">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">🎙</span>
+              <span class="jl-workbench-nav__label">记录助手</span>
+            </button>
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="local-models" data-wb-cap="local-models">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">🖥</span>
+              <span class="jl-workbench-nav__label">本地模型</span>
+            </button>
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="capability" data-wb-cap="routing">
+              <span class="jl-workbench-nav__icon" aria-hidden="true">⚙</span>
+              <span class="jl-workbench-nav__label">能力中心</span>
+            </button>
+          </div>
+        </nav>
+    </aside>
 
     <aside class="sidebar sidebar-legacy" id="sidebar" aria-label="主导航（兼容）" hidden>
       <div class="sidebar-brand">
@@ -142,43 +182,6 @@
       <div id="startupWarmupBar" class="startup-warmup-bar" hidden aria-live="polite"></div>
 
       <div class="jl-workspace-body" id="jlWorkspaceBody">
-        <nav class="jl-workbench-nav" id="jlWorkbenchNav" hidden aria-label="工作台模块">
-          <header class="jl-workbench-nav__head">
-            <h2 class="jl-workbench-nav__title">工作台</h2>
-            <p class="jl-workbench-nav__hint">选择模块展开对应页面</p>
-          </header>
-          <div class="jl-workbench-nav__list">
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="tasks" data-wb-route="list">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">📋</span>
-              <span class="jl-workbench-nav__label">任务管理</span>
-            </button>
-            <div class="jl-workbench-nav__sub" data-wb-sub="tasks">
-              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="list">任务列表</button>
-              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="new">新增事项</button>
-              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="filter">查询筛选</button>
-            </div>
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="knowledge-base" data-wb-route="knowledge-base">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">📚</span>
-              <span class="jl-workbench-nav__label">本地知识库</span>
-            </button>
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="dashboard" data-wb-route="dashboard">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">📊</span>
-              <span class="jl-workbench-nav__label">数据看板</span>
-            </button>
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="record" data-wb-route="record">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">🎙</span>
-              <span class="jl-workbench-nav__label">记录助手</span>
-            </button>
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="local-models" data-wb-cap="local-models">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">🖥</span>
-              <span class="jl-workbench-nav__label">本地模型</span>
-            </button>
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="capability" data-wb-cap="routing">
-              <span class="jl-workbench-nav__icon" aria-hidden="true">⚙</span>
-              <span class="jl-workbench-nav__label">能力中心</span>
-            </button>
-          </div>
-        </nav>
         <div class="jl-workbench-stage" id="jlWorkbenchStage">
         <div class="jl-workspace-canvas" id="jlWorkspaceCanvas">
           <div class="main-column">
