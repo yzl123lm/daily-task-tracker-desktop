@@ -55,10 +55,16 @@
             </header>
             <h3 class="jl-workbench-nav__zone-title">工作区域</h3>
             <div class="jl-workbench-nav__list">
-            <button type="button" class="jl-workbench-nav__item" data-wb-module="workbench" data-wb-route="list">
+            <button type="button" class="jl-workbench-nav__item" data-wb-module="workbench" data-wb-route="workbench">
               <span class="jl-workbench-nav__icon" aria-hidden="true">📋</span>
               <span class="jl-workbench-nav__label">工作台</span>
             </button>
+            <div class="jl-workbench-nav__sub" data-wb-sub="tasks" hidden>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="new">新增事项</button>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="filter">查询筛选</button>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="dashboard">数据看板</button>
+              <button type="button" class="jl-workbench-nav__subitem" data-wb-route="list">任务列表</button>
+            </div>
             <button type="button" class="jl-workbench-nav__item" data-wb-module="knowledge-base" data-wb-route="knowledge-base">
               <span class="jl-workbench-nav__icon" aria-hidden="true">📚</span>
               <span class="jl-workbench-nav__label">本地知识库</span>
@@ -188,6 +194,30 @@
             <div class="tabs-strip" id="tabsStrip" role="tablist" aria-label="功能标签页"></div>
 
             <div class="tab-panels">
+        <div id="panel-workbench-hub" class="tab-panel jl-workbench-hub-panel" role="tabpanel" hidden>
+          <section class="card jl-workbench-hub">
+            <h2 class="jl-workbench-hub__title">每日工作跟进</h2>
+            <p class="jl-workbench-hub__hint field-hint">选择要进入的功能模块</p>
+            <div class="jl-workbench-hub__grid">
+              <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="new">
+                <span class="jl-workbench-hub__tile-icon" aria-hidden="true">✏️</span>
+                <span class="jl-workbench-hub__tile-label">新增事项</span>
+              </button>
+              <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="filter">
+                <span class="jl-workbench-hub__tile-icon" aria-hidden="true">🔍</span>
+                <span class="jl-workbench-hub__tile-label">查询筛选</span>
+              </button>
+              <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="dashboard">
+                <span class="jl-workbench-hub__tile-icon" aria-hidden="true">📊</span>
+                <span class="jl-workbench-hub__tile-label">数据看板</span>
+              </button>
+              <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="list">
+                <span class="jl-workbench-hub__tile-icon" aria-hidden="true">📋</span>
+                <span class="jl-workbench-hub__tile-label">任务列表</span>
+              </button>
+            </div>
+          </section>
+        </div>
         <div id="panel-new" class="tab-panel" role="tabpanel" hidden>
           <div class="task-new-page">
             <h2 class="task-new-page-title">新增待处理事项</h2>

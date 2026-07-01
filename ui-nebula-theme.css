@@ -6085,3 +6085,78 @@ body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-thumb:hover {
   background: rgba(37, 99, 235, 0.42);
 }
 
+/* --- 工作台首页（任务模块入口） --- */
+.jl-workbench-hub {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.jl-workbench-hub__title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.jl-workbench-hub__hint {
+  margin: 0 0 20px;
+}
+
+.jl-workbench-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.jl-workbench-hub__tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 16px 18px;
+  border: 1px solid var(--jl-glass-border, rgba(148, 163, 184, 0.35));
+  border-radius: var(--jl-radius-md, 12px);
+  background: rgba(255, 255, 255, 0.72);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.jl-workbench-hub__tile:hover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+
+.jl-workbench-hub__tile-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.jl-workbench-hub__tile-label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+body.jl-window-workbench[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+  display: flex !important;
+}
+
+body.jl-window-workbench[data-jl-wb-scope="knowledge-base"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-workbench[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+  display: none !important;
+}
+
+body.jl-window-workbench[data-jl-wb-scope="knowledge-base"] .main-column:has(#panel-knowledge-base:not([hidden])),
+body.jl-window-workbench[data-jl-wb-scope="record"] .main-column:has(#panel-record:not([hidden])) {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 720px) {
+  .jl-workbench-hub__grid {
+    grid-template-columns: 1fr;
+  }
+}

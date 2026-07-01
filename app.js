@@ -6,6 +6,7 @@ const DAILY_WORK_CHILD_ROUTES = new Set(["new", "filter", "list", "dashboard"]);
 const ACTIVE_TASK_STATUSES = ["待处理", "处理中", "已阻塞", "已挂起"];
 
 const ROUTES = {
+  workbench: { panelId: "panel-workbench-hub", title: "工作台", breadcrumb: "工作台 / 每日工作跟进" },
   new: { panelId: "panel-new", title: "新增待处理事项", breadcrumb: "工作台 / 每日工作跟进 / 新增待处理事项" },
   filter: { panelId: "panel-filter", title: "查询筛选", breadcrumb: "工作台 / 每日工作跟进 / 查询筛选" },
   dashboard: { panelId: "panel-dashboard", title: "数据看板", breadcrumb: "工作台 / 每日工作跟进 / 数据看板" },
@@ -52,14 +53,15 @@ const WINDOW_MODE = (() => {
   return q.get("window") === "workbench" ? "workbench" : "ai";
 })();
 
-const WORKBENCH_TASK_ROUTES = new Set(["new", "filter", "list"]);
+const WORKBENCH_TASK_ROUTES = new Set(["workbench", "new", "filter", "list", "dashboard"]);
 const WORKBENCH_CAP_MODULES = new Set(["local-models", "capability"]);
 
 const WORKBENCH_MODULE_BY_ROUTE = {
+  workbench: "workbench",
   list: "workbench",
-  new: "new",
-  filter: "filter",
-  dashboard: "dashboard",
+  new: "workbench",
+  filter: "workbench",
+  dashboard: "workbench",
   record: "record",
   "knowledge-base": "knowledge-base",
 };
@@ -74,7 +76,7 @@ function isWorkbenchWindow() {
 
 async function openWorkbenchModule(routeOrModule, options = {}) {
   const api = window.electronAPI;
-  const target = String(routeOrModule || "list").trim() || "list";
+  const target = String(routeOrModule || "workbench").trim() || "workbench";
   if (isWorkbenchWindow()) {
     activateWorkbenchTarget(target, options);
     return;
@@ -1646,14 +1648,14 @@ function parseHashRoute() {
       return "local-models";
     }
     queueMicrotask(() => void openWorkbenchModule("local-models"));
-    return isAiWindow() ? "ai" : "list";
+    return isAiWindow() ? "ai" : "workbench";
   }
   if (h === "skills" || h === "capability") {
     if (isWorkbenchWindow()) {
       return "capability";
     }
     queueMicrotask(() => void openWorkbenchModule("capability"));
-    return isAiWindow() ? "ai" : "list";
+    return isAiWindow() ? "ai" : "workbench";
   }
   if (h && ROUTES[h]) {
     if (isAiWindow() && h !== "ai") {
@@ -1661,11 +1663,11 @@ function parseHashRoute() {
       return "ai";
     }
     if (isWorkbenchWindow() && h === "ai") {
-      return "list";
+      return "workbench";
     }
     return h;
   }
-  return isWorkbenchWindow() ? "list" : "ai";
+  return isWorkbenchWindow() ? "workbench" : "ai";
 }
 
 function syncJlPromptDock(route) {
@@ -1742,22 +1744,53 @@ function openWorkbenchCapInline(panelKey) {
   }
 }
 
+function getWorkbenchScope(route) {
+  if (route === "knowledge-base") {
+    return "knowledge-base";
+  }
+  if (route === "record") {
+    return "record";
+  }
+  return "tasks";
+}
+
+function applyWorkbenchScope(route) {
+  if (!isWorkbenchWindow()) {
+    return;
+  }
+  const scope = getWorkbenchScope(route);
+  document.body.setAttribute("data-jl-wb-scope", scope);
+  const tasksSub = document.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
+  if (tasksSub) {
+    tasksSub.hidden = scope !== "tasks";
+  }
+}
+
+function resolveWorkbenchNavRoute(route) {
+  if (WORKBENCH_TASK_ROUTES.has(route)) {
+    return "workbench";
+  }
+  return route;
+}
+
 function syncWorkbenchNavActive(routeOrModule) {
   const nav = document.getElementById("jlWorkbenchNav");
   if (!nav) {
     return;
   }
-  const route = ROUTES[routeOrModule] ? routeOrModule : "list";
+  const route = ROUTES[routeOrModule] ? routeOrModule : "workbench";
+  const topRoute = resolveWorkbenchNavRoute(route);
   nav.querySelectorAll(".jl-workbench-nav__item[data-wb-route]").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.wbRoute === route);
+    btn.classList.toggle("is-active", btn.dataset.wbRoute === topRoute);
   });
   nav.querySelectorAll(".jl-workbench-nav__subitem[data-wb-route]").forEach((btn) => {
     btn.classList.toggle("is-active", btn.dataset.wbRoute === route);
   });
+  applyWorkbenchScope(route);
 }
 
 function activateWorkbenchTarget(target, options = {}) {
-  const key = String(target || "list").trim() || "list";
+  const key = String(target || "workbench").trim() || "workbench";
   if (key === "local-models" || key === "capability") {
     syncWorkbenchNavActive(key);
     openWorkbenchCapInline(key === "capability" ? "routing" : "local-models");
@@ -1780,6 +1813,26 @@ function activateWorkbenchTarget(target, options = {}) {
   if (options.capPanel && typeof window.__capSetActivePanel === "function") {
     openWorkbenchCapInline(options.capPanel);
   }
+}
+
+function bindWorkbenchHubClicks() {
+  document.querySelectorAll("[data-wb-hub-route]").forEach((btn) => {
+    if (btn.dataset.jlHubBound === "1") {
+      return;
+    }
+    btn.dataset.jlHubBound = "1";
+    btn.addEventListener("click", () => {
+      const route = btn.dataset.wbHubRoute;
+      if (!route) {
+        return;
+      }
+      if (isAiWindow()) {
+        void openWorkbenchModule(route);
+        return;
+      }
+      activateWorkbenchTarget(route);
+    });
+  });
 }
 
 function bindWorkbenchNavClicks() {
@@ -1982,7 +2035,8 @@ function initWorkbenchNav() {
     }
   });
   const qRoute = new URLSearchParams(window.location.search).get("route");
-  activateWorkbenchTarget(qRoute || "list");
+  activateWorkbenchTarget(qRoute || "workbench");
+  bindWorkbenchHubClicks();
 }
 
 window.openWorkbenchCapInline = openWorkbenchCapInline;
@@ -2041,7 +2095,7 @@ function initJlAppShell() {
     btn.addEventListener("click", () => {
       const space = btn.dataset.jlSpace;
       if (space === "workbench") {
-        void openWorkbenchModule("list");
+        void openWorkbenchModule("workbench");
         return;
       }
       if (space === "capability") {
@@ -2143,10 +2197,10 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     return;
   }
   if (isWorkbenchWindow() && route === "ai") {
-    route = "list";
+    route = "workbench";
   }
   if (!ROUTES[route]) {
-    route = isWorkbenchWindow() ? "list" : "ai";
+    route = isWorkbenchWindow() ? "workbench" : "ai";
   }
   activeRoute = route;
   hideAllPanels();
@@ -3728,6 +3782,7 @@ function initShell() {
   if (workbenchNav) {
     workbenchNav.hidden = false;
     bindWorkbenchNavClicks();
+    bindWorkbenchHubClicks();
   }
   initAiSessionSidebar();
   initWindowChrome();

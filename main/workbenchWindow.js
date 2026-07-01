@@ -10,7 +10,7 @@ function getWorkbenchWindow() {
 }
 
 function openWorkbenchWindow(options = {}) {
-  const route = String(options.route || options.module || "list").trim() || "list";
+  const route = String(options.route || options.module || "workbench").trim() || "workbench";
   const existing = getWorkbenchWindow();
   if (existing) {
     if (existing.isMinimized()) {
