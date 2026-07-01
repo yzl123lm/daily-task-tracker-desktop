@@ -4653,18 +4653,268 @@ body.jl-window-ai #panel-ai .ai-chat-body {
 }
 
 body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatEmpty:not([hidden])) {
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
+  padding-top: min(10vh, 72px);
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 560px;
-  justify-content: center;
+  max-width: 720px;
+  justify-content: flex-start;
   align-items: center;
-  padding: 16px;
+  padding: 8px 20px 24px;
   margin: 0 auto;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-card {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.12);
+  line-height: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-icon svg {
+  width: 56px;
+  height: 56px;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-title {
+  margin: 18px 0 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e3a8a !important;
+  letter-spacing: 0.01em;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-desc {
+  margin: 10px 0 0;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #64748b !important;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-chips {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 28px;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-action {
+  flex: 1 1 180px;
+  max-width: 220px;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 14px;
+  border: none !important;
+  border-radius: 12px;
+  background: #fff !important;
+  box-shadow: 0 2px 14px rgba(37, 99, 235, 0.08);
+  color: #334155 !important;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: box-shadow 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-action:hover {
+  color: #1d4ed8 !important;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.14);
+  transform: translateY(-1px);
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-action__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  line-height: 0;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-empty-action__label {
+  line-height: 1.35;
+  text-align: center;
+}
+
+body.jl-window-ai.jl-route-ai .jl-prompt-dock {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 12px;
+  padding: 14px 16px 12px;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+  background: #fff !important;
+  border: none !important;
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(37, 99, 235, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.05);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.jl-window-ai .jl-prompt-dock__chips {
+  display: none !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-panel {
+  padding: 0 2px 4px;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-textarea {
+  min-height: 48px !important;
+  max-height: 160px !important;
+  padding: 6px 4px !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+  color: #111827 !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
+  padding-top: 10px !important;
+  margin-top: 0 !important;
+  gap: 8px !important;
+  border-top: none;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
+  padding: 3px !important;
+  border-radius: 10px;
+  background: #fafafa !important;
+  border: 1px solid #ebebeb !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger {
+  background: #e6f4ff !important;
+  color: #1677ff !important;
+  font-weight: 500;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn.is-on {
+  background: #e6f4ff !important;
+  color: #1677ff !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger,
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
+  min-height: 30px !important;
+  padding: 4px 10px !important;
+  font-size: 13px !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-prompt-attach-btn {
+  width: 32px !important;
+  height: 32px !important;
+  margin-right: 4px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: #64748b !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
+  padding: 5px 10px !important;
+  font-size: 13px !important;
+  min-height: 32px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: #334155 !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-icon {
+  color: #2563eb !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-send-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-voice-composer-btn {
+  width: 32px !important;
+  height: 32px !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: #64748b !important;
+}
+
+body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-body {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+body.jl-window-ai .jl-prompt-dock {
+  background: #fff !important;
+  border: none !important;
+  border-radius: 16px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-textarea,
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text,
+body.jl-window-ai .jl-prompt-dock .ai-mode-compact-trigger,
+body.jl-window-ai .jl-prompt-dock .ai-composer-pill-btn {
+  color: #334155 !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log {
@@ -4787,12 +5037,6 @@ body.jl-window-ai #panel-ai .ai-fold-body {
   padding: 0;
 }
 
-body.jl-window-ai #panel-ai .ai-chat-empty-card {
-  max-width: 560px;
-  width: min(560px, 100%);
-  margin: 0 auto;
-}
-
 body.jl-window-ai.jl-route-ai .jl-main-workspace {
   min-height: 0;
   display: flex;
@@ -4842,17 +5086,6 @@ body.jl-window-ai.jl-route-ai #panel-ai {
   min-height: 0;
   display: flex;
   flex-direction: column;
-}
-
-body.jl-window-ai.jl-route-ai .jl-prompt-dock {
-  flex: 0 0 auto;
-  width: 100%;
-  max-width: 100%;
-  margin: 0 0 8px;
-  padding: 8px 10px 6px;
-  gap: 6px;
-  position: relative;
-  z-index: 1;
 }
 
 body.jl-window-ai #panel-ai .ai-doc-workspace {
@@ -5408,113 +5641,12 @@ body.jl-window-ai.theme-nebula #panel-ai .ai-msg-label {
   color: var(--jl-ai-text) !important;
 }
 
+body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-title {
+  color: #1e3a8a !important;
+}
+
 body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-empty-desc {
-  color: var(--jl-ai-text-muted) !important;
-}
-
-body.jl-window-ai .jl-prompt-dock {
-  background: rgba(255, 255, 255, 0.36) !important;
-  border: 1px solid rgba(255, 255, 255, 0.52) !important;
-  border-radius: 14px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-body.jl-window-ai .jl-prompt-dock__chips {
-  flex-wrap: nowrap;
-  gap: 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-  padding: 0 1px;
-}
-
-body.jl-window-ai .jl-prompt-dock__chips::-webkit-scrollbar {
-  display: none;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  margin: 0;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-panel {
-  padding: 0 2px;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-textarea {
-  min-height: 36px !important;
-  max-height: 120px !important;
-  padding: 4px 6px !important;
-  font-size: 13px !important;
-  line-height: 1.45 !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-textarea,
-body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder,
-body.jl-window-ai .jl-prompt-chip {
-  color: var(--jl-ai-text) !important;
-}
-
-body.jl-window-ai .jl-prompt-chip {
-  padding: 4px 10px;
-  font-size: 11px;
-  flex-shrink: 0;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.28);
-  border-color: rgba(255, 255, 255, 0.45);
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
-  padding-top: 4px !important;
-  margin-top: 0 !important;
-  gap: 6px !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
-  padding: 2px !important;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.22) !important;
-  border-color: rgba(255, 255, 255, 0.38) !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger,
-body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
-  min-height: 26px !important;
-  padding: 3px 8px !important;
-  font-size: 12px !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-prompt-attach-btn {
-  width: 28px !important;
-  height: 28px !important;
-  margin-right: 2px;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
-  padding: 4px 8px !important;
-  font-size: 12px !important;
-  min-height: 28px;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-send-btn {
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 999px !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-voice-composer-btn {
-  width: 30px !important;
-  height: 30px !important;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text,
-body.jl-window-ai .jl-prompt-dock .ai-mode-compact-trigger,
-body.jl-window-ai .jl-prompt-dock .ai-composer-pill-btn {
-  color: var(--jl-ai-text) !important;
+  color: #64748b !important;
 }
 
 body.jl-window-ai #panel-ai .jl-result-card {

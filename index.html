@@ -613,19 +613,25 @@
                           <svg width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="28" fill="#e6f4ff"/><rect x="18" y="22" width="28" height="24" rx="10" fill="#1677ff"/><circle cx="26" cy="32" r="3" fill="#fff"/><circle cx="38" cy="32" r="3" fill="#fff"/><path d="M28 40c2 2 6 2 8 0" stroke="#fff" stroke-width="2" stroke-linecap="round"/><path d="M32 14v4M20 18l2 3M44 18l-2 3" stroke="#1677ff" stroke-width="2" stroke-linecap="round" opacity="0.55"/></svg>
                         </div>
                         <h2 class="ai-chat-empty-title">开始与 AI 助手对话</h2>
-                        <p class="ai-chat-empty-desc">在底部 Prompt 输入框提问或下达指令，可开启联网搜索、知识库检索与长期记忆。</p>
+                        <p class="ai-chat-empty-desc">在底部输入框提问或下达指令，可开启互联网搜索、知识库检索与长期记忆。</p>
                         <div class="ai-chat-empty-chips">
-                          <button type="button" class="ai-quick jl-prompt-chip" data-prompt="today">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 11l2 2 4-4M7 3h10a2 2 0 012 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                            总结今天的任务
+                          <button type="button" class="ai-quick ai-chat-empty-action" data-prompt="today">
+                            <span class="ai-chat-empty-action__icon" aria-hidden="true">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 11l2 2 4-4M7 3h10a2 2 0 012 2v14l-3-2-3 2-3-2-3 2V5a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                            </span>
+                            <span class="ai-chat-empty-action__label">总结今天的任务</span>
                           </button>
-                          <button type="button" class="ai-quick" data-prompt="weekly">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 4h8l2 4H6l2-4zM6 8h12v12H6V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                            生成周报
+                          <button type="button" class="ai-quick ai-chat-empty-action" data-prompt="weekly">
+                            <span class="ai-chat-empty-action__icon" aria-hidden="true">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l2 4H6l2-4zM6 8h12v12H6V8z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                            </span>
+                            <span class="ai-chat-empty-action__label">生成周报</span>
                           </button>
-                          <button type="button" class="ai-quick" data-prompt="kb">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h12a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-                            查询本地知识库
+                          <button type="button" class="ai-quick ai-chat-empty-action" data-prompt="kb">
+                            <span class="ai-chat-empty-action__icon" aria-hidden="true">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 4h12a2 2 0 012 2v14l-4-2-4 2-4-2-4 2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                            </span>
+                            <span class="ai-chat-empty-action__label">查询本地知识库</span>
                           </button>
                         </div>
                       </div>
@@ -642,7 +648,7 @@
                           id="aiUserInput"
                           class="ai-composer-textarea"
                           rows="1"
-                          placeholder="输入问题或指令，Enter 发送（Shift+Enter 换行）"
+                          placeholder="输入问题或指令，Enter 发送，Shift+Enter 换行"
                           spellcheck="true"
                         ></textarea>
                       </div>
