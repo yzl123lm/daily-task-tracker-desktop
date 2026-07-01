@@ -4606,12 +4606,75 @@ body.jl-window-ai #panel-ai .ai-chat-empty {
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log {
-  max-width: min(920px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
   width: 100%;
   margin: 0 auto;
-  padding-bottom: 12px;
+  padding: 12px 16px 16px;
   flex: 1;
   min-height: 0;
+  background: transparent;
+  border: none;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card {
+  width: min(720px, calc(100% - 8px));
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-user {
+  align-self: flex-end;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  max-width: min(640px, 88%);
+  border-right: 3px solid rgba(37, 99, 235, 0.35);
+  border-left: none;
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .ai-msg-assistant {
+  align-self: center;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  max-width: min(720px, 92%);
+}
+
+body.jl-window-ai #panel-ai .ai-chat-log .jl-result-card:hover {
+  transform: none;
+}
+
+body.jl-window-ai #panel-ai .ai-doc-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+body.jl-window-ai #panel-ai details.ai-ollama-usage {
+  margin-top: 10px;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+body.jl-window-ai #panel-ai details.ai-ollama-usage summary {
+  display: none;
+}
+
+body.jl-window-ai #panel-ai details.ai-assistant-fold {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+body.jl-window-ai #panel-ai details.ai-assistant-fold summary {
+  display: none;
+}
+
+body.jl-window-ai #panel-ai .ai-fold-body {
+  max-height: none;
+  background: transparent;
+  padding: 0;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty-card {
@@ -4819,7 +4882,7 @@ body.jl-window-workbench.jl-workbench-cap-open #aiCapabilityDialog.jl-cap-workbe
 
 html.jl-window-ai-root,
 body.jl-window-ai {
-  background: transparent !important;
+  background: #dbeafe !important;
   color: #111827;
   width: 100%;
   height: 100%;
@@ -4833,14 +4896,14 @@ body.jl-window-ai .jl-app-shell {
   --jl-ai-glass-border: rgba(255, 255, 255, 0.72);
   --jl-ai-text: #111827;
   --jl-ai-text-muted: #374151;
-  --jl-ai-radius-window: 16px;
-  --jl-window-controls-width: 176px;
-  margin: 8px;
-  width: calc(100% - 16px);
-  height: calc(100% - 16px);
-  max-width: calc(100% - 16px);
-  max-height: calc(100% - 16px);
-  border-radius: var(--jl-ai-radius-window);
+  --jl-ai-radius-window: 12px;
+  --jl-titlebar-trailing-width: 280px;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 0;
   overflow: hidden;
   position: relative;
   border: 1px solid var(--jl-ai-glass-border);
@@ -4864,8 +4927,14 @@ body.jl-window-ai .jl-window-drag {
   -webkit-app-region: drag;
 }
 
+body.jl-window-ai .jl-top-status {
+  -webkit-app-region: drag;
+  cursor: default;
+}
+
 body.jl-window-ai .jl-side-rail,
-body.jl-window-ai .jl-top-status__right,
+body.jl-window-ai .jl-titlebar-trailing,
+body.jl-window-ai .jl-titlebar-trailing *,
 body.jl-window-ai .jl-window-controls,
 body.jl-window-ai button,
 body.jl-window-ai input,
@@ -4881,11 +4950,19 @@ body.jl-window-ai .jl-top-status {
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.45) !important;
   color: var(--jl-ai-text);
-  padding-right: calc(var(--jl-window-controls-width) + 8px) !important;
+  padding-right: calc(var(--jl-titlebar-trailing-width) + 8px) !important;
+  min-height: 36px;
 }
 
-body.jl-window-ai .jl-top-status__right {
-  margin-right: 0;
+body.jl-window-ai .jl-top-status__left {
+  flex: 1;
+  min-width: 0;
+}
+
+body.jl-window-ai #jlWorkspacePill,
+body.jl-window-ai #breadcrumb,
+body.jl-window-ai .topbar-actions {
+  display: none !important;
 }
 
 body.jl-window-ai .jl-top-status__left .breadcrumb,
@@ -4955,6 +5032,28 @@ body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings {
   line-height: 0;
   background: transparent !important;
   box-shadow: none !important;
+}
+
+body.jl-window-ai #topbarEnvBtn.jl-titlebar-env {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--jl-ai-text) !important;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+body.jl-window-ai #topbarEnvBtn.jl-titlebar-env:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
 }
 
 body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings:hover {

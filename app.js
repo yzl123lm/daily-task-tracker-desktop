@@ -3584,6 +3584,13 @@ function initWindowChrome() {
     trailing.insertBefore(capBtn, controls);
     capBtn.dataset.jlTrailingMounted = "1";
   }
+  const envBtn = document.getElementById("topbarEnvBtn");
+  if (envBtn && trailing && envBtn.dataset.jlTrailingMounted !== "1") {
+    envBtn.classList.add("jl-titlebar-env", "topbar-env-btn");
+    const anchor = capBtn?.parentElement === trailing ? capBtn : controls;
+    trailing.insertBefore(envBtn, anchor);
+    envBtn.dataset.jlTrailingMounted = "1";
+  }
   if (topbarAiBtn) {
     topbarAiBtn.hidden = true;
   }

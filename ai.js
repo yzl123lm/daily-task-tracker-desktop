@@ -302,6 +302,7 @@ function buildOllamaUsageDetailsEl(ollamaUsage) {
   }
   const details = document.createElement("details");
   details.className = "ai-ollama-usage";
+  details.open = true;
   const summary = document.createElement("summary");
   summary.textContent = "运行效率情况查看";
   const grid = document.createElement("div");
