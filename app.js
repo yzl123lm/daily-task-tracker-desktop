@@ -3607,6 +3607,7 @@ function initWindowChrome() {
     capBtn.classList.add("jl-titlebar-settings", "topbar-cap-btn");
     trailing.insertBefore(capBtn, controls);
     capBtn.dataset.jlTrailingMounted = "1";
+    capBtn.hidden = false;
   }
   const envBtn = document.getElementById("topbarEnvBtn");
   if (envBtn && trailing && envBtn.dataset.jlTrailingMounted !== "1") {
@@ -3616,6 +3617,18 @@ function initWindowChrome() {
     envBtn.dataset.jlTrailingMounted = "1";
     envBtn.hidden = false;
   }
+  [envBtn, capBtn, minBtn, maxBtn, closeBtn].forEach((btn) => {
+    if (!btn || btn.dataset.jlTitlebarClickBound === "1") {
+      return;
+    }
+    btn.dataset.jlTitlebarClickBound = "1";
+    btn.addEventListener("mousedown", (ev) => {
+      ev.stopPropagation();
+    });
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+    });
+  });
   if (topbarAiBtn) {
     topbarAiBtn.hidden = true;
   }
