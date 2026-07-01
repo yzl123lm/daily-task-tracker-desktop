@@ -4664,7 +4664,7 @@ body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatEmpty:not([hidden])) {
 body.jl-window-ai #panel-ai .ai-chat-empty {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 580px;
+  max-width: 640px;
   justify-content: flex-start;
   align-items: center;
   padding: 8px 20px 24px;
@@ -4673,7 +4673,7 @@ body.jl-window-ai #panel-ai .ai-chat-empty {
 
 body.jl-window-ai #panel-ai .ai-chat-empty-card {
   width: 100%;
-  max-width: 580px;
+  max-width: 640px;
   margin: 0 auto;
   padding: 0;
   background: transparent !important;
@@ -4777,10 +4777,10 @@ body.jl-window-ai #panel-ai .ai-chat-empty-action__label {
 
 body.jl-window-ai.jl-route-ai .jl-prompt-dock {
   flex: 0 0 auto;
-  width: min(580px, calc(100% - 32px));
-  max-width: 580px;
+  width: min(640px, calc(100% - 24px));
+  max-width: 640px;
   margin: 0 auto 14px;
-  padding: 10px 12px 9px;
+  padding: 10px 12px 10px;
   gap: 0;
   position: relative;
   z-index: 1;
@@ -4824,58 +4824,73 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder {
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
   display: grid !important;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
   align-items: center;
   padding-top: 8px !important;
   margin-top: 0 !important;
-  gap: 6px 8px !important;
+  gap: 8px !important;
   border-top: none;
   flex-wrap: nowrap !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left {
   grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
   gap: 4px !important;
   min-width: 0;
-  max-width: 100%;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left .ai-profile-dropdown-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
-  grid-column: 2;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
   justify-content: flex-start;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex-wrap: nowrap !important;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill::-webkit-scrollbar {
-  display: none;
+  flex-wrap: wrap;
+  gap: 4px;
+  overflow: visible;
+  padding: 3px 4px !important;
+  border-radius: 9px;
+  background: #f4f4f5 !important;
+  border: 1px solid #e4e4e7 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-wrap,
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
+  flex: 0 0 auto;
   flex-shrink: 0;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-actions {
-  grid-column: 3;
+  grid-column: 2;
+  grid-row: 1;
   flex-shrink: 0;
 }
 
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  width: auto;
+}
+
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text {
-  max-width: 96px;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
-  padding: 2px !important;
-  border-radius: 9px;
-  background: #f4f4f5 !important;
-  border: 1px solid #e4e4e7 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger {
@@ -4898,8 +4913,14 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-bt
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger,
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
   min-height: 26px !important;
-  padding: 3px 8px !important;
+  padding: 3px 7px !important;
   font-size: 12px !important;
+  white-space: nowrap;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-web-toggle-text,
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger span:not(.ai-mode-compact-icon):not(.ai-mode-compact-chevron) {
+  white-space: nowrap;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-prompt-attach-btn {
@@ -5115,8 +5136,8 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
 
 body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
   flex: 1 1 auto;
-  width: min(580px, 100%);
-  max-width: 580px;
+  width: min(640px, 100%);
+  max-width: 640px;
   min-width: 0;
   min-height: 0;
   display: flex;
