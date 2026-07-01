@@ -3599,6 +3599,8 @@ function initWindowChrome() {
   const capBtn = document.getElementById("topbarCapabilityBtn");
   if (trailing) {
     trailing.hidden = false;
+    trailing.style.pointerEvents = "auto";
+    trailing.style.webkitAppRegion = "no-drag";
   }
   if (controls) {
     controls.hidden = false;
@@ -3618,16 +3620,15 @@ function initWindowChrome() {
     envBtn.hidden = false;
   }
   [envBtn, capBtn, minBtn, maxBtn, closeBtn].forEach((btn) => {
-    if (!btn || btn.dataset.jlTitlebarClickBound === "1") {
+    if (!btn) {
+      return;
+    }
+    btn.style.pointerEvents = "auto";
+    btn.style.webkitAppRegion = "no-drag";
+    if (btn.dataset.jlTitlebarClickBound === "1") {
       return;
     }
     btn.dataset.jlTitlebarClickBound = "1";
-    btn.addEventListener("mousedown", (ev) => {
-      ev.stopPropagation();
-    });
-    btn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-    });
   });
   if (topbarAiBtn) {
     topbarAiBtn.hidden = true;

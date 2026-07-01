@@ -5115,25 +5115,25 @@ body.jl-window-ai .jl-nebula-bg::after {
   opacity: 0.02;
 }
 
-body.jl-window-ai .jl-window-drag,
-body.jl-window-ai .jl-titlebar-drag-strip {
+body.jl-window-ai .jl-titlebar-drag-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 36px;
+  align-self: stretch;
   -webkit-app-region: drag;
   cursor: default;
+  pointer-events: auto;
 }
 
 body.jl-window-ai .jl-top-status {
   position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
   -webkit-app-region: no-drag;
   cursor: default;
-}
-
-body.jl-window-ai .jl-titlebar-drag-strip {
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 100%;
-  min-height: 36px;
-  z-index: 0;
-  pointer-events: auto;
 }
 
 body.jl-window-ai .jl-workbench-nav__head {
@@ -5172,17 +5172,12 @@ body.jl-window-ai .jl-top-status {
   border-bottom: none !important;
   box-shadow: none !important;
   color: var(--jl-ai-text);
-  padding-right: calc(var(--jl-titlebar-trailing-width) + 8px) !important;
+  padding: 0 !important;
   min-height: 36px;
 }
 
 body.jl-window-ai .jl-top-status__left {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  z-index: 1;
-  -webkit-app-region: no-drag;
-  pointer-events: none;
+  display: none !important;
 }
 
 body.jl-window-ai #jlWorkspacePill,
@@ -5225,16 +5220,16 @@ body.jl-window-ai .topbar-env-btn {
 }
 
 body.jl-window-ai .jl-titlebar-trailing {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 10000;
+  position: relative;
+  flex: 0 0 auto;
+  align-self: stretch;
+  z-index: 10;
   display: inline-flex;
   align-items: stretch;
   pointer-events: auto;
   -webkit-app-region: no-drag;
-  border-radius: 0 var(--jl-ai-radius-window) 0 0;
-  overflow: hidden;
+  border-radius: 0;
+  overflow: visible;
   border-left: none;
   background: transparent;
   backdrop-filter: none;
