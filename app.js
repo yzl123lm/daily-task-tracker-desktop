@@ -1756,7 +1756,7 @@ function syncWorkbenchNavActive(routeOrModule) {
   });
   const sub = nav.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
   if (sub) {
-    sub.hidden = key !== "tasks";
+    sub.hidden = isAiWindow() ? false : key !== "tasks";
   }
 }
 
