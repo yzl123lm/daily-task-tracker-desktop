@@ -5212,13 +5212,6 @@ body.jl-window-ai .jl-side-rail__btn.is-active {
   color: var(--jl-ai-text);
 }
 
-body.jl-window-ai .topbar-cap-btn,
-body.jl-window-ai .topbar-env-btn {
-  background: rgba(255, 255, 255, 0.38) !important;
-  border: 1px solid rgba(255, 255, 255, 0.55) !important;
-  color: var(--jl-ai-text) !important;
-}
-
 body.jl-window-ai .jl-titlebar-trailing {
   position: relative;
   flex: 0 0 auto;
@@ -5226,14 +5219,27 @@ body.jl-window-ai .jl-titlebar-trailing {
   z-index: 10;
   display: inline-flex;
   align-items: stretch;
+  gap: 2px;
+  padding: 0 4px 0 0;
   pointer-events: auto;
   -webkit-app-region: no-drag;
   border-radius: 0;
   overflow: visible;
-  border-left: none;
+  border: none;
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+body.jl-window-ai .jl-titlebar-trailing .topbar-cap-btn,
+body.jl-window-ai .jl-titlebar-trailing .topbar-env-btn,
+body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings,
+body.jl-window-ai #topbarEnvBtn.jl-titlebar-env {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none;
 }
 
 body.jl-window-ai #topbarAiBtn {
@@ -5244,17 +5250,15 @@ body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
+  width: 36px;
   height: 36px;
   margin: 0;
   padding: 0;
-  border: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 0;
+  border: 0 !important;
+  border-radius: 6px;
   font-size: 0;
   line-height: 0;
-  background: transparent !important;
-  box-shadow: none !important;
+  color: var(--jl-ai-text) !important;
 }
 
 body.jl-window-ai #topbarEnvBtn.jl-titlebar-env {
@@ -5263,37 +5267,33 @@ body.jl-window-ai #topbarEnvBtn.jl-titlebar-env {
   gap: 6px;
   height: 36px;
   margin: 0;
-  padding: 0 12px;
-  border: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 0;
-  background: transparent !important;
-  box-shadow: none !important;
+  padding: 0 10px;
+  border: 0 !important;
+  border-radius: 6px;
   color: var(--jl-ai-text) !important;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-body.jl-window-ai #topbarEnvBtn.jl-titlebar-env:hover {
-  background: rgba(255, 255, 255, 0.45) !important;
-}
-
+body.jl-window-ai #topbarEnvBtn.jl-titlebar-env:hover,
 body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings:hover {
-  background: rgba(255, 255, 255, 0.45) !important;
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: none !important;
 }
 
 body.jl-window-ai #topbarCapabilityBtn.jl-titlebar-settings svg {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+  color: var(--jl-ai-text);
 }
 
 body.jl-window-ai .jl-window-controls {
   position: static;
   display: inline-flex;
   align-items: stretch;
-  gap: 0;
+  gap: 2px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -5302,13 +5302,14 @@ body.jl-window-ai .jl-window-controls {
   background: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 
 body.jl-window-ai .jl-window-controls__btn {
-  width: 44px;
+  width: 36px;
   height: 36px;
-  border: 0;
-  border-radius: 0;
+  border: 0 !important;
+  border-radius: 6px;
   background: transparent;
   color: var(--jl-ai-text);
   font-size: 14px;
@@ -5321,16 +5322,33 @@ body.jl-window-ai .jl-window-controls__btn {
 }
 
 body.jl-window-ai .jl-window-controls__btn + .jl-window-controls__btn {
-  border-left: 1px solid rgba(255, 255, 255, 0.28);
+  border-left: none !important;
 }
 
 body.jl-window-ai .jl-window-controls__btn:hover {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 body.jl-window-ai .jl-window-controls__btn--close:hover {
-  background: rgba(239, 68, 68, 0.92);
+  background: rgba(239, 68, 68, 0.88);
   color: #fff;
+}
+
+body.jl-window-ai.theme-nebula .jl-titlebar-trailing .topbar-env-btn,
+body.jl-window-ai.theme-nebula .jl-titlebar-trailing .topbar-cap-btn,
+body.jl-window-ai.theme-nebula #topbarEnvBtn.jl-titlebar-env,
+body.jl-window-ai.theme-nebula #topbarCapabilityBtn.jl-titlebar-settings {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--jl-ai-text) !important;
+}
+
+body.jl-window-ai.theme-nebula .jl-titlebar-trailing .topbar-env-btn:hover,
+body.jl-window-ai.theme-nebula .jl-titlebar-trailing .topbar-cap-btn:hover {
+  background: rgba(255, 255, 255, 0.22) !important;
+  border: none !important;
+  color: var(--jl-ai-text) !important;
 }
 
 /* 覆盖旧版 AI 白底样式 */
