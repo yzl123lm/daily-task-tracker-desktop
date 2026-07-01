@@ -4708,6 +4708,7 @@ body.jl-window-ai #panel-ai .ai-chat-empty-icon img {
   display: block;
   border-radius: 0;
   box-shadow: none;
+  background: transparent;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty-title {
