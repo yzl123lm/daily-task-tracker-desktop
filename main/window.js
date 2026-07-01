@@ -20,16 +20,20 @@ const { KB_CONFIG_LAYOUT } = require("../utils/kbConfigLayout.js");
 function createWindow(options = {}) {
   const showOnReady = options.showOnReady !== false;
   const windowMode = options.windowMode === "workbench" ? "workbench" : "ai";
+  const isAiHome = windowMode === "ai";
   const iconPath = resolveAppIconPath();
   const mainWindow = new BrowserWindow({
     width: KB_CONFIG_LAYOUT.window.defaultWidth,
     height: KB_CONFIG_LAYOUT.window.defaultHeight,
     minWidth: KB_CONFIG_LAYOUT.window.minWidth,
     minHeight: KB_CONFIG_LAYOUT.window.minHeight,
-    backgroundColor: KB_CONFIG_LAYOUT.window.backgroundColor,
+    backgroundColor: isAiHome ? "#00000000" : KB_CONFIG_LAYOUT.window.backgroundColor,
     autoHideMenuBar: true,
     title: windowMode === "workbench" ? "鲸落AI · 工作台" : "鲸落AI",
     show: false,
+    frame: !isAiHome,
+    transparent: isAiHome,
+    roundedCorners: true,
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       contextIsolation: true,

@@ -1703,7 +1703,7 @@ function updateJlSideRailActive(route) {
   });
   const pill = document.getElementById("jlWorkspacePill");
   if (pill) {
-    pill.textContent = isAiWindow() ? "AI 工作台" : JL_SPACE_LABELS[space] || "工作台";
+    pill.textContent = isAiWindow() ? "AI 创作工作台" : JL_SPACE_LABELS[space] || "工作台";
   }
 }
 
@@ -3546,18 +3546,55 @@ if (taskContentCloseBtn && taskContentDialog) {
 }
 
 function initShell() {
+  document.documentElement.classList.toggle("jl-window-ai-root", isAiWindow());
   document.body.classList.toggle("jl-window-ai", isAiWindow());
   document.body.classList.toggle("jl-window-workbench", isWorkbenchWindow());
   const sideRail = document.getElementById("jlSideRail");
   if (sideRail) {
     sideRail.hidden = isWorkbenchWindow();
   }
+  initWindowChrome();
   if (isWorkbenchWindow()) {
     initWorkbenchNav();
     return;
   }
   openTabs = ["ai"];
   activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+}
+
+function initWindowChrome() {
+  if (!isAiWindow()) {
+    return;
+  }
+  const controls = document.getElementById("jlWindowControls");
+  const minBtn = document.getElementById("winMinBtn");
+  const maxBtn = document.getElementById("winMaxBtn");
+  const closeBtn = document.getElementById("winCloseBtn");
+  const topbarAiBtn = document.getElementById("topbarAiBtn");
+  if (controls) {
+    controls.hidden = false;
+  }
+  if (topbarAiBtn) {
+    topbarAiBtn.hidden = true;
+  }
+  const api = window.electronAPI;
+  if (!api?.windowChromeMinimize) {
+    return;
+  }
+  const syncMaxIcon = async () => {
+    if (!maxBtn || !api.windowChromeIsMaximized) {
+      return;
+    }
+    const out = await api.windowChromeIsMaximized();
+    maxBtn.textContent = out?.maximized ? "❐" : "□";
+    maxBtn.setAttribute("aria-label", out?.maximized ? "还原" : "最大化");
+  };
+  minBtn?.addEventListener("click", () => void api.windowChromeMinimize());
+  maxBtn?.addEventListener("click", () => {
+    void api.windowChromeMaximize().then(() => syncMaxIcon());
+  });
+  closeBtn?.addEventListener("click", () => void api.windowChromeClose());
+  void syncMaxIcon();
 }
 
 function initSidebarCollapse() {

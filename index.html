@@ -106,7 +106,7 @@
 
     <div class="jl-main-workspace" id="jlMainWorkspace">
       <header class="topbar topbar-row jl-top-status" id="jlTopStatus">
-        <div class="jl-top-status__left">
+        <div class="jl-top-status__left jl-window-drag">
           <span class="jl-status-pill is-active" id="jlWorkspacePill" data-state="active">工作台</span>
           <nav class="breadcrumb" id="breadcrumb" aria-label="面包屑"></nav>
         </div>
@@ -123,6 +123,11 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/><path d="M19 13l.8 2.2L22 16l-2.2.8L19 19l-.8-2.2L16 16l2.2-.8L19 13z"/></svg>
             AI助手
           </button>
+          <div class="jl-window-controls" id="jlWindowControls" hidden aria-label="窗口控制">
+            <button type="button" class="jl-window-controls__btn" id="winMinBtn" aria-label="最小化">−</button>
+            <button type="button" class="jl-window-controls__btn" id="winMaxBtn" aria-label="最大化">□</button>
+            <button type="button" class="jl-window-controls__btn jl-window-controls__btn--close" id="winCloseBtn" aria-label="关闭">×</button>
+          </div>
         </div>
       </header>
 

@@ -327,6 +327,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   openWorkbenchWindow: (payload) => ipcRenderer.invoke("workbench-window-open", payload),
 
+  windowChromeMinimize: () => ipcRenderer.invoke("window-chrome-minimize"),
+  windowChromeMaximize: () => ipcRenderer.invoke("window-chrome-maximize"),
+  windowChromeClose: () => ipcRenderer.invoke("window-chrome-close"),
+  windowChromeIsMaximized: () => ipcRenderer.invoke("window-chrome-is-maximized"),
+
   getWindowMode: () => {
     const mode = new URLSearchParams(window.location.search).get("window");
     return mode === "workbench" ? "workbench" : "ai";
