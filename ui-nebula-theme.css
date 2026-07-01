@@ -4777,19 +4777,17 @@ body.jl-window-ai #panel-ai .ai-chat-empty-action__label {
 
 body.jl-window-ai.jl-route-ai .jl-prompt-dock {
   flex: 0 0 auto;
-  width: 100%;
-  max-width: 100%;
-  margin: 0 0 12px;
-  padding: 14px 16px 12px;
+  width: min(720px, calc(100% - 24px));
+  max-width: 720px;
+  margin: 0 auto 14px;
+  padding: 11px 14px 10px;
   gap: 0;
   position: relative;
   z-index: 1;
-  background: #fff !important;
-  border: none !important;
-  border-radius: 16px;
-  box-shadow:
-    0 4px 24px rgba(37, 99, 235, 0.1),
-    0 2px 8px rgba(15, 23, 42, 0.05);
+  background: rgba(248, 250, 252, 0.96) !important;
+  border: 1px solid rgba(226, 232, 240, 0.85) !important;
+  border-radius: 14px;
+  box-shadow: 0 2px 14px rgba(148, 163, 184, 0.14);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -4807,40 +4805,47 @@ body.jl-window-ai .jl-prompt-dock .ai-composer {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-panel {
-  padding: 0 2px 4px;
+  padding: 0 2px 2px;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-textarea {
-  min-height: 48px !important;
-  max-height: 160px !important;
-  padding: 6px 4px !important;
-  font-size: 14px !important;
-  line-height: 1.55 !important;
-  color: #111827 !important;
+  min-height: 38px !important;
+  max-height: 112px !important;
+  padding: 4px 6px !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  color: #334155 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder {
   color: #94a3b8 !important;
+  font-size: 13px !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
-  padding-top: 10px !important;
+  padding-top: 8px !important;
   margin-top: 0 !important;
-  gap: 8px !important;
+  gap: 6px !important;
   border-top: none;
+  flex-wrap: wrap;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left {
+  gap: 6px !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
-  padding: 3px !important;
-  border-radius: 10px;
-  background: #fafafa !important;
-  border: 1px solid #ebebeb !important;
+  padding: 2px !important;
+  border-radius: 9px;
+  background: #f4f4f5 !important;
+  border: 1px solid #e4e4e7 !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger {
   background: #e6f4ff !important;
   color: #1677ff !important;
   font-weight: 500;
+  border: 1px solid rgba(22, 119, 255, 0.25) !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn.is-on {
@@ -4848,31 +4853,41 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-bt
   color: #1677ff !important;
 }
 
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn:not(.is-on) {
+  background: transparent !important;
+  color: #71717a !important;
+}
+
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-trigger,
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
-  min-height: 30px !important;
-  padding: 4px 10px !important;
-  font-size: 13px !important;
+  min-height: 26px !important;
+  padding: 3px 8px !important;
+  font-size: 12px !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-prompt-attach-btn {
-  width: 32px !important;
-  height: 32px !important;
-  margin-right: 4px;
-  border: 1px solid #e5e7eb !important;
+  width: 28px !important;
+  height: 28px !important;
+  margin-right: 2px;
+  border: 1px solid #e4e4e7 !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #64748b !important;
+  color: #71717a !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger {
-  padding: 5px 10px !important;
-  font-size: 13px !important;
-  min-height: 32px;
-  border: 1px solid #e5e7eb !important;
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  min-height: 28px;
+  border: 1px solid #e4e4e7 !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #334155 !important;
+  color: #52525b !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text {
+  font-size: 12px !important;
+  color: #52525b !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-icon {
@@ -4880,11 +4895,11 @@ body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-icon {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-send-btn {
-  width: 36px !important;
-  height: 36px !important;
+  width: 32px !important;
+  height: 32px !important;
   border-radius: 999px !important;
   background: linear-gradient(135deg, #8b5cf6, #6366f1) !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 3px 10px rgba(99, 102, 241, 0.28);
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-send-btn:hover:not(:disabled) {
@@ -4892,32 +4907,23 @@ body.jl-window-ai .jl-prompt-dock .ai-send-btn:hover:not(:disabled) {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-voice-composer-btn {
-  width: 32px !important;
-  height: 32px !important;
-  border: 1px solid #e5e7eb !important;
+  width: 28px !important;
+  height: 28px !important;
+  border: 1px solid #e4e4e7 !important;
   border-radius: 8px !important;
   background: #fff !important;
-  color: #64748b !important;
+  color: #71717a !important;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-textarea,
+body.jl-window-ai .jl-prompt-dock .ai-mode-compact-trigger,
+body.jl-window-ai .jl-prompt-dock .ai-composer-pill-btn {
+  color: #334155 !important;
 }
 
 body.jl-window-ai.theme-nebula .main-column:has(#panel-ai:not([hidden])) .ai-chat-body {
   background: transparent !important;
   padding: 0 !important;
-}
-
-body.jl-window-ai .jl-prompt-dock {
-  background: #fff !important;
-  border: none !important;
-  border-radius: 16px;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-body.jl-window-ai .jl-prompt-dock .ai-composer-textarea,
-body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text,
-body.jl-window-ai .jl-prompt-dock .ai-mode-compact-trigger,
-body.jl-window-ai .jl-prompt-dock .ai-composer-pill-btn {
-  color: #334155 !important;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-log {
@@ -5064,7 +5070,7 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   margin: 0;
   padding: 0 16px;
   box-sizing: border-box;
@@ -5072,7 +5078,8 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
 
 body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
   flex: 1 1 auto;
-  width: 100%;
+  width: min(720px, 100%);
+  max-width: 720px;
   min-width: 0;
   min-height: 0;
   display: flex;
