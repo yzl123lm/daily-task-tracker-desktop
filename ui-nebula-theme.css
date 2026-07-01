@@ -4777,6 +4777,10 @@ html.jl-window-ai-root,
 body.jl-window-ai {
   background: transparent !important;
   color: #111827;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body.jl-window-ai .jl-app-shell {
@@ -4787,9 +4791,10 @@ body.jl-window-ai .jl-app-shell {
   --jl-ai-text-muted: #374151;
   --jl-ai-radius-window: 16px;
   margin: 8px;
-  width: calc(100vw - 16px);
-  height: calc(100vh - 16px);
-  max-height: calc(100vh - 16px);
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
   border-radius: var(--jl-ai-radius-window);
   overflow: hidden;
   border: 1px solid var(--jl-ai-glass-border);
@@ -4987,5 +4992,43 @@ body.jl-window-ai #panel-ai .jl-result-card {
 
 body.jl-window-ai #panel-ai .ai-msg-user.jl-result-card {
   background: rgba(255, 255, 255, 0.52) !important;
+}
+
+/* AI 首页：隐藏窗口级滚动条，内部区域使用细窄透明滚动条 */
+body.jl-window-ai .jl-app-shell,
+body.jl-window-ai .jl-main-workspace,
+body.jl-window-ai .jl-workspace-body,
+body.jl-window-ai .main-column,
+body.jl-window-ai .tab-panels {
+  overflow: hidden;
+}
+
+body.jl-window-ai .ai-chat-log,
+body.jl-window-ai .jl-right-drawer__body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(37, 99, 235, 0.28) transparent;
+  scrollbar-gutter: auto;
+}
+
+body.jl-window-ai .ai-chat-log::-webkit-scrollbar,
+body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+body.jl-window-ai .ai-chat-log::-webkit-scrollbar-track,
+body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.jl-window-ai .ai-chat-log::-webkit-scrollbar-thumb,
+body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-thumb {
+  background: rgba(37, 99, 235, 0.28);
+  border-radius: 999px;
+}
+
+body.jl-window-ai .ai-chat-log::-webkit-scrollbar-thumb:hover,
+body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(37, 99, 235, 0.42);
 }
 
