@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.10.76",
+  "version": "1.10.77",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -112,6 +112,7 @@
       "utils/kbDocPasswordVault.js",
       "build/icon.ico",
       "build/icon.png",
+      "build/whale-mascot.png",
       "prerequisites-manifest.json",
       "environmentManifest.json",
       "recorder.js",

@@ -4687,22 +4687,27 @@ body.jl-window-ai #panel-ai .ai-chat-empty-card {
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty-icon {
-  width: 72px;
-  height: 72px;
+  width: 96px;
+  height: 96px;
   margin: 0 auto;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border-radius: 50%;
-  box-shadow: 0 4px 18px rgba(37, 99, 235, 0.12);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
   line-height: 0;
+  overflow: visible;
 }
 
-body.jl-window-ai #panel-ai .ai-chat-empty-icon svg {
-  width: 56px;
-  height: 56px;
+body.jl-window-ai #panel-ai .ai-chat-empty-icon img {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  display: block;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 body.jl-window-ai #panel-ai .ai-chat-empty-title {
