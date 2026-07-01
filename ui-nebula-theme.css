@@ -3756,18 +3756,21 @@ body.theme-nebula {
 body.jl-window-ai .jl-workbench-split {
   flex: 0 0 var(--jl-workbench-split-width, 22%);
   width: var(--jl-workbench-split-width, 22%);
-  min-width: 220px;
-  max-width: 360px;
-  border-right: 1px solid rgba(255, 255, 255, 0.48);
-  background: rgba(255, 255, 255, 0.1);
+  min-width: 200px;
+  max-width: 320px;
+  border-right: none;
+  background: transparent;
 }
 
 body.jl-window-ai .jl-workbench-split .jl-side-rail {
-  width: 64px;
-  flex-shrink: 0;
-  height: 100%;
-  border-right: 1px solid rgba(255, 255, 255, 0.32);
-  background: rgba(6, 8, 15, 0.55);
+  display: none !important;
+}
+
+body.jl-window-ai .jl-workbench-nav,
+body.jl-window-ai #jlWorkbenchNav {
+  flex: 1 1 auto;
+  width: 100%;
+  padding: 14px 12px 16px;
 }
 
 body.jl-window-ai .jl-main-workspace {
@@ -5374,11 +5377,6 @@ body.jl-window-ai .jl-workbench-nav__head {
   cursor: default;
 }
 
-body.jl-window-ai .jl-side-rail__brand {
-  -webkit-app-region: drag;
-  cursor: default;
-}
-
 body.jl-window-ai .jl-titlebar-trailing,
 body.jl-window-ai .jl-titlebar-trailing *,
 body.jl-window-ai .jl-side-rail__btn,
@@ -5432,17 +5430,11 @@ body.jl-window-ai #jlWorkspacePill {
 }
 
 body.jl-window-ai .jl-side-rail {
-  background: rgba(255, 255, 255, 0.18);
-  border-right-color: rgba(255, 255, 255, 0.42);
+  display: none !important;
 }
 
-body.jl-window-ai .jl-side-rail__btn {
-  color: var(--jl-ai-text-muted);
-}
-
-body.jl-window-ai .jl-side-rail__btn.is-active {
-  background: rgba(255, 255, 255, 0.42);
-  color: var(--jl-ai-text);
+body.jl-window-ai .jl-side-rail__brand {
+  display: none !important;
 }
 
 body.jl-window-ai .jl-titlebar-trailing {

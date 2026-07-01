@@ -3571,7 +3571,7 @@ function initShell() {
   const sideRail = document.getElementById("jlSideRail");
   const workbenchNav = document.getElementById("jlWorkbenchNav");
   if (sideRail) {
-    sideRail.hidden = isWorkbenchWindow();
+    sideRail.hidden = isWorkbenchWindow() || isAiWindow();
   }
   if (workbenchNav) {
     workbenchNav.hidden = false;
