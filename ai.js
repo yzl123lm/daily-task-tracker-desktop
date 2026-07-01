@@ -2642,6 +2642,9 @@ function initAI() {
     row.style.setProperty("--jl-card-index", String(chatLog.querySelectorAll(".jl-result-card").length - 1));
     syncChatEmptyState();
     scrollChatToBottom();
+    if (typeof window.__aiSaveActiveThreadSnapshot === "function") {
+      window.__aiSaveActiveThreadSnapshot(chatLog.innerHTML);
+    }
     if (q) {
       openDetailsWithSearchHit();
       searchHitIndex = 0;
@@ -4068,6 +4071,9 @@ function initAI() {
     draftBeforeHistory = "";
     const docEntriesForTurn = aiMode === "chat" ? clonePendingDocEntries() : [];
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
+    if (typeof window.__aiNotifyThreadUserMessage === "function") {
+      window.__aiNotifyThreadUserMessage(trimmed);
+    }
     if (aiMode === "chat" && pendingDocEntries.length) {
       clearDocAttachment();
     }

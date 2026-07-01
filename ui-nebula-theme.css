@@ -3758,7 +3758,7 @@ body.jl-window-ai .jl-workbench-split {
   width: var(--jl-workbench-split-width, 22%);
   min-width: 200px;
   max-width: 320px;
-  border-right: none;
+  border-right: 1px solid rgba(148, 163, 184, 0.42);
   background: transparent;
 }
 
@@ -4664,7 +4664,7 @@ body.jl-window-ai #panel-ai .ai-chat-body:has(#aiChatEmpty:not([hidden])) {
 body.jl-window-ai #panel-ai .ai-chat-empty {
   flex: 0 0 auto;
   width: 100%;
-  max-width: 720px;
+  max-width: 580px;
   justify-content: flex-start;
   align-items: center;
   padding: 8px 20px 24px;
@@ -4673,7 +4673,7 @@ body.jl-window-ai #panel-ai .ai-chat-empty {
 
 body.jl-window-ai #panel-ai .ai-chat-empty-card {
   width: 100%;
-  max-width: 720px;
+  max-width: 580px;
   margin: 0 auto;
   padding: 0;
   background: transparent !important;
@@ -4777,10 +4777,10 @@ body.jl-window-ai #panel-ai .ai-chat-empty-action__label {
 
 body.jl-window-ai.jl-route-ai .jl-prompt-dock {
   flex: 0 0 auto;
-  width: min(720px, calc(100% - 24px));
-  max-width: 720px;
+  width: min(580px, calc(100% - 32px));
+  max-width: 580px;
   margin: 0 auto 14px;
-  padding: 11px 14px 10px;
+  padding: 10px 12px 9px;
   gap: 0;
   position: relative;
   z-index: 1;
@@ -4823,15 +4823,52 @@ body.jl-window-ai .jl-prompt-dock .ai-composer-textarea::placeholder {
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   padding-top: 8px !important;
   margin-top: 0 !important;
-  gap: 6px !important;
+  gap: 6px 8px !important;
   border-top: none;
-  flex-wrap: wrap;
+  flex-wrap: nowrap !important;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-footer-left {
-  gap: 6px !important;
+  grid-column: 1;
+  gap: 4px !important;
+  min-width: 0;
+  max-width: 100%;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
+  grid-column: 2;
+  justify-content: flex-start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill::-webkit-scrollbar {
+  display: none;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-mode-compact-wrap,
+body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill .ai-composer-pill-btn {
+  flex-shrink: 0;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-composer-footer-actions {
+  grid-column: 3;
+  flex-shrink: 0;
+}
+
+body.jl-window-ai .jl-prompt-dock .ai-profile-trigger-text {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 body.jl-window-ai .jl-prompt-dock .ai-composer-toolbar-pill {
@@ -5078,8 +5115,8 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
 
 body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
   flex: 1 1 auto;
-  width: min(720px, 100%);
-  max-width: 720px;
+  width: min(580px, 100%);
+  max-width: 580px;
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -5109,11 +5146,119 @@ body.jl-window-ai #jlWorkbenchNav {
   flex-direction: column;
   width: auto;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
   padding: 14px 10px 16px;
   border-right: none;
   background: transparent;
-  overflow: auto;
+  overflow: hidden;
   color: var(--jl-ai-text);
+}
+
+body.jl-window-ai .jl-workbench-nav__zone {
+  flex-shrink: 0;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--project {
+  min-height: 0;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--sessions {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.38);
+}
+
+body.jl-window-ai .jl-workbench-nav__zone-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 4px;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone-title {
+  margin: 0 0 6px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone-head .jl-workbench-nav__zone-title {
+  margin-bottom: 0;
+}
+
+body.jl-window-ai .jl-ai-session-new {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.55);
+  color: #475569;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+body.jl-window-ai .jl-ai-session-new:hover {
+  background: rgba(255, 255, 255, 0.85);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+body.jl-window-ai .jl-ai-session-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px 4px;
+}
+
+body.jl-window-ai .jl-ai-session-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #334155;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body.jl-window-ai .jl-ai-session-item:hover {
+  background: rgba(255, 255, 255, 0.32);
+  color: #1e293b;
+}
+
+body.jl-window-ai .jl-ai-session-item.is-active {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--project .jl-workbench-nav__list {
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
 }
 
 body.jl-window-ai .jl-workbench-nav__title {
@@ -5341,13 +5486,11 @@ body.jl-window-ai .jl-app-shell {
   border-radius: 0;
   overflow: hidden;
   position: relative;
-  border: 1px solid var(--jl-ai-glass-border);
-  box-shadow:
-    0 24px 64px rgba(37, 99, 235, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  border: none;
+  box-shadow: none;
   background:
     radial-gradient(ellipse 80% 60% at 10% -10%, rgba(147, 197, 253, 0.55), transparent 58%),
-    radial-gradient(ellipse 70% 55% at 95% 110%, rgba(96, 165, 250, 0.35), transparent 55%),
+    radial-gradient(ellipse 55% 45% at 88% 100%, rgba(96, 165, 250, 0.22), transparent 52%),
     linear-gradient(145deg, rgba(224, 242, 254, 0.92), rgba(191, 219, 254, 0.82));
   backdrop-filter: blur(28px) saturate(1.35);
   -webkit-backdrop-filter: blur(28px) saturate(1.35);
@@ -5393,6 +5536,8 @@ body.jl-window-ai .jl-workbench-nav__list,
 body.jl-window-ai .jl-workbench-nav__list *,
 body.jl-window-ai .jl-workbench-nav__sub,
 body.jl-window-ai .jl-workbench-nav__sub *,
+body.jl-window-ai .jl-workbench-nav__zone--sessions,
+body.jl-window-ai .jl-workbench-nav__zone--sessions *,
 body.jl-window-ai .jl-window-controls,
 body.jl-window-ai .jl-window-controls *,
 body.jl-window-ai button,

@@ -1817,6 +1817,162 @@ function bindWorkbenchNavClicks() {
   });
 }
 
+const AI_THREADS_STORAGE_KEY = "daily_task_tracker_ai_threads_v1";
+const AI_THREAD_SNAPSHOTS_KEY = "daily_task_tracker_ai_thread_snapshots_v1";
+const AI_ACTIVE_THREAD_KEY = "daily_task_tracker_ai_active_thread_v1";
+
+function readAiThreads() {
+  try {
+    const raw = localStorage.getItem(AI_THREADS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(parsed) && parsed.length) {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return [{ id: "default", title: "当前对话", updatedAt: Date.now() }];
+}
+
+function writeAiThreads(threads) {
+  localStorage.setItem(AI_THREADS_STORAGE_KEY, JSON.stringify(threads));
+}
+
+function readAiThreadSnapshots() {
+  try {
+    const raw = localStorage.getItem(AI_THREAD_SNAPSHOTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return {};
+}
+
+function writeAiThreadSnapshots(map) {
+  localStorage.setItem(AI_THREAD_SNAPSHOTS_KEY, JSON.stringify(map || {}));
+}
+
+let activeAiThreadId = localStorage.getItem(AI_ACTIVE_THREAD_KEY) || "default";
+
+function persistActiveAiThreadSnapshot() {
+  if (!isAiWindow() || typeof window.__aiGetChatLogHtml !== "function") {
+    return;
+  }
+  const snapshots = readAiThreadSnapshots();
+  snapshots[activeAiThreadId] = window.__aiGetChatLogHtml();
+  writeAiThreadSnapshots(snapshots);
+}
+
+function renderAiSessionList() {
+  const list = document.getElementById("jlAiSessionList");
+  if (!list || !isAiWindow()) {
+    return;
+  }
+  const threads = readAiThreads();
+  list.replaceChildren();
+  threads.forEach((thread) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "jl-ai-session-item";
+    btn.dataset.threadId = thread.id;
+    btn.setAttribute("role", "listitem");
+    btn.textContent = thread.title || "未命名对话";
+    btn.classList.toggle("is-active", thread.id === activeAiThreadId);
+    btn.addEventListener("click", () => {
+      switchAiThread(thread.id);
+    });
+    list.appendChild(btn);
+  });
+}
+
+function switchAiThread(threadId) {
+  const nextId = String(threadId || "").trim();
+  if (!nextId || nextId === activeAiThreadId) {
+    return;
+  }
+  persistActiveAiThreadSnapshot();
+  activeAiThreadId = nextId;
+  localStorage.setItem(AI_ACTIVE_THREAD_KEY, nextId);
+  const snapshots = readAiThreadSnapshots();
+  if (typeof window.__aiSetChatLogHtml === "function") {
+    window.__aiSetChatLogHtml(snapshots[nextId] || "");
+  }
+  renderAiSessionList();
+}
+
+function createAiThread() {
+  persistActiveAiThreadSnapshot();
+  const threads = readAiThreads();
+  const id = `t_${Date.now()}`;
+  threads.unshift({ id, title: `对话 ${threads.length + 1}`, updatedAt: Date.now() });
+  writeAiThreads(threads);
+  activeAiThreadId = id;
+  localStorage.setItem(AI_ACTIVE_THREAD_KEY, id);
+  if (typeof window.__aiClearChatLog === "function") {
+    window.__aiClearChatLog();
+  }
+  renderAiSessionList();
+}
+
+function touchActiveAiThreadTitle(text) {
+  const title = String(text || "").trim().slice(0, 24);
+  if (!title) {
+    return;
+  }
+  const threads = readAiThreads();
+  const idx = threads.findIndex((t) => t.id === activeAiThreadId);
+  if (idx < 0) {
+    return;
+  }
+  if (threads[idx].title === "当前对话" || /^对话 \d+$/.test(threads[idx].title || "")) {
+    threads[idx].title = title;
+    threads[idx].updatedAt = Date.now();
+    writeAiThreads(threads);
+    renderAiSessionList();
+  }
+}
+
+window.__aiSaveActiveThreadSnapshot = function __aiSaveActiveThreadSnapshot(html) {
+  if (!isAiWindow()) {
+    return;
+  }
+  const snapshots = readAiThreadSnapshots();
+  snapshots[activeAiThreadId] = String(html || "");
+  writeAiThreadSnapshots(snapshots);
+};
+
+window.__aiNotifyThreadUserMessage = function __aiNotifyThreadUserMessage(text) {
+  touchActiveAiThreadTitle(text);
+};
+
+function initAiSessionSidebar() {
+  if (!isAiWindow()) {
+    return;
+  }
+  const threads = readAiThreads();
+  if (!threads.some((t) => t.id === activeAiThreadId)) {
+    activeAiThreadId = threads[0].id;
+    localStorage.setItem(AI_ACTIVE_THREAD_KEY, activeAiThreadId);
+  }
+  const newBtn = document.getElementById("jlAiNewSessionBtn");
+  if (newBtn && newBtn.dataset.jlBound !== "1") {
+    newBtn.dataset.jlBound = "1";
+    newBtn.addEventListener("click", () => {
+      createAiThread();
+    });
+  }
+  renderAiSessionList();
+  queueMicrotask(() => {
+    const snapshots = readAiThreadSnapshots();
+    if (typeof window.__aiSetChatLogHtml === "function" && snapshots[activeAiThreadId]) {
+      window.__aiSetChatLogHtml(snapshots[activeAiThreadId]);
+    }
+  });
+}
+
 function initWorkbenchNav() {
   const nav = document.getElementById("jlWorkbenchNav");
   if (!nav) {
@@ -3577,6 +3733,7 @@ function initShell() {
     workbenchNav.hidden = false;
     bindWorkbenchNavClicks();
   }
+  initAiSessionSidebar();
   initWindowChrome();
   if (isWorkbenchWindow()) {
     initWorkbenchNav();
