@@ -4439,6 +4439,26 @@ function initAI() {
     clearDocAttachment();
   };
 
+  window.__aiGetChatLogHtml = () => chatLog?.innerHTML || "";
+  window.__aiSetChatLogHtml = (html) => {
+    if (!chatLog) {
+      return;
+    }
+    chatLog.innerHTML = html || "";
+    syncChatEmptyState();
+    scrollChatToBottom();
+  };
+  window.__aiClearChatLog = () => {
+    if (!chatLog) {
+      return;
+    }
+    chatLog.innerHTML = "";
+    syncChatEmptyState();
+    if (typeof window.__aiSaveActiveThreadSnapshot === "function") {
+      window.__aiSaveActiveThreadSnapshot("");
+    }
+  };
+
   setAiMode("chat");
   syncChatEmptyState();
   syncSendEnabled();
