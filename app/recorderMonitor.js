@@ -3,6 +3,7 @@
   const DEFAULT_W = 450;
   const DEFAULT_H = 600;
   const PINNED_Z = 9000;
+  const RECORDER_LAYER_BASE_Z = 2000;
 
   let layerEl = null;
   let floatWin = null;
@@ -53,12 +54,30 @@
     }
   }
 
+  function syncRecorderLayerZIndex(bump) {
+    if (!layerEl) {
+      return;
+    }
+    if (pinned) {
+      if (typeof global.__jlFloatLayerTopZ !== "number") {
+        global.__jlFloatLayerTopZ = 9100;
+      }
+      if (bump) {
+        global.__jlFloatLayerTopZ += 1;
+      }
+      layerEl.style.zIndex = String(global.__jlFloatLayerTopZ);
+      return;
+    }
+    layerEl.style.zIndex = String(RECORDER_LAYER_BASE_Z);
+  }
+
   function bringToFront() {
     if (!floatWin) {
       return;
     }
     if (pinned) {
       floatWin.style.zIndex = String(PINNED_Z);
+      syncRecorderLayerZIndex(true);
     } else {
       zCounter += 1;
       floatWin.style.zIndex = String(zCounter);
@@ -148,6 +167,7 @@
       pinBtn.classList.toggle("is-active", pinned);
       pinBtn.setAttribute("aria-pressed", pinned ? "true" : "false");
     }
+    syncRecorderLayerZIndex(true);
     bringToFront();
   }
 

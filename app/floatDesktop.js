@@ -162,6 +162,7 @@
   let dockEl = null;
   let zCounter = 30;
   const PINNED_Z = 9000;
+  const WORKSPACE_LAYER_BASE_Z = 1800;
   /** @type {Set<string>} */
   const pinnedRoutes = new Set();
   /** @type {Map<string, { el: HTMLElement, body: HTMLElement, route: string, minimized: boolean }>} */
@@ -218,10 +219,29 @@
     }
   }
 
+  function syncWorkspaceLayerZIndex(bump) {
+    const layer = document.getElementById("jlWorkspaceFloatLayer");
+    if (!layer) {
+      return;
+    }
+    if (pinnedRoutes.size > 0) {
+      if (typeof global.__jlFloatLayerTopZ !== "number") {
+        global.__jlFloatLayerTopZ = 9100;
+      }
+      if (bump) {
+        global.__jlFloatLayerTopZ += 1;
+      }
+      layer.style.zIndex = String(global.__jlFloatLayerTopZ);
+      return;
+    }
+    layer.style.zIndex = String(WORKSPACE_LAYER_BASE_Z);
+  }
+
   function bringToFront(winEl, route) {
     const isPinned = route && pinnedRoutes.has(route);
     if (isPinned) {
       winEl.style.zIndex = String(PINNED_Z);
+      syncWorkspaceLayerZIndex(true);
     } else {
       zCounter += 1;
       winEl.style.zIndex = String(zCounter);
@@ -250,6 +270,7 @@
     const pinBtn = entry.el.querySelector('[data-action="pin"]');
     pinBtn?.classList.toggle("is-active", pinned);
     pinBtn?.setAttribute("aria-pressed", pinned ? "true" : "false");
+    syncWorkspaceLayerZIndex(true);
     bringToFront(entry.el, route);
   }
 
@@ -888,6 +909,9 @@
     }
     if (rootEl) {
       rootEl.hidden = !overlayVisible;
+    }
+    if (overlayVisible) {
+      syncWorkspaceLayerZIndex(false);
     }
   }
 
