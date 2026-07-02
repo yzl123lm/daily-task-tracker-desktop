@@ -1,9 +1,9 @@
-const { readTasksFromFile, writeTasksToFile } = require("../taskStore");
+const { loadTasksWithRecovery, writeTasksToFile } = require("../taskStore");
 
 function registerTaskStoreHandlers(ipcMain, { app }) {
   ipcMain.handle("tasks-load", () => {
-    const tasks = readTasksFromFile(app.getPath("userData"));
-    return { ok: true, tasks };
+    const { tasks, recoveredCount } = loadTasksWithRecovery(app.getPath("userData"));
+    return { ok: true, tasks, recoveredCount };
   });
 
   ipcMain.handle("tasks-save", (_event, payload) => {

@@ -326,6 +326,39 @@ function findTaskAttachmentDirForDelete(userDataPath, task) {
   return "";
 }
 
+function scanAttachmentTaskMarkers(userDataPath) {
+  const settings = readSettings(userDataPath);
+  const rootDir = String(settings.rootDir || "").trim();
+  if (!rootDir || !fs.existsSync(rootDir)) {
+    return [];
+  }
+  const out = [];
+  let entries = [];
+  try {
+    entries = fs.readdirSync(rootDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  for (const ent of entries) {
+    if (!ent.isDirectory()) {
+      continue;
+    }
+    const dir = path.join(rootDir, ent.name);
+    const marker = readMarker(dir);
+    if (!marker?.taskId) {
+      continue;
+    }
+    out.push({
+      taskId: String(marker.taskId || "").trim(),
+      issueType: String(marker.issueType || "").trim(),
+      createdAtIsoDate: String(marker.createdAtIsoDate || "").trim(),
+      updatedAt: String(marker.updatedAt || "").trim(),
+      attachmentDir: dir,
+    });
+  }
+  return out;
+}
+
 function deleteTaskAttachmentDirectory(userDataPath, task) {
   const settings = readSettings(userDataPath);
   const rootDir = settings.rootDir;
@@ -364,4 +397,5 @@ module.exports = {
   fileToDataUrl,
   isImageFileName,
   buildFolderBaseName,
+  scanAttachmentTaskMarkers,
 };

@@ -797,7 +797,7 @@ async function hydrateTasksFromPersistence() {
     tasks = localTasks;
     window.getTasksForAI = () => tasks;
     refreshAutoTaskId();
-    return;
+    return { recoveredCount: 0 };
   }
   try {
     const res = await window.electronAPI.tasksLoad();
@@ -811,21 +811,30 @@ async function hydrateTasksFromPersistence() {
       void window.electronAPI.tasksSave({ tasks });
     } else {
       tasks = mergeTaskCollections(diskTasks, localTasks);
-      if (tasks.length) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+    if (tasks.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+      if (tasks.length > localTasks.length || tasks.length > diskTasks.length) {
         void window.electronAPI.tasksSave({ tasks });
       }
     }
+    window.getTasksForAI = () => tasks;
+    refreshAutoTaskId();
+    return { recoveredCount: Number(res?.recoveredCount) || 0 };
   } catch {
     tasks = localTasks;
+    window.getTasksForAI = () => tasks;
+    refreshAutoTaskId();
+    return { recoveredCount: 0 };
   }
-  window.getTasksForAI = () => tasks;
-  refreshAutoTaskId();
 }
 
 async function refreshTaskListPanel() {
-  await hydrateTasksFromPersistence();
+  const { recoveredCount } = await hydrateTasksFromPersistence();
   render();
+  if (recoveredCount > 0) {
+    showTaskListToast(`已从附件目录恢复 ${recoveredCount} 条任务，请补充内容后保存`);
+  }
 }
 
 window.onTaskListPanelVisible = refreshTaskListPanel;
@@ -4159,17 +4168,23 @@ function initSidebarCollapse() {
   }
 }
 
-initShell();
-initJlAppShell();
-initSidebarCollapse();
-void initStartupWarmupBar();
-applyDailyWorkExpanded(false);
-initTasksFromStorage();
-renderTaskTemplateSelect();
-void hydrateTasksFromPersistence().then(() => {
+async function bootstrapApp() {
+  initTasksFromStorage();
+  renderTaskTemplateSelect();
+  const { recoveredCount } = await hydrateTasksFromPersistence();
+  initShell();
+  initJlAppShell();
+  initSidebarCollapse();
+  void initStartupWarmupBar();
+  applyDailyWorkExpanded(false);
   render();
+  if (recoveredCount > 0) {
+    showTaskListToast(`已从附件目录恢复 ${recoveredCount} 条任务，请补充内容后保存`);
+  }
   setTimeout(() => remindOpenTasks(true), 500);
-});
+}
+
+void bootstrapApp();
 window.addEventListener("storage", (event) => {
   if (event.key !== STORAGE_KEY || !event.newValue) {
     return;
