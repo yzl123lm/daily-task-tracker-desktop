@@ -6279,6 +6279,12 @@ body.jl-window-workspace[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-
   display: none !important;
 }
 
+/* 工作台窗口侧栏：仅展示任务相关入口，知识库/会议记录走独立窗口 */
+body.jl-window-module.jl-window-workspace .jl-workbench-nav__item[data-wb-module="knowledge-base"],
+body.jl-window-module.jl-window-workspace .jl-workbench-nav__item[data-wb-module="record"] {
+  display: none !important;
+}
+
 /* --- 独立模块窗口 --- */
 body.jl-window-module.jl-window-workspace {
   background: linear-gradient(165deg, #dbeafe 0%, #eff6ff 48%, #f8fbff 100%);

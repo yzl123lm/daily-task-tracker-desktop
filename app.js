@@ -2170,6 +2170,16 @@ function initModuleShell() {
     workbenchNav.hidden = false;
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
+    if (isWorkspaceWindow()) {
+      workbenchNav.querySelectorAll('[data-wb-module="knowledge-base"], [data-wb-module="record"]').forEach((btn) => {
+        btn.hidden = true;
+        btn.setAttribute("aria-hidden", "true");
+      });
+      const tasksSub = workbenchNav.querySelector('[data-wb-sub="tasks"]');
+      if (tasksSub) {
+        tasksSub.hidden = false;
+      }
+    }
   }
 
   const bindNavigate = (payload) => {
