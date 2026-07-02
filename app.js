@@ -1748,6 +1748,13 @@ function showStartupReminder() {
   }
 }
 
+function showWorkbenchTaskReminder() {
+  if (!isWorkspaceWindow()) {
+    return;
+  }
+  showStartupReminder();
+}
+
 function remindOpenTasks(forceModal = false) {
   const { completed, incomplete, dai, doing } = getTaskSummaryCounts();
   const line = `当前完成任务${completed}条，未完成任务${incomplete}条，待处理${dai}条，处理中${doing}条`;
@@ -1981,6 +1988,9 @@ function activateWorkbenchTarget(target, options = {}) {
   activateRoute(key, { syncHash: true, skipWorkbenchGuard: true });
   if (options.capPanel && typeof window.__capSetActivePanel === "function") {
     openWorkbenchCapInline(options.capPanel);
+  }
+  if (key === "workbench") {
+    queueMicrotask(() => showWorkbenchTaskReminder());
   }
 }
 
@@ -4312,7 +4322,6 @@ async function bootstrapApp() {
   if (recoveredCount > 0) {
     showTaskListToast(`已从附件目录恢复 ${recoveredCount} 条任务，请补充内容后保存`);
   }
-  setTimeout(() => remindOpenTasks(true), 500);
 }
 
 void bootstrapApp();
