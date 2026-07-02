@@ -2179,8 +2179,9 @@ function fitRecordModuleWindow() {
     return;
   }
   const measure = () => {
-    const width = 720;
-    const height = 640;
+    const floatWin = document.getElementById("recorderFloatWin");
+    const width = Math.round(floatWin?.offsetWidth || 680);
+    const height = Math.round(floatWin?.offsetHeight || 580);
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });
     }

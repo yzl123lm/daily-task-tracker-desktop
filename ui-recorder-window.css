@@ -3,13 +3,16 @@
    ============================================================================= */
 
 :root {
-  --rec-bg: rgba(245, 250, 255, 0.82);
+  --rec-bg:
+    radial-gradient(900px 480px at 10% -8%, rgba(147, 197, 253, 0.55), transparent 58%),
+    radial-gradient(700px 420px at 92% 6%, rgba(191, 219, 254, 0.45), transparent 55%),
+    linear-gradient(165deg, rgba(219, 234, 254, 0.92) 0%, rgba(239, 246, 255, 0.88) 48%, rgba(248, 251, 255, 0.9) 100%);
   --rec-card: rgba(255, 255, 255, 0.62);
   --rec-border: rgba(255, 255, 255, 0.75);
   --rec-shadow: 0 18px 45px rgba(80, 130, 200, 0.18);
-  --rec-title: #16345f;
-  --rec-body: #526b8c;
-  --rec-muted: #8ea2bd;
+  --rec-title: #000000;
+  --rec-body: #111111;
+  --rec-muted: #333333;
   --rec-primary: #2f80ff;
   --rec-accent: #5da8ff;
   --rec-danger: #ff5a5a;
@@ -60,10 +63,7 @@ body.jl-recorder-window-active.jl-window-record .tab-panels {
 
 body.jl-recorder-window-active {
   overflow: hidden;
-  background:
-    radial-gradient(900px 480px at 10% -8%, rgba(147, 197, 253, 0.55), transparent 58%),
-    radial-gradient(700px 420px at 92% 6%, rgba(191, 219, 254, 0.45), transparent 55%),
-    linear-gradient(165deg, #dbeafe 0%, #eff6ff 50%, #f8fbff 100%) !important;
+  background: transparent !important;
 }
 
 body.jl-recorder-window-active .jl-app-shell,
@@ -113,7 +113,36 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   overflow: hidden;
 }
 
-/* --- 桌面画布 --- */
+/* --- 模块独立窗口：内容铺满，无外层桌面留白 --- */
+
+body.jl-recorder-window-active .recorder-desktop {
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+body.jl-recorder-window-active .recorder-float-win {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+body.jl-recorder-window-active .recorder-float-win.is-focused {
+  box-shadow: none;
+}
+
+body.jl-recorder-window-active .recorder-float-win.is-maximized {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* --- 桌面画布（嵌入主界面时的居中浮窗） --- */
 
 .recorder-desktop {
   position: relative;
@@ -186,12 +215,18 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   padding: 10px 12px 10px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.35);
-  cursor: grab;
+  cursor: default;
   user-select: none;
 }
 
-.recorder-float-win__titlebar:active {
-  cursor: grabbing;
+body.jl-recorder-window-active .recorder-float-win__titlebar {
+  cursor: default;
+  -webkit-app-region: drag;
+}
+
+body.jl-recorder-window-active .recorder-float-win__controls,
+body.jl-recorder-window-active .recorder-float-win__ctrl {
+  -webkit-app-region: no-drag;
 }
 
 .recorder-float-win__title {
@@ -229,7 +264,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.55);
-  color: var(--rec-body);
+  color: #111111;
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
@@ -240,7 +275,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 
 .recorder-float-win__ctrl:hover {
   background: rgba(255, 255, 255, 0.88);
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-float-win__ctrl--close:hover {
@@ -332,7 +367,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 .recorder-tab__label {
   font-size: 13px;
   font-weight: 650;
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-tab.is-active .recorder-tab__label {
@@ -342,7 +377,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 .recorder-tab__desc {
   font-size: 11px;
   line-height: 1.35;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 /* --- 右侧内容区 --- */
@@ -415,13 +450,13 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: 650;
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-card__desc {
   margin: -4px 0 8px;
   font-size: 12px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 /* --- 录音控制 --- */
@@ -457,7 +492,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   font-variant-numeric: tabular-nums;
   font-size: 15px;
   font-weight: 600;
-  color: var(--rec-body);
+  color: #000000;
   letter-spacing: 0.06em;
 }
 
@@ -521,13 +556,13 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   margin: 10px 0 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-subhint {
   margin: 4px 0 0;
   font-size: 12px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 .recorder-toolbar {
@@ -545,12 +580,12 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 }
 
 .recorder-btn {
-  border: 1px solid rgba(142, 162, 189, 0.35);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 10px;
   padding: 6px 12px;
   font-size: 12px;
   background: rgba(255, 255, 255, 0.72);
-  color: var(--rec-body);
+  color: #111111;
   cursor: pointer;
 }
 
@@ -572,7 +607,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 .recorder-status {
   margin-top: 8px;
   font-size: 11px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 .recorder-status.is-error {
@@ -630,7 +665,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 .recorder-list-item__title {
   font-size: 13px;
   font-weight: 650;
-  color: var(--rec-title);
+  color: #000000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -638,7 +673,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 
 .recorder-list-item__meta {
   font-size: 11px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 .recorder-list-item__badge {
@@ -678,7 +713,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   padding: 16px 8px;
   text-align: center;
   font-size: 12px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 /* --- 转写页 --- */
@@ -702,13 +737,13 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 .recorder-upload-zone__hint {
   margin: 0;
   font-size: 13px;
-  color: var(--rec-body);
+  color: #111111;
 }
 
 .recorder-upload-zone__formats {
   margin: 6px 0 0;
   font-size: 11px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 .recorder-editor {
@@ -723,12 +758,12 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   min-height: 120px;
   resize: vertical;
   border-radius: 12px;
-  border: 1px solid rgba(142, 162, 189, 0.28);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.72);
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-actions {
@@ -751,11 +786,11 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   min-width: 140px;
   height: 34px;
   border-radius: 10px;
-  border: 1px solid rgba(142, 162, 189, 0.28);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.72);
   padding: 0 12px;
   font-size: 12px;
-  color: var(--rec-title);
+  color: #000000;
 }
 
 .recorder-filter-group {
@@ -764,12 +799,12 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 }
 
 .recorder-filter-chip {
-  border: 1px solid rgba(142, 162, 189, 0.28);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 11px;
   background: rgba(255, 255, 255, 0.55);
-  color: var(--rec-body);
+  color: #111111;
   cursor: pointer;
 }
 
@@ -795,21 +830,13 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   background: rgba(255, 255, 255, 0.45);
   padding: 12px 14px;
   font-size: 12px;
-  color: var(--rec-body);
+  color: #111111;
   overflow: auto;
   min-height: 80px;
 }
 
 .recorder-mic-wrap {
   margin-bottom: 4px;
-}
-
-.recorder-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--rec-muted);
 }
 
 .recorder-field {
@@ -820,17 +847,29 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 
 .recorder-field__label {
   font-size: 11px;
-  color: var(--rec-muted);
+  color: #333333;
 }
 
 .recorder-select {
   height: 34px;
   border-radius: 10px;
-  border: 1px solid rgba(142, 162, 189, 0.28);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.72);
   padding: 0 10px;
   font-size: 12px;
-  color: var(--rec-title);
+  color: #000000;
+}
+
+.recorder-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #333333;
+}
+
+.recorder-tab {
+  color: #111111;
 }
 
 .recorder-card--full .recorder-list {
