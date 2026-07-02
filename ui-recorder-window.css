@@ -345,9 +345,9 @@ body.jl-recorder-window-active .recorder-float-win__ctrl {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(219, 234, 254, 0.85);
   color: var(--rec-primary);
-  border: 1px solid rgba(47, 128, 255, 0.12);
+  border: 1px solid rgba(47, 128, 255, 0.18);
 }
 
 .recorder-tab.is-active .recorder-tab__icon {
@@ -868,10 +868,6 @@ body.jl-recorder-window-active .recorder-float-win__ctrl {
   color: #333333;
 }
 
-.recorder-tab {
-  color: #111111;
-}
-
 .recorder-card--full .recorder-list {
   margin-top: 4px;
 }
@@ -913,4 +909,107 @@ body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
 body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
   overflow: hidden !important;
   padding: 0 !important;
+}
+
+/* 覆盖 theme-nebula 全局 button 深色样式（优先级高于 .theme-nebula button） */
+.theme-nebula #recorderFloatWin button.recorder-tab {
+  background: rgba(255, 255, 255, 0.62) !important;
+  border: 1px solid rgba(255, 255, 255, 0.78) !important;
+  color: #111111 !important;
+  box-shadow: 0 4px 14px rgba(80, 130, 200, 0.08) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-tab:hover {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-color: rgba(47, 128, 255, 0.28) !important;
+  color: #000000 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-tab.is-active {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(47, 128, 255, 0.42) !important;
+  color: #000000 !important;
+  box-shadow: 0 0 0 1px rgba(47, 128, 255, 0.12), 0 8px 22px rgba(47, 128, 255, 0.14) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-mic-btn {
+  background: linear-gradient(135deg, var(--rec-primary) 0%, var(--rec-accent) 100%) !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 28px rgba(47, 128, 255, 0.38) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-mic-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2874f0 0%, #52a0ff 100%) !important;
+  color: #ffffff !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-mic-btn:disabled {
+  opacity: 0.55 !important;
+  background: linear-gradient(135deg, var(--rec-primary) 0%, var(--rec-accent) 100%) !important;
+  color: #ffffff !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-float-win__ctrl {
+  background: rgba(255, 255, 255, 0.62) !important;
+  border: none !important;
+  color: #111111 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-float-win__ctrl:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-float-win__ctrl--close:hover {
+  background: rgba(255, 90, 90, 0.18) !important;
+  color: var(--rec-danger) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-btn {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #111111 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #000000 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-btn--primary {
+  background: linear-gradient(135deg, var(--rec-primary), var(--rec-accent)) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-btn--ghost {
+  background: rgba(255, 255, 255, 0.45) !important;
+  border: 1px solid rgba(47, 128, 255, 0.15) !important;
+  color: #333333 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-filter-chip {
+  background: rgba(255, 255, 255, 0.62) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #111111 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-filter-chip.is-active {
+  background: rgba(47, 128, 255, 0.14) !important;
+  border-color: rgba(47, 128, 255, 0.38) !important;
+  color: var(--rec-primary) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-icon-btn {
+  background: linear-gradient(135deg, var(--rec-primary), var(--rec-accent)) !important;
+  border: none !important;
+  color: #ffffff !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-icon-btn--ghost {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border: 1px solid rgba(142, 162, 189, 0.28) !important;
+  color: var(--rec-muted) !important;
 }
