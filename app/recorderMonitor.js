@@ -28,7 +28,14 @@
 
   function readGeometry() {
     try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
+      let raw = global.localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        raw = sessionStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          global.localStorage.setItem(STORAGE_KEY, raw);
+          sessionStorage.removeItem(STORAGE_KEY);
+        }
+      }
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -40,7 +47,7 @@
       return;
     }
     try {
-      sessionStorage.setItem(
+      global.localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           left: floatWin.offsetLeft,
@@ -340,6 +347,9 @@
     global.addEventListener("resize", () => {
       applyGeometry();
     });
+
+    global.addEventListener("beforeunload", saveGeometry);
+    global.addEventListener("pagehide", saveGeometry);
 
     global.recordAssistantActivate = (legacyKey) => {
       const map = {

@@ -194,9 +194,29 @@
     return `jl_float_win_${mode}_${route}`;
   }
 
-  function readSavedGeometry(route) {
+  function geometryStore() {
     try {
-      const raw = sessionStorage.getItem(storageKey(route));
+      return global.localStorage;
+    } catch {
+      return null;
+    }
+  }
+
+  function readSavedGeometry(route) {
+    const store = geometryStore();
+    if (!store) {
+      return null;
+    }
+    try {
+      const key = storageKey(route);
+      let raw = store.getItem(key);
+      if (!raw) {
+        raw = sessionStorage.getItem(key);
+        if (raw) {
+          store.setItem(key, raw);
+          sessionStorage.removeItem(key);
+        }
+      }
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -204,8 +224,12 @@
   }
 
   function saveGeometry(route, winEl) {
+    const store = geometryStore();
+    if (!store || !winEl) {
+      return;
+    }
     try {
-      sessionStorage.setItem(
+      store.setItem(
         storageKey(route),
         JSON.stringify({
           left: winEl.offsetLeft,
@@ -217,6 +241,25 @@
     } catch {
       /* ignore */
     }
+  }
+
+  function flushAllGeometry() {
+    windows.forEach((entry, route) => {
+      if (entry?.el && !entry.el.hidden) {
+        saveGeometry(route, entry.el);
+      }
+    });
+  }
+
+  let geometryFlushBound = false;
+
+  function ensureGeometryFlushOnExit() {
+    if (geometryFlushBound) {
+      return;
+    }
+    geometryFlushBound = true;
+    global.addEventListener("beforeunload", flushAllGeometry);
+    global.addEventListener("pagehide", flushAllGeometry);
   }
 
   function syncWorkspaceLayerZIndex(bump) {
@@ -931,6 +974,7 @@
     routeHandler = options.onRoute || null;
     panelVisibleHandler = options.onPanelVisible || null;
     ensureRoot();
+    ensureGeometryFlushOnExit();
     buildDock();
     hideLegacyChrome();
     bindHubTiles();
@@ -957,6 +1001,7 @@
     routeHandler = options.onRoute || null;
     panelVisibleHandler = options.onPanelVisible || null;
     ensureRoot();
+    ensureGeometryFlushOnExit();
     hideLegacyChrome();
     bindHubTiles();
     bindKbLauncher();
