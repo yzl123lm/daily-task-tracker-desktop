@@ -27,10 +27,11 @@ const MODULE_META = {
     defaultRoute: "record",
     windowMode: "record",
     backgroundColor: "#dbeafe",
-    width: 1120,
-    height: 760,
-    minWidth: 880,
-    minHeight: 620,
+    width: 720,
+    height: 640,
+    minWidth: 560,
+    minHeight: 520,
+    frameless: true,
   },
 };
 
@@ -77,7 +78,7 @@ function createModuleBrowserWindow(moduleKey, meta) {
     autoHideMenuBar: true,
     title: meta.title,
     show: false,
-    frame: true,
+    frame: !meta.frameless,
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       contextIsolation: true,

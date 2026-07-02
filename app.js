@@ -2179,8 +2179,8 @@ function fitRecordModuleWindow() {
     return;
   }
   const measure = () => {
-    const width = 1120;
-    const height = 760;
+    const width = 720;
+    const height = 640;
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });
     }
@@ -2286,11 +2286,15 @@ function initModuleShell() {
     });
   }
   if (isRecordWindow()) {
-    document.body.classList.add("jl-record-assistant-active");
+    document.body.classList.add("jl-recorder-window-active");
+    document.body.classList.remove("jl-record-assistant-active");
     const floatDesktop = document.getElementById("jlFloatDesktop");
     if (floatDesktop) {
       floatDesktop.hidden = true;
       floatDesktop.setAttribute("aria-hidden", "true");
+    }
+    if (window.RecorderWindow?.init) {
+      window.RecorderWindow.init();
     }
   }
 

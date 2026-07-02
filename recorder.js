@@ -13,8 +13,19 @@ function initRecorderModule() {
   const recentListEl = document.getElementById("recordRecentList");
   const recentListFullEl = document.getElementById("recordRecentListFull");
   const liveDotEl = document.getElementById("recordLiveDot");
-  const waveEl = document.querySelector(".record-assistant__wave");
-  const recordPanelEl = document.getElementById("panel-record");
+  const waveEl = document.querySelector(".recorder-wave");
+  const recordFloatEl = document.getElementById("recorderFloatWin");
+  const captureToolbarEl = document.getElementById("recordCaptureToolbar");
+  const transcribeFileEl = document.getElementById("recordTranscriptFile");
+  const transcribeDropzoneEl = document.getElementById("recordTranscribeDropzone");
+  const transcribeStatusEl = document.getElementById("recordTranscribeStatus");
+  const transcribeStartBtn = document.getElementById("recordTranscribeStartBtn");
+  const transcribeCopyBtn = document.getElementById("recordTranscribeCopyBtn");
+  const transcribeExportBtn = document.getElementById("recordTranscribeExportBtn");
+  const summaryCopyBtn = document.getElementById("recordSummaryCopyBtn");
+  const summaryExportMdBtn = document.getElementById("recordSummaryExportMdBtn");
+  const historySearchEl = document.getElementById("recordHistorySearch");
+  const historyDetailEl = document.getElementById("recordHistoryDetail");
   const RECENT_KEY = "daily_task_tracker_record_recent_v1";
   const asrDialog = document.getElementById("asrSettingsDialog");
   const asrForm = document.getElementById("asrSettingsForm");
@@ -44,6 +55,8 @@ function initRecorderModule() {
   let finalText = "";
   let transcribeQueue = Promise.resolve();
   let timerInterval = null;
+  let historyFilter = "all";
+  let pendingAudioFile = null;
   let recordStartedAt = 0;
 
   function formatTimer(ms) {
@@ -96,20 +109,23 @@ function initRecorderModule() {
     const title = String(item.title || "未命名记录").replace(/</g, "&lt;");
     const time = String(item.time || "").replace(/</g, "&lt;");
     const duration = String(item.duration || "--:--").replace(/</g, "&lt;");
+    const typeLabel = String(item.type || "录音").replace(/</g, "&lt;");
     return `
-      <li class="record-assistant__recent-item" data-idx="${idx}">
-        <span class="record-assistant__recent-doc" aria-hidden="true">
+      <li class="recorder-list-item" data-idx="${idx}">
+        <span class="recorder-list-item__doc" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </span>
-        <span class="record-assistant__recent-body">
-          <span class="record-assistant__recent-title">${title}</span>
-          <span class="record-assistant__recent-meta">${time} · 时长: ${duration}</span>
+        <span class="recorder-list-item__body">
+          <span class="recorder-list-item__title">${title}</span>
+          <span class="recorder-list-item__meta">${time} · 时长: ${duration}</span>
         </span>
-        <span class="record-assistant__recent-actions">
-          <button type="button" class="record-assistant__recent-play" data-action="play" data-idx="${idx}" title="查看转写" aria-label="查看转写">
+        <span class="recorder-list-item__badge">${typeLabel}</span>
+        <span class="recorder-list-item__actions">
+          <button type="button" class="recorder-icon-btn" data-action="play" data-idx="${idx}" title="查看转写" aria-label="查看转写">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 7l10 5-10 5V7z" fill="currentColor"/></svg>
           </button>
-          <button type="button" class="record-assistant__recent-more" data-action="more" data-idx="${idx}" title="更多" aria-label="更多">⋯</button>
+          <button type="button" class="recorder-icon-btn recorder-icon-btn--ghost" data-action="detail" data-idx="${idx}" title="详情" aria-label="详情">⋯</button>
+          <button type="button" class="recorder-icon-btn recorder-icon-btn--ghost" data-action="more" data-idx="${idx}" title="删除" aria-label="删除">×</button>
         </span>
       </li>`;
   }
@@ -138,9 +154,20 @@ function initRecorderModule() {
           analysisEl.value = item.analysis;
         }
         if (typeof window.recordAssistantActivate === "function") {
-          window.recordAssistantActivate("transcript");
-        } else if (typeof window.FloatDesktop?.focusOrOpen === "function") {
-          window.FloatDesktop.focusOrOpen("record-transcript");
+          window.recordAssistantActivate("transcribe");
+        }
+        return;
+      }
+      if (btn.dataset.action === "detail") {
+        if (historyDetailEl) {
+          historyDetailEl.hidden = false;
+          historyDetailEl.innerHTML =
+            `<strong>${String(item.title || "记录").replace(/</g, "&lt;")}</strong><br/>` +
+            `${String(item.time || "")} · 时长 ${String(item.duration || "--:--")}<br/><br/>` +
+            `<strong>转写摘要</strong><br/>${String(item.transcript || "（无）").replace(/</g, "&lt;").slice(0, 400)}`;
+        }
+        if (typeof window.recordAssistantActivate === "function") {
+          window.recordAssistantActivate("history");
         }
         return;
       }
@@ -156,17 +183,56 @@ function initRecorderModule() {
     });
   }
 
+  function filterRecentItems(items) {
+    const q = String(historySearchEl?.value || "").trim().toLowerCase();
+    const now = new Date();
+    return items.filter((item) => {
+      if (q && !String(item.title || "").toLowerCase().includes(q)) {
+        return false;
+      }
+      if (historyFilter === "all") {
+        return true;
+      }
+      const t = new Date(item.time || "");
+      if (Number.isNaN(t.getTime())) {
+        return historyFilter === "all";
+      }
+      if (historyFilter === "today") {
+        return t.toDateString() === now.toDateString();
+      }
+      if (historyFilter === "week") {
+        const weekAgo = new Date(now);
+        weekAgo.setDate(now.getDate() - 7);
+        return t >= weekAgo;
+      }
+      if (historyFilter === "month") {
+        return t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth();
+      }
+      return true;
+    });
+  }
+
   function renderRecentRecords() {
     const items = readRecentRecords();
-    const emptyHtml = '<li class="record-assistant__recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
-    const html = items.length
-      ? items.map((item, idx) => renderRecentItemHtml(item, idx)).join("")
+    const emptyHtml = '<li class="recorder-list-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
+    const previewHtml = items.length
+      ? items.slice(0, 4).map((item, idx) => renderRecentItemHtml(item, idx)).join("")
       : emptyHtml;
-    for (const listEl of [recentListEl, recentListFullEl]) {
-      if (listEl) {
-        listEl.innerHTML = html;
-        bindRecentListActions(listEl);
-      }
+    const filtered = filterRecentItems(items);
+    const fullHtml = filtered.length
+      ? filtered.map((item) => {
+          const idx = items.indexOf(item);
+          return renderRecentItemHtml(item, idx);
+        }).join("")
+      : emptyHtml;
+
+    if (recentListEl) {
+      recentListEl.innerHTML = previewHtml;
+      bindRecentListActions(recentListEl);
+    }
+    if (recentListFullEl) {
+      recentListFullEl.innerHTML = fullHtml;
+      bindRecentListActions(recentListFullEl);
     }
   }
 
@@ -176,6 +242,7 @@ function initRecorderModule() {
       title: title || "会议记录",
       time: new Date().toLocaleString("zh-CN", { hour12: false }),
       duration: durationLabel || "--:--",
+      type: "录音",
       transcript: transcriptEl.value.trim(),
       analysis: analysisEl.value.trim(),
     });
@@ -199,7 +266,9 @@ function initRecorderModule() {
     asrSettingsBtn.disabled = v;
     waveEl?.classList.toggle("is-active", v);
     liveDotEl?.classList.toggle("is-live", v);
-    recordPanelEl?.classList.toggle("is-recording", v);
+    recordFloatEl?.classList.toggle("is-recording", v);
+    captureToolbarEl && (captureToolbarEl.hidden = !v);
+    window.RecorderWindow?.setRecording?.(v);
     if (v) {
       startTimer();
     } else {
@@ -477,37 +546,135 @@ function initRecorderModule() {
   stopBtn.addEventListener("click", () => stopRecording());
   analyzeBtn.addEventListener("click", () => analyzeTranscript());
   exportBtn.addEventListener("click", () => exportWordDoc());
-  initRecordAssistantNav();
+
+  transcribeDropzoneEl?.addEventListener("click", () => transcribeFileEl?.click());
+  transcribeDropzoneEl?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      transcribeFileEl?.click();
+    }
+  });
+  transcribeDropzoneEl?.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    transcribeDropzoneEl.classList.add("is-dragover");
+  });
+  transcribeDropzoneEl?.addEventListener("dragleave", () => {
+    transcribeDropzoneEl.classList.remove("is-dragover");
+  });
+  transcribeDropzoneEl?.addEventListener("drop", (e) => {
+    e.preventDefault();
+    transcribeDropzoneEl.classList.remove("is-dragover");
+    const file = e.dataTransfer?.files?.[0];
+    if (file) {
+      pendingAudioFile = file;
+      if (transcribeStatusEl) {
+        transcribeStatusEl.textContent = `已选择：${file.name}`;
+      }
+    }
+  });
+  transcribeFileEl?.addEventListener("change", () => {
+    const file = transcribeFileEl.files?.[0];
+    pendingAudioFile = file || null;
+    if (transcribeStatusEl) {
+      transcribeStatusEl.textContent = file ? `已选择：${file.name}` : "等待上传或录音转写";
+    }
+  });
+
+  transcribeStartBtn?.addEventListener("click", async () => {
+    if (pendingAudioFile) {
+      if (transcribeStatusEl) {
+        transcribeStatusEl.textContent = "正在转写上传的音频…";
+      }
+      try {
+        await transcribeChunk(pendingAudioFile, true);
+        if (transcribeStatusEl) {
+          transcribeStatusEl.textContent = "转写完成。";
+        }
+      } catch (err) {
+        if (transcribeStatusEl) {
+          transcribeStatusEl.textContent = `转写失败：${err.message || err}`;
+          transcribeStatusEl.classList.add("is-error");
+        }
+      }
+      return;
+    }
+    if (transcriptEl.value.trim()) {
+      if (transcribeStatusEl) {
+        transcribeStatusEl.textContent = "已加载当前转写文本。";
+      }
+      return;
+    }
+    alert("请先上传音频文件，或在录音页完成录音。");
+  });
+
+  transcribeCopyBtn?.addEventListener("click", async () => {
+    const text = transcriptEl.value.trim();
+    if (!text) {
+      alert("暂无转写文本可复制。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      if (transcribeStatusEl) {
+        transcribeStatusEl.textContent = "已复制到剪贴板。";
+      }
+    } catch {
+      alert("复制失败，请手动选择文本复制。");
+    }
+  });
+
+  transcribeExportBtn?.addEventListener("click", () => {
+    exportWordDoc();
+  });
+
+  summaryCopyBtn?.addEventListener("click", async () => {
+    const text = analysisEl.value.trim();
+    if (!text) {
+      alert("暂无纪要内容可复制。");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus("纪要已复制到剪贴板。");
+    } catch {
+      alert("复制失败，请手动选择文本复制。");
+    }
+  });
+
+  summaryExportMdBtn?.addEventListener("click", () => {
+    const analysis = analysisEl.value.trim();
+    if (!analysis) {
+      alert("请先生成纪要。");
+      return;
+    }
+    const blob = new Blob([analysis], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `会议纪要_${Date.now()}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus("已导出 Markdown。");
+  });
+
+  historySearchEl?.addEventListener("input", () => renderRecentRecords());
+  document.querySelectorAll("[data-history-filter]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      historyFilter = chip.dataset.historyFilter || "all";
+      document.querySelectorAll("[data-history-filter]").forEach((node) => {
+        node.classList.toggle("is-active", node === chip);
+      });
+      renderRecentRecords();
+    });
+  });
+
   renderRecentRecords();
 }
 
 function initRecordAssistantNav() {
-  const root = document.getElementById("panel-record");
-  if (!root?.classList.contains("record-assistant")) {
-    return;
-  }
-  const navItems = root.querySelectorAll("[data-record-nav]");
-  const panels = root.querySelectorAll("[data-record-panel]");
-  if (!navItems.length || !panels.length) {
-    return;
-  }
-
-  function activate(panelKey) {
-    navItems.forEach((btn) => {
-      const active = btn.dataset.recordNav === panelKey;
-      btn.classList.toggle("is-active", active);
-      btn.toggleAttribute("aria-current", active ? "page" : false);
-    });
-    panels.forEach((panel) => {
-      panel.hidden = panel.dataset.recordPanel !== panelKey;
-    });
-  }
-
-  navItems.forEach((btn) => {
-    btn.addEventListener("click", () => activate(btn.dataset.recordNav || "capture"));
-  });
-
-  window.recordAssistantActivate = activate;
+  /* 导航由 RecorderWindow 管理 */
 }
 
 initRecorderModule();
