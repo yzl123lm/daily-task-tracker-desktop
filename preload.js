@@ -325,6 +325,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   searchRuleConfigSet: (payload) => ipcRenderer.invoke("search-rule-config-set", payload),
 
+  openModuleWindow: (payload) => ipcRenderer.invoke("module-window-open", payload),
+
   openWorkbenchWindow: (payload) => ipcRenderer.invoke("workbench-window-open", payload),
 
   windowChromeMinimize: () => ipcRenderer.invoke("window-chrome-minimize"),
@@ -334,7 +336,19 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   getWindowMode: () => {
     const mode = new URLSearchParams(window.location.search).get("window");
-    return mode === "workbench" ? "workbench" : "ai";
+    if (mode === "workbench") {
+      return "workspace";
+    }
+    return mode || "ai";
+  },
+
+  onModuleNavigate: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("module-navigate", handler);
+    return () => ipcRenderer.removeListener("module-navigate", handler);
   },
 
   onWorkbenchNavigate: (callback) => {

@@ -50,17 +50,12 @@ const JL_SPACE_LABELS = {
 
 const WINDOW_MODE = (() => {
   const q = new URLSearchParams(window.location.search);
-  return q.get("window") === "workbench" ? "workbench" : "ai";
+  return q.get("window") || "ai";
 })();
 
 const WORKBENCH_TASK_ROUTES = new Set(["workbench", "new", "filter", "list", "dashboard"]);
-const WORKBENCH_CAP_MODULES = new Set(["local-models", "capability"]);
-/** AI 主窗口内联渲染的模块（不再弹出旧版黑色工作台窗口） */
-const AI_INLINE_MODULE_ROUTES = new Set([
-  ...WORKBENCH_TASK_ROUTES,
-  "knowledge-base",
-  "record",
-]);
+
+const MODULE_WINDOW_MODES = new Set(["workspace", "knowledge", "record", "workbench"]);
 
 const AI_MODULE_LABELS = {
   ai: "AI 创作工作台",
@@ -69,38 +64,77 @@ const AI_MODULE_LABELS = {
   recorder: "记录助手",
 };
 
-const WORKBENCH_MODULE_BY_ROUTE = {
-  workbench: "workbench",
-  list: "workbench",
-  new: "workbench",
-  filter: "workbench",
-  dashboard: "workbench",
-  record: "record",
-  "knowledge-base": "knowledge-base",
-};
+function resolveModuleKey(routeOrModule) {
+  const raw = String(routeOrModule || "").trim();
+  if (raw === "knowledge-base" || raw === "knowledge") {
+    return "knowledge";
+  }
+  if (raw === "record" || raw === "recorder") {
+    return "record";
+  }
+  if (raw === "workspace" || raw === "workbench") {
+    return "workspace";
+  }
+  if (WORKBENCH_TASK_ROUTES.has(raw) || raw === "capability" || raw === "local-models") {
+    return "workspace";
+  }
+  return "workspace";
+}
 
 function isAiWindow() {
   return WINDOW_MODE === "ai";
 }
 
+function isWorkspaceWindow() {
+  return WINDOW_MODE === "workspace" || WINDOW_MODE === "workbench";
+}
+
+function isKnowledgeWindow() {
+  return WINDOW_MODE === "knowledge";
+}
+
+function isRecordWindow() {
+  return WINDOW_MODE === "record";
+}
+
+function isModuleWindow() {
+  return MODULE_WINDOW_MODES.has(WINDOW_MODE);
+}
+
 function isWorkbenchWindow() {
-  return WINDOW_MODE === "workbench";
+  return isModuleWindow();
+}
+
+function currentModuleWindowKey() {
+  if (isKnowledgeWindow()) {
+    return "knowledge";
+  }
+  if (isRecordWindow()) {
+    return "record";
+  }
+  if (isWorkspaceWindow()) {
+    return "workspace";
+  }
+  return "";
 }
 
 async function openWorkbenchModule(routeOrModule, options = {}) {
   const api = window.electronAPI;
   const target = String(routeOrModule || "workbench").trim() || "workbench";
-  if (isWorkbenchWindow()) {
+  const moduleKey = resolveModuleKey(target);
+  if (isModuleWindow() && currentModuleWindowKey() === moduleKey) {
     activateWorkbenchTarget(target, options);
     return;
   }
-  if (isAiWindow() && AI_INLINE_MODULE_ROUTES.has(target)) {
-    activateRoute(target, { syncHash: true, skipWorkbenchGuard: true });
-    return;
-  }
-  if (typeof api?.openWorkbenchWindow === "function") {
-    await api.openWorkbenchWindow({ route: target, ...options });
-    return;
+  if (isAiWindow() || isModuleWindow()) {
+    if (typeof api?.openModuleWindow === "function") {
+      await api.openModuleWindow({ module: moduleKey, route: target, ...options });
+      return;
+    }
+    if (typeof api?.openWorkbenchWindow === "function") {
+      await api.openWorkbenchWindow({ module: moduleKey, route: target, ...options });
+      return;
+    }
   }
   if (ROUTES[target]) {
     openOrFocusTab(target);
@@ -1675,32 +1709,26 @@ function parseHashRoute() {
     return isAiWindow() ? "ai" : "workbench";
   }
   if (h && ROUTES[h]) {
-    if (isAiWindow() && h !== "ai" && !AI_INLINE_MODULE_ROUTES.has(h)) {
+    if (isAiWindow() && h !== "ai") {
       queueMicrotask(() => void openWorkbenchModule(h));
       return "ai";
     }
-    if (isWorkbenchWindow() && h === "ai") {
+    if (isKnowledgeWindow()) {
+      return "knowledge-base";
+    }
+    if (isRecordWindow()) {
+      return "record";
+    }
+    if (isWorkspaceWindow() && (h === "knowledge-base" || h === "record")) {
+      queueMicrotask(() => void openWorkbenchModule(h));
       return "workbench";
+    }
+    if (isModuleWindow() && h === "ai") {
+      return isKnowledgeWindow() ? "knowledge-base" : isRecordWindow() ? "record" : "workbench";
     }
     return h;
   }
   return isWorkbenchWindow() ? "workbench" : "ai";
-}
-
-function resolveAiActiveModule(route) {
-  if (route === "ai") {
-    return "ai";
-  }
-  if (route === "knowledge-base") {
-    return "knowledge";
-  }
-  if (route === "record") {
-    return "recorder";
-  }
-  if (WORKBENCH_TASK_ROUTES.has(route)) {
-    return "workspace";
-  }
-  return "ai";
 }
 
 function syncJlPromptDock(route) {
@@ -1713,19 +1741,17 @@ function syncJlPromptDock(route) {
     document.body.classList.remove("jl-route-ai");
     return;
   }
-  const moduleKey = resolveAiActiveModule(route);
-  document.body.classList.toggle("jl-route-ai", moduleKey === "ai");
-  document.body.classList.toggle("jl-ai-module-workspace", moduleKey === "workspace");
-  document.body.classList.toggle("jl-ai-module-knowledge", moduleKey === "knowledge");
-  document.body.classList.toggle("jl-ai-module-recorder", moduleKey === "recorder");
-  document.body.setAttribute("data-jl-ai-module", moduleKey);
+  const show = route === "ai";
+  document.body.classList.toggle("jl-route-ai", show);
+  document.body.classList.remove("jl-ai-module-workspace", "jl-ai-module-knowledge", "jl-ai-module-recorder");
+  document.body.setAttribute("data-jl-ai-module", show ? "ai" : "ai");
   const dock = document.getElementById("jlPromptDock");
   if (!dock) {
     return;
   }
-  dock.hidden = false;
-  dock.setAttribute("aria-hidden", "false");
-  if (moduleKey === "ai") {
+  dock.hidden = !show;
+  dock.setAttribute("aria-hidden", show ? "false" : "true");
+  if (show) {
     playJlEnterAnimation(dock, "jl-prompt-dock-enter", 360);
   }
 }
@@ -1793,18 +1819,12 @@ function getWorkbenchScope(route) {
 
 function applyWorkbenchScope(route) {
   const scope = getWorkbenchScope(route);
-  if (isWorkbenchWindow()) {
+  if (isModuleWindow()) {
     document.body.setAttribute("data-jl-wb-scope", scope);
-  }
-  if (isAiWindow()) {
-    document.body.setAttribute("data-jl-ai-module", resolveAiActiveModule(route));
+    document.body.setAttribute("data-jl-module-window", currentModuleWindowKey());
     const tasksSub = document.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
     if (tasksSub) {
-      tasksSub.hidden = scope !== "tasks";
-    }
-    const pill = document.getElementById("jlWorkspacePill");
-    if (pill) {
-      pill.textContent = AI_MODULE_LABELS[resolveAiActiveModule(route)] || AI_MODULE_LABELS.ai;
+      tasksSub.hidden = !isWorkspaceWindow() || scope !== "tasks";
     }
   }
 }
@@ -1870,7 +1890,11 @@ function bindWorkbenchHubClicks() {
         return;
       }
       if (isAiWindow()) {
-        activateRoute(route, { syncHash: true, skipWorkbenchGuard: true });
+        void openWorkbenchModule(route);
+        return;
+      }
+      if (isWorkspaceWindow()) {
+        activateWorkbenchTarget(route);
         return;
       }
       activateWorkbenchTarget(route);
@@ -1888,13 +1912,13 @@ function bindWorkbenchNavClicks() {
     btn.addEventListener("click", () => {
       const route = btn.dataset.wbRoute;
       const cap = btn.dataset.wbCap;
-      if (isAiWindow()) {
+      if (isAiWindow() || isModuleWindow()) {
         if (cap) {
           void openWorkbenchModule(cap === "routing" ? "capability" : "local-models", { capPanel: cap });
           return;
         }
         if (route) {
-          activateRoute(route, { syncHash: true, skipWorkbenchGuard: true });
+          void openWorkbenchModule(route);
         }
         return;
       }
@@ -2068,21 +2092,74 @@ function initAiSessionSidebar() {
   });
 }
 
-function initWorkbenchNav() {
-  const nav = document.getElementById("jlWorkbenchNav");
-  if (!nav) {
-    return;
+function initModuleShell() {
+  document.body.classList.toggle("jl-window-module", isModuleWindow());
+  document.body.classList.toggle("jl-window-workspace", isWorkspaceWindow());
+  document.body.classList.toggle("jl-window-knowledge", isKnowledgeWindow());
+  document.body.classList.toggle("jl-window-record", isRecordWindow());
+  document.body.classList.toggle("jl-window-workbench", isWorkspaceWindow());
+
+  const sideRail = document.getElementById("jlSideRail");
+  const workbenchNav = document.getElementById("jlWorkbenchNav");
+  const workbenchSplit = document.getElementById("jlWorkbenchSplit");
+  const promptDock = document.getElementById("jlPromptDock");
+
+  if (sideRail) {
+    sideRail.hidden = true;
   }
-  nav.hidden = false;
-  bindWorkbenchNavClicks();
-  window.electronAPI?.onWorkbenchNavigate?.((payload) => {
+  if (promptDock) {
+    promptDock.hidden = true;
+    promptDock.setAttribute("aria-hidden", "true");
+  }
+
+  if (isKnowledgeWindow() || isRecordWindow()) {
+    document.body.classList.add("jl-module-fullstage");
+    if (workbenchNav) {
+      workbenchNav.hidden = true;
+    }
+    workbenchSplit?.classList.add("jl-module-fullstage");
+  } else if (workbenchNav) {
+    workbenchNav.hidden = false;
+    bindWorkbenchNavClicks();
+    bindWorkbenchHubClicks();
+  }
+
+  const bindNavigate = (payload) => {
     if (payload?.route) {
       activateWorkbenchTarget(payload.route, payload);
     }
-  });
+  };
+  window.electronAPI?.onModuleNavigate?.(bindNavigate);
+  window.electronAPI?.onWorkbenchNavigate?.(bindNavigate);
+
   const qRoute = new URLSearchParams(window.location.search).get("route");
-  activateWorkbenchTarget(qRoute || "workbench");
+  const bootRoute = qRoute
+    || (isKnowledgeWindow() ? "knowledge-base" : isRecordWindow() ? "record" : "workbench");
+  activateWorkbenchTarget(bootRoute);
   bindWorkbenchHubClicks();
+}
+
+function initShell() {
+  document.documentElement.classList.toggle("jl-window-ai-root", isAiWindow());
+  document.body.classList.toggle("jl-window-ai", isAiWindow());
+  const sideRail = document.getElementById("jlSideRail");
+  const workbenchNav = document.getElementById("jlWorkbenchNav");
+  if (isModuleWindow()) {
+    initModuleShell();
+    return;
+  }
+  if (sideRail) {
+    sideRail.hidden = isAiWindow();
+  }
+  if (workbenchNav) {
+    workbenchNav.hidden = false;
+    bindWorkbenchNavClicks();
+    bindWorkbenchHubClicks();
+  }
+  initAiSessionSidebar();
+  initWindowChrome();
+  openTabs = ["ai"];
+  activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
 }
 
 window.openWorkbenchCapInline = openWorkbenchCapInline;
@@ -2238,7 +2315,19 @@ function hideAllPanels() {
 }
 
 function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = {}) {
-  if (isWorkbenchWindow() && route === "ai") {
+  if (isAiWindow() && route !== "ai" && !skipWorkbenchGuard) {
+    void openWorkbenchModule(route);
+    return;
+  }
+  if (isKnowledgeWindow() && route !== "knowledge-base") {
+    void openWorkbenchModule(route);
+    return;
+  }
+  if (isRecordWindow() && route !== "record") {
+    void openWorkbenchModule(route);
+    return;
+  }
+  if (isWorkspaceWindow() && route === "ai") {
     route = "workbench";
   }
   if (!ROUTES[route]) {
@@ -3812,31 +3901,6 @@ if (taskContentCloseBtn && taskContentDialog) {
   taskContentCloseBtn.addEventListener("click", () => {
     taskContentDialog.close();
   });
-}
-
-function initShell() {
-  document.documentElement.classList.toggle("jl-window-ai-root", isAiWindow());
-  document.body.classList.toggle("jl-window-ai", isAiWindow());
-  document.body.classList.toggle("jl-window-workbench", isWorkbenchWindow());
-  const sideRail = document.getElementById("jlSideRail");
-  const workbenchNav = document.getElementById("jlWorkbenchNav");
-  if (sideRail) {
-    sideRail.hidden = isWorkbenchWindow() || isAiWindow();
-  }
-  if (workbenchNav) {
-    workbenchNav.hidden = false;
-    bindWorkbenchNavClicks();
-    bindWorkbenchHubClicks();
-  }
-  initAiSessionSidebar();
-  initWindowChrome();
-  if (isWorkbenchWindow()) {
-    initWorkbenchNav();
-    return;
-  }
-  openTabs = ["ai"];
-  const bootRoute = parseHashRoute();
-  activateRoute(bootRoute, { syncHash: true, skipWorkbenchGuard: true });
 }
 
 function initWindowChrome() {

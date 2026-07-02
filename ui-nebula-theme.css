@@ -6266,11 +6266,102 @@ body.jl-window-ai .jl-workbench-nav__subitem.is-active {
   }
 }
 
-body.jl-window-workbench[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+body.jl-window-workbench[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-workspace[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-module.jl-window-workspace[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
   display: flex !important;
 }
 
 body.jl-window-workbench[data-jl-wb-scope="knowledge-base"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
-body.jl-window-workbench[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+body.jl-window-workbench[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-workspace[data-jl-wb-scope="knowledge-base"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-workspace[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
   display: none !important;
+}
+
+/* --- 独立模块窗口（浅色桌面风格） --- */
+body.jl-window-module {
+  background: linear-gradient(165deg, #dbeafe 0%, #eff6ff 48%, #f8fbff 100%);
+}
+
+body.jl-window-module .jl-prompt-dock,
+body.jl-window-module .jl-side-rail {
+  display: none !important;
+}
+
+body.jl-window-module .jl-workbench-nav__zone--project,
+body.jl-window-module .jl-workbench-nav__zone--sessions {
+  display: none !important;
+}
+
+body.jl-window-module.jl-module-fullstage .jl-workbench-split {
+  display: block;
+}
+
+body.jl-window-module.jl-module-fullstage .jl-workbench-nav {
+  display: none !important;
+}
+
+body.jl-window-module .jl-main-workspace,
+body.jl-window-module .jl-workspace-body,
+body.jl-window-module .main-column,
+body.jl-window-module .tab-panels {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body.jl-window-module .main-column,
+body.jl-window-module .tab-panels {
+  overflow: auto;
+}
+
+body.jl-window-module .jl-workbench-nav {
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255, 255, 255, 0.55);
+  color: #1e293b;
+}
+
+body.jl-window-module .jl-workbench-nav__title {
+  color: #1e3a8a;
+}
+
+body.jl-window-module .jl-workbench-nav__hint,
+body.jl-window-module .jl-workbench-nav__zone-title {
+  color: #64748b;
+}
+
+body.jl-window-module .jl-workbench-nav__item,
+body.jl-window-module .jl-workbench-nav__subitem {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: rgba(255, 255, 255, 0.62);
+  color: #334155;
+}
+
+body.jl-window-module .jl-workbench-nav__item.is-active,
+body.jl-window-module .jl-workbench-nav__subitem.is-active {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.38) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+}
+
+body.jl-window-module .topbar,
+body.jl-window-module .jl-top-status {
+  background: rgba(255, 255, 255, 0.35);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+body.jl-window-module .card {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08);
+}
+
+body.jl-window-knowledge .main-column,
+body.jl-window-record .main-column {
+  width: 100%;
 }

@@ -2,35 +2,75 @@ const path = require("path");
 const { BrowserWindow } = require("electron");
 const { resolveAppIconPath } = require("./window.js");
 
-/** @type {import("electron").BrowserWindow | null} */
-let workbenchWindowRef = null;
+/** @type {Record<string, import("electron").BrowserWindow | null>} */
+const moduleWindowRefs = {
+  workspace: null,
+  knowledge: null,
+  record: null,
+};
 
-function getWorkbenchWindow() {
-  return workbenchWindowRef && !workbenchWindowRef.isDestroyed() ? workbenchWindowRef : null;
+const MODULE_META = {
+  workspace: {
+    title: "鲸落AI · 工作台",
+    defaultRoute: "workbench",
+    windowMode: "workspace",
+  },
+  knowledge: {
+    title: "鲸落AI · 本地知识库",
+    defaultRoute: "knowledge-base",
+    windowMode: "knowledge",
+  },
+  record: {
+    title: "鲸落AI · 记录助手",
+    defaultRoute: "record",
+    windowMode: "record",
+  },
+};
+
+const WORKSPACE_ROUTES = new Set([
+  "workbench",
+  "new",
+  "filter",
+  "dashboard",
+  "list",
+  "capability",
+  "local-models",
+]);
+
+function resolveModuleKey(routeOrModule) {
+  const raw = String(routeOrModule || "").trim();
+  if (raw === "knowledge-base" || raw === "knowledge") {
+    return "knowledge";
+  }
+  if (raw === "record" || raw === "recorder") {
+    return "record";
+  }
+  if (MODULE_META[raw]) {
+    return raw;
+  }
+  if (WORKSPACE_ROUTES.has(raw)) {
+    return "workspace";
+  }
+  return "workspace";
 }
 
-function openWorkbenchWindow(options = {}) {
-  const route = String(options.route || options.module || "workbench").trim() || "workbench";
-  const existing = getWorkbenchWindow();
-  if (existing) {
-    if (existing.isMinimized()) {
-      existing.restore();
-    }
-    existing.focus();
-    existing.webContents.send("workbench-navigate", { route });
-    return existing;
-  }
+function getModuleWindow(moduleKey) {
+  const ref = moduleWindowRefs[moduleKey];
+  return ref && !ref.isDestroyed() ? ref : null;
+}
 
+function createModuleBrowserWindow(moduleKey, meta) {
   const iconPath = resolveAppIconPath();
-  workbenchWindowRef = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1280,
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: "#06080f",
+    backgroundColor: "#dbeafe",
     autoHideMenuBar: true,
-    title: "鲸落AI · 工作台",
+    title: meta.title,
     show: false,
+    frame: true,
     ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       contextIsolation: true,
@@ -39,32 +79,73 @@ function openWorkbenchWindow(options = {}) {
     },
   });
 
-  workbenchWindowRef.once("ready-to-show", () => {
-    if (!workbenchWindowRef?.isDestroyed()) {
-      workbenchWindowRef.show();
+  win.once("ready-to-show", () => {
+    if (!win.isDestroyed()) {
+      win.show();
     }
   });
 
-  workbenchWindowRef.on("closed", () => {
-    workbenchWindowRef = null;
+  win.on("closed", () => {
+    if (moduleWindowRefs[moduleKey] === win) {
+      moduleWindowRefs[moduleKey] = null;
+    }
   });
 
-  workbenchWindowRef.loadFile(path.join(__dirname, "..", "index.html"), {
-    query: { window: "workbench", route },
+  return win;
+}
+
+function openModuleWindow(options = {}) {
+  const route = String(options.route || options.module || "workbench").trim() || "workbench";
+  const moduleKey = resolveModuleKey(options.module || route);
+  const meta = MODULE_META[moduleKey] || MODULE_META.workspace;
+  const existing = getModuleWindow(moduleKey);
+
+  if (existing) {
+    if (existing.isMinimized()) {
+      existing.restore();
+    }
+    existing.focus();
+    existing.webContents.send("module-navigate", { module: moduleKey, route });
+    return existing;
+  }
+
+  const win = createModuleBrowserWindow(moduleKey, meta);
+  moduleWindowRefs[moduleKey] = win;
+
+  win.loadFile(path.join(__dirname, "..", "index.html"), {
+    query: {
+      window: meta.windowMode,
+      route: WORKSPACE_ROUTES.has(route) || moduleKey === "workspace" ? route : meta.defaultRoute,
+    },
   });
 
-  return workbenchWindowRef;
+  return win;
+}
+
+/** @deprecated 兼容旧调用 */
+function openWorkbenchWindow(options = {}) {
+  return openModuleWindow(options);
+}
+
+function getWorkbenchWindow() {
+  return getModuleWindow("workspace");
 }
 
 function registerWorkbenchWindowIpc(ipcMain) {
   ipcMain.handle("workbench-window-open", (_event, payload) => {
-    openWorkbenchWindow(payload || {});
+    openModuleWindow(payload || {});
+    return { ok: true };
+  });
+  ipcMain.handle("module-window-open", (_event, payload) => {
+    openModuleWindow(payload || {});
     return { ok: true };
   });
 }
 
 module.exports = {
+  openModuleWindow,
   openWorkbenchWindow,
+  getModuleWindow,
   getWorkbenchWindow,
   registerWorkbenchWindowIpc,
 };
