@@ -201,6 +201,13 @@ body.jl-float-desktop-active .main-column {
   transition: box-shadow 0.18s ease, opacity 0.18s ease;
 }
 
+.jl-float-win[hidden],
+.jl-float-win.is-closed {
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
 .jl-float-win.is-focused {
   box-shadow:
     0 22px 48px rgba(37, 99, 235, 0.16),

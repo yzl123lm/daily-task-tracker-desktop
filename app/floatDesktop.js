@@ -245,7 +245,7 @@
 
   function flushAllGeometry() {
     windows.forEach((entry, route) => {
-      if (entry?.el && !entry.el.hidden) {
+      if (isWindowOpen(entry)) {
         saveGeometry(route, entry.el);
       }
     });
@@ -528,7 +528,9 @@
 
     bindCtrl('[data-action="pin"]', () => togglePin(route));
     bindCtrl('[data-action="minimize"]', () => toggleMinimize(route));
-    bindCtrl('[data-action="close"]', () => closeWindow(route));
+    bindCtrl('[data-action="close"]', () => {
+      requestAnimationFrame(() => closeWindow(route));
+    });
 
     rootEl.appendChild(winEl);
     return { el: winEl, body };
@@ -555,10 +557,14 @@
     entry.el.classList.remove("is-dragging", "is-resizing");
   }
 
+  function isWindowOpen(entry) {
+    return !!entry?.el && !entry.el.hidden && !entry.el.classList.contains("is-closed") && !entry.minimized;
+  }
+
   function countVisibleWindows() {
     let count = 0;
     windows.forEach((entry) => {
-      if (!entry.el.hidden && !entry.minimized) {
+      if (isWindowOpen(entry)) {
         count += 1;
       }
     });
@@ -572,6 +578,23 @@
     global.WorkspaceFloatPanel?.hide?.();
   }
 
+  function setFloatWindowVisible(entry, visible) {
+    if (!entry?.el) {
+      return;
+    }
+    if (visible) {
+      entry.el.hidden = false;
+      entry.el.removeAttribute("hidden");
+      entry.el.setAttribute("aria-hidden", "false");
+      entry.el.classList.remove("is-closed");
+    } else {
+      entry.el.hidden = true;
+      entry.el.setAttribute("hidden", "");
+      entry.el.setAttribute("aria-hidden", "true");
+      entry.el.classList.add("is-closed");
+    }
+  }
+
   function stashPanel(route) {
     const meta = cfg(route);
     if (!meta) {
@@ -581,8 +604,12 @@
     if (!panel) {
       return;
     }
+    const stash = ensurePanelStash();
+    if (panel.parentElement !== stash) {
+      stash.appendChild(panel);
+    }
     panel.hidden = true;
-    ensurePanelStash().appendChild(panel);
+    panel.classList.remove("jl-float-panel-host");
   }
 
   function mountPanel(route, bodyEl) {
@@ -596,13 +623,15 @@
     }
     panel.hidden = false;
     panel.classList.add("jl-float-panel-host");
-    bodyEl.appendChild(panel);
+    if (panel.parentElement !== bodyEl) {
+      bodyEl.appendChild(panel);
+    }
     return panel;
   }
 
   function focusOrOpen(route, options = {}) {
     const entry = windows.get(route);
-    if (entry && !entry.el.hidden && !entry.minimized) {
+    if (entry && isWindowOpen(entry)) {
       bringToFront(entry.el, route);
       syncDockActive(route);
       notifyPanelVisible(route);
@@ -625,7 +654,7 @@
     }
     mountPanel(route, entry.body);
 
-    entry.el.hidden = false;
+    setFloatWindowVisible(entry, true);
     entry.minimized = false;
     entry.el.classList.remove("is-minimized");
     if (options.focus !== false) {
@@ -640,15 +669,16 @@
 
   function closeWindow(route) {
     const entry = windows.get(route);
-    if (!entry) {
+    if (!entry || entry.el.classList.contains("is-closed") || entry.el.hidden) {
       return;
     }
     const meta = cfg(route);
     releaseWindowInteraction(entry);
+    saveGeometry(route, entry.el);
 
     if (meta?.isLauncher) {
       if (overlayMode) {
-        entry.el.hidden = true;
+        setFloatWindowVisible(entry, false);
         entry.minimized = false;
         entry.el.classList.remove("is-minimized");
         stashPanel(route);
@@ -661,7 +691,7 @@
       return;
     }
 
-    entry.el.hidden = true;
+    setFloatWindowVisible(entry, false);
     entry.minimized = false;
     entry.el.classList.remove("is-minimized");
     stashPanel(route);
