@@ -29,7 +29,7 @@ const MODULE_META = {
     windowMode: "record",
     backgroundColor: "#eff6ff",
     width: 420,
-    height: 560,
+    height: 600,
     minWidth: 380,
     minHeight: 480,
     frameless: true,
@@ -176,8 +176,8 @@ function registerWorkbenchWindowIpc(ipcMain) {
     if (!win || win.isDestroyed()) {
       return { ok: false };
     }
-    const width = Math.min(1200, Math.max(640, Number(payload?.width) || 920));
-    const height = Math.min(800, Math.max(420, Number(payload?.height) || 560));
+    const width = Math.min(1200, Math.max(380, Number(payload?.width) || 420));
+    const height = Math.min(800, Math.max(480, Number(payload?.height) || 600));
     win.setContentSize(width, height);
     win.center();
     return { ok: true, width, height };

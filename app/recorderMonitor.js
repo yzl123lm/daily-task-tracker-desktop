@@ -1,7 +1,7 @@
 (function (global) {
-  const STORAGE_KEY = "jl_recorder_monitor_geom_v2";
-  const DEFAULT_W = 800;
-  const DEFAULT_H = 955;
+  const STORAGE_KEY = "jl_recorder_monitor_geom_v3";
+  const DEFAULT_W = 420;
+  const DEFAULT_H = 600;
   const PINNED_Z = 9000;
 
   let layerEl = null;
