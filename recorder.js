@@ -11,6 +11,9 @@ function initRecorderModule() {
   const analysisEl = document.getElementById("recordAnalysis");
   const timerEl = document.getElementById("recordTimer");
   const recentListEl = document.getElementById("recordRecentList");
+  const recentPreviewEl = document.getElementById("recordRecentListPreview");
+  const liveDotEl = document.getElementById("recordLiveDot");
+  const waveEl = document.querySelector(".record-assistant__wave");
   const RECENT_KEY = "daily_task_tracker_record_recent_v1";
   const asrDialog = document.getElementById("asrSettingsDialog");
   const asrForm = document.getElementById("asrSettingsForm");
@@ -88,27 +91,85 @@ function initRecorderModule() {
     localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, 12)));
   }
 
-  function renderRecentRecords() {
-    if (!recentListEl) {
-      return;
-    }
-    const items = readRecentRecords();
-    if (!items.length) {
-      recentListEl.innerHTML = '<li class="record-recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
-      return;
-    }
-    recentListEl.innerHTML = items
-      .map(
-        (item) => `
-      <li class="record-recent-item">
-        <span class="record-recent-item__icon" aria-hidden="true">📄</span>
-        <span class="record-recent-item__body">
-          <span class="record-recent-item__title">${String(item.title || "未命名记录").replace(/</g, "&lt;")}</span>
-          <span class="record-recent-item__meta">${String(item.time || "").replace(/</g, "&lt;")} · ${String(item.duration || "--:--").replace(/</g, "&lt;")}</span>
+  function renderRecentItemHtml(item, idx) {
+    const title = String(item.title || "未命名记录").replace(/</g, "&lt;");
+    const time = String(item.time || "").replace(/</g, "&lt;");
+    const duration = String(item.duration || "--:--").replace(/</g, "&lt;");
+    return `
+      <li class="record-assistant__recent-item" data-idx="${idx}">
+        <span class="record-assistant__recent-doc" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         </span>
-      </li>`
-      )
-      .join("");
+        <span class="record-assistant__recent-body">
+          <span class="record-assistant__recent-title">${title}</span>
+          <span class="record-assistant__recent-meta">${time} · 时长: ${duration}</span>
+        </span>
+        <span class="record-assistant__recent-actions">
+          <button type="button" class="record-assistant__recent-play" data-action="play" data-idx="${idx}" title="查看转写" aria-label="查看转写">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 7l10 5-10 5V7z" fill="currentColor"/></svg>
+          </button>
+          <button type="button" class="record-assistant__recent-more" data-action="more" data-idx="${idx}" title="更多" aria-label="更多">⋯</button>
+        </span>
+      </li>`;
+  }
+
+  function bindRecentListActions(listEl) {
+    if (!listEl || listEl.dataset.jlRecentBound === "1") {
+      return;
+    }
+    listEl.dataset.jlRecentBound = "1";
+    listEl.addEventListener("click", (event) => {
+      const btn = event.target.closest("[data-action]");
+      if (!btn) {
+        return;
+      }
+      const idx = Number(btn.dataset.idx);
+      const items = readRecentRecords();
+      const item = items[idx];
+      if (!item) {
+        return;
+      }
+      if (btn.dataset.action === "play") {
+        if (item.transcript) {
+          transcriptEl.value = item.transcript;
+        }
+        if (item.analysis) {
+          analysisEl.value = item.analysis;
+        }
+        if (typeof window.setRecordAssistantView === "function") {
+          window.setRecordAssistantView("transcript");
+        }
+        return;
+      }
+      if (btn.dataset.action === "more") {
+        const choice = window.confirm(`「${item.title || "记录"}」\n\n确定删除这条最近记录？`);
+        if (!choice) {
+          return;
+        }
+        items.splice(idx, 1);
+        writeRecentRecords(items);
+        renderRecentRecords();
+      }
+    });
+  }
+
+  function renderRecentRecords() {
+    const items = readRecentRecords();
+    const emptyHtml = '<li class="record-assistant__recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
+    const html = items.length
+      ? items.map((item, idx) => renderRecentItemHtml(item, idx)).join("")
+      : emptyHtml;
+    if (recentListEl) {
+      recentListEl.innerHTML = html;
+    }
+    if (recentPreviewEl) {
+      const previewItems = items.slice(0, 2);
+      recentPreviewEl.innerHTML = previewItems.length
+        ? previewItems.map((item, idx) => renderRecentItemHtml(item, idx)).join("")
+        : emptyHtml;
+    }
+    bindRecentListActions(recentListEl);
+    bindRecentListActions(recentPreviewEl);
   }
 
   function pushRecentRecord(title, durationLabel) {
@@ -117,6 +178,8 @@ function initRecorderModule() {
       title: title || "会议记录",
       time: new Date().toLocaleString("zh-CN", { hour12: false }),
       duration: durationLabel || "--:--",
+      transcript: transcriptEl.value.trim(),
+      analysis: analysisEl.value.trim(),
     });
     writeRecentRecords(items);
     renderRecentRecords();
@@ -136,7 +199,9 @@ function initRecorderModule() {
     startBtn.disabled = v;
     stopBtn.disabled = !v;
     asrSettingsBtn.disabled = v;
-    document.querySelector(".record-wave-stage")?.classList.toggle("is-active", v);
+    waveEl?.classList.toggle("is-active", v);
+    liveDotEl?.classList.toggle("is-live", v);
+    document.querySelector(".record-assistant")?.classList.toggle("is-recording", v);
     if (v) {
       startTimer();
     } else {
@@ -419,6 +484,13 @@ function initRecorderModule() {
 
 initRecorderModule();
 
-if (document.body.classList.contains("jl-window-record") && typeof window.fitRecordModuleWindow === "function") {
-  queueMicrotask(() => window.fitRecordModuleWindow());
+if (document.body.classList.contains("jl-window-record")) {
+  queueMicrotask(() => {
+    if (typeof window.initRecordAssistantUI === "function") {
+      window.initRecordAssistantUI();
+    }
+    if (typeof window.fitRecordModuleWindow === "function") {
+      window.fitRecordModuleWindow();
+    }
+  });
 }

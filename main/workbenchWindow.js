@@ -23,7 +23,7 @@ const MODULE_META = {
     backgroundColor: "#0a0f1a",
   },
   record: {
-    title: "鲸落AI · 会议记录",
+    title: "鲸落AI · 记录助手",
     defaultRoute: "record",
     windowMode: "record",
     backgroundColor: "#dbeafe",

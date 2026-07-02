@@ -2276,8 +2276,22 @@ function initModuleShell() {
       },
     });
   }
-  if (isRecordWindow() && window.FloatDesktop) {
-    window.FloatDesktop.init("record");
+  if (isRecordWindow() && window.initRecordAssistantUI) {
+    document.body.classList.add("jl-record-assistant-active");
+    const topStatus = document.getElementById("jlTopStatus");
+    if (topStatus) {
+      topStatus.hidden = true;
+      topStatus.setAttribute("aria-hidden", "true");
+    }
+    const topbar = document.querySelector(".topbar");
+    const breadcrumb = document.getElementById("breadcrumb");
+    if (topbar) {
+      topbar.hidden = true;
+    }
+    if (breadcrumb) {
+      breadcrumb.hidden = true;
+    }
+    window.initRecordAssistantUI();
   }
 
   const bindNavigate = (payload) => {
