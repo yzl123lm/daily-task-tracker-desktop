@@ -128,6 +128,30 @@ function openModuleWindow(options = {}) {
     }
   }
 
+  if (moduleKey === "workspace") {
+    const legacyWorkspaceWin = getModuleWindow("workspace");
+    if (legacyWorkspaceWin) {
+      legacyWorkspaceWin.close();
+      moduleWindowRefs.workspace = null;
+    }
+    const host =
+      BrowserWindow.getFocusedWindow()
+      || getMainWindow()
+      || BrowserWindow.getAllWindows().find((win) => !win.isDestroyed());
+    if (host) {
+      if (host.isMinimized()) {
+        host.restore();
+      }
+      host.focus();
+      host.webContents.send("module-navigate", {
+        module: "workspace",
+        route: WORKSPACE_ROUTES.has(route) ? route : "workbench",
+        overlay: true,
+      });
+      return host;
+    }
+  }
+
   const meta = MODULE_META[moduleKey] || MODULE_META.workspace;
   const existing = getModuleWindow(moduleKey);
 

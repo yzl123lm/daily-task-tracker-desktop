@@ -1290,3 +1290,110 @@ body.jl-record-assistant-active .record-assistant:not(.is-recording) .record-ass
     animation: none;
   }
 }
+
+/* =============================================================================
+   工作台 Overlay 浮动面板（AI 主窗口内，不遮挡主 UI 交互流）
+   ============================================================================= */
+
+.jl-workspace-float-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.jl-workspace-float-layer:not([hidden]) {
+  pointer-events: none;
+}
+
+body.jl-workspace-float-active {
+  overflow: auto;
+}
+
+.jl-float-desktop.jl-float-desktop--overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: transparent;
+}
+
+.jl-float-desktop.jl-float-desktop--overlay::before {
+  display: none;
+}
+
+.jl-float-desktop.jl-float-desktop--overlay .jl-float-win {
+  pointer-events: auto;
+  border-radius: 16px;
+  min-width: 280px;
+  min-height: 220px;
+}
+
+.jl-float-desktop.jl-float-desktop--overlay .jl-float-win.is-pinned {
+  box-shadow:
+    0 24px 52px rgba(37, 99, 235, 0.2),
+    0 0 0 2px rgba(59, 130, 246, 0.22),
+    0 2px 0 rgba(255, 255, 255, 0.72) inset;
+}
+
+.jl-float-win__btn--pin {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.jl-float-win__btn--pin.is-active {
+  color: #ff9f0a;
+  background: rgba(255, 204, 0, 0.18);
+}
+
+.jl-workbench-hub__status {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.jl-workbench-hub__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 128, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.jl-workbench-hub__stat strong {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e3a8a;
+  font-variant-numeric: tabular-nums;
+}
+
+.jl-workbench-hub__stat span {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.jl-float-panel-host.jl-workbench-hub-panel,
+.jl-float-panel-host .jl-workbench-hub {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+.jl-float-panel-host .jl-workbench-hub__grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.jl-float-panel-host .jl-workbench-hub__tile {
+  min-height: 0;
+  padding: 10px;
+}
+
+.jl-float-panel-host .jl-workbench-hub__tile-desc {
+  display: none;
+}

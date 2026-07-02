@@ -7,54 +7,59 @@
       windows: {
         workbench: {
           panelId: "panel-workbench-hub",
+          panelKey: "WorkspaceStatusPanel",
           title: "工作台",
-          desc: "模块入口与快捷操作",
+          desc: "模块入口与状态概览",
           icon: "⊞",
-          width: 520,
-          height: 460,
-          minWidth: 420,
-          minHeight: 360,
+          width: 340,
+          height: 400,
+          minWidth: 300,
+          minHeight: 320,
           isLauncher: true,
         },
         new: {
           panelId: "panel-new",
+          panelKey: "AddTaskPanel",
           title: "新增事项",
           desc: "登记待处理任务",
           icon: "✏",
-          width: 800,
-          height: 700,
-          minWidth: 560,
-          minHeight: 480,
+          width: 400,
+          height: 520,
+          minWidth: 340,
+          minHeight: 380,
         },
         filter: {
           panelId: "panel-filter",
+          panelKey: "TaskFilterPanel",
           title: "查询筛选",
           desc: "按条件筛选任务",
           icon: "⌕",
-          width: 660,
-          height: 540,
-          minWidth: 480,
-          minHeight: 360,
+          width: 380,
+          height: 440,
+          minWidth: 320,
+          minHeight: 340,
         },
         dashboard: {
           panelId: "panel-dashboard",
+          panelKey: "DataDashboardPanel",
           title: "数据看板",
           desc: "统计与趋势分析",
           icon: "▤",
-          width: 880,
-          height: 640,
-          minWidth: 560,
-          minHeight: 420,
+          width: 420,
+          height: 480,
+          minWidth: 340,
+          minHeight: 360,
         },
         list: {
           panelId: "panel-list",
+          panelKey: "TaskListPanel",
           title: "任务列表",
           desc: "查看全部跟进任务",
           icon: "☰",
-          width: 1000,
-          height: 700,
-          minWidth: 720,
-          minHeight: 480,
+          width: 440,
+          height: 520,
+          minWidth: 360,
+          minHeight: 380,
         },
       },
       bootWindows: ["workbench"],
@@ -151,9 +156,14 @@
   };
 
   let mode = "";
+  let overlayMode = false;
+  let overlayVisible = false;
   let rootEl = null;
   let dockEl = null;
   let zCounter = 30;
+  const PINNED_Z = 9000;
+  /** @type {Set<string>} */
+  const pinnedRoutes = new Set();
   /** @type {Map<string, { el: HTMLElement, body: HTMLElement, route: string, minimized: boolean }>} */
   const windows = new Map();
   let routeHandler = null;
@@ -208,10 +218,16 @@
     }
   }
 
-  function bringToFront(winEl) {
-    zCounter += 1;
-    winEl.style.zIndex = String(zCounter);
+  function bringToFront(winEl, route) {
+    const isPinned = route && pinnedRoutes.has(route);
+    if (isPinned) {
+      winEl.style.zIndex = String(PINNED_Z);
+    } else {
+      zCounter += 1;
+      winEl.style.zIndex = String(zCounter);
+    }
     winEl.classList.add("is-focused");
+    winEl.classList.toggle("is-pinned", !!isPinned);
     rootEl?.querySelectorAll(".jl-float-win").forEach((node) => {
       if (node !== winEl) {
         node.classList.remove("is-focused");
@@ -219,17 +235,65 @@
     });
   }
 
+  function togglePin(route) {
+    const entry = windows.get(route);
+    if (!entry) {
+      return;
+    }
+    if (pinnedRoutes.has(route)) {
+      pinnedRoutes.delete(route);
+    } else {
+      pinnedRoutes.add(route);
+    }
+    const pinned = pinnedRoutes.has(route);
+    entry.el.classList.toggle("is-pinned", pinned);
+    const pinBtn = entry.el.querySelector('[data-action="pin"]');
+    pinBtn?.classList.toggle("is-active", pinned);
+    pinBtn?.setAttribute("aria-pressed", pinned ? "true" : "false");
+    bringToFront(entry.el, route);
+  }
+
+  function notifyPanelVisible(route) {
+    if (typeof panelVisibleHandler === "function") {
+      panelVisibleHandler(route);
+    }
+    if (typeof routeHandler === "function") {
+      routeHandler(routeToAppRoute(route));
+    }
+    if (route === "list" && typeof global.onTaskListPanelVisible === "function") {
+      void global.onTaskListPanelVisible();
+    }
+    if (route === "dashboard" && typeof global.renderDashboard === "function") {
+      global.renderDashboard();
+    }
+    if (route === "workbench" && typeof global.refreshWorkbenchHubStatus === "function") {
+      global.refreshWorkbenchHubStatus();
+    }
+  }
+
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
   }
 
+  function canvasBounds() {
+    if (overlayMode) {
+      return {
+        width: window.innerWidth || document.documentElement.clientWidth || 960,
+        height: window.innerHeight || document.documentElement.clientHeight || 640,
+      };
+    }
+    const rect = rootEl?.getBoundingClientRect();
+    return {
+      width: rect?.width || 960,
+      height: rect?.height || 640,
+    };
+  }
+
   function defaultPosition(index, width, height) {
-    const canvas = rootEl?.getBoundingClientRect();
-    const cw = canvas?.width || 960;
-    const ch = canvas?.height || 640;
-    const dockW = dockEl && !dockEl.hidden ? dockEl.offsetWidth + 20 : 0;
-    const baseX = dockW + 24 + (index % 4) * 32;
-    const baseY = 20 + (index % 5) * 28;
+    const { width: cw, height: ch } = canvasBounds();
+    const dockW = !overlayMode && dockEl && !dockEl.hidden ? dockEl.offsetWidth + 20 : 0;
+    const baseX = dockW + 24 + (index % 4) * 36;
+    const baseY = 24 + (index % 5) * 32;
     return {
       x: clamp(baseX, 8, Math.max(8, cw - width - 8)),
       y: clamp(baseY, 8, Math.max(8, ch - height - 8)),
@@ -248,7 +312,7 @@
         return;
       }
       dragging = true;
-      bringToFront(winEl);
+      bringToFront(winEl, route);
       startX = event.clientX;
       startY = event.clientY;
       originLeft = winEl.offsetLeft;
@@ -262,11 +326,11 @@
       if (!dragging || !rootEl) {
         return;
       }
-      const canvas = rootEl.getBoundingClientRect();
+      const { width: cw, height: ch } = canvasBounds();
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
-      winEl.style.left = `${clamp(originLeft + dx, 0, Math.max(0, canvas.width - winEl.offsetWidth))}px`;
-      winEl.style.top = `${clamp(originTop + dy, 0, Math.max(0, canvas.height - winEl.offsetHeight))}px`;
+      winEl.style.left = `${clamp(originLeft + dx, 0, Math.max(0, cw - winEl.offsetWidth))}px`;
+      winEl.style.top = `${clamp(originTop + dy, 0, Math.max(0, ch - winEl.offsetHeight))}px`;
     });
 
     const endDrag = (event) => {
@@ -298,7 +362,7 @@
 
     gripEl.addEventListener("pointerdown", (event) => {
       resizing = true;
-      bringToFront(winEl);
+      bringToFront(winEl, route);
       startX = event.clientX;
       startY = event.clientY;
       startW = winEl.offsetWidth;
@@ -313,9 +377,9 @@
       if (!resizing || !rootEl) {
         return;
       }
-      const canvas = rootEl.getBoundingClientRect();
-      const maxW = canvas.width - winEl.offsetLeft - 8;
-      const maxH = canvas.height - winEl.offsetTop - 8;
+      const { width: cw, height: ch } = canvasBounds();
+      const maxW = cw - winEl.offsetLeft - 8;
+      const maxH = ch - winEl.offsetTop - 8;
       winEl.style.width = `${clamp(startW + (event.clientX - startX), minW, maxW)}px`;
       winEl.style.height = `${clamp(startH + (event.clientY - startY), minH, maxH)}px`;
     });
@@ -347,6 +411,9 @@
     const winEl = document.createElement("div");
     winEl.className = "jl-float-win";
     winEl.dataset.route = route;
+    if (meta.panelKey) {
+      winEl.dataset.panelKey = meta.panelKey;
+    }
     winEl.style.width = `${saved?.width || meta.width}px`;
     winEl.style.height = `${saved?.height || meta.height}px`;
     winEl.style.left = `${pos.x}px`;
@@ -359,6 +426,7 @@
         <span class="jl-float-win__icon" aria-hidden="true">${escapeHtml(meta.icon || "◻")}</span>
         <span class="jl-float-win__title">${escapeHtml(meta.title)}</span>
         <div class="jl-float-win__actions">
+          <button type="button" class="jl-float-win__btn jl-float-win__btn--pin" data-action="pin" title="置顶" aria-label="置顶" aria-pressed="false">★</button>
           <button type="button" class="jl-float-win__btn" data-action="minimize" title="最小化" aria-label="最小化">—</button>
           <button type="button" class="jl-float-win__btn jl-float-win__btn--close" data-action="close" title="关闭" aria-label="关闭">×</button>
         </div>
@@ -371,9 +439,14 @@
     const body = winEl.querySelector(".jl-float-win__body");
     const resize = winEl.querySelector(".jl-float-win__resize");
 
-    winEl.addEventListener("pointerdown", () => bringToFront(winEl));
+    winEl.addEventListener("pointerdown", () => bringToFront(winEl, route));
     attachDrag(winEl, header, route);
     attachResize(winEl, resize, route);
+
+    header.querySelector('[data-action="pin"]')?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      togglePin(route);
+    });
 
     header.querySelector('[data-action="minimize"]')?.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -406,8 +479,9 @@
   function focusOrOpen(route, options = {}) {
     const entry = windows.get(route);
     if (entry && !entry.el.hidden && !entry.minimized) {
-      bringToFront(entry.el);
+      bringToFront(entry.el, route);
       syncDockActive(route);
+      notifyPanelVisible(route);
       return true;
     }
     return openWindow(route, options);
@@ -431,11 +505,12 @@
     entry.minimized = false;
     entry.el.classList.remove("is-minimized");
     if (options.focus !== false) {
-      bringToFront(entry.el);
+      bringToFront(entry.el, route);
       entry.el.classList.add("jl-float-win--enter");
       window.setTimeout(() => entry.el.classList.remove("jl-float-win--enter"), 320);
     }
     syncDockActive(route);
+    notifyPanelVisible(route);
     return true;
   }
 
@@ -467,7 +542,7 @@
     entry.minimized = !entry.minimized;
     entry.el.classList.toggle("is-minimized", entry.minimized);
     if (!entry.minimized) {
-      bringToFront(entry.el);
+      bringToFront(entry.el, route);
     }
   }
 
@@ -572,7 +647,7 @@
       }
       btn.dataset.jlFloatHubBound = "1";
       btn.addEventListener("click", (event) => {
-        if (!isActive() || mode !== "workspace") {
+        if (mode !== "workspace" || (!overlayMode && !isActive())) {
           return;
         }
         const route = btn.dataset.wbHubRoute;
@@ -582,9 +657,6 @@
         event.preventDefault();
         event.stopPropagation();
         openWindow(route);
-        if (typeof routeHandler === "function") {
-          routeHandler(route);
-        }
       });
     });
   }
@@ -660,6 +732,10 @@
   }
 
   function hideLegacyChrome() {
+    if (overlayMode) {
+      document.body.classList.add("jl-workspace-float-active");
+      return;
+    }
     document.body.classList.add("jl-float-desktop-active");
     const conf = modeConfig();
     if (conf?.bodyClass) {
@@ -691,6 +767,29 @@
   }
 
   function ensureRoot() {
+    if (overlayMode) {
+      let layer = document.getElementById("jlWorkspaceFloatLayer");
+      if (!layer) {
+        layer = document.createElement("div");
+        layer.id = "jlWorkspaceFloatLayer";
+        layer.className = "jl-workspace-float-layer";
+        layer.hidden = true;
+        layer.setAttribute("aria-hidden", "true");
+        document.querySelector(".app-shell")?.appendChild(layer);
+      }
+      let root = layer.querySelector("#jlFloatDesktop");
+      if (!root) {
+        root = document.createElement("div");
+        root.id = "jlFloatDesktop";
+        root.className = "jl-float-desktop jl-float-desktop--overlay";
+        layer.appendChild(root);
+      }
+      root.hidden = false;
+      root.removeAttribute("aria-hidden");
+      rootEl = root;
+      return root;
+    }
+
     let root = document.getElementById("jlFloatDesktop");
     if (!root) {
       root = document.createElement("div");
@@ -705,6 +804,18 @@
     return root;
   }
 
+  function setOverlayVisible(next) {
+    overlayVisible = !!next;
+    const layer = document.getElementById("jlWorkspaceFloatLayer");
+    if (layer) {
+      layer.hidden = !overlayVisible;
+      layer.setAttribute("aria-hidden", overlayVisible ? "false" : "true");
+    }
+    if (rootEl) {
+      rootEl.hidden = !overlayVisible;
+    }
+  }
+
   function bootDefaultWindows() {
     const boots = modeConfig()?.bootWindows || [];
     boots.forEach((key, idx) => {
@@ -716,6 +827,7 @@
     if (!DESKTOP_MODES[nextMode]) {
       return;
     }
+    overlayMode = false;
     mode = nextMode;
     routeHandler = options.onRoute || null;
     panelVisibleHandler = options.onPanelVisible || null;
@@ -731,8 +843,36 @@
     }
   }
 
+  function initOverlay(nextMode, options = {}) {
+    if (!DESKTOP_MODES[nextMode]) {
+      return;
+    }
+    if (mode === nextMode && overlayMode && rootEl) {
+      routeHandler = options.onRoute || routeHandler;
+      panelVisibleHandler = options.onPanelVisible || panelVisibleHandler;
+      bindHubTiles();
+      return;
+    }
+    overlayMode = true;
+    mode = nextMode;
+    routeHandler = options.onRoute || null;
+    panelVisibleHandler = options.onPanelVisible || null;
+    ensureRoot();
+    hideLegacyChrome();
+    bindHubTiles();
+    bindKbLauncher();
+    if (!windows.size) {
+      bootDefaultWindows();
+    }
+    setOverlayVisible(false);
+  }
+
+  function isOverlayMode() {
+    return overlayMode;
+  }
+
   function isActive() {
-    return !!mode && !!rootEl && !rootEl.hidden;
+    return !!mode && !!rootEl && (overlayMode ? overlayVisible : !rootEl.hidden);
   }
 
   function getMode() {
@@ -741,12 +881,16 @@
 
   global.FloatDesktop = {
     init,
+    initOverlay,
     isActive,
+    isOverlayMode,
     getMode,
     handleRoute,
     openWindow,
     focusOrOpen,
     closeWindow,
     bringToFront,
+    setOverlayVisible,
+    togglePin,
   };
 })(typeof window !== "undefined" ? window : globalThis);

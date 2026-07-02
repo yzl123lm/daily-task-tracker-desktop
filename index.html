@@ -192,7 +192,6 @@
       <div class="jl-workspace-body" id="jlWorkspaceBody">
         <div class="jl-workbench-stage" id="jlWorkbenchStage">
         <div class="jl-workspace-canvas" id="jlWorkspaceCanvas">
-          <div id="jlFloatDesktop" class="jl-float-desktop" hidden aria-hidden="true"></div>
           <div class="main-column">
             <div class="tabs-strip" id="tabsStrip" role="tablist" aria-label="功能标签页"></div>
 
@@ -201,8 +200,14 @@
           <section class="card jl-workbench-hub">
             <header class="jl-module-page-head">
               <h2 class="jl-workbench-hub__title">工作台</h2>
-              <p class="jl-workbench-hub__hint">集中管理任务、筛选、数据统计与待办事项</p>
+              <p class="jl-workbench-hub__hint">实时状态概览 · 点击模块打开独立浮动面板</p>
             </header>
+            <div class="jl-workbench-hub__status" id="workbenchHubStatus" aria-label="任务状态概览">
+              <div class="jl-workbench-hub__stat"><strong id="wbStatTotal">0</strong><span>总任务</span></div>
+              <div class="jl-workbench-hub__stat"><strong id="wbStatOpen">0</strong><span>未完成</span></div>
+              <div class="jl-workbench-hub__stat"><strong id="wbStatDoing">0</strong><span>处理中</span></div>
+              <div class="jl-workbench-hub__stat"><strong id="wbStatDone">0</strong><span>已完结</span></div>
+            </div>
             <div class="jl-workbench-hub__grid">
               <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="new">
                 <span class="jl-workbench-hub__tile-icon" aria-hidden="true">✏️</span>
@@ -1547,6 +1552,8 @@
         </div>
       </div>
     </div>
+
+    <div id="jlWorkspaceFloatLayer" class="jl-workspace-float-layer" hidden aria-hidden="true"></div>
 
     <div id="jlRecorderMonitorLayer" class="recorder-monitor-layer" hidden aria-hidden="true">
       <div id="recorderFloatWin" class="recorder-monitor is-focused" role="dialog" aria-label="会议记录 · 实时监控">
@@ -3087,6 +3094,7 @@
   <script src="./utils/dom.js"></script>
   <script src="./app/taskListView.js"></script>
   <script src="./app/floatDesktop.js"></script>
+  <script src="./app/workspaceFloatPanel.js"></script>
   <script src="./app/recorderMonitor.js"></script>
   <script src="./taskEnhancements.js"></script>
   <script src="./taskAnalytics.js"></script>
