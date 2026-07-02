@@ -1379,11 +1379,24 @@ body.jl-record-assistant-active .record-assistant:not(.is-recording) .record-ass
   overflow: visible;
 }
 
-.jl-workspace-float-layer:not([hidden]) {
+.jl-knowledge-float-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1850;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.jl-workspace-float-layer:not([hidden]),
+.jl-knowledge-float-layer:not([hidden]) {
   pointer-events: none;
 }
 
 body.jl-workspace-float-active {
+  overflow: auto;
+}
+
+body.jl-knowledge-float-active {
   overflow: auto;
 }
 
@@ -1476,6 +1489,85 @@ body.jl-workspace-float-active {
 
 .jl-float-panel-host .jl-workbench-hub__tile-desc {
   display: none;
+}
+
+.jl-kb-hub__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+
+.jl-kb-hub__hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.jl-kb-hub__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.jl-kb-hub__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(47, 128, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: #1e3a8a;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jl-kb-hub__tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+}
+
+.jl-kb-hub__tile-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.jl-kb-hub__tile-label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.jl-kb-hub__tile-desc {
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.jl-float-panel-host.jl-kb-hub-panel,
+.jl-float-panel-host .jl-kb-hub {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+
+.jl-float-panel-host .jl-kb-hub__grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.jl-float-panel-host .jl-kb-hub__tile {
+  min-height: 0;
+  padding: 10px;
+}
+
+.jl-float-panel-host .jl-kb-hub__tile-desc {
+  display: block;
+  font-size: 10px;
 }
 
 .theme-nebula .jl-float-win__btn--pin {

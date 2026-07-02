@@ -6,12 +6,11 @@
   let panelVisibleHandler = null;
 
   function syncNavActive(on) {
-    const nav = document.getElementById("jlWorkbenchNav");
-    nav?.querySelectorAll('[data-wb-route="workbench"], [data-wb-module="workbench"]').forEach((btn) => {
+    document.getElementById("jlWorkbenchNav")?.querySelectorAll('[data-wb-module="knowledge-base"]').forEach((btn) => {
       btn.classList.toggle("is-active", !!on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
     });
-    document.querySelector('.jl-side-rail__btn[data-jl-space="workbench"]')?.classList.toggle("is-active", !!on);
+    document.querySelector('.jl-side-rail__btn[data-jl-space="kb"]')?.classList.toggle("is-active", !!on);
   }
 
   function fireRoute(route) {
@@ -24,8 +23,8 @@
     if (!global.FloatDesktop) {
       return;
     }
-    if (!global.FloatDesktop.isOverlayActive?.("workspace")) {
-      global.FloatDesktop.initOverlay("workspace", {
+    if (!global.FloatDesktop.isOverlayActive?.("knowledge")) {
+      global.FloatDesktop.initOverlay("knowledge", {
         onRoute: (route) => fireRoute(route),
         onPanelVisible: (route) => {
           if (typeof panelVisibleHandler === "function") {
@@ -41,29 +40,30 @@
       init();
     }
     ensureDesktop();
+    layerEl = document.getElementById("jlKnowledgeFloatLayer");
     if (!layerEl) {
       return;
     }
-    global.FloatDesktop?.activateOverlayMode?.("workspace");
+    global.FloatDesktop?.activateOverlayMode?.("knowledge");
     layerEl.hidden = false;
     layerEl.setAttribute("aria-hidden", "false");
-    document.body.classList.add("jl-workspace-float-active");
     visible = true;
-    global.FloatDesktop?.setOverlayVisible?.(true, "workspace");
-    global.FloatDesktop?.openWindow("workbench");
-    fireRoute("workbench");
+    global.FloatDesktop?.setOverlayVisible?.(true, "knowledge");
+    global.FloatDesktop?.openWindow("kb-launcher");
+    fireRoute("knowledge-base");
     syncNavActive(true);
   }
 
   function hide() {
+    layerEl = document.getElementById("jlKnowledgeFloatLayer");
     if (layerEl) {
       layerEl.hidden = true;
       layerEl.setAttribute("aria-hidden", "true");
     }
-    document.body.classList.remove("jl-workspace-float-active");
+    document.body.classList.remove("jl-knowledge-float-active");
     visible = false;
-    global.FloatDesktop?.activateOverlayMode?.("workspace");
-    global.FloatDesktop?.setOverlayVisible?.(false, "workspace");
+    global.FloatDesktop?.activateOverlayMode?.("knowledge");
+    global.FloatDesktop?.setOverlayVisible?.(false, "knowledge");
     syncNavActive(false);
   }
 
@@ -84,18 +84,18 @@
     if (!visible) {
       show();
     }
-    global.FloatDesktop?.activateOverlayMode?.("workspace");
-    const key = String(route || "workbench").trim() || "workbench";
-    if (key === "workbench") {
-      global.FloatDesktop?.focusOrOpen("workbench");
+    global.FloatDesktop?.activateOverlayMode?.("knowledge");
+    const key = String(route || "kb-launcher").trim() || "kb-launcher";
+    if (key === "knowledge-base" || key === "kb-launcher") {
+      global.FloatDesktop?.focusOrOpen("kb-launcher");
     } else {
       global.FloatDesktop?.openWindow(key);
     }
-    fireRoute(key);
+    fireRoute("knowledge-base");
   }
 
   function init(options = {}) {
-    layerEl = document.getElementById("jlWorkspaceFloatLayer");
+    layerEl = document.getElementById("jlKnowledgeFloatLayer");
     if (!layerEl) {
       return;
     }
@@ -108,7 +108,7 @@
     return visible;
   }
 
-  global.WorkspaceFloatPanel = {
+  global.KnowledgeFloatPanel = {
     init,
     show,
     hide,
@@ -116,5 +116,5 @@
     openRoute,
     isVisible,
   };
-  global.toggleWorkspaceFloatPanel = toggle;
+  global.toggleKnowledgeFloatPanel = toggle;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -54,6 +54,7 @@ const WINDOW_MODE = (() => {
 })();
 
 const WORKBENCH_TASK_ROUTES = new Set(["workbench", "new", "filter", "list", "dashboard"]);
+const KNOWLEDGE_FLOAT_ROUTES = new Set(["knowledge-base", "kb-launcher", "kb-main", "kb-libraries", "kb-graph", "kb-search"]);
 
 const MODULE_WINDOW_MODES = new Set(["workspace", "knowledge", "record", "workbench"]);
 
@@ -125,6 +126,10 @@ async function openWorkbenchModule(routeOrModule, options = {}) {
   if ((target === "record" || moduleKey === "record") && (isAiWindow() || isWorkspaceWindow())) {
     window.RecorderMonitor?.init?.();
     toggleRecorderMonitor();
+    return;
+  }
+  if ((target === "knowledge-base" || moduleKey === "knowledge") && (isAiWindow() || isWorkspaceWindow())) {
+    toggleKnowledgeFloatPanel();
     return;
   }
   if (WORKBENCH_TASK_ROUTES.has(target) && (isAiWindow() || isWorkspaceWindow())) {
@@ -1961,6 +1966,13 @@ function syncWorkbenchNavActive(routeOrModule) {
   applyWorkbenchScope(route);
 }
 
+function toggleKnowledgeFloatPanel() {
+  if (window.KnowledgeFloatPanel?.toggle) {
+    return window.KnowledgeFloatPanel.toggle();
+  }
+  return false;
+}
+
 function toggleWorkspaceFloatPanel() {
   if (window.WorkspaceFloatPanel?.toggle) {
     return window.WorkspaceFloatPanel.toggle();
@@ -2005,6 +2017,12 @@ function activateWorkbenchTarget(target, options = {}) {
   if (key === "record" && (isWorkspaceWindow() || isAiWindow())) {
     closeWorkbenchCapInline();
     toggleRecorderMonitor();
+    return;
+  }
+  if (key === "knowledge-base" && isAiWindow()) {
+    closeWorkbenchCapInline();
+    toggleKnowledgeFloatPanel();
+    syncWorkbenchNavActive("knowledge-base");
     return;
   }
   if (WORKBENCH_TASK_ROUTES.has(key) && isAiWindow()) {
@@ -2404,6 +2422,10 @@ function initModuleShell() {
       }
       return;
     }
+    if (payload?.overlay && resolveModuleKey(payload.module || payload.route) === "knowledge") {
+      toggleKnowledgeFloatPanel();
+      return;
+    }
     if (payload?.route) {
       activateWorkbenchTarget(payload.route, payload);
     }
@@ -2454,6 +2476,17 @@ function initShell() {
       }
     },
   });
+  window.KnowledgeFloatPanel?.init?.({
+    onRoute: () => {
+      activeRoute = "knowledge-base";
+      syncWorkbenchNavActive("knowledge-base");
+    },
+    onPanelVisible: () => {
+      if (typeof window.onKnowledgeBasePanelVisible === "function") {
+        void window.onKnowledgeBasePanelVisible();
+      }
+    },
+  });
   const bindWorkspaceOverlayNavigate = (payload) => {
     if (payload?.overlay && resolveModuleKey(payload.module || payload.route) === "workspace") {
       const route = String(payload.route || "workbench").trim() || "workbench";
@@ -2462,6 +2495,10 @@ function initShell() {
       } else {
         window.WorkspaceFloatPanel?.openRoute?.(route);
       }
+      return;
+    }
+    if (payload?.overlay && resolveModuleKey(payload.module || payload.route) === "knowledge") {
+      toggleKnowledgeFloatPanel();
       return;
     }
     if (payload?.route) {
@@ -2665,6 +2702,14 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     syncWorkbenchNavActive("record");
     if (syncHash) {
       setHashRoute("record");
+    }
+    return;
+  }
+  if (isAiWindow() && route === "knowledge-base") {
+    toggleKnowledgeFloatPanel();
+    syncWorkbenchNavActive("knowledge-base");
+    if (syncHash) {
+      setHashRoute("knowledge-base");
     }
     return;
   }

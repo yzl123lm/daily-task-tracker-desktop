@@ -933,6 +933,45 @@
           </div>
         </div>
 
+        <div id="panel-kb-hub" class="tab-panel jl-kb-hub-panel" role="tabpanel" hidden>
+          <section class="card jl-kb-hub">
+            <header class="jl-module-page-head">
+              <h2 class="jl-kb-hub__title">本地知识库</h2>
+              <p class="jl-kb-hub__hint">实时状态概览 · 点击模块打开二级浮动面板</p>
+            </header>
+            <div class="jl-kb-hub__grid">
+              <button type="button" class="jl-kb-hub__tile" data-kb-hub-route="kb-main">
+                <span class="jl-kb-hub__tile-icon" aria-hidden="true">📚</span>
+                <span class="jl-kb-hub__tile-text">
+                  <span class="jl-kb-hub__tile-label">知识库</span>
+                  <span class="jl-kb-hub__tile-desc">维护个人知识库</span>
+                </span>
+              </button>
+              <button type="button" class="jl-kb-hub__tile" data-kb-hub-route="kb-libraries">
+                <span class="jl-kb-hub__tile-icon" aria-hidden="true">📁</span>
+                <span class="jl-kb-hub__tile-text">
+                  <span class="jl-kb-hub__tile-label">目录与入库</span>
+                  <span class="jl-kb-hub__tile-desc">管理知识库目录与文档入库</span>
+                </span>
+              </button>
+              <button type="button" class="jl-kb-hub__tile" data-kb-hub-route="kb-graph">
+                <span class="jl-kb-hub__tile-icon" aria-hidden="true">🕸</span>
+                <span class="jl-kb-hub__tile-text">
+                  <span class="jl-kb-hub__tile-label">知识图谱</span>
+                  <span class="jl-kb-hub__tile-desc">可视化知识关系网络</span>
+                </span>
+              </button>
+              <button type="button" class="jl-kb-hub__tile" data-kb-hub-route="kb-search">
+                <span class="jl-kb-hub__tile-icon" aria-hidden="true">🔍</span>
+                <span class="jl-kb-hub__tile-text">
+                  <span class="jl-kb-hub__tile-label">检索试用</span>
+                  <span class="jl-kb-hub__tile-desc">多路召回检索测试</span>
+                </span>
+              </button>
+            </div>
+          </section>
+        </div>
+
         <div id="panel-knowledge-base" class="tab-panel kb-panel-stretch" role="tabpanel" hidden>
           <div id="jlKbLauncher" class="jl-float-section-host">
             <section class="card kb-panel-card jl-kb-launcher">
@@ -948,20 +987,6 @@
               <div class="kb-stats-wrap">
                 <div id="kbStatsBar" class="kb-stats-bar" aria-label="知识库概览"></div>
                 <button type="button" id="kbStatsOpsLogBtn" class="secondary kb-stats-ops-btn" title="查看操作日志">操作日志</button>
-              </div>
-              <div class="jl-kb-launcher__grid">
-                <button type="button" class="jl-kb-launcher__tile" data-kb-open="kb-libraries">
-                  <span class="jl-kb-launcher__tile-icon" aria-hidden="true">📁</span>
-                  <span class="jl-kb-launcher__tile-label">目录与入库</span>
-                </button>
-                <button type="button" class="jl-kb-launcher__tile" data-kb-open="kb-graph">
-                  <span class="jl-kb-launcher__tile-icon" aria-hidden="true">🕸</span>
-                  <span class="jl-kb-launcher__tile-label">知识图谱</span>
-                </button>
-                <button type="button" class="jl-kb-launcher__tile" data-kb-open="kb-search">
-                  <span class="jl-kb-launcher__tile-icon" aria-hidden="true">🔍</span>
-                  <span class="jl-kb-launcher__tile-label">检索试用</span>
-                </button>
               </div>
             </section>
           </div>
@@ -1554,6 +1579,7 @@
     </div>
 
     <div id="jlWorkspaceFloatLayer" class="jl-workspace-float-layer" hidden aria-hidden="true"></div>
+    <div id="jlKnowledgeFloatLayer" class="jl-knowledge-float-layer" hidden aria-hidden="true"></div>
 
     <div id="jlRecorderMonitorLayer" class="recorder-monitor-layer" hidden aria-hidden="true">
       <div id="recorderFloatWin" class="recorder-monitor is-focused" role="dialog" aria-label="会议记录 · 实时监控">
@@ -3095,6 +3121,7 @@
   <script src="./app/taskListView.js"></script>
   <script src="./app/floatDesktop.js"></script>
   <script src="./app/workspaceFloatPanel.js"></script>
+  <script src="./app/knowledgeFloatPanel.js"></script>
   <script src="./app/recorderMonitor.js"></script>
   <script src="./taskEnhancements.js"></script>
   <script src="./taskAnalytics.js"></script>

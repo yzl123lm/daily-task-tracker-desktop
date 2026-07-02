@@ -128,6 +128,31 @@ function openModuleWindow(options = {}) {
     }
   }
 
+  if (moduleKey === "knowledge") {
+    const legacyKnowledgeWin = getModuleWindow("knowledge");
+    if (legacyKnowledgeWin) {
+      legacyKnowledgeWin.close();
+      moduleWindowRefs.knowledge = null;
+    }
+    const host =
+      BrowserWindow.getFocusedWindow()
+      || getMainWindow()
+      || getModuleWindow("workspace")
+      || BrowserWindow.getAllWindows().find((win) => !win.isDestroyed());
+    if (host) {
+      if (host.isMinimized()) {
+        host.restore();
+      }
+      host.focus();
+      host.webContents.send("module-navigate", {
+        module: "knowledge",
+        route: "knowledge-base",
+        overlay: true,
+      });
+      return host;
+    }
+  }
+
   if (moduleKey === "workspace") {
     const legacyWorkspaceWin = getModuleWindow("workspace");
     if (legacyWorkspaceWin) {

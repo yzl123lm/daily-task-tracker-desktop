@@ -63,27 +63,46 @@
         },
       },
       bootWindows: ["workbench"],
+      overlayLayerId: "jlWorkspaceFloatLayer",
+      overlayBodyClass: "jl-workspace-float-active",
+      overlayRootId: "jlFloatDesktop-workspace",
     },
     knowledge: {
       title: "本地知识库",
-      hint: "各功能独立浮窗，可自由拖拽与叠放",
+      hint: "点击模块打开二级浮动面板",
       bodyClass: "jl-float-mode-knowledge",
+      overlayLayerId: "jlKnowledgeFloatLayer",
+      overlayBodyClass: "jl-knowledge-float-active",
+      overlayRootId: "jlFloatDesktop-knowledge",
       windows: {
         "kb-launcher": {
-          panelId: "jlKbLauncher",
-          title: "知识库",
-          desc: "模块入口与概览",
+          panelId: "panel-kb-hub",
+          panelKey: "LocalKnowledgeHubPanel",
+          title: "本地知识库",
+          desc: "模块入口与状态概览",
           icon: "📚",
-          width: 480,
-          height: 420,
-          minWidth: 380,
-          minHeight: 320,
+          width: 360,
+          height: 440,
+          minWidth: 320,
+          minHeight: 360,
           isLauncher: true,
+        },
+        "kb-main": {
+          panelId: "jlKbLauncher",
+          panelKey: "KnowledgeBasePanel",
+          title: "知识库",
+          desc: "维护个人知识库",
+          icon: "📚",
+          width: 420,
+          height: 480,
+          minWidth: 360,
+          minHeight: 380,
         },
         "kb-libraries": {
           panelId: "jlKbFloatLibraries",
+          panelKey: "DirectoryImportPanel",
           title: "目录与入库",
-          desc: "管理知识库目录",
+          desc: "管理知识库目录与文档入库",
           icon: "📁",
           width: 440,
           height: 680,
@@ -92,8 +111,9 @@
         },
         "kb-graph": {
           panelId: "jlKbFloatGraph",
+          panelKey: "KnowledgeGraphPanel",
           title: "知识图谱",
-          desc: "可视化关系网络",
+          desc: "可视化知识关系网络",
           icon: "🕸",
           width: 760,
           height: 560,
@@ -102,8 +122,9 @@
         },
         "kb-search": {
           panelId: "jlKbFloatSearch",
+          panelKey: "SearchTestPanel",
           title: "检索试用",
-          desc: "多路召回检索调试",
+          desc: "多路召回检索测试",
           icon: "🔍",
           width: 760,
           height: 620,
@@ -111,7 +132,7 @@
           minHeight: 420,
         },
       },
-      bootWindows: ["kb-launcher", "kb-libraries", "kb-graph", "kb-search"],
+      bootWindows: ["kb-launcher"],
     },
     record: {
       title: "记录助手",
@@ -155,20 +176,55 @@
     },
   };
 
+  function createModeRuntime() {
+    return {
+      windows: new Map(),
+      rootEl: null,
+      dockEl: null,
+      overlayVisible: false,
+      zCounter: 30,
+      pinnedRoutes: new Set(),
+      routeHandler: null,
+      panelVisibleHandler: null,
+    };
+  }
+
+  /** @type {Map<string, ReturnType<typeof createModeRuntime>>} */
+  const modeRuntimes = new Map();
+
+  function rt(forMode) {
+    const key = forMode || mode;
+    if (!modeRuntimes.has(key)) {
+      modeRuntimes.set(key, createModeRuntime());
+    }
+    return modeRuntimes.get(key);
+  }
+
+  function syncModeRefs(forMode) {
+    const r = rt(forMode);
+    rootEl = r.rootEl;
+    dockEl = r.dockEl;
+    overlayVisible = r.overlayVisible;
+  }
+
   let mode = "";
   let overlayMode = false;
-  let overlayVisible = false;
   let rootEl = null;
   let dockEl = null;
-  let zCounter = 30;
-  const PINNED_Z = 9000;
-  const WORKSPACE_LAYER_BASE_Z = 1800;
-  /** @type {Set<string>} */
-  const pinnedRoutes = new Set();
-  /** @type {Map<string, { el: HTMLElement, body: HTMLElement, route: string, minimized: boolean }>} */
-  const windows = new Map();
+  let overlayVisible = false;
   let routeHandler = null;
   let panelVisibleHandler = null;
+
+  function winMap(forMode) {
+    return rt(forMode || mode).windows;
+  }
+
+  function getPinnedRoutes(forMode) {
+    return rt(forMode).pinnedRoutes;
+  }
+
+  const PINNED_Z = 9000;
+  const OVERLAY_LAYER_BASE_Z = 1800;
 
   function modeConfig() {
     return DESKTOP_MODES[mode] || null;
@@ -244,10 +300,16 @@
   }
 
   function flushAllGeometry() {
-    windows.forEach((entry, route) => {
-      if (isWindowOpen(entry)) {
-        saveGeometry(route, entry.el);
-      }
+    modeRuntimes.forEach((runtime, modeKey) => {
+      const prev = mode;
+      mode = modeKey;
+      runtime.windows.forEach((entry, route) => {
+        if (isWindowOpen(entry)) {
+          saveGeometry(route, entry.el);
+        }
+      });
+      mode = prev;
+      syncModeRefs(mode);
     });
   }
 
@@ -262,12 +324,18 @@
     global.addEventListener("pagehide", flushAllGeometry);
   }
 
-  function syncWorkspaceLayerZIndex(bump) {
-    const layer = document.getElementById("jlWorkspaceFloatLayer");
+  function syncOverlayLayerZIndex(modeKey, bump) {
+    const conf = DESKTOP_MODES[modeKey];
+    const layerId = conf?.overlayLayerId;
+    if (!layerId) {
+      return;
+    }
+    const layer = document.getElementById(layerId);
     if (!layer) {
       return;
     }
-    if (pinnedRoutes.size > 0) {
+    const pins = getPinnedRoutes(modeKey);
+    if (pins.size > 0) {
       if (typeof global.__jlFloatLayerTopZ !== "number") {
         global.__jlFloatLayerTopZ = 9100;
       }
@@ -277,17 +345,19 @@
       layer.style.zIndex = String(global.__jlFloatLayerTopZ);
       return;
     }
-    layer.style.zIndex = String(WORKSPACE_LAYER_BASE_Z);
+    layer.style.zIndex = String(OVERLAY_LAYER_BASE_Z);
   }
 
   function bringToFront(winEl, route) {
-    const isPinned = route && pinnedRoutes.has(route);
+    const pins = getPinnedRoutes();
+    const isPinned = route && pins.has(route);
     if (isPinned) {
       winEl.style.zIndex = String(PINNED_Z);
-      syncWorkspaceLayerZIndex(true);
+      syncOverlayLayerZIndex(mode, true);
     } else {
-      zCounter += 1;
-      winEl.style.zIndex = String(zCounter);
+      const runtime = rt();
+      runtime.zCounter += 1;
+      winEl.style.zIndex = String(runtime.zCounter);
     }
     winEl.classList.add("is-focused");
     winEl.classList.toggle("is-pinned", !!isPinned);
@@ -299,21 +369,22 @@
   }
 
   function togglePin(route) {
-    const entry = windows.get(route);
+    const entry = winMap().get(route);
     if (!entry) {
       return;
     }
-    if (pinnedRoutes.has(route)) {
-      pinnedRoutes.delete(route);
+    const pins = getPinnedRoutes();
+    if (pins.has(route)) {
+      pins.delete(route);
     } else {
-      pinnedRoutes.add(route);
+      pins.add(route);
     }
-    const pinned = pinnedRoutes.has(route);
+    const pinned = pins.has(route);
     entry.el.classList.toggle("is-pinned", pinned);
     const pinBtn = entry.el.querySelector('[data-action="pin"]');
     pinBtn?.classList.toggle("is-active", pinned);
     pinBtn?.setAttribute("aria-pressed", pinned ? "true" : "false");
-    syncWorkspaceLayerZIndex(true);
+    syncOverlayLayerZIndex(mode, true);
     bringToFront(entry.el, route);
   }
 
@@ -332,6 +403,9 @@
     }
     if (route === "workbench" && typeof global.refreshWorkbenchHubStatus === "function") {
       global.refreshWorkbenchHubStatus();
+    }
+    if ((route === "kb-main" || route === "kb-launcher") && typeof global.onKnowledgeBasePanelVisible === "function") {
+      void global.onKnowledgeBasePanelVisible();
     }
   }
 
@@ -355,6 +429,17 @@
 
   function defaultPosition(index, width, height) {
     const { width: cw, height: ch } = canvasBounds();
+    if (overlayMode && mode === "knowledge" && index > 0) {
+      const launcher = winMap().get("kb-launcher");
+      if (launcher && isWindowOpen(launcher)) {
+        const offsetX = launcher.el.offsetLeft + launcher.el.offsetWidth + 16;
+        const offsetY = launcher.el.offsetTop + (index - 1) * 28;
+        return {
+          x: clamp(offsetX, 8, Math.max(8, cw - width - 8)),
+          y: clamp(offsetY, 8, Math.max(8, ch - height - 8)),
+        };
+      }
+    }
     const dockW = !overlayMode && dockEl && !dockEl.hidden ? dockEl.offsetWidth + 20 : 0;
     const baseX = dockW + 24 + (index % 4) * 36;
     const baseY = 24 + (index % 5) * 32;
@@ -470,7 +555,7 @@
 
   function createWindowElement(route, meta) {
     const saved = readSavedGeometry(route);
-    const index = windows.size;
+    const index = winMap().size;
     const pos = saved
       ? { x: saved.left, y: saved.top }
       : defaultPosition(index, meta.width, meta.height);
@@ -563,7 +648,7 @@
 
   function countVisibleWindows() {
     let count = 0;
-    windows.forEach((entry) => {
+    winMap().forEach((entry) => {
       if (isWindowOpen(entry)) {
         count += 1;
       }
@@ -571,11 +656,39 @@
     return count;
   }
 
-  function maybeHideWorkspaceOverlay() {
+  function maybeHideOverlay() {
     if (!overlayMode || countVisibleWindows() > 0) {
       return;
     }
-    global.WorkspaceFloatPanel?.hide?.();
+    if (mode === "workspace") {
+      global.WorkspaceFloatPanel?.hide?.();
+    } else if (mode === "knowledge") {
+      global.KnowledgeFloatPanel?.hide?.();
+    }
+  }
+
+  function closeAllOverlayWindows(modeKey) {
+    const saved = mode;
+    mode = modeKey;
+    syncModeRefs(modeKey);
+    winMap(modeKey).forEach((entry, route) => {
+      if (!entry?.el || entry.el.classList.contains("is-closed") || entry.el.hidden) {
+        return;
+      }
+      releaseWindowInteraction(entry);
+      setFloatWindowVisible(entry, false);
+      stashPanel(route);
+    });
+    mode = saved;
+    syncModeRefs(mode);
+  }
+
+  function syncKnowledgeNavActive(on) {
+    document.getElementById("jlWorkbenchNav")?.querySelectorAll('[data-wb-module="knowledge-base"]').forEach((btn) => {
+      btn.classList.toggle("is-active", !!on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    document.querySelector('.jl-side-rail__btn[data-jl-space="kb"]')?.classList.toggle("is-active", !!on);
   }
 
   function setFloatWindowVisible(entry, visible) {
@@ -630,7 +743,7 @@
   }
 
   function focusOrOpen(route, options = {}) {
-    const entry = windows.get(route);
+    const entry = winMap().get(route);
     if (entry && isWindowOpen(entry)) {
       bringToFront(entry.el, route);
       syncDockActive(route);
@@ -646,11 +759,11 @@
       return false;
     }
 
-    let entry = windows.get(route);
+    let entry = winMap().get(route);
     if (!entry) {
       const created = createWindowElement(route, meta);
       entry = { el: created.el, body: created.body, minimized: false, route };
-      windows.set(route, entry);
+      winMap().set(route, entry);
     }
     mountPanel(route, entry.body);
 
@@ -668,7 +781,7 @@
   }
 
   function closeWindow(route) {
-    const entry = windows.get(route);
+    const entry = winMap().get(route);
     if (!entry || entry.el.classList.contains("is-closed") || entry.el.hidden) {
       return;
     }
@@ -678,12 +791,18 @@
 
     if (meta?.isLauncher) {
       if (overlayMode) {
+        closeAllOverlayWindows(mode);
         setFloatWindowVisible(entry, false);
         entry.minimized = false;
         entry.el.classList.remove("is-minimized");
         stashPanel(route);
-        global.WorkspaceFloatPanel?.hide?.();
-        syncNavActiveOverlay(false);
+        if (mode === "workspace") {
+          global.WorkspaceFloatPanel?.hide?.();
+          syncNavActiveOverlay(false);
+        } else if (mode === "knowledge") {
+          global.KnowledgeFloatPanel?.hide?.();
+          syncKnowledgeNavActive(false);
+        }
         return;
       }
       entry.el.classList.add("is-minimized");
@@ -696,7 +815,7 @@
     entry.el.classList.remove("is-minimized");
     stashPanel(route);
     syncDockActive("");
-    maybeHideWorkspaceOverlay();
+    maybeHideOverlay();
   }
 
   function syncNavActiveOverlay(on) {
@@ -704,7 +823,7 @@
   }
 
   function toggleMinimize(route) {
-    const entry = windows.get(route);
+    const entry = winMap().get(route);
     if (!entry) {
       return;
     }
@@ -830,13 +949,39 @@
     });
   }
 
+  function bindKbHubTiles() {
+    document.querySelectorAll("[data-kb-hub-route]").forEach((btn) => {
+      if (btn.dataset.jlKbHubBound === "1") {
+        return;
+      }
+      btn.dataset.jlKbHubBound = "1";
+      btn.addEventListener("click", (event) => {
+        if (mode !== "knowledge" || (!overlayMode && !isActive())) {
+          return;
+        }
+        const route = btn.dataset.kbHubRoute;
+        if (!route) {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        openWindow(route);
+      });
+    });
+  }
+
   function bindKbLauncher() {
     document.querySelectorAll("[data-kb-open]").forEach((btn) => {
       if (btn.dataset.jlKbOpenBound === "1") {
         return;
       }
       btn.dataset.jlKbOpenBound = "1";
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (event) => {
+        if (mode !== "knowledge") {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
         const target = btn.dataset.kbOpen;
         if (target) {
           focusOrOpen(target);
@@ -902,7 +1047,10 @@
 
   function hideLegacyChrome() {
     if (overlayMode) {
-      document.body.classList.add("jl-workspace-float-active");
+      const bodyClass = modeConfig()?.overlayBodyClass;
+      if (bodyClass) {
+        document.body.classList.add(bodyClass);
+      }
       return;
     }
     document.body.classList.add("jl-float-desktop-active");
@@ -935,27 +1083,36 @@
     }
   }
 
-  function ensureRoot() {
+  function ensureRoot(forMode) {
+    const m = forMode || mode;
+    const conf = DESKTOP_MODES[m];
     if (overlayMode) {
-      let layer = document.getElementById("jlWorkspaceFloatLayer");
+      const layerId = conf?.overlayLayerId || "jlWorkspaceFloatLayer";
+      const layerClass =
+        layerId === "jlKnowledgeFloatLayer" ? "jl-knowledge-float-layer" : "jl-workspace-float-layer";
+      let layer = document.getElementById(layerId);
       if (!layer) {
         layer = document.createElement("div");
-        layer.id = "jlWorkspaceFloatLayer";
-        layer.className = "jl-workspace-float-layer";
+        layer.id = layerId;
+        layer.className = layerClass;
         layer.hidden = true;
         layer.setAttribute("aria-hidden", "true");
         document.querySelector(".app-shell")?.appendChild(layer);
       }
-      let root = layer.querySelector("#jlFloatDesktop");
+      const rootId = conf?.overlayRootId || `jlFloatDesktop-${m}`;
+      let root = layer.querySelector(`#${rootId}`);
       if (!root) {
         root = document.createElement("div");
-        root.id = "jlFloatDesktop";
+        root.id = rootId;
         root.className = "jl-float-desktop jl-float-desktop--overlay";
         layer.appendChild(root);
       }
       root.hidden = false;
       root.removeAttribute("aria-hidden");
-      rootEl = root;
+      rt(m).rootEl = root;
+      if (m === mode) {
+        rootEl = root;
+      }
       return root;
     }
 
@@ -969,23 +1126,52 @@
     }
     root.hidden = false;
     root.removeAttribute("aria-hidden");
+    rt(m).rootEl = root;
     rootEl = root;
     return root;
   }
 
-  function setOverlayVisible(next) {
-    overlayVisible = !!next;
-    const layer = document.getElementById("jlWorkspaceFloatLayer");
+  function setOverlayVisible(next, modeKey) {
+    const m = modeKey || mode;
+    const runtime = rt(m);
+    runtime.overlayVisible = !!next;
+    if (m === mode) {
+      overlayVisible = runtime.overlayVisible;
+    }
+    const conf = DESKTOP_MODES[m];
+    const layer = document.getElementById(conf?.overlayLayerId || "jlWorkspaceFloatLayer");
     if (layer) {
-      layer.hidden = !overlayVisible;
-      layer.setAttribute("aria-hidden", overlayVisible ? "false" : "true");
+      layer.hidden = !next;
+      layer.setAttribute("aria-hidden", next ? "false" : "true");
     }
-    if (rootEl) {
-      rootEl.hidden = !overlayVisible;
+    if (runtime.rootEl) {
+      runtime.rootEl.hidden = !next;
     }
-    if (overlayVisible) {
-      syncWorkspaceLayerZIndex(false);
+    const bodyClass = conf?.overlayBodyClass;
+    if (bodyClass) {
+      document.body.classList.toggle(bodyClass, !!next);
     }
+    if (next) {
+      syncOverlayLayerZIndex(m, false);
+    }
+  }
+
+  function activateOverlayMode(modeKey) {
+    mode = modeKey;
+    overlayMode = true;
+    syncModeRefs(modeKey);
+    routeHandler = rt(modeKey).routeHandler || routeHandler;
+    panelVisibleHandler = rt(modeKey).panelVisibleHandler || panelVisibleHandler;
+    if (!rt(modeKey).rootEl) {
+      ensureRoot(modeKey);
+    } else {
+      rootEl = rt(modeKey).rootEl;
+    }
+  }
+
+  function isOverlayActive(modeKey) {
+    const m = modeKey || mode;
+    return !!rt(m).overlayVisible && !!rt(m).rootEl;
   }
 
   function bootDefaultWindows() {
@@ -1003,11 +1189,14 @@
     mode = nextMode;
     routeHandler = options.onRoute || null;
     panelVisibleHandler = options.onPanelVisible || null;
-    ensureRoot();
+    rt(nextMode).routeHandler = routeHandler;
+    rt(nextMode).panelVisibleHandler = panelVisibleHandler;
+    ensureRoot(nextMode);
     ensureGeometryFlushOnExit();
     buildDock();
     hideLegacyChrome();
     bindHubTiles();
+    bindKbHubTiles();
     bindKbLauncher();
     bootDefaultWindows();
 
@@ -1020,33 +1209,45 @@
     if (!DESKTOP_MODES[nextMode]) {
       return;
     }
-    if (mode === nextMode && overlayMode && rootEl) {
-      routeHandler = options.onRoute || routeHandler;
-      panelVisibleHandler = options.onPanelVisible || panelVisibleHandler;
-      bindHubTiles();
-      return;
-    }
-    overlayMode = true;
+    const savedMode = mode;
     mode = nextMode;
-    routeHandler = options.onRoute || null;
-    panelVisibleHandler = options.onPanelVisible || null;
-    ensureRoot();
+    overlayMode = true;
+    if (options.onRoute) {
+      rt(nextMode).routeHandler = options.onRoute;
+    }
+    if (options.onPanelVisible) {
+      rt(nextMode).panelVisibleHandler = options.onPanelVisible;
+    }
+    routeHandler = rt(nextMode).routeHandler;
+    panelVisibleHandler = rt(nextMode).panelVisibleHandler;
+    ensureRoot(nextMode);
     ensureGeometryFlushOnExit();
     hideLegacyChrome();
     bindHubTiles();
+    bindKbHubTiles();
     bindKbLauncher();
-    if (!windows.size) {
+    if (!winMap(nextMode).size) {
       bootDefaultWindows();
     }
-    setOverlayVisible(false);
+    setOverlayVisible(false, nextMode);
+    mode = savedMode;
+    syncModeRefs(savedMode || nextMode);
   }
 
   function isOverlayMode() {
     return overlayMode;
   }
 
-  function isActive() {
-    return !!mode && !!rootEl && (overlayMode ? overlayVisible : !rootEl.hidden);
+  function isActive(modeKey) {
+    const m = modeKey || mode;
+    const runtime = rt(m);
+    if (!DESKTOP_MODES[m]) {
+      return false;
+    }
+    if (runtime.overlayVisible) {
+      return !!runtime.rootEl;
+    }
+    return !!runtime.rootEl && !runtime.rootEl.hidden;
   }
 
   function getMode() {
@@ -1056,7 +1257,9 @@
   global.FloatDesktop = {
     init,
     initOverlay,
+    activateOverlayMode,
     isActive,
+    isOverlayActive,
     isOverlayMode,
     getMode,
     handleRoute,
