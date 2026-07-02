@@ -1039,8 +1039,8 @@ body.jl-recorder-monitor-active {
   position: fixed;
   display: flex;
   flex-direction: column;
-  width: 680px;
-  height: 580px;
+  width: 800px;
+  height: 955px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   border-radius: var(--rec-radius);
