@@ -14,16 +14,19 @@ const MODULE_META = {
     title: "鲸落AI · 工作台",
     defaultRoute: "workbench",
     windowMode: "workspace",
+    backgroundColor: "#dbeafe",
   },
   knowledge: {
     title: "鲸落AI · 本地知识库",
     defaultRoute: "knowledge-base",
     windowMode: "knowledge",
+    backgroundColor: "#0a0f1a",
   },
   record: {
     title: "鲸落AI · 记录助手",
     defaultRoute: "record",
     windowMode: "record",
+    backgroundColor: "#0a0f1a",
   },
 };
 
@@ -66,7 +69,7 @@ function createModuleBrowserWindow(moduleKey, meta) {
     height: 860,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: "#dbeafe",
+    backgroundColor: meta.backgroundColor || "#dbeafe",
     autoHideMenuBar: true,
     title: meta.title,
     show: false,

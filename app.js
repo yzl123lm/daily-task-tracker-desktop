@@ -1759,7 +1759,7 @@ function syncJlPromptDock(route) {
 window.syncJlPromptDock = syncJlPromptDock;
 
 function updateJlSideRailActive(route) {
-  if (isWorkbenchWindow()) {
+  if (isWorkspaceWindow()) {
     return;
   }
   const space = isAiWindow() ? "ai" : ROUTE_TO_JL_SPACE[route] || "tasks";
@@ -1768,7 +1768,13 @@ function updateJlSideRailActive(route) {
   });
   const pill = document.getElementById("jlWorkspacePill");
   if (pill) {
-    pill.textContent = isAiWindow() ? "AI 创作工作台" : JL_SPACE_LABELS[space] || "工作台";
+    if (isKnowledgeWindow()) {
+      pill.textContent = "本地知识库";
+    } else if (isRecordWindow()) {
+      pill.textContent = "记录助手";
+    } else {
+      pill.textContent = isAiWindow() ? "AI 创作工作台" : JL_SPACE_LABELS[space] || "工作台";
+    }
   }
 }
 
@@ -2261,6 +2267,14 @@ window.openJlRightDrawer = openJlRightDrawer;
 window.closeJlRightDrawer = closeJlRightDrawer;
 
 function updateBreadcrumb(route) {
+  if (isKnowledgeWindow()) {
+    breadcrumbEl.innerHTML = `<strong>本地知识库</strong>`;
+    return;
+  }
+  if (isRecordWindow()) {
+    breadcrumbEl.innerHTML = `<strong>记录助手</strong>`;
+    return;
+  }
   const meta = ROUTES[route];
   if (route === "local-models") {
     breadcrumbEl.innerHTML = `<strong>工作台 / 本地模型部署</strong>`;

@@ -5707,4 +5707,9 @@
       void api.kbWarmEmbedModel({});
     }
   };
+
+  const kbPanel = document.getElementById("panel-knowledge-base");
+  if (kbPanel && !kbPanel.hidden) {
+    void window.onKnowledgeBasePanelVisible();
+  }
 })();
