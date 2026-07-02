@@ -2222,7 +2222,7 @@ function fitRecordModuleWindow() {
   }
   const measure = () => {
     const floatWin = document.getElementById("recorderFloatWin");
-    const width = Math.round(floatWin?.offsetWidth || 420);
+    const width = Math.round(floatWin?.offsetWidth || 450);
     const height = Math.round(floatWin?.offsetHeight || 600);
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });

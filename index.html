@@ -1557,12 +1557,14 @@
             </span>
             <span class="recorder-monitor__name">会议记录</span>
           </div>
-          <div class="recorder-monitor__controls">
-            <button type="button" class="recorder-monitor__ctrl" data-action="pin" title="置顶" aria-label="置顶" aria-pressed="false">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14 4l-1 7h4l-7 9 1-7H7l7-9z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          <div class="recorder-monitor__controls recorder-monitor__traffic" aria-label="窗口控制">
+            <button type="button" class="recorder-monitor__ctrl recorder-monitor__ctrl--pin" data-action="pin" title="置顶" aria-label="置顶" aria-pressed="false">
+              <svg class="recorder-monitor__ctrl-star" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3.5l2.18 4.42 4.87.71-3.52 3.43.83 4.85L12 14.77l-4.36 2.29.83-4.85-3.52-3.43 4.87-.71L12 3.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              </svg>
             </button>
-            <button type="button" class="recorder-monitor__ctrl" data-action="collapse" title="最小化" aria-label="最小化">—</button>
-            <button type="button" class="recorder-monitor__ctrl recorder-monitor__ctrl--close" data-action="close" title="关闭" aria-label="关闭">×</button>
+            <button type="button" class="recorder-monitor__ctrl recorder-monitor__ctrl--minimize" data-action="collapse" title="最小化" aria-label="最小化"></button>
+            <button type="button" class="recorder-monitor__ctrl recorder-monitor__ctrl--close" data-action="close" title="关闭" aria-label="关闭"></button>
           </div>
         </header>
 

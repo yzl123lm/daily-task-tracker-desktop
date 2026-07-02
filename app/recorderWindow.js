@@ -1,6 +1,6 @@
 (function (global) {
   const STORAGE_KEY = "jl_recorder_float_win_geom";
-  const DEFAULT_W = 420;
+  const DEFAULT_W = 450;
   const DEFAULT_H = 600;
 
   let activeTab = "record";

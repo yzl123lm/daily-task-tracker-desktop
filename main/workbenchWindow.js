@@ -28,7 +28,7 @@ const MODULE_META = {
     defaultRoute: "record",
     windowMode: "record",
     backgroundColor: "#eff6ff",
-    width: 420,
+    width: 450,
     height: 600,
     minWidth: 380,
     minHeight: 480,
@@ -176,7 +176,7 @@ function registerWorkbenchWindowIpc(ipcMain) {
     if (!win || win.isDestroyed()) {
       return { ok: false };
     }
-    const width = Math.min(1200, Math.max(380, Number(payload?.width) || 420));
+    const width = Math.min(1200, Math.max(380, Number(payload?.width) || 450));
     const height = Math.min(800, Math.max(480, Number(payload?.height) || 600));
     win.setContentSize(width, height);
     win.center();
