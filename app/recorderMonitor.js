@@ -5,27 +5,23 @@
   const PINNED_Z = 9000;
 
   let layerEl = null;
-  let desktop = null;
   let floatWin = null;
   let visible = false;
   let pinned = false;
   let collapsed = false;
   let inited = false;
-  let zCounter = 40;
+  let zCounter = 2000;
   let activeDrawer = "transcribe";
-
-  function isModuleMode() {
-    return document.body.classList.contains("jl-recorder-window-active")
-      || document.body.classList.contains("jl-window-record");
-  }
-
-  function isOverlayMode() {
-    return document.body.classList.contains("jl-window-workspace")
-      || document.body.classList.contains("jl-window-workbench");
-  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function viewportSize() {
+    return {
+      width: global.innerWidth || document.documentElement.clientWidth || DEFAULT_W,
+      height: global.innerHeight || document.documentElement.clientHeight || DEFAULT_H,
+    };
   }
 
   function readGeometry() {
@@ -38,7 +34,7 @@
   }
 
   function saveGeometry() {
-    if (!floatWin || isModuleMode()) {
+    if (!floatWin) {
       return;
     }
     try {
@@ -70,19 +66,11 @@
   }
 
   function applyGeometry() {
-    if (!floatWin || !desktop) {
-      return;
-    }
-    if (isModuleMode()) {
-      floatWin.style.left = "";
-      floatWin.style.top = "";
-      floatWin.style.width = "";
-      floatWin.style.height = "";
+    if (!floatWin) {
       return;
     }
     const saved = readGeometry();
-    const cw = desktop.clientWidth;
-    const ch = desktop.clientHeight;
+    const { width: cw, height: ch } = viewportSize();
     const w = saved?.width || DEFAULT_W;
     const h = saved?.height || DEFAULT_H;
     const left = saved?.left ?? Math.max(16, Math.round(cw - w - 24));
@@ -95,7 +83,7 @@
 
   function attachDrag() {
     const handle = floatWin?.querySelector(".recorder-monitor__titlebar");
-    if (!handle || !floatWin || !desktop || isModuleMode()) {
+    if (!handle || !floatWin) {
       return;
     }
 
@@ -126,8 +114,7 @@
       }
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
-      const cw = desktop.clientWidth;
-      const ch = desktop.clientHeight;
+      const { width: cw, height: ch } = viewportSize();
       const w = floatWin.offsetWidth;
       const h = floatWin.offsetHeight;
       floatWin.style.left = `${clamp(originLeft + dx, 0, Math.max(0, cw - w))}px`;
@@ -196,14 +183,6 @@
     });
 
     floatWin?.querySelector('[data-action="close"]')?.addEventListener("click", () => {
-      if (isModuleMode()) {
-        if (global.electronAPI?.windowChromeClose) {
-          void global.electronAPI.windowChromeClose();
-        } else {
-          global.close();
-        }
-        return;
-      }
       hide();
     });
 
@@ -245,9 +224,6 @@
     if (!layerEl) {
       return;
     }
-    if (isModuleMode()) {
-      return;
-    }
     layerEl.hidden = true;
     layerEl.setAttribute("aria-hidden", "true");
     document.body.classList.remove("jl-recorder-monitor-active");
@@ -282,7 +258,7 @@
 
   function syncNavActive(on) {
     const nav = document.getElementById("jlWorkbenchNav");
-    nav?.querySelectorAll('[data-wb-route="record"]').forEach((btn) => {
+    nav?.querySelectorAll('[data-wb-route="record"], [data-wb-module="record"]').forEach((btn) => {
       btn.classList.toggle("is-active", !!on);
       btn.setAttribute("aria-pressed", on ? "true" : "false");
     });
@@ -301,9 +277,8 @@
 
   function init() {
     layerEl = document.getElementById("jlRecorderMonitorLayer");
-    desktop = document.getElementById("recorderDesktop");
     floatWin = document.getElementById("recorderFloatWin");
-    if (!layerEl || !desktop || !floatWin) {
+    if (!layerEl || !floatWin) {
       return;
     }
 
@@ -314,8 +289,6 @@
     inited = true;
 
     floatWin.classList.add("recorder-monitor");
-    floatWin.classList.remove("recorder-float-win");
-
     applyGeometry();
     attachDrag();
     bindControls();
@@ -344,11 +317,6 @@
       show();
       activateDrawer(map[legacyKey] || legacyKey || "transcribe");
     };
-
-    if (isModuleMode()) {
-      showLayer();
-      document.body.classList.add("jl-recorder-window-active");
-    }
 
     global.RecorderMonitor = api();
     global.RecorderWindow = global.RecorderMonitor;

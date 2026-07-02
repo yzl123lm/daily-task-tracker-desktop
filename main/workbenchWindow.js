@@ -1,6 +1,7 @@
 const path = require("path");
 const { BrowserWindow } = require("electron");
 const { resolveAppIconPath } = require("./window.js");
+const { getMainWindow } = require("./startup/bootstrapApplication.js");
 
 /** @type {Record<string, import("electron").BrowserWindow | null>} */
 const moduleWindowRefs = {
@@ -105,6 +106,28 @@ function createModuleBrowserWindow(moduleKey, meta) {
 function openModuleWindow(options = {}) {
   const route = String(options.route || options.module || "workbench").trim() || "workbench";
   const moduleKey = resolveModuleKey(options.module || route);
+
+  if (moduleKey === "record") {
+    const legacyRecordWin = getModuleWindow("record");
+    if (legacyRecordWin) {
+      legacyRecordWin.close();
+      moduleWindowRefs.record = null;
+    }
+    const host =
+      BrowserWindow.getFocusedWindow()
+      || getModuleWindow("workspace")
+      || getMainWindow()
+      || BrowserWindow.getAllWindows().find((win) => !win.isDestroyed());
+    if (host) {
+      if (host.isMinimized()) {
+        host.restore();
+      }
+      host.focus();
+      host.webContents.send("module-navigate", { module: "record", route: "record", overlay: true });
+      return host;
+    }
+  }
+
   const meta = MODULE_META[moduleKey] || MODULE_META.workspace;
   const existing = getModuleWindow(moduleKey);
 

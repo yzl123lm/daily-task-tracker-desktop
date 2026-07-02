@@ -1015,41 +1015,32 @@ body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
 }
 
 /* =============================================================================
-   会议记录 — Compact Live Recording Monitor Panel
+   会议记录 — Compact Live Recording Monitor Panel（单层浮动，无外层宿主）
    ============================================================================= */
 
 .recorder-monitor-layer {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 2000;
   pointer-events: none;
-  z-index: 20;
-  overflow: hidden;
+  background: transparent;
+  overflow: visible;
 }
 
 .recorder-monitor-layer:not([hidden]) {
-  pointer-events: auto;
-}
-
-body.jl-recorder-monitor-active .jl-workspace-canvas {
-  position: relative;
-}
-
-body.jl-window-workspace .recorder-monitor-layer,
-body.jl-window-workbench .recorder-monitor-layer {
-  display: block;
-}
-
-.recorder-desktop {
-  position: absolute;
-  inset: 0;
   pointer-events: none;
 }
 
+body.jl-recorder-monitor-active {
+  overflow: auto;
+}
+
 .recorder-monitor {
-  position: absolute;
+  position: fixed;
   display: flex;
   flex-direction: column;
   width: 420px;
+  height: 560px;
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   border-radius: 18px;
@@ -1203,8 +1194,10 @@ body.jl-window-workbench .recorder-monitor-layer {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .recorder-monitor__wave {
@@ -1416,29 +1409,6 @@ body.jl-window-workbench .recorder-monitor-layer {
 
 .recorder-monitor__recent-hidden {
   display: none !important;
-}
-
-body.jl-recorder-window-active .recorder-monitor-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: auto;
-}
-
-body.jl-recorder-window-active .recorder-desktop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-body.jl-recorder-window-active .recorder-monitor {
-  position: relative;
-  left: auto !important;
-  top: auto !important;
-  width: min(420px, calc(100vw - 16px)) !important;
-  height: min(560px, calc(100vh - 16px)) !important;
-  max-height: calc(100vh - 16px);
 }
 
 .theme-nebula #recorderFloatWin button.recorder-monitor__ctrl,

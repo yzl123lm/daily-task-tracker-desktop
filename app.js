@@ -122,6 +122,11 @@ async function openWorkbenchModule(routeOrModule, options = {}) {
   const api = window.electronAPI;
   const target = String(routeOrModule || "workbench").trim() || "workbench";
   const moduleKey = resolveModuleKey(target);
+  if ((target === "record" || moduleKey === "record") && (isAiWindow() || isWorkspaceWindow())) {
+    window.RecorderMonitor?.init?.();
+    toggleRecorderMonitor();
+    return;
+  }
   if (isModuleWindow() && currentModuleWindowKey() === moduleKey) {
     activateWorkbenchTarget(target, options);
     return;
@@ -1792,7 +1797,14 @@ function parseHashRoute() {
     if (isRecordWindow()) {
       return "record";
     }
-    if (isWorkspaceWindow() && (h === "knowledge-base" || h === "record")) {
+    if ((isWorkspaceWindow() || isAiWindow()) && h === "record") {
+      queueMicrotask(() => {
+        window.RecorderMonitor?.init?.();
+        window.RecorderMonitor?.show?.();
+      });
+      return isAiWindow() ? "ai" : "workbench";
+    }
+    if (isWorkspaceWindow() && h === "knowledge-base") {
       queueMicrotask(() => void openWorkbenchModule(h));
       return "workbench";
     }
@@ -1943,7 +1955,7 @@ function toggleRecorderMonitor() {
 
 function activateWorkbenchTarget(target, options = {}) {
   const key = String(target || "workbench").trim() || "workbench";
-  if (key === "record" && isWorkspaceWindow()) {
+  if (key === "record" && (isWorkspaceWindow() || isAiWindow())) {
     closeWorkbenchCapInline();
     toggleRecorderMonitor();
     return;
@@ -2010,22 +2022,18 @@ function bindWorkbenchNavClicks() {
       const route = btn.dataset.wbRoute;
       const module = btn.dataset.wbModule;
       const cap = btn.dataset.wbCap;
+      if (module === "record" || route === "record") {
+        activateWorkbenchTarget("record");
+        return;
+      }
       if (isAiWindow() || isModuleWindow()) {
         if (cap) {
           void openWorkbenchModule(cap === "routing" ? "capability" : "local-models", { capPanel: cap });
           return;
         }
-        if (module === "record" || route === "record") {
-          void openWorkbenchModule("record");
-          return;
-        }
         if (route) {
           void openWorkbenchModule(route);
         }
-        return;
-      }
-      if (module === "record" || route === "record") {
-        activateWorkbenchTarget("record");
         return;
       }
       if (cap) {
@@ -2311,18 +2319,13 @@ function initModuleShell() {
     });
   }
   if (isRecordWindow()) {
-    document.body.classList.add("jl-recorder-window-active");
-    document.body.classList.remove("jl-record-assistant-active");
     const floatDesktop = document.getElementById("jlFloatDesktop");
     if (floatDesktop) {
       floatDesktop.hidden = true;
       floatDesktop.setAttribute("aria-hidden", "true");
     }
-    if (window.RecorderMonitor?.init) {
-      window.RecorderMonitor.init();
-    } else if (window.RecorderWindow?.init) {
-      window.RecorderWindow.init();
-    }
+    window.RecorderMonitor?.init?.();
+    window.RecorderMonitor?.show?.();
   }
   if (isWorkspaceWindow()) {
     window.RecorderMonitor?.init?.();
@@ -2363,6 +2366,7 @@ function initShell() {
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
   }
+  window.RecorderMonitor?.init?.();
   initAiSessionSidebar();
   initWindowChrome();
   openTabs = ["ai"];
@@ -2553,6 +2557,14 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     }
     return;
   }
+  if (isAiWindow() && route === "record") {
+    window.RecorderMonitor?.show?.();
+    syncWorkbenchNavActive("record");
+    if (syncHash) {
+      setHashRoute("record");
+    }
+    return;
+  }
   if (!ROUTES[route]) {
     route = isWorkbenchWindow() ? "workbench" : "ai";
   }
@@ -2626,16 +2638,12 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     void window.onKnowledgeBasePanelVisible();
   }
   if (route === "record") {
-    if (isWorkspaceWindow()) {
+    if (isWorkspaceWindow() || isAiWindow()) {
       window.RecorderMonitor?.show?.();
       return;
     }
     queueMicrotask(() => {
-      if (isRecordWindow()) {
-        window.RecorderMonitor?.init?.();
-        window.RecorderWindow?.init?.();
-        window.fitRecordModuleWindow?.();
-      }
+      window.RecorderMonitor?.init?.();
     });
   }
 }
@@ -3671,7 +3679,7 @@ document.querySelectorAll(".nav-item[data-route]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const route = btn.dataset.route;
     if (route === "record" || route === "knowledge-base") {
-      if (route === "record" && isWorkspaceWindow()) {
+      if (route === "record" && (isWorkspaceWindow() || isAiWindow())) {
         activateWorkbenchTarget("record");
         return;
       }
