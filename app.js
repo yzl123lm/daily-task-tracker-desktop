@@ -633,6 +633,7 @@ function taskStatusList() {
 }
 
 let tasks = [];
+let saveTasksDiskTimer = 0;
 window.getTasksForAI = () => tasks;
 let activeRemarkTaskId = null;
 
@@ -764,7 +765,70 @@ function readTasks() {
 function saveTasks() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   tlv().invalidateTaskListCache?.();
+  if (typeof window.electronAPI?.tasksSave === "function") {
+    clearTimeout(saveTasksDiskTimer);
+    saveTasksDiskTimer = window.setTimeout(() => {
+      void window.electronAPI.tasksSave({ tasks });
+    }, 180);
+  }
 }
+
+function mergeTaskCollections(primary, secondary) {
+  const out = [];
+  const seen = new Set();
+  [...primary, ...secondary].forEach((raw) => {
+    const task = normalizeTask(raw);
+    if (!task) {
+      return;
+    }
+    const key = String(task.id || task.taskId || "");
+    if (!key || seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    out.push(task);
+  });
+  return out;
+}
+
+async function hydrateTasksFromPersistence() {
+  const localTasks = readTasks();
+  if (typeof window.electronAPI?.tasksLoad !== "function") {
+    tasks = localTasks;
+    window.getTasksForAI = () => tasks;
+    refreshAutoTaskId();
+    return;
+  }
+  try {
+    const res = await window.electronAPI.tasksLoad();
+    const diskTasks = Array.isArray(res?.tasks)
+      ? res.tasks.map(normalizeTask).filter(Boolean)
+      : [];
+    if (diskTasks.length >= localTasks.length) {
+      tasks = diskTasks;
+    } else if (localTasks.length > diskTasks.length) {
+      tasks = localTasks;
+      void window.electronAPI.tasksSave({ tasks });
+    } else {
+      tasks = mergeTaskCollections(diskTasks, localTasks);
+      if (tasks.length) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+        void window.electronAPI.tasksSave({ tasks });
+      }
+    }
+  } catch {
+    tasks = localTasks;
+  }
+  window.getTasksForAI = () => tasks;
+  refreshAutoTaskId();
+}
+
+async function refreshTaskListPanel() {
+  await hydrateTasksFromPersistence();
+  render();
+}
+
+window.onTaskListPanelVisible = refreshTaskListPanel;
 
 function createTask(data) {
   const createdAt = nowString();
@@ -2436,7 +2500,11 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     setHashRoute(route);
   }
   if (route === "list") {
-    render();
+    if (typeof window.onTaskListPanelVisible === "function") {
+      void window.onTaskListPanelVisible();
+    } else {
+      render();
+    }
   }
   if (route === "dashboard") {
     renderDashboard();
@@ -4098,8 +4166,29 @@ void initStartupWarmupBar();
 applyDailyWorkExpanded(false);
 initTasksFromStorage();
 renderTaskTemplateSelect();
-render();
-setTimeout(() => remindOpenTasks(true), 500);
+void hydrateTasksFromPersistence().then(() => {
+  render();
+  setTimeout(() => remindOpenTasks(true), 500);
+});
+window.addEventListener("storage", (event) => {
+  if (event.key !== STORAGE_KEY || !event.newValue) {
+    return;
+  }
+  try {
+    const parsed = JSON.parse(event.newValue);
+    if (!Array.isArray(parsed)) {
+      return;
+    }
+    tasks = parsed.map(normalizeTask).filter(Boolean);
+    window.getTasksForAI = () => tasks;
+    refreshAutoTaskId();
+    if (activeRoute === "list" || activeRoute === "dashboard") {
+      render();
+    }
+  } catch {
+    /* ignore malformed storage sync */
+  }
+});
 setInterval(() => remindOpenTasks(false), 60 * 1000);
 setInterval(() => {
   const TE = te();

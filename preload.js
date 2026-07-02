@@ -327,6 +327,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   openModuleWindow: (payload) => ipcRenderer.invoke("module-window-open", payload),
   moduleWindowFitContent: (payload) => ipcRenderer.invoke("module-window-fit-content", payload),
+  tasksLoad: () => ipcRenderer.invoke("tasks-load"),
+  tasksSave: (payload) => ipcRenderer.invoke("tasks-save", payload),
 
   openWorkbenchWindow: (payload) => ipcRenderer.invoke("workbench-window-open", payload),
 
