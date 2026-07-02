@@ -1,7 +1,7 @@
 (function (global) {
   const STORAGE_KEY = "jl_recorder_monitor_geom";
-  const DEFAULT_W = 420;
-  const DEFAULT_H = 560;
+  const DEFAULT_W = 680;
+  const DEFAULT_H = 580;
   const PINNED_Z = 9000;
 
   let layerEl = null;
@@ -11,7 +11,7 @@
   let collapsed = false;
   let inited = false;
   let zCounter = 2000;
-  let activeDrawer = "transcribe";
+  let activeTab = "record";
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -156,20 +156,31 @@
     applyGeometry();
   }
 
-  function activateDrawer(tab) {
-    activeDrawer = tab || "transcribe";
-    const drawer = document.getElementById("recorderMonitorDrawer");
-    if (!drawer) {
+  function activateTab(tab) {
+    activeTab = tab || "record";
+    const root = floatWin || document.getElementById("recorderFloatWin");
+    if (!root) {
       return;
     }
-    drawer.hidden = false;
-    floatWin?.classList.add("is-drawer-open");
-    floatWin?.querySelectorAll("[data-recorder-drawer]").forEach((btn) => {
-      const active = btn.dataset.recorderDrawer === activeDrawer;
+
+    root.querySelectorAll("[data-recorder-tab]").forEach((btn) => {
+      const active = btn.dataset.recorderTab === activeTab;
       btn.classList.toggle("is-active", active);
+      btn.toggleAttribute("aria-current", active ? "page" : false);
     });
-    drawer.querySelectorAll("[data-recorder-panel]").forEach((panel) => {
-      panel.hidden = panel.dataset.recorderPanel !== activeDrawer;
+
+    root.querySelectorAll("[data-recorder-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.recorderPanel !== activeTab;
+    });
+
+    bringToFront();
+  }
+
+  function bindTabs() {
+    floatWin?.querySelectorAll("[data-recorder-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activateTab(btn.dataset.recorderTab || "record");
+      });
     });
   }
 
@@ -184,24 +195,6 @@
 
     floatWin?.querySelector('[data-action="close"]')?.addEventListener("click", () => {
       hide();
-    });
-
-    floatWin?.querySelectorAll("[data-recorder-drawer]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const tab = btn.dataset.recorderDrawer || "transcribe";
-        if (floatWin?.classList.contains("is-drawer-open") && activeDrawer === tab) {
-          floatWin.classList.remove("is-drawer-open");
-          const drawer = document.getElementById("recorderMonitorDrawer");
-          if (drawer) {
-            drawer.hidden = true;
-          }
-          floatWin.querySelectorAll("[data-recorder-drawer]").forEach((node) => {
-            node.classList.remove("is-active");
-          });
-          return;
-        }
-        activateDrawer(tab);
-      });
     });
   }
 
@@ -270,7 +263,6 @@
     const indicator = document.getElementById("recordLiveIndicator");
     if (badge) {
       badge.textContent = v ? "LIVE" : "STANDBY";
-      badge.classList.toggle("is-live", !!v);
     }
     indicator?.classList.toggle("is-live", !!v);
   }
@@ -284,6 +276,7 @@
 
     if (inited) {
       applyGeometry();
+      activateTab(activeTab);
       return;
     }
     inited = true;
@@ -292,6 +285,8 @@
     applyGeometry();
     attachDrag();
     bindControls();
+    bindTabs();
+    activateTab("record");
     bringToFront();
 
     floatWin.addEventListener("pointerdown", () => {
@@ -306,8 +301,8 @@
 
     global.recordAssistantActivate = (legacyKey) => {
       const map = {
-        capture: "transcribe",
-        record: "transcribe",
+        capture: "record",
+        record: "record",
         transcript: "transcribe",
         transcribe: "transcribe",
         summary: "summary",
@@ -315,7 +310,7 @@
         history: "history",
       };
       show();
-      activateDrawer(map[legacyKey] || legacyKey || "transcribe");
+      activateTab(map[legacyKey] || legacyKey || "record");
     };
 
     global.RecorderMonitor = api();
@@ -332,7 +327,9 @@
       setRecording,
       setPinned,
       bringToFront,
-      activateDrawer,
+      activateTab,
+      activateDrawer: activateTab,
+      getActiveTab: () => activeTab,
     };
   }
 
