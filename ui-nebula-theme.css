@@ -6364,6 +6364,10 @@ body.jl-window-module.jl-window-workspace .jl-top-status {
   border-bottom: 1px solid rgba(148, 163, 184, 0.22);
 }
 
+body.jl-window-module.jl-window-workspace .jl-top-status__right {
+  display: none !important;
+}
+
 body.jl-window-module.jl-window-workspace .card {
   background: rgba(255, 255, 255, 0.62);
   border-color: rgba(255, 255, 255, 0.72);

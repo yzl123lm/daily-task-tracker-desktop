@@ -2149,6 +2149,13 @@ function initModuleShell() {
     topStatus.hidden = true;
     topStatus.setAttribute("aria-hidden", "true");
   }
+  if (isWorkspaceWindow()) {
+    const topbarRight = topStatus?.querySelector(".jl-top-status__right");
+    if (topbarRight) {
+      topbarRight.hidden = true;
+      topbarRight.setAttribute("aria-hidden", "true");
+    }
+  }
 
   if (workbenchSplit && (isKnowledgeWindow() || isRecordWindow())) {
     workbenchSplit.hidden = true;
