@@ -341,7 +341,9 @@
       winEl.classList.remove("is-dragging");
       saveGeometry(route, winEl);
       try {
-        handleEl.releasePointerCapture(event.pointerId);
+        if (handleEl.hasPointerCapture?.(event.pointerId)) {
+          handleEl.releasePointerCapture(event.pointerId);
+        }
       } catch {
         /* ignore */
       }
@@ -425,10 +427,14 @@
       <header class="jl-float-win__header">
         <span class="jl-float-win__icon" aria-hidden="true">${escapeHtml(meta.icon || "◻")}</span>
         <span class="jl-float-win__title">${escapeHtml(meta.title)}</span>
-        <div class="jl-float-win__actions">
-          <button type="button" class="jl-float-win__btn jl-float-win__btn--pin" data-action="pin" title="置顶" aria-label="置顶" aria-pressed="false">★</button>
-          <button type="button" class="jl-float-win__btn" data-action="minimize" title="最小化" aria-label="最小化">—</button>
-          <button type="button" class="jl-float-win__btn jl-float-win__btn--close" data-action="close" title="关闭" aria-label="关闭">×</button>
+        <div class="jl-float-win__actions jl-float-win__traffic" aria-label="窗口控制">
+          <button type="button" class="jl-float-win__btn jl-float-win__btn--pin" data-action="pin" title="置顶" aria-label="置顶" aria-pressed="false">
+            <svg class="jl-float-win__btn-star" width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 3.5l2.18 4.42 4.87.71-3.52 3.43.83 4.85L12 14.77l-4.36 2.29.83-4.85-3.52-3.43 4.87-.71L12 3.5z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button" class="jl-float-win__btn jl-float-win__btn--minimize" data-action="minimize" title="最小化" aria-label="最小化"></button>
+          <button type="button" class="jl-float-win__btn jl-float-win__btn--close" data-action="close" title="关闭" aria-label="关闭"></button>
         </div>
       </header>
       <div class="jl-float-win__body"></div>
@@ -443,22 +449,76 @@
     attachDrag(winEl, header, route);
     attachResize(winEl, resize, route);
 
-    header.querySelector('[data-action="pin"]')?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      togglePin(route);
-    });
+    const bindCtrl = (selector, handler) => {
+      const btn = header.querySelector(selector);
+      if (!btn) {
+        return;
+      }
+      btn.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        releaseWindowInteraction({ el: winEl });
+        handler(event);
+      });
+    };
 
-    header.querySelector('[data-action="minimize"]')?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleMinimize(route);
-    });
-    header.querySelector('[data-action="close"]')?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      closeWindow(route);
-    });
+    bindCtrl('[data-action="pin"]', () => togglePin(route));
+    bindCtrl('[data-action="minimize"]', () => toggleMinimize(route));
+    bindCtrl('[data-action="close"]', () => closeWindow(route));
 
     rootEl.appendChild(winEl);
     return { el: winEl, body };
+  }
+
+  /** @type {HTMLElement | null} */
+  let panelStashEl = null;
+
+  function ensurePanelStash() {
+    if (!panelStashEl) {
+      panelStashEl = document.createElement("div");
+      panelStashEl.id = "jlFloatPanelStash";
+      panelStashEl.hidden = true;
+      panelStashEl.setAttribute("aria-hidden", "true");
+      document.body.appendChild(panelStashEl);
+    }
+    return panelStashEl;
+  }
+
+  function releaseWindowInteraction(entry) {
+    if (!entry?.el) {
+      return;
+    }
+    entry.el.classList.remove("is-dragging", "is-resizing");
+  }
+
+  function countVisibleWindows() {
+    let count = 0;
+    windows.forEach((entry) => {
+      if (!entry.el.hidden && !entry.minimized) {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  function maybeHideWorkspaceOverlay() {
+    if (!overlayMode || countVisibleWindows() > 0) {
+      return;
+    }
+    global.WorkspaceFloatPanel?.hide?.();
+  }
+
+  function stashPanel(route) {
+    const meta = cfg(route);
+    if (!meta) {
+      return;
+    }
+    const panel = document.getElementById(meta.panelId);
+    if (!panel) {
+      return;
+    }
+    panel.hidden = true;
+    ensurePanelStash().appendChild(panel);
   }
 
   function mountPanel(route, bodyEl) {
@@ -498,8 +558,8 @@
       const created = createWindowElement(route, meta);
       entry = { el: created.el, body: created.body, minimized: false, route };
       windows.set(route, entry);
-      mountPanel(route, entry.body);
     }
+    mountPanel(route, entry.body);
 
     entry.el.hidden = false;
     entry.minimized = false;
@@ -520,18 +580,33 @@
       return;
     }
     const meta = cfg(route);
+    releaseWindowInteraction(entry);
+
     if (meta?.isLauncher) {
+      if (overlayMode) {
+        entry.el.hidden = true;
+        entry.minimized = false;
+        entry.el.classList.remove("is-minimized");
+        stashPanel(route);
+        global.WorkspaceFloatPanel?.hide?.();
+        syncNavActiveOverlay(false);
+        return;
+      }
       entry.el.classList.add("is-minimized");
       entry.minimized = true;
       return;
     }
+
     entry.el.hidden = true;
-    entry.minimized = true;
-    const panel = meta ? document.getElementById(meta.panelId) : null;
-    if (panel) {
-      panel.hidden = true;
-    }
+    entry.minimized = false;
+    entry.el.classList.remove("is-minimized");
+    stashPanel(route);
     syncDockActive("");
+    maybeHideWorkspaceOverlay();
+  }
+
+  function syncNavActiveOverlay(on) {
+    document.querySelector('.jl-side-rail__btn[data-jl-space="workbench"]')?.classList.toggle("is-active", !!on);
   }
 
   function toggleMinimize(route) {
