@@ -110,51 +110,43 @@
     },
     record: {
       title: "记录助手",
-      hint: "录音、转写、纪要独立窗口",
+      hint: "左侧切换模块，右侧窗口可拖拽叠放",
       bodyClass: "jl-float-mode-record",
       windows: {
-        "record-capture": {
-          panelId: "jlRecordFloatCapture",
+        "record-main": {
+          panelId: "jlRecordFloatMain",
           title: "录音",
           desc: "开始录制音频",
           icon: "🎙",
-          width: 540,
-          height: 480,
-          minWidth: 400,
-          minHeight: 360,
+          width: 680,
+          height: 720,
+          minWidth: 520,
+          minHeight: 560,
+          isLauncher: true,
         },
         "record-transcript": {
           panelId: "jlRecordFloatTranscript",
           title: "转写",
           desc: "音频转文字",
           icon: "〰",
-          width: 540,
-          height: 420,
-          minWidth: 400,
-          minHeight: 300,
+          width: 560,
+          height: 480,
+          minWidth: 420,
+          minHeight: 340,
         },
         "record-summary": {
           panelId: "jlRecordFloatSummary",
           title: "纪要",
           desc: "智能生成纪要",
           icon: "📄",
-          width: 540,
-          height: 420,
-          minWidth: 400,
-          minHeight: 300,
-        },
-        "record-recent": {
-          panelId: "jlRecordFloatRecent",
-          title: "最近记录",
-          desc: "查看历史记录",
-          icon: "🕐",
-          width: 500,
-          height: 400,
-          minWidth: 360,
-          minHeight: 280,
+          width: 560,
+          height: 480,
+          minWidth: 420,
+          minHeight: 340,
         },
       },
-      bootWindows: ["record-capture", "record-transcript", "record-summary", "record-recent"],
+      bootWindows: ["record-main"],
+      dockRoutes: ["record-main", "record-transcript", "record-summary"],
     },
   };
 
@@ -506,7 +498,9 @@
     `;
 
     const list = dockEl.querySelector(".jl-float-dock__list");
-    allRoutes().forEach((route) => {
+    const dockRoutes = modeConfig()?.dockRoutes || allRoutes().filter((r) => !cfg(r)?.isLauncher);
+    const routesForDock = [...new Set([...(modeConfig()?.bootWindows || []).filter((r) => cfg(r)), ...dockRoutes])];
+    routesForDock.forEach((route) => {
       const meta = cfg(route);
       if (!meta) {
         return;
@@ -530,6 +524,30 @@
       });
       list.appendChild(btn);
     });
+
+    if (mode === "record") {
+      const recentBtn = document.createElement("button");
+      recentBtn.type = "button";
+      recentBtn.className = "jl-float-dock__item";
+      recentBtn.dataset.floatRoute = "record-recent";
+      recentBtn.innerHTML = `
+        <span class="jl-float-dock__item-icon" aria-hidden="true">🕐</span>
+        <span class="jl-float-dock__item-text">
+          <span class="jl-float-dock__item-label">最近记录</span>
+          <span class="jl-float-dock__item-desc">查看历史记录</span>
+        </span>
+      `;
+      recentBtn.addEventListener("click", () => {
+        focusOrOpen("record-main");
+        syncDockActive("record-recent");
+        const recentPanel = document.querySelector(".record-glass-panel--recent");
+        recentPanel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        if (typeof routeHandler === "function") {
+          routeHandler("record");
+        }
+      });
+      list.appendChild(recentBtn);
+    }
 
     rootEl.parentElement?.insertBefore(dockEl, rootEl);
   }
@@ -605,11 +623,16 @@
 
     if (mode === "record") {
       if (route === "record") {
-        const boots = modeConfig()?.bootWindows || [];
+        const boots = modeConfig()?.bootWindows || ["record-main"];
         boots.forEach((key, idx) => openWindow(key, { focus: idx === 0 }));
         return true;
       }
-      const recordKey = route.startsWith("record-") ? route : null;
+      const recordKey =
+        route === "record-capture" || route === "record-recent"
+          ? "record-main"
+          : route.startsWith("record-")
+            ? route
+            : null;
       if (recordKey && cfg(recordKey)) {
         focusOrOpen(recordKey);
         return true;

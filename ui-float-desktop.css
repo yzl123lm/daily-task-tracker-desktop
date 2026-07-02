@@ -27,6 +27,22 @@ body.jl-float-desktop-active.jl-float-mode-knowledge {
     linear-gradient(165deg, #dbeafe 0%, #eff6ff 48%, #f8fbff 100%) !important;
 }
 
+body.jl-float-desktop-active .jl-app-shell,
+body.jl-float-desktop-active .jl-nebula-bg {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+body.jl-float-desktop-active .jl-nebula-bg::after {
+  display: none !important;
+}
+
+body.jl-float-desktop-active .jl-main-workspace,
+body.jl-float-desktop-active .jl-workbench-stage,
+body.jl-float-desktop-active .jl-workspace-canvas {
+  background: transparent !important;
+}
+
 body.jl-float-desktop-active .jl-workspace-body,
 body.jl-float-desktop-active .jl-workbench-stage,
 body.jl-float-desktop-active .jl-workspace-canvas {
@@ -388,6 +404,229 @@ body.jl-float-desktop-active .main-column {
   flex-direction: column;
   gap: 8px;
   padding: 4px 2px;
+}
+
+/* --- 记录助手 · 透明玻璃拟态（样例图） --- */
+
+body.jl-float-mode-record .jl-float-dock {
+  flex: 0 0 248px;
+  width: 248px;
+  min-width: 248px;
+  padding: 20px 16px;
+  border-radius: 24px;
+  margin: 12px 0 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.1);
+}
+
+body.jl-float-mode-record .jl-float-dock__head {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+  margin-bottom: 4px;
+}
+
+body.jl-float-mode-record .jl-float-dock__title {
+  font-size: 19px;
+  font-weight: 700;
+  color: #374151;
+}
+
+body.jl-float-mode-record .jl-float-dock__item {
+  min-height: 68px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  box-shadow: 0 4px 16px rgba(31, 38, 135, 0.06);
+}
+
+body.jl-float-mode-record .jl-float-dock__item.is-active {
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(79, 172, 254, 0.45);
+  box-shadow: 0 0 0 1px rgba(79, 172, 254, 0.15), 0 8px 24px rgba(79, 172, 254, 0.12);
+}
+
+body.jl-float-mode-record .jl-float-dock__item-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 6px 18px rgba(79, 172, 254, 0.35);
+}
+
+body.jl-float-mode-record .jl-float-dock__item-label {
+  color: #374151;
+  font-weight: 650;
+}
+
+body.jl-float-mode-record .jl-float-win {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 8px 32px rgba(31, 38, 135, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+body.jl-float-mode-record .jl-float-win.is-focused {
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 12px 40px rgba(31, 38, 135, 0.15),
+    0 0 0 1px rgba(79, 172, 254, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+body.jl-float-mode-record .jl-float-win__header {
+  background: rgba(255, 255, 255, 0.28);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 24px 24px 0 0;
+}
+
+body.jl-float-mode-record .jl-float-win__body {
+  padding: 10px 12px 12px;
+  background: transparent;
+}
+
+body.jl-float-mode-record .jl-float-win__icon {
+  background: linear-gradient(135deg, rgba(79, 172, 254, 0.2), rgba(0, 242, 254, 0.15));
+  color: #3b82f6;
+}
+
+.record-glass-stage {
+  height: 100%;
+  min-height: 0;
+}
+
+.record-glass-stage__layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+  min-height: 0;
+}
+
+.record-glass-panel {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 6px 24px rgba(31, 38, 135, 0.08);
+}
+
+.record-glass-panel--capture {
+  flex: 1.15 1 auto;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 24px 22px;
+  text-align: center;
+}
+
+.record-glass-panel--recent {
+  flex: 0.85 1 auto;
+  min-height: 180px;
+  max-height: 42%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px;
+  overflow: hidden;
+}
+
+.record-glass-panel--full {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  gap: 8px;
+}
+
+.record-glass-panel__title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 650;
+  color: #374151;
+}
+
+.record-glass-panel__desc {
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+body.jl-float-mode-record .record-assistant__timer-row {
+  margin-bottom: 8px;
+}
+
+body.jl-float-mode-record .record-assistant__timer {
+  font-size: 16px;
+  color: #374151;
+  letter-spacing: 0.06em;
+}
+
+body.jl-float-mode-record .record-glass-stage.is-recording .record-assistant__timer {
+  color: #ef4444;
+}
+
+body.jl-float-mode-record .record-assistant__wave {
+  width: min(100%, 380px);
+  height: 64px;
+  margin: 8px 0 20px;
+}
+
+body.jl-float-mode-record .record-assistant__mic-btn {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  box-shadow: 0 12px 32px rgba(79, 172, 254, 0.4);
+}
+
+body.jl-float-mode-record .record-assistant__hint {
+  color: #374151;
+  font-size: 15px;
+}
+
+body.jl-float-mode-record .record-assistant__subhint {
+  color: #9ca3af;
+}
+
+body.jl-float-mode-record .record-assistant__toolbar {
+  opacity: 0.92;
+  margin-top: 8px;
+}
+
+body.jl-float-mode-record .record-assistant__tool-btn {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(8px);
+}
+
+body.jl-float-mode-record .record-assistant__editor textarea {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+}
+
+body.jl-float-mode-record .record-assistant__recent-item {
+  background: rgba(255, 255, 255, 0.48);
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 16px;
+}
+
+body.jl-float-mode-record .record-assistant__recent-play {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+body.jl-float-mode-record .record-assistant__recent-list {
+  flex: 1;
+  overflow: auto;
 }
 
 .record-float-card--capture {

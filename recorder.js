@@ -193,7 +193,7 @@ function initRecorderModule() {
     asrSettingsBtn.disabled = v;
     waveEl?.classList.toggle("is-active", v);
     liveDotEl?.classList.toggle("is-live", v);
-    document.querySelector(".record-float-card--capture, .record-assistant")?.classList.toggle("is-recording", v);
+    document.querySelector(".record-glass-stage")?.classList.toggle("is-recording", v);
     if (v) {
       startTimer();
     } else {
