@@ -55,6 +55,19 @@ const WINDOW_MODE = (() => {
 
 const WORKBENCH_TASK_ROUTES = new Set(["workbench", "new", "filter", "list", "dashboard"]);
 const WORKBENCH_CAP_MODULES = new Set(["local-models", "capability"]);
+/** AI 主窗口内联渲染的模块（不再弹出旧版黑色工作台窗口） */
+const AI_INLINE_MODULE_ROUTES = new Set([
+  ...WORKBENCH_TASK_ROUTES,
+  "knowledge-base",
+  "record",
+]);
+
+const AI_MODULE_LABELS = {
+  ai: "AI 创作工作台",
+  workspace: "工作台",
+  knowledge: "本地知识库",
+  recorder: "记录助手",
+};
 
 const WORKBENCH_MODULE_BY_ROUTE = {
   workbench: "workbench",
@@ -79,6 +92,10 @@ async function openWorkbenchModule(routeOrModule, options = {}) {
   const target = String(routeOrModule || "workbench").trim() || "workbench";
   if (isWorkbenchWindow()) {
     activateWorkbenchTarget(target, options);
+    return;
+  }
+  if (isAiWindow() && AI_INLINE_MODULE_ROUTES.has(target)) {
+    activateRoute(target, { syncHash: true, skipWorkbenchGuard: true });
     return;
   }
   if (typeof api?.openWorkbenchWindow === "function") {
@@ -1658,7 +1675,7 @@ function parseHashRoute() {
     return isAiWindow() ? "ai" : "workbench";
   }
   if (h && ROUTES[h]) {
-    if (isAiWindow() && h !== "ai") {
+    if (isAiWindow() && h !== "ai" && !AI_INLINE_MODULE_ROUTES.has(h)) {
       queueMicrotask(() => void openWorkbenchModule(h));
       return "ai";
     }
@@ -1668,6 +1685,22 @@ function parseHashRoute() {
     return h;
   }
   return isWorkbenchWindow() ? "workbench" : "ai";
+}
+
+function resolveAiActiveModule(route) {
+  if (route === "ai") {
+    return "ai";
+  }
+  if (route === "knowledge-base") {
+    return "knowledge";
+  }
+  if (route === "record") {
+    return "recorder";
+  }
+  if (WORKBENCH_TASK_ROUTES.has(route)) {
+    return "workspace";
+  }
+  return "ai";
 }
 
 function syncJlPromptDock(route) {
@@ -1680,15 +1713,19 @@ function syncJlPromptDock(route) {
     document.body.classList.remove("jl-route-ai");
     return;
   }
-  const show = route === "ai";
-  document.body.classList.toggle("jl-route-ai", show);
+  const moduleKey = resolveAiActiveModule(route);
+  document.body.classList.toggle("jl-route-ai", moduleKey === "ai");
+  document.body.classList.toggle("jl-ai-module-workspace", moduleKey === "workspace");
+  document.body.classList.toggle("jl-ai-module-knowledge", moduleKey === "knowledge");
+  document.body.classList.toggle("jl-ai-module-recorder", moduleKey === "recorder");
+  document.body.setAttribute("data-jl-ai-module", moduleKey);
   const dock = document.getElementById("jlPromptDock");
   if (!dock) {
     return;
   }
-  dock.hidden = !show;
-  dock.setAttribute("aria-hidden", show ? "false" : "true");
-  if (show) {
+  dock.hidden = false;
+  dock.setAttribute("aria-hidden", "false");
+  if (moduleKey === "ai") {
     playJlEnterAnimation(dock, "jl-prompt-dock-enter", 360);
   }
 }
@@ -1755,14 +1792,20 @@ function getWorkbenchScope(route) {
 }
 
 function applyWorkbenchScope(route) {
-  if (!isWorkbenchWindow()) {
-    return;
-  }
   const scope = getWorkbenchScope(route);
-  document.body.setAttribute("data-jl-wb-scope", scope);
-  const tasksSub = document.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
-  if (tasksSub) {
-    tasksSub.hidden = scope !== "tasks";
+  if (isWorkbenchWindow()) {
+    document.body.setAttribute("data-jl-wb-scope", scope);
+  }
+  if (isAiWindow()) {
+    document.body.setAttribute("data-jl-ai-module", resolveAiActiveModule(route));
+    const tasksSub = document.querySelector('.jl-workbench-nav__sub[data-wb-sub="tasks"]');
+    if (tasksSub) {
+      tasksSub.hidden = scope !== "tasks";
+    }
+    const pill = document.getElementById("jlWorkspacePill");
+    if (pill) {
+      pill.textContent = AI_MODULE_LABELS[resolveAiActiveModule(route)] || AI_MODULE_LABELS.ai;
+    }
   }
 }
 
@@ -1827,7 +1870,7 @@ function bindWorkbenchHubClicks() {
         return;
       }
       if (isAiWindow()) {
-        void openWorkbenchModule(route);
+        activateRoute(route, { syncHash: true, skipWorkbenchGuard: true });
         return;
       }
       activateWorkbenchTarget(route);
@@ -1851,7 +1894,7 @@ function bindWorkbenchNavClicks() {
           return;
         }
         if (route) {
-          void openWorkbenchModule(route);
+          activateRoute(route, { syncHash: true, skipWorkbenchGuard: true });
         }
         return;
       }
@@ -1932,6 +1975,9 @@ function renderAiSessionList() {
     btn.classList.toggle("is-active", thread.id === activeAiThreadId);
     btn.addEventListener("click", () => {
       switchAiThread(thread.id);
+      if (activeRoute !== "ai") {
+        activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+      }
     });
     list.appendChild(btn);
   });
@@ -2192,10 +2238,6 @@ function hideAllPanels() {
 }
 
 function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = {}) {
-  if (isAiWindow() && route !== "ai" && !skipWorkbenchGuard) {
-    void openWorkbenchModule(route);
-    return;
-  }
   if (isWorkbenchWindow() && route === "ai") {
     route = "workbench";
   }
@@ -2218,8 +2260,10 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   updateJlSideRailActive(route);
   syncJlPromptDock(route);
   syncDailyWorkExpandedByRoute(route);
-  if (isWorkbenchWindow()) {
+  if (isWorkbenchWindow() || isAiWindow()) {
     syncWorkbenchNavActive(route);
+  }
+  if (isWorkbenchWindow()) {
     closeWorkbenchCapInline();
   }
   renderTabsStrip();
@@ -3791,7 +3835,8 @@ function initShell() {
     return;
   }
   openTabs = ["ai"];
-  activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+  const bootRoute = parseHashRoute();
+  activateRoute(bootRoute, { syncHash: true, skipWorkbenchGuard: true });
 }
 
 function initWindowChrome() {

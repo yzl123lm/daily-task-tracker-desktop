@@ -196,24 +196,38 @@
             <div class="tab-panels">
         <div id="panel-workbench-hub" class="tab-panel jl-workbench-hub-panel" role="tabpanel" hidden>
           <section class="card jl-workbench-hub">
-            <h2 class="jl-workbench-hub__title">每日工作跟进</h2>
-            <p class="jl-workbench-hub__hint field-hint">选择要进入的功能模块</p>
+            <header class="jl-module-page-head">
+              <h2 class="jl-workbench-hub__title">工作台</h2>
+              <p class="jl-workbench-hub__hint">集中管理任务、筛选、数据统计与待办事项</p>
+            </header>
             <div class="jl-workbench-hub__grid">
               <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="new">
                 <span class="jl-workbench-hub__tile-icon" aria-hidden="true">✏️</span>
-                <span class="jl-workbench-hub__tile-label">新增事项</span>
+                <span class="jl-workbench-hub__tile-text">
+                  <span class="jl-workbench-hub__tile-label">新增事项</span>
+                  <span class="jl-workbench-hub__tile-desc">创建新的任务或待办事项</span>
+                </span>
               </button>
               <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="filter">
                 <span class="jl-workbench-hub__tile-icon" aria-hidden="true">🔍</span>
-                <span class="jl-workbench-hub__tile-label">查询筛选</span>
+                <span class="jl-workbench-hub__tile-text">
+                  <span class="jl-workbench-hub__tile-label">查询筛选</span>
+                  <span class="jl-workbench-hub__tile-desc">筛选和搜索任务内容</span>
+                </span>
               </button>
               <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="dashboard">
                 <span class="jl-workbench-hub__tile-icon" aria-hidden="true">📊</span>
-                <span class="jl-workbench-hub__tile-label">数据看板</span>
+                <span class="jl-workbench-hub__tile-text">
+                  <span class="jl-workbench-hub__tile-label">数据看板</span>
+                  <span class="jl-workbench-hub__tile-desc">统计数据、任务趋势与完成率</span>
+                </span>
               </button>
               <button type="button" class="jl-workbench-hub__tile" data-wb-hub-route="list">
                 <span class="jl-workbench-hub__tile-icon" aria-hidden="true">📋</span>
-                <span class="jl-workbench-hub__tile-label">任务列表</span>
+                <span class="jl-workbench-hub__tile-text">
+                  <span class="jl-workbench-hub__tile-label">任务列表</span>
+                  <span class="jl-workbench-hub__tile-desc">查看全部任务与跟进状态</span>
+                </span>
               </button>
             </div>
           </section>

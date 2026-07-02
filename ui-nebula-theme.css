@@ -6097,8 +6097,15 @@ body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-thumb:hover {
   font-weight: 650;
 }
 
+.jl-module-page-head {
+  margin-bottom: 20px;
+}
+
 .jl-workbench-hub__hint {
-  margin: 0 0 20px;
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .jl-workbench-hub__grid {
@@ -6109,34 +6116,154 @@ body.jl-window-ai .jl-right-drawer__body::-webkit-scrollbar-thumb:hover {
 
 .jl-workbench-hub__tile {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  min-height: 72px;
+  min-height: 88px;
   padding: 16px 18px;
-  border: 1px solid var(--jl-glass-border, rgba(148, 163, 184, 0.35));
-  border-radius: var(--jl-radius-md, 12px);
-  background: rgba(255, 255, 255, 0.72);
-  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.52);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #1e293b;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.06);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .jl-workbench-hub__tile:hover {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.78);
   border-color: rgba(37, 99, 235, 0.35);
   transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(37, 99, 235, 0.1);
 }
 
 .jl-workbench-hub__tile-icon {
   font-size: 22px;
   line-height: 1;
+  flex-shrink: 0;
+}
+
+.jl-workbench-hub__tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .jl-workbench-hub__tile-label {
   font-size: 15px;
   font-weight: 600;
+  color: #1e3a8a;
+}
+
+.jl-workbench-hub__tile-desc {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+body.jl-window-ai[data-jl-ai-module="workspace"] .main-column,
+body.jl-window-ai[data-jl-ai-module="knowledge"] .main-column,
+body.jl-window-ai[data-jl-ai-module="recorder"] .main-column {
+  overflow: auto;
+}
+
+body.jl-window-ai[data-jl-ai-module="workspace"] .tab-panels,
+body.jl-window-ai[data-jl-ai-module="knowledge"] .tab-panels,
+body.jl-window-ai[data-jl-ai-module="recorder"] .tab-panels {
+  overflow: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+body.jl-window-ai .main-column:has(#panel-workbench-hub:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-list:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-new:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-filter:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-dashboard:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-knowledge-base:not([hidden])),
+body.jl-window-ai .main-column:has(#panel-record:not([hidden])) {
+  background: transparent !important;
+  color: #1e293b !important;
+}
+
+body.jl-window-ai .main-column:has(#panel-workbench-hub:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-list:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-new:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-filter:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-dashboard:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-knowledge-base:not([hidden])) .card,
+body.jl-window-ai .main-column:has(#panel-record:not([hidden])) .card {
+  background: rgba(255, 255, 255, 0.58) !important;
+  border-color: rgba(255, 255, 255, 0.68) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(37, 99, 235, 0.08) !important;
+  color: #1e293b !important;
+}
+
+body.jl-window-ai .main-column:has(#panel-workbench-hub:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-list:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-new:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-filter:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-dashboard:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-knowledge-base:not([hidden])) .topbar,
+body.jl-window-ai .main-column:has(#panel-record:not([hidden])) .topbar {
+  background: transparent !important;
+  border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+body.jl-window-ai .main-column:has(#panel-workbench-hub:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-list:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-new:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-filter:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-dashboard:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-knowledge-base:not([hidden])) .breadcrumb,
+body.jl-window-ai .main-column:has(#panel-record:not([hidden])) .breadcrumb {
+  color: #64748b !important;
+}
+
+body.jl-window-ai .main-column:has(#panel-workbench-hub:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-list:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-new:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-filter:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-dashboard:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-knowledge-base:not([hidden])) .breadcrumb strong,
+body.jl-window-ai .main-column:has(#panel-record:not([hidden])) .breadcrumb strong {
+  color: #1e3a8a !important;
+  text-shadow: none !important;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--work .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+  display: contents;
+}
+
+body.jl-window-ai[data-jl-ai-module="workspace"] .jl-workbench-nav__zone--work .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+  display: contents;
+}
+
+body.jl-window-ai[data-jl-ai-module="knowledge"] .jl-workbench-nav__zone--work .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-ai[data-jl-ai-module="recorder"] .jl-workbench-nav__zone--work .jl-workbench-nav__sub[data-wb-sub="tasks"],
+body.jl-window-ai[data-jl-ai-module="ai"] .jl-workbench-nav__zone--work .jl-workbench-nav__sub[data-wb-sub="tasks"] {
+  display: none !important;
+}
+
+body.jl-window-ai .jl-workbench-nav__item.is-active,
+body.jl-window-ai .jl-workbench-nav__subitem.is-active {
+  background: rgba(255, 255, 255, 0.78) !important;
+  color: #1d4ed8 !important;
+  border-color: rgba(37, 99, 235, 0.42) !important;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.12);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .jl-workbench-hub__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 body.jl-window-workbench[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
@@ -6146,17 +6273,4 @@ body.jl-window-workbench[data-jl-wb-scope="tasks"] .jl-workbench-nav__sub[data-w
 body.jl-window-workbench[data-jl-wb-scope="knowledge-base"] .jl-workbench-nav__sub[data-wb-sub="tasks"],
 body.jl-window-workbench[data-jl-wb-scope="record"] .jl-workbench-nav__sub[data-wb-sub="tasks"] {
   display: none !important;
-}
-
-body.jl-window-workbench[data-jl-wb-scope="knowledge-base"] .main-column:has(#panel-knowledge-base:not([hidden])),
-body.jl-window-workbench[data-jl-wb-scope="record"] .main-column:has(#panel-record:not([hidden])) {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-}
-
-@media (max-width: 720px) {
-  .jl-workbench-hub__grid {
-    grid-template-columns: 1fr;
-  }
 }
