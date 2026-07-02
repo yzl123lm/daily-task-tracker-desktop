@@ -6403,6 +6403,10 @@ body.jl-window-record .tab-panels {
   flex-direction: column;
 }
 
+body.jl-window-knowledge #jlTopStatus {
+  display: none !important;
+}
+
 body.jl-window-knowledge .topbar,
 body.jl-window-knowledge .jl-top-status,
 body.jl-window-record .topbar,

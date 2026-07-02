@@ -2118,6 +2118,12 @@ function initModuleShell() {
     promptDock.setAttribute("aria-hidden", "true");
   }
 
+  const topStatus = document.getElementById("jlTopStatus");
+  if (topStatus && isKnowledgeWindow()) {
+    topStatus.hidden = true;
+    topStatus.setAttribute("aria-hidden", "true");
+  }
+
   if (isKnowledgeWindow() || isRecordWindow()) {
     document.body.classList.add("jl-module-fullstage");
     if (workbenchNav) {
