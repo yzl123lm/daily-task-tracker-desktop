@@ -17,6 +17,47 @@
   --rec-radius-sm: 16px;
 }
 
+/* --- 面板根：覆盖 .tab-panel { display:block }，保证内部 flex 布局 --- */
+#panel-record.recorder-panel-root:not([hidden]) {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+body.jl-recorder-window-active,
+body.jl-recorder-window-active.jl-window-record {
+  height: 100vh !important;
+  min-height: 100vh !important;
+  overflow: hidden;
+}
+
+body.jl-recorder-window-active.jl-window-record .jl-app-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  min-height: 0 !important;
+}
+
+body.jl-recorder-window-active.jl-window-record .jl-main-workspace,
+body.jl-recorder-window-active.jl-window-record .jl-workspace-body,
+body.jl-recorder-window-active.jl-window-record .jl-workbench-stage,
+body.jl-recorder-window-active.jl-window-record .jl-workspace-canvas,
+body.jl-recorder-window-active.jl-window-record .main-column,
+body.jl-recorder-window-active.jl-window-record .tab-panels {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+body.jl-recorder-window-active.jl-window-record .tab-panels {
+  padding: 0 !important;
+}
+
 body.jl-recorder-window-active {
   overflow: hidden;
   background:
@@ -80,16 +121,22 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   min-height: 0;
   width: 100%;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
 }
 
 /* --- 浮动窗口 --- */
 
 .recorder-float-win {
-  position: absolute;
+  position: relative;
+  left: auto;
+  top: auto;
   display: flex;
   flex-direction: column;
-  width: 640px;
-  height: 560px;
+  width: min(640px, calc(100% - 24px));
+  height: min(560px, calc(100% - 24px));
   min-width: 560px;
   min-height: 520px;
   max-width: calc(100% - 24px);
@@ -112,9 +159,8 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 }
 
 .recorder-float-win.is-maximized {
-  inset: 12px !important;
-  width: auto !important;
-  height: auto !important;
+  width: calc(100% - 24px) !important;
+  height: calc(100% - 24px) !important;
   max-width: none;
   max-height: none;
 }
@@ -205,7 +251,7 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
 /* --- 窗口主体 --- */
 
 .recorder-float-win__body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
@@ -810,9 +856,22 @@ body.jl-recorder-window-active #panel-record:not([hidden]) {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .recorder-wave.is-active .recorder-wave-path,
-  .recorder-live-dot.is-live {
-    animation: none;
-  }
+/* 覆盖 ui-nebula-theme 旧版 record 窗口 compact 规则 */
+body.jl-recorder-window-active.jl-window-record .jl-app-shell,
+body.jl-recorder-window-active.jl-window-record .jl-main-workspace,
+body.jl-recorder-window-active.jl-window-record .jl-workspace-body,
+body.jl-recorder-window-active.jl-window-record .jl-workbench-stage,
+body.jl-recorder-window-active.jl-window-record .jl-workspace-canvas,
+body.jl-recorder-window-active.jl-window-record .main-column,
+body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
+  overflow: hidden !important;
+  padding: 0 !important;
 }

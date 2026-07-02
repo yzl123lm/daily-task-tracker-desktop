@@ -8,6 +8,12 @@
   let desktop = null;
   let maximized = false;
   let minimized = false;
+  let inited = false;
+
+  function useFlexLayout() {
+    return document.body.classList.contains("jl-recorder-window-active")
+      || document.getElementById("panel-record")?.classList.contains("recorder-panel-root");
+  }
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -45,6 +51,22 @@
     if (!floatWin || !desktop) {
       return;
     }
+    if (useFlexLayout()) {
+      floatWin.style.left = "";
+      floatWin.style.top = "";
+      const saved = readGeometry();
+      if (saved?.width && !maximized) {
+        floatWin.style.width = `${Math.min(saved.width, desktop.clientWidth - 24)}px`;
+      } else if (!maximized) {
+        floatWin.style.width = "";
+      }
+      if (saved?.height && !maximized) {
+        floatWin.style.height = `${Math.min(saved.height, desktop.clientHeight - 24)}px`;
+      } else if (!maximized) {
+        floatWin.style.height = "";
+      }
+      return;
+    }
     const saved = readGeometry();
     const cw = desktop.clientWidth;
     const ch = desktop.clientHeight;
@@ -60,7 +82,7 @@
 
   function attachDrag() {
     const handle = floatWin?.querySelector(".recorder-float-win__titlebar");
-    if (!handle || !floatWin || !desktop) {
+    if (!handle || !floatWin || !desktop || useFlexLayout()) {
       return;
     }
 
@@ -198,6 +220,13 @@
     if (!desktop || !floatWin) {
       return;
     }
+
+    if (inited) {
+      centerWindow();
+      activateTab(activeTab);
+      return;
+    }
+    inited = true;
 
     centerWindow();
     attachDrag();

@@ -2587,6 +2587,14 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   if (route === "knowledge-base" && typeof window.onKnowledgeBasePanelVisible === "function") {
     void window.onKnowledgeBasePanelVisible();
   }
+  if (route === "record") {
+    queueMicrotask(() => {
+      if (isRecordWindow()) {
+        window.RecorderWindow?.init?.();
+        window.fitRecordModuleWindow?.();
+      }
+    });
+  }
 }
 
 function renderTabsStrip() {
@@ -3618,7 +3626,12 @@ function closeTab(route) {
 
 document.querySelectorAll(".nav-item[data-route]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    openOrFocusTab(btn.dataset.route);
+    const route = btn.dataset.route;
+    if (route === "record" || route === "knowledge-base") {
+      void openWorkbenchModule(route);
+      return;
+    }
+    openOrFocusTab(route);
   });
 });
 
