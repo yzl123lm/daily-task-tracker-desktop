@@ -1087,56 +1087,63 @@ body.jl-recorder-monitor-active {
 .recorder-monitor__shell {
   flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.recorder-monitor .recorder-sidebar {
-  gap: 6px;
-  padding: 8px 6px;
+.recorder-monitor__hero {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.recorder-monitor .recorder-tab {
-  flex-direction: column;
+.recorder-monitor__hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recorder-monitor__live-badge {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  min-height: 0;
-  padding: 8px 4px;
-  text-align: center;
+  min-width: 52px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #526b8c;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(47, 128, 255, 0.12);
 }
 
-.recorder-monitor .recorder-tab__icon {
-  width: 28px;
-  height: 28px;
+.recorder-monitor__live-badge.is-live {
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
 }
 
-.recorder-monitor .recorder-tab__icon svg {
-  width: 14px;
-  height: 14px;
+.recorder-monitor__hero .recorder-timer {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #111;
+  letter-spacing: 0.04em;
 }
 
-.recorder-monitor .recorder-tab__text {
-  align-items: center;
-  gap: 0;
+.recorder-monitor.is-recording .recorder-monitor__hero .recorder-timer {
+  color: var(--rec-danger);
 }
 
-.recorder-monitor .recorder-tab__label {
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
+.recorder-monitor__hero .recorder-monitor__wave {
+  height: 56px;
 }
 
-.recorder-monitor .recorder-tab__desc {
-  display: none;
-}
-
-.recorder-monitor .recorder-main {
-  padding: 10px;
-}
-
-.recorder-monitor.is-recording .recorder-timer {
+.recorder-monitor__tile-value.is-error {
   color: var(--rec-danger);
 }
 
@@ -1306,14 +1313,73 @@ body.jl-recorder-monitor-active {
 }
 
 .recorder-monitor__body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
   flex: 1 1 auto;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 8px;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.recorder-monitor.is-drawer-open .recorder-monitor__body {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.recorder-monitor.is-drawer-open .recorder-monitor__grid {
+  max-height: 168px;
+  overflow: hidden;
+}
+
+.recorder-monitor__drawer {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-radius: 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.28);
+  max-height: none;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.recorder-monitor__drawer .recorder-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.recorder-monitor__drawer .recorder-panel[hidden] {
+  display: none !important;
+}
+
+.recorder-monitor__drawer .recorder-card--full,
+.recorder-monitor__drawer .recorder-card--compact {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.recorder-card--compact {
+  gap: 8px;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__drawer-tab {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #111 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__drawer-tab.is-active {
+  background: rgba(47, 128, 255, 0.14) !important;
+  border-color: rgba(47, 128, 255, 0.38) !important;
+  color: var(--rec-primary) !important;
 }
 
 .recorder-monitor__wave {
@@ -1396,6 +1462,11 @@ body.jl-recorder-monitor-active {
   font-weight: 650;
   color: #000;
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .recorder-monitor__tile-meta {
@@ -1500,6 +1571,7 @@ body.jl-recorder-monitor-active {
   background: rgba(255, 255, 255, 0.62);
   color: #111;
   cursor: pointer;
+  font: inherit;
 }
 
 .recorder-monitor__drawer-tab.is-active {
@@ -1507,16 +1579,6 @@ body.jl-recorder-monitor-active {
   border-color: rgba(47, 128, 255, 0.35);
   color: var(--rec-primary);
   font-weight: 600;
-}
-
-.recorder-monitor__drawer {
-  margin: 0 12px 12px;
-  padding: 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.52);
-  max-height: 220px;
-  overflow: auto;
 }
 
 .recorder-monitor__drawer[hidden] {

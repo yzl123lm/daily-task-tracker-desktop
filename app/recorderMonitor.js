@@ -12,6 +12,7 @@
   let inited = false;
   let zCounter = 2000;
   let activeTab = "record";
+  let drawerOpen = false;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -153,33 +154,53 @@
   function setCollapsed(next) {
     collapsed = !!next;
     floatWin?.classList.toggle("is-collapsed", collapsed);
+    if (collapsed) {
+      setDrawerOpen(false);
+    }
     applyGeometry();
   }
 
-  function activateTab(tab) {
+  function setDrawerOpen(next) {
+    drawerOpen = !!next;
+    const drawer = floatWin?.querySelector("#recorderMonitorDrawer");
+    if (drawer) {
+      drawer.hidden = !drawerOpen;
+    }
+    floatWin?.classList.toggle("is-drawer-open", drawerOpen);
+  }
+
+  function activateTab(tab, openDrawer = true) {
     activeTab = tab || "record";
     const root = floatWin || document.getElementById("recorderFloatWin");
     if (!root) {
       return;
     }
 
-    root.querySelectorAll("[data-recorder-tab]").forEach((btn) => {
-      const active = btn.dataset.recorderTab === activeTab;
+    root.querySelectorAll("[data-recorder-drawer-tab]").forEach((btn) => {
+      const active = btn.dataset.recorderDrawerTab === activeTab;
       btn.classList.toggle("is-active", active);
-      btn.toggleAttribute("aria-current", active ? "page" : false);
+      btn.setAttribute("aria-selected", active ? "true" : "false");
     });
 
     root.querySelectorAll("[data-recorder-panel]").forEach((panel) => {
       panel.hidden = panel.dataset.recorderPanel !== activeTab;
     });
 
+    if (openDrawer) {
+      setDrawerOpen(true);
+    }
     bringToFront();
   }
 
   function bindTabs() {
-    floatWin?.querySelectorAll("[data-recorder-tab]").forEach((btn) => {
+    floatWin?.querySelectorAll("[data-recorder-drawer-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        activateTab(btn.dataset.recorderTab || "record");
+        const tab = btn.dataset.recorderDrawerTab || "record";
+        if (activeTab === tab && drawerOpen) {
+          setDrawerOpen(false);
+          return;
+        }
+        activateTab(tab, true);
       });
     });
   }
@@ -286,7 +307,8 @@
     attachDrag();
     bindControls();
     bindTabs();
-    activateTab("record");
+    setDrawerOpen(false);
+    activateTab("record", false);
     bringToFront();
 
     floatWin.addEventListener("pointerdown", () => {
@@ -310,7 +332,7 @@
         history: "history",
       };
       show();
-      activateTab(map[legacyKey] || legacyKey || "record");
+      activateTab(map[legacyKey] || legacyKey || "record", true);
     };
 
     global.RecorderMonitor = api();
@@ -328,7 +350,9 @@
       setPinned,
       bringToFront,
       activateTab,
-      activateDrawer: activateTab,
+      activateDrawer: (tab) => activateTab(tab, true),
+      setDrawerOpen,
+      isDrawerOpen: () => drawerOpen,
       getActiveTab: () => activeTab,
     };
   }
