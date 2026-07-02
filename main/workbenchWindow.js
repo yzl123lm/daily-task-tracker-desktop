@@ -26,11 +26,11 @@ const MODULE_META = {
     title: "鲸落AI · 会议记录",
     defaultRoute: "record",
     windowMode: "record",
-    backgroundColor: "#0a0f1a",
-    width: 920,
-    height: 560,
-    minWidth: 720,
-    minHeight: 460,
+    backgroundColor: "#dbeafe",
+    width: 1120,
+    height: 760,
+    minWidth: 880,
+    minHeight: 620,
   },
 };
 

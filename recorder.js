@@ -9,6 +9,9 @@ function initRecorderModule() {
   const statusEl = document.getElementById("recordStatus");
   const transcriptEl = document.getElementById("recordTranscript");
   const analysisEl = document.getElementById("recordAnalysis");
+  const timerEl = document.getElementById("recordTimer");
+  const recentListEl = document.getElementById("recordRecentList");
+  const RECENT_KEY = "daily_task_tracker_record_recent_v1";
   const asrDialog = document.getElementById("asrSettingsDialog");
   const asrForm = document.getElementById("asrSettingsForm");
   const asrBaseUrl = document.getElementById("asrBaseUrl");
@@ -36,6 +39,88 @@ function initRecorderModule() {
   let running = false;
   let finalText = "";
   let transcribeQueue = Promise.resolve();
+  let timerInterval = null;
+  let recordStartedAt = 0;
+
+  function formatTimer(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = String(Math.floor(total / 3600)).padStart(2, "0");
+    const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+    const s = String(total % 60).padStart(2, "0");
+    return `${h}:${m}:${s}`;
+  }
+
+  function syncTimerDisplay() {
+    if (!timerEl) {
+      return;
+    }
+    if (!running || !recordStartedAt) {
+      timerEl.textContent = "00:00:00";
+      return;
+    }
+    timerEl.textContent = formatTimer(Date.now() - recordStartedAt);
+  }
+
+  function startTimer() {
+    recordStartedAt = Date.now();
+    syncTimerDisplay();
+    clearInterval(timerInterval);
+    timerInterval = window.setInterval(syncTimerDisplay, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    syncTimerDisplay();
+  }
+
+  function readRecentRecords() {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeRecentRecords(items) {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, 12)));
+  }
+
+  function renderRecentRecords() {
+    if (!recentListEl) {
+      return;
+    }
+    const items = readRecentRecords();
+    if (!items.length) {
+      recentListEl.innerHTML = '<li class="record-recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
+      return;
+    }
+    recentListEl.innerHTML = items
+      .map(
+        (item) => `
+      <li class="record-recent-item">
+        <span class="record-recent-item__icon" aria-hidden="true">📄</span>
+        <span class="record-recent-item__body">
+          <span class="record-recent-item__title">${String(item.title || "未命名记录").replace(/</g, "&lt;")}</span>
+          <span class="record-recent-item__meta">${String(item.time || "").replace(/</g, "&lt;")} · ${String(item.duration || "--:--").replace(/</g, "&lt;")}</span>
+        </span>
+      </li>`
+      )
+      .join("");
+  }
+
+  function pushRecentRecord(title, durationLabel) {
+    const items = readRecentRecords();
+    items.unshift({
+      title: title || "会议记录",
+      time: new Date().toLocaleString("zh-CN", { hour12: false }),
+      duration: durationLabel || "--:--",
+    });
+    writeRecentRecords(items);
+    renderRecentRecords();
+  }
 
   function setStatus(text, isError = false) {
     statusEl.textContent = text;
@@ -51,6 +136,12 @@ function initRecorderModule() {
     startBtn.disabled = v;
     stopBtn.disabled = !v;
     asrSettingsBtn.disabled = v;
+    document.querySelector(".record-wave-stage")?.classList.toggle("is-active", v);
+    if (v) {
+      startTimer();
+    } else {
+      stopTimer();
+    }
   }
 
   function stopMedia() {
@@ -135,6 +226,7 @@ function initRecorderModule() {
     a.remove();
     URL.revokeObjectURL(url);
     setStatus("已导出 Word 文档。");
+    pushRecentRecord(title, timerEl?.textContent || "--:--");
   }
 
   async function transcribeChunk(blob, finalChunk = false) {
@@ -256,7 +348,9 @@ function initRecorderModule() {
     stopMedia();
     await transcribeQueue;
     renderTranscript(finalText);
+    const durationLabel = timerEl?.textContent || "--:--";
     setStatus("录音已停止。");
+    pushRecentRecord(`会议记录 ${new Date().toLocaleDateString("zh-CN")}`, durationLabel);
     if (autoAnalyzeEl && autoAnalyzeEl.checked) {
       await analyzeTranscript();
     }
@@ -320,6 +414,7 @@ function initRecorderModule() {
   stopBtn.addEventListener("click", () => stopRecording());
   analyzeBtn.addEventListener("click", () => analyzeTranscript());
   exportBtn.addEventListener("click", () => exportWordDoc());
+  renderRecentRecords();
 }
 
 initRecorderModule();

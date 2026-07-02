@@ -1968,6 +1968,9 @@ function bindWorkbenchHubClicks() {
       if (!route) {
         return;
       }
+      if (window.FloatDesktop?.isActive()) {
+        return;
+      }
       if (isAiWindow()) {
         void openWorkbenchModule(route);
         return;
@@ -2175,18 +2178,15 @@ function fitRecordModuleWindow() {
   if (!isRecordWindow()) {
     return;
   }
-  const card = document.querySelector("#panel-record .record-meeting-card");
-  if (!card) {
-    return;
-  }
+  const desktop = document.getElementById("jlFloatDesktop");
   const measure = () => {
-    const rect = card.getBoundingClientRect();
-    const padX = 20;
-    const padY = 16;
-    const width = Math.min(1100, Math.max(720, Math.ceil(rect.width + padX * 2)));
-    const height = Math.min(720, Math.max(460, Math.ceil(rect.height + padY * 2)));
+    const width = 1120;
+    const height = 760;
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });
+    }
+    if (desktop) {
+      desktop.hidden = false;
     }
   };
   requestAnimationFrame(() => {
@@ -2247,7 +2247,7 @@ function initModuleShell() {
     }
     workbenchSplit?.classList.add("jl-module-fullstage");
   } else if (workbenchNav) {
-    workbenchNav.hidden = false;
+    workbenchNav.hidden = isWorkspaceWindow();
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
     if (isWorkspaceWindow()) {
@@ -2260,6 +2260,24 @@ function initModuleShell() {
         tasksSub.hidden = false;
       }
     }
+  }
+
+  if (isWorkspaceWindow() && window.FloatDesktop) {
+    window.FloatDesktop.init("workspace", {
+      onRoute: (route) => {
+        activeRoute = route;
+        if (route === "list" && typeof window.onTaskListPanelVisible === "function") {
+          void window.onTaskListPanelVisible();
+        }
+        if (route === "dashboard") {
+          renderDashboard();
+        }
+        setHashRoute(route);
+      },
+    });
+  }
+  if (isRecordWindow() && window.FloatDesktop) {
+    window.FloatDesktop.init("record");
   }
 
   const bindNavigate = (payload) => {
@@ -2482,6 +2500,28 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   if (!ROUTES[route]) {
     route = isWorkbenchWindow() ? "workbench" : "ai";
   }
+
+  if (window.FloatDesktop?.isActive()) {
+    activeRoute = route;
+    const floatRoute = isRecordWindow() ? "record" : route;
+    window.FloatDesktop.handleRoute(floatRoute, {
+      onList: () => {
+        if (typeof window.onTaskListPanelVisible === "function") {
+          void window.onTaskListPanelVisible();
+        } else {
+          render();
+        }
+      },
+      onDashboard: () => renderDashboard(),
+    });
+    updateBreadcrumb(route);
+    syncWorkbenchNavActive(route);
+    if (syncHash) {
+      setHashRoute(route);
+    }
+    return;
+  }
+
   activeRoute = route;
   hideAllPanels();
   const panel = document.getElementById(ROUTES[route].panelId);

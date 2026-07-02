@@ -6,6 +6,7 @@
   <title>鲸落AI</title>
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./ui-nebula-theme.css" />
+  <link rel="stylesheet" href="./ui-float-desktop.css" />
   <link rel="stylesheet" href="./kb-config-layout.css" />
 </head>
 <body class="theme-nebula">
@@ -190,6 +191,7 @@
       <div class="jl-workspace-body" id="jlWorkspaceBody">
         <div class="jl-workbench-stage" id="jlWorkbenchStage">
         <div class="jl-workspace-canvas" id="jlWorkspaceCanvas">
+          <div id="jlFloatDesktop" class="jl-float-desktop" hidden aria-hidden="true"></div>
           <div class="main-column">
             <div class="tabs-strip" id="tabsStrip" role="tablist" aria-label="功能标签页"></div>
 
@@ -868,29 +870,63 @@
         </div>
 
         <div id="panel-record" class="tab-panel record-panel-compact" role="tabpanel" hidden>
-          <section class="card record-meeting-card">
-            <h2>会议记录</h2>
-            <p class="field-hint record-meeting-desc">开启后可实时语音转文字；停止录音后可自动调用大模型整理分析，并支持导出 Word 文档（.doc）。</p>
-            <div class="record-toolbar">
-              <button type="button" id="recordStartBtn">开始录音</button>
-              <button type="button" id="recordStopBtn" class="secondary" disabled>停止录音</button>
-              <label class="record-inline-check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
-              <button type="button" id="recordASRSettingsBtn" class="secondary">ASR设置</button>
-              <button type="button" id="recordAnalyzeBtn" class="secondary">手动分析</button>
-              <button type="button" id="recordExportBtn" class="secondary">导出 Word</button>
-            </div>
-            <div id="recordStatus" class="record-status">待机</div>
-            <div class="record-editor-grid">
-              <label class="record-editor-pane">
+          <div id="jlRecordWinCapture" class="jl-record-float-section">
+            <section class="record-glass-card record-glass-card--capture">
+              <header class="record-glass-card__head">
+                <h2 class="record-glass-card__title">录音</h2>
+                <span id="recordTimer" class="record-timer" aria-live="polite">00:00:00</span>
+              </header>
+              <div class="record-wave-stage" aria-hidden="true">
+                <div class="record-wave-bars">
+                  <span></span><span></span><span></span><span></span><span></span>
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+              <div class="record-toolbar record-toolbar--center">
+                <button type="button" id="recordStartBtn" class="record-mic-btn" title="开始录音" aria-label="开始录音">
+                  <span aria-hidden="true">🎙</span>
+                </button>
+                <button type="button" id="recordStopBtn" class="secondary" disabled>停止</button>
+                <label class="record-inline-check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
+                <button type="button" id="recordASRSettingsBtn" class="secondary">ASR设置</button>
+                <button type="button" id="recordAnalyzeBtn" class="secondary">手动分析</button>
+                <button type="button" id="recordExportBtn" class="secondary">导出 Word</button>
+              </div>
+              <p class="record-start-hint">点击麦克风按钮开始录音</p>
+              <div id="recordStatus" class="record-status">待机</div>
+            </section>
+          </div>
+
+          <div id="jlRecordWinTranscript" class="jl-record-float-section">
+            <section class="record-glass-card">
+              <h2 class="record-glass-card__title">转写</h2>
+              <p class="field-hint record-meeting-desc">实时语音转文字，停止后可继续编辑。</p>
+              <label class="record-editor-pane record-editor-pane--full">
                 <span class="record-editor-label">实时转写文本</span>
-                <textarea id="recordTranscript" rows="8" placeholder="开始录音后，这里会实时显示转写文本。"></textarea>
+                <textarea id="recordTranscript" rows="10" placeholder="开始录音后，这里会实时显示转写文本。"></textarea>
               </label>
-              <label class="record-editor-pane">
+            </section>
+          </div>
+
+          <div id="jlRecordWinSummary" class="jl-record-float-section">
+            <section class="record-glass-card">
+              <h2 class="record-glass-card__title">纪要</h2>
+              <p class="field-hint record-meeting-desc">AI 整理关键结论、待办与风险。</p>
+              <label class="record-editor-pane record-editor-pane--full">
                 <span class="record-editor-label">AI 整理分析结果</span>
-                <textarea id="recordAnalysis" rows="8" placeholder="可手动点击「手动分析」或在停止录音后自动生成。"></textarea>
+                <textarea id="recordAnalysis" rows="10" placeholder="可手动点击「手动分析」或在停止录音后自动生成。"></textarea>
               </label>
-            </div>
-          </section>
+            </section>
+          </div>
+
+          <div id="jlRecordWinRecent" class="jl-record-float-section">
+            <section class="record-glass-card">
+              <h2 class="record-glass-card__title">最近记录</h2>
+              <ul id="recordRecentList" class="record-recent-list" aria-label="最近会议记录">
+                <li class="record-recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>
+              </ul>
+            </section>
+          </div>
         </div>
 
         <div id="panel-media" class="tab-panel" role="tabpanel" hidden>
@@ -2914,6 +2950,7 @@
 
   <script src="./utils/dom.js"></script>
   <script src="./app/taskListView.js"></script>
+  <script src="./app/floatDesktop.js"></script>
   <script src="./taskEnhancements.js"></script>
   <script src="./taskAnalytics.js"></script>
   <script src="./skills.js"></script>
