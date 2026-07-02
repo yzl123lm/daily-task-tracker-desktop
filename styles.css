@@ -6835,6 +6835,38 @@ label.cap-check:last-child {
   background: var(--warning-rose-muted);
 }
 
+.record-editor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.record-editor-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.record-editor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.record-editor-pane textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+}
+
+@media (max-width: 760px) {
+  .record-editor-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .ai-web-toggle {
   display: inline-flex;
   align-items: center;

@@ -6428,3 +6428,70 @@ body.jl-window-record .jl-status-pill {
   border-color: rgba(91, 80, 255, 0.28);
   color: var(--jl-text-primary);
 }
+
+/* --- 会议记录独立窗口：仅保留功能面板，紧凑自适应 --- */
+html.jl-window-record-root,
+body.jl-window-record {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: hidden;
+}
+
+body.jl-window-record .jl-app-shell {
+  display: block;
+  height: auto;
+  min-height: 0;
+}
+
+body.jl-window-record .jl-workbench-split,
+body.jl-window-record #jlTopStatus,
+body.jl-window-record #startupWarmupBar {
+  display: none !important;
+}
+
+body.jl-window-record .jl-main-workspace,
+body.jl-window-record .jl-workspace-body,
+body.jl-window-record .jl-workbench-stage,
+body.jl-window-record .jl-workspace-canvas,
+body.jl-window-record .main-column {
+  flex: none;
+  height: auto;
+  min-height: 0;
+  display: block;
+}
+
+body.jl-window-record .tab-panels {
+  flex: none;
+  overflow: visible !important;
+  padding: 12px 16px 16px;
+}
+
+body.jl-window-record #panel-record:not([hidden]) {
+  display: block;
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+}
+
+body.jl-window-record .record-meeting-card {
+  margin: 0;
+  padding: 16px 18px 18px;
+  border-radius: var(--jl-radius-lg);
+}
+
+body.jl-window-record .record-meeting-card h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+body.jl-window-record .record-meeting-desc {
+  margin: 0 0 12px;
+}
+
+body.jl-window-record .record-editor-grid {
+  margin-top: 2px;
+}
+
+body.jl-window-record .record-editor-pane textarea {
+  min-height: 240px;
+}

@@ -23,10 +23,14 @@ const MODULE_META = {
     backgroundColor: "#0a0f1a",
   },
   record: {
-    title: "鲸落AI · 记录助手",
+    title: "鲸落AI · 会议记录",
     defaultRoute: "record",
     windowMode: "record",
     backgroundColor: "#0a0f1a",
+    width: 920,
+    height: 560,
+    minWidth: 720,
+    minHeight: 460,
   },
 };
 
@@ -65,10 +69,10 @@ function getModuleWindow(moduleKey) {
 function createModuleBrowserWindow(moduleKey, meta) {
   const iconPath = resolveAppIconPath();
   const win = new BrowserWindow({
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 640,
+    width: meta.width || 1280,
+    height: meta.height || 860,
+    minWidth: meta.minWidth || 960,
+    minHeight: meta.minHeight || 640,
     backgroundColor: meta.backgroundColor || "#dbeafe",
     autoHideMenuBar: true,
     title: meta.title,
@@ -142,6 +146,17 @@ function registerWorkbenchWindowIpc(ipcMain) {
   ipcMain.handle("module-window-open", (_event, payload) => {
     openModuleWindow(payload || {});
     return { ok: true };
+  });
+  ipcMain.handle("module-window-fit-content", (event, payload) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) {
+      return { ok: false };
+    }
+    const width = Math.min(1200, Math.max(640, Number(payload?.width) || 920));
+    const height = Math.min(800, Math.max(420, Number(payload?.height) || 560));
+    win.setContentSize(width, height);
+    win.center();
+    return { ok: true, width, height };
   });
 }
 

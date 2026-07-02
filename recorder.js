@@ -323,3 +323,7 @@ function initRecorderModule() {
 }
 
 initRecorderModule();
+
+if (document.body.classList.contains("jl-window-record") && typeof window.fitRecordModuleWindow === "function") {
+  queueMicrotask(() => window.fitRecordModuleWindow());
+}

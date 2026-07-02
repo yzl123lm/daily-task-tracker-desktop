@@ -12,7 +12,7 @@ const ROUTES = {
   dashboard: { panelId: "panel-dashboard", title: "数据看板", breadcrumb: "工作台 / 每日工作跟进 / 数据看板" },
   list: { panelId: "panel-list", title: "任务列表", breadcrumb: "工作台 / 每日工作跟进 / 任务列表" },
   ai: { panelId: "panel-ai", title: "AI助手", breadcrumb: "工作台 / AI助手" },
-  record: { panelId: "panel-record", title: "记录助手", breadcrumb: "工作台 / 记录助手" },
+  record: { panelId: "panel-record", title: "会议记录", breadcrumb: "工作台 / 会议记录" },
   "knowledge-base": {
     panelId: "panel-knowledge-base",
     title: "本地知识库",
@@ -61,7 +61,7 @@ const AI_MODULE_LABELS = {
   ai: "AI 创作工作台",
   workspace: "工作台",
   knowledge: "本地知识库",
-  recorder: "记录助手",
+  recorder: "会议记录",
 };
 
 function resolveModuleKey(routeOrModule) {
@@ -1771,7 +1771,7 @@ function updateJlSideRailActive(route) {
     if (isKnowledgeWindow()) {
       pill.textContent = "本地知识库";
     } else if (isRecordWindow()) {
-      pill.textContent = "记录助手";
+      pill.textContent = "会议记录";
     } else {
       pill.textContent = isAiWindow() ? "AI 创作工作台" : JL_SPACE_LABELS[space] || "工作台";
     }
@@ -2098,7 +2098,33 @@ function initAiSessionSidebar() {
   });
 }
 
+function fitRecordModuleWindow() {
+  if (!isRecordWindow()) {
+    return;
+  }
+  const card = document.querySelector("#panel-record .record-meeting-card");
+  if (!card) {
+    return;
+  }
+  const measure = () => {
+    const rect = card.getBoundingClientRect();
+    const padX = 20;
+    const padY = 16;
+    const width = Math.min(1100, Math.max(720, Math.ceil(rect.width + padX * 2)));
+    const height = Math.min(720, Math.max(460, Math.ceil(rect.height + padY * 2)));
+    if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
+      void window.electronAPI.moduleWindowFitContent({ width, height });
+    }
+  };
+  requestAnimationFrame(() => {
+    requestAnimationFrame(measure);
+  });
+}
+
+window.fitRecordModuleWindow = fitRecordModuleWindow;
+
 function initModuleShell() {
+  document.documentElement.classList.toggle("jl-window-record-root", isRecordWindow());
   document.body.classList.toggle("jl-window-module", isModuleWindow());
   document.body.classList.toggle("jl-window-workspace", isWorkspaceWindow());
   document.body.classList.toggle("jl-window-knowledge", isKnowledgeWindow());
@@ -2119,9 +2145,19 @@ function initModuleShell() {
   }
 
   const topStatus = document.getElementById("jlTopStatus");
-  if (topStatus && isKnowledgeWindow()) {
+  if (topStatus && (isKnowledgeWindow() || isRecordWindow())) {
     topStatus.hidden = true;
     topStatus.setAttribute("aria-hidden", "true");
+  }
+
+  if (workbenchSplit && (isKnowledgeWindow() || isRecordWindow())) {
+    workbenchSplit.hidden = true;
+    workbenchSplit.setAttribute("aria-hidden", "true");
+  }
+
+  const startupWarmupBar = document.getElementById("startupWarmupBar");
+  if (startupWarmupBar && isRecordWindow()) {
+    startupWarmupBar.hidden = true;
   }
 
   if (isKnowledgeWindow() || isRecordWindow()) {
@@ -2149,6 +2185,9 @@ function initModuleShell() {
     || (isKnowledgeWindow() ? "knowledge-base" : isRecordWindow() ? "record" : "workbench");
   activateWorkbenchTarget(bootRoute);
   bindWorkbenchHubClicks();
+  if (isRecordWindow()) {
+    fitRecordModuleWindow();
+  }
 }
 
 function initShell() {
@@ -2278,7 +2317,7 @@ function updateBreadcrumb(route) {
     return;
   }
   if (isRecordWindow()) {
-    breadcrumbEl.innerHTML = `<strong>记录助手</strong>`;
+    breadcrumbEl.innerHTML = `<strong>会议记录</strong>`;
     return;
   }
   const meta = ROUTES[route];

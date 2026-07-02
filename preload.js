@@ -326,6 +326,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   searchRuleConfigSet: (payload) => ipcRenderer.invoke("search-rule-config-set", payload),
 
   openModuleWindow: (payload) => ipcRenderer.invoke("module-window-open", payload),
+  moduleWindowFitContent: (payload) => ipcRenderer.invoke("module-window-fit-content", payload),
 
   openWorkbenchWindow: (payload) => ipcRenderer.invoke("workbench-window-open", payload),
 
