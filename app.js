@@ -1931,8 +1931,23 @@ function syncWorkbenchNavActive(routeOrModule) {
   applyWorkbenchScope(route);
 }
 
+function toggleRecorderMonitor() {
+  if (window.RecorderMonitor?.toggle) {
+    return window.RecorderMonitor.toggle();
+  }
+  if (window.RecorderWindow?.toggle) {
+    return window.RecorderWindow.toggle();
+  }
+  return false;
+}
+
 function activateWorkbenchTarget(target, options = {}) {
   const key = String(target || "workbench").trim() || "workbench";
+  if (key === "record" && isWorkspaceWindow()) {
+    closeWorkbenchCapInline();
+    toggleRecorderMonitor();
+    return;
+  }
   if (key === "local-models" || key === "capability") {
     syncWorkbenchNavActive(key);
     openWorkbenchCapInline(key === "capability" ? "routing" : "local-models");
@@ -1993,15 +2008,24 @@ function bindWorkbenchNavClicks() {
   nav.querySelectorAll("[data-wb-route], [data-wb-cap]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const route = btn.dataset.wbRoute;
+      const module = btn.dataset.wbModule;
       const cap = btn.dataset.wbCap;
       if (isAiWindow() || isModuleWindow()) {
         if (cap) {
           void openWorkbenchModule(cap === "routing" ? "capability" : "local-models", { capPanel: cap });
           return;
         }
+        if (module === "record" || route === "record") {
+          void openWorkbenchModule("record");
+          return;
+        }
         if (route) {
           void openWorkbenchModule(route);
         }
+        return;
+      }
+      if (module === "record" || route === "record") {
+        activateWorkbenchTarget("record");
         return;
       }
       if (cap) {
@@ -2180,8 +2204,8 @@ function fitRecordModuleWindow() {
   }
   const measure = () => {
     const floatWin = document.getElementById("recorderFloatWin");
-    const width = Math.round(floatWin?.offsetWidth || 680);
-    const height = Math.round(floatWin?.offsetHeight || 580);
+    const width = Math.round(floatWin?.offsetWidth || 420);
+    const height = Math.round(floatWin?.offsetHeight || 560);
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });
     }
@@ -2248,7 +2272,7 @@ function initModuleShell() {
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
     if (isWorkspaceWindow()) {
-      workbenchNav.querySelectorAll('[data-wb-module="knowledge-base"], [data-wb-module="record"]').forEach((btn) => {
+      workbenchNav.querySelectorAll('[data-wb-module="knowledge-base"]').forEach((btn) => {
         btn.hidden = true;
         btn.setAttribute("aria-hidden", "true");
       });
@@ -2294,9 +2318,14 @@ function initModuleShell() {
       floatDesktop.hidden = true;
       floatDesktop.setAttribute("aria-hidden", "true");
     }
-    if (window.RecorderWindow?.init) {
+    if (window.RecorderMonitor?.init) {
+      window.RecorderMonitor.init();
+    } else if (window.RecorderWindow?.init) {
       window.RecorderWindow.init();
     }
+  }
+  if (isWorkspaceWindow()) {
+    window.RecorderMonitor?.init?.();
   }
 
   const bindNavigate = (payload) => {
@@ -2516,6 +2545,14 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   if (isWorkspaceWindow() && route === "ai") {
     route = "workbench";
   }
+  if (isWorkspaceWindow() && route === "record") {
+    window.RecorderMonitor?.show?.();
+    syncWorkbenchNavActive("record");
+    if (syncHash) {
+      setHashRoute("record");
+    }
+    return;
+  }
   if (!ROUTES[route]) {
     route = isWorkbenchWindow() ? "workbench" : "ai";
   }
@@ -2589,8 +2626,13 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     void window.onKnowledgeBasePanelVisible();
   }
   if (route === "record") {
+    if (isWorkspaceWindow()) {
+      window.RecorderMonitor?.show?.();
+      return;
+    }
     queueMicrotask(() => {
       if (isRecordWindow()) {
+        window.RecorderMonitor?.init?.();
         window.RecorderWindow?.init?.();
         window.fitRecordModuleWindow?.();
       }
@@ -3629,6 +3671,10 @@ document.querySelectorAll(".nav-item[data-route]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const route = btn.dataset.route;
     if (route === "record" || route === "knowledge-base") {
+      if (route === "record" && isWorkspaceWindow()) {
+        activateWorkbenchTarget("record");
+        return;
+      }
       void openWorkbenchModule(route);
       return;
     }

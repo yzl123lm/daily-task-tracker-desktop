@@ -1013,3 +1013,459 @@ body.jl-recorder-window-active.jl-window-record #panel-record:not([hidden]) {
   border: 1px solid rgba(142, 162, 189, 0.28) !important;
   color: var(--rec-muted) !important;
 }
+
+/* =============================================================================
+   会议记录 — Compact Live Recording Monitor Panel
+   ============================================================================= */
+
+.recorder-monitor-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.recorder-monitor-layer:not([hidden]) {
+  pointer-events: auto;
+}
+
+body.jl-recorder-monitor-active .jl-workspace-canvas {
+  position: relative;
+}
+
+body.jl-window-workspace .recorder-monitor-layer,
+body.jl-window-workbench .recorder-monitor-layer {
+  display: block;
+}
+
+.recorder-desktop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.recorder-monitor {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  background:
+    radial-gradient(420px 220px at 0% 0%, rgba(147, 197, 253, 0.35), transparent 60%),
+    linear-gradient(165deg, rgba(255, 255, 255, 0.82) 0%, rgba(239, 246, 255, 0.78) 100%);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 22px 50px rgba(47, 128, 255, 0.16), 0 0 0 1px rgba(47, 128, 255, 0.06);
+  overflow: hidden;
+  pointer-events: auto;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.recorder-monitor.is-focused {
+  box-shadow: 0 26px 58px rgba(47, 128, 255, 0.22), 0 0 0 1px rgba(47, 128, 255, 0.14);
+}
+
+.recorder-monitor.is-pinned {
+  box-shadow: 0 28px 64px rgba(47, 128, 255, 0.28), 0 0 0 2px rgba(47, 128, 255, 0.22);
+}
+
+.recorder-monitor.is-dragging {
+  transform: scale(1.01);
+  cursor: grabbing;
+}
+
+.recorder-monitor.is-collapsed .recorder-monitor__body,
+.recorder-monitor.is-collapsed .recorder-monitor__drawer {
+  display: none !important;
+}
+
+.recorder-monitor__titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.42);
+  cursor: grab;
+  user-select: none;
+  -webkit-app-region: no-drag;
+}
+
+.recorder-monitor__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recorder-monitor__icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(47, 128, 255, 0.18), rgba(93, 168, 255, 0.12));
+  color: var(--rec-primary);
+  flex-shrink: 0;
+}
+
+.recorder-monitor__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recorder-monitor__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 0.02em;
+}
+
+.recorder-monitor__badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #526b8c;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(142, 162, 189, 0.25);
+}
+
+.recorder-monitor__badge.is-live {
+  color: #fff;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  border-color: transparent;
+  animation: recorder-live-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes recorder-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+.recorder-monitor__timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  color: #000;
+  letter-spacing: 0.04em;
+}
+
+.recorder-monitor__controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.recorder-monitor__ctrl {
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #111;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.recorder-monitor__ctrl:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.recorder-monitor__ctrl.is-active {
+  background: rgba(47, 128, 255, 0.16);
+  color: var(--rec-primary);
+}
+
+.recorder-monitor__ctrl--close:hover {
+  background: rgba(255, 90, 90, 0.16);
+  color: var(--rec-danger);
+}
+
+.recorder-monitor__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.recorder-monitor__wave {
+  position: relative;
+  height: 72px;
+  border-radius: 12px;
+  border: 1px solid rgba(47, 128, 255, 0.12);
+  background: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+}
+
+.recorder-monitor__wave-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.recorder-monitor__wave-fallback {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.recorder-monitor.is-recording .recorder-monitor__wave-fallback {
+  opacity: 0.35;
+}
+
+.recorder-monitor__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.recorder-monitor__tile {
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.58);
+  min-height: 72px;
+}
+
+.recorder-monitor__tile--wide {
+  grid-column: 1 / -1;
+  min-height: 64px;
+}
+
+.recorder-monitor__tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.recorder-monitor__tile-label {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #526b8c;
+}
+
+.recorder-monitor__tile-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(142, 162, 189, 0.45);
+}
+
+.recorder-monitor__tile-dot.is-live,
+.recorder-monitor__tile-dot.is-live {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
+
+.recorder-monitor__tile-value {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: #000;
+  line-height: 1.35;
+}
+
+.recorder-monitor__tile-meta {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: #526b8c;
+}
+
+.recorder-monitor__list,
+.recorder-monitor__timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 72px;
+  overflow: auto;
+}
+
+.recorder-monitor__list li,
+.recorder-monitor__timeline li {
+  font-size: 11px;
+  color: #111;
+  line-height: 1.35;
+}
+
+.recorder-monitor__timeline li {
+  display: flex;
+  gap: 6px;
+}
+
+.recorder-monitor__timeline time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--rec-primary);
+  font-weight: 600;
+}
+
+.recorder-monitor__list-empty {
+  color: #526b8c !important;
+  font-style: italic;
+}
+
+.recorder-monitor__list-item--risk {
+  color: #b45309;
+}
+
+.recorder-monitor__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.recorder-monitor__mic {
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--rec-primary), var(--rec-accent));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(47, 128, 255, 0.34);
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s ease;
+}
+
+.recorder-monitor__mic:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.recorder-monitor__mic:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.recorder-monitor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+}
+
+.recorder-monitor__drawer-tabs {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+}
+
+.recorder-monitor__drawer-tab {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #111;
+  cursor: pointer;
+}
+
+.recorder-monitor__drawer-tab.is-active {
+  background: rgba(47, 128, 255, 0.14);
+  border-color: rgba(47, 128, 255, 0.35);
+  color: var(--rec-primary);
+  font-weight: 600;
+}
+
+.recorder-monitor__drawer {
+  margin: 0 12px 12px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.52);
+  max-height: 220px;
+  overflow: auto;
+}
+
+.recorder-monitor__drawer[hidden] {
+  display: none !important;
+}
+
+.recorder-monitor__recent-hidden {
+  display: none !important;
+}
+
+body.jl-recorder-window-active .recorder-monitor-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+body.jl-recorder-window-active .recorder-desktop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+body.jl-recorder-window-active .recorder-monitor {
+  position: relative;
+  left: auto !important;
+  top: auto !important;
+  width: min(420px, calc(100vw - 16px)) !important;
+  height: min(560px, calc(100vh - 16px)) !important;
+  max-height: calc(100vh - 16px);
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__ctrl,
+.theme-nebula #recorderFloatWin button.recorder-monitor__mic,
+.theme-nebula #recorderFloatWin button.recorder-monitor__drawer-tab,
+.theme-nebula #recorderFloatWin button.recorder-btn,
+.theme-nebula #recorderFloatWin button.recorder-filter-chip,
+.theme-nebula #recorderFloatWin button.recorder-icon-btn {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #111 !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__mic,
+.theme-nebula #recorderFloatWin button.recorder-btn--primary {
+  background: linear-gradient(135deg, var(--rec-primary), var(--rec-accent)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__drawer-tab.is-active {
+  background: rgba(47, 128, 255, 0.14) !important;
+  border-color: rgba(47, 128, 255, 0.38) !important;
+  color: var(--rec-primary) !important;
+}
+
+.theme-nebula #recorderFloatWin button.recorder-monitor__ctrl.is-active {
+  background: rgba(47, 128, 255, 0.16) !important;
+  color: var(--rec-primary) !important;
+}

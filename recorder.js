@@ -14,8 +14,16 @@ function initRecorderModule() {
   const recentListFullEl = document.getElementById("recordRecentListFull");
   const liveDotEl = document.getElementById("recordLiveDot");
   const waveEl = document.querySelector(".recorder-wave");
+  const waveCanvasEl = document.getElementById("recordWaveCanvas");
   const recordFloatEl = document.getElementById("recorderFloatWin");
   const captureToolbarEl = document.getElementById("recordCaptureToolbar");
+  const liveBadgeEl = document.getElementById("recordLiveBadge");
+  const liveIndicatorEl = document.getElementById("recordLiveIndicator");
+  const speakerEl = document.getElementById("recordCurrentSpeaker");
+  const riskListEl = document.getElementById("recordRiskList");
+  const timelineEl = document.getElementById("recordTimeline");
+  const syncStatusEl = document.getElementById("recordSyncStatus");
+  const syncDetailEl = document.getElementById("recordSyncDetail");
   const transcribeFileEl = document.getElementById("recordTranscriptFile");
   const transcribeDropzoneEl = document.getElementById("recordTranscribeDropzone");
   const transcribeStatusEl = document.getElementById("recordTranscribeStatus");
@@ -58,6 +66,145 @@ function initRecorderModule() {
   let historyFilter = "all";
   let pendingAudioFile = null;
   let recordStartedAt = 0;
+  let audioContext = null;
+  let analyser = null;
+  let waveAnimFrame = 0;
+  let syncPending = 0;
+  const timelineMarkers = [];
+
+  function formatClock(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const m = String(Math.floor(total / 60)).padStart(2, "0");
+    const s = String(total % 60).padStart(2, "0");
+    return `${m}:${s}`;
+  }
+
+  function pushTimeline(label) {
+    const at = running && recordStartedAt ? Date.now() - recordStartedAt : 0;
+    timelineMarkers.unshift({ at, label });
+    if (timelineMarkers.length > 8) {
+      timelineMarkers.pop();
+    }
+    if (!timelineEl) {
+      return;
+    }
+    if (!timelineMarkers.length) {
+      timelineEl.innerHTML = '<li class="recorder-monitor__list-empty">等待开始</li>';
+      return;
+    }
+    timelineEl.innerHTML = timelineMarkers
+      .map(
+        (item) =>
+          `<li><time>${formatClock(item.at)}</time><span>${String(item.label).replace(/</g, "&lt;")}</span></li>`
+      )
+      .join("");
+  }
+
+  function setSyncState(status, detail) {
+    if (syncStatusEl) {
+      syncStatusEl.textContent = status;
+    }
+    if (syncDetailEl) {
+      syncDetailEl.textContent = detail;
+    }
+  }
+
+  function updateSpeakerFromTranscript() {
+    if (!speakerEl) {
+      return;
+    }
+    if (!running) {
+      speakerEl.textContent = "—";
+      return;
+    }
+    const lines = transcriptEl.value.trim().split(/\n+/).filter(Boolean);
+    const last = lines[lines.length - 1] || "";
+    speakerEl.textContent = last ? `发言中 · ${last.slice(0, 18)}${last.length > 18 ? "…" : ""}` : "正在采集音频";
+  }
+
+  function extractRiskItems(text) {
+    const source = String(text || "");
+    if (!source.trim()) {
+      return [];
+    }
+    const lines = source.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const hits = lines.filter((line) => /风险|阻塞|问题|延期|隐患|critical|blocker/i.test(line));
+    return hits.slice(0, 4);
+  }
+
+  function renderRiskList() {
+    if (!riskListEl) {
+      return;
+    }
+    const risks = extractRiskItems(analysisEl.value || transcriptEl.value);
+    if (!risks.length) {
+      riskListEl.innerHTML = `<li class="recorder-monitor__list-empty">${running ? "实时监测中" : "暂无风险"}</li>`;
+      return;
+    }
+    riskListEl.innerHTML = risks
+      .map((item) => `<li class="recorder-monitor__list-item--risk">${item.replace(/</g, "&lt;")}</li>`)
+      .join("");
+  }
+
+  function stopWaveCanvas() {
+    cancelAnimationFrame(waveAnimFrame);
+    waveAnimFrame = 0;
+    if (waveCanvasEl) {
+      const ctx = waveCanvasEl.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, waveCanvasEl.width, waveCanvasEl.height);
+      }
+    }
+    if (audioContext) {
+      audioContext.close().catch(() => {});
+      audioContext = null;
+    }
+    analyser = null;
+  }
+
+  function startWaveCanvas(stream) {
+    stopWaveCanvas();
+    if (!waveCanvasEl || !stream) {
+      return;
+    }
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = audioContext.createMediaStreamSource(stream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const buffer = new Uint8Array(analyser.frequencyBinCount);
+      const ctx = waveCanvasEl.getContext("2d");
+      const draw = () => {
+        if (!analyser || !ctx) {
+          return;
+        }
+        analyser.getByteFrequencyData(buffer);
+        const w = waveCanvasEl.width;
+        const h = waveCanvasEl.height;
+        ctx.clearRect(0, 0, w, h);
+        const bars = 48;
+        const step = Math.floor(buffer.length / bars);
+        const gap = 2;
+        const barW = (w - gap * (bars - 1)) / bars;
+        for (let i = 0; i < bars; i += 1) {
+          const v = buffer[i * step] / 255;
+          const barH = Math.max(4, v * (h - 8));
+          const x = i * (barW + gap);
+          const y = (h - barH) / 2;
+          const grad = ctx.createLinearGradient(0, y, 0, y + barH);
+          grad.addColorStop(0, "#5DA8FF");
+          grad.addColorStop(1, "#2F80FF");
+          ctx.fillStyle = grad;
+          ctx.fillRect(x, y, barW, barH);
+        }
+        waveAnimFrame = requestAnimationFrame(draw);
+      };
+      draw();
+    } catch {
+      stopWaveCanvas();
+    }
+  }
 
   function formatTimer(ms) {
     const total = Math.max(0, Math.floor(ms / 1000));
@@ -253,10 +400,15 @@ function initRecorderModule() {
   function setStatus(text, isError = false) {
     statusEl.textContent = text;
     statusEl.classList.toggle("is-error", isError);
+    if (running) {
+      setSyncState(isError ? "异常" : syncPending > 0 ? "同步中" : "已连接", `ASR · ${text}`);
+    }
   }
 
   function renderTranscript(nextText) {
     transcriptEl.value = String(nextText ?? finalText).trim();
+    updateSpeakerFromTranscript();
+    renderRiskList();
   }
 
   function setRunning(v) {
@@ -266,14 +418,23 @@ function initRecorderModule() {
     asrSettingsBtn.disabled = v;
     waveEl?.classList.toggle("is-active", v);
     liveDotEl?.classList.toggle("is-live", v);
+    liveIndicatorEl?.classList.toggle("is-live", v);
+    liveBadgeEl?.classList.toggle("is-live", v);
     recordFloatEl?.classList.toggle("is-recording", v);
     captureToolbarEl && (captureToolbarEl.hidden = !v);
+    window.RecorderMonitor?.setRecording?.(v);
     window.RecorderWindow?.setRecording?.(v);
     if (v) {
       startTimer();
+      setSyncState("已连接", "ASR · 录音中");
+      pushTimeline("开始录音");
     } else {
       stopTimer();
+      stopWaveCanvas();
+      setSyncState("待机", "ASR · 未连接");
+      updateSpeakerFromTranscript();
     }
+    renderRiskList();
   }
 
   function stopMedia() {
@@ -328,6 +489,8 @@ function initRecorderModule() {
       });
       analysisEl.value = (res && res.content) || "（空回复）";
       setStatus("分析完成。");
+      renderRiskList();
+      pushTimeline("生成纪要");
     } catch (err) {
       setStatus(`分析失败：${err.message || err}`, true);
     } finally {
@@ -365,6 +528,9 @@ function initRecorderModule() {
     if (!api || typeof api.asrTranscribe !== "function") {
       throw new Error("ASR 接口不可用");
     }
+    syncPending += 1;
+    setSyncState("同步中", `ASR · 转写分段 (${syncPending})`);
+    try {
     let outMime = blob.type || "audio/webm";
     let outBytes = new Uint8Array(await blob.arrayBuffer());
     try {
@@ -419,6 +585,11 @@ function initRecorderModule() {
     if (text) {
       finalText = `${finalText}${finalText ? "\n" : ""}${text}`;
       renderTranscript();
+      pushTimeline(finalChunk ? "转写完成" : "转写分段");
+    }
+    } finally {
+    syncPending = Math.max(0, syncPending - 1);
+    setSyncState(syncPending > 0 ? "同步中" : running ? "已连接" : "已同步", `ASR · ${syncPending > 0 ? "处理中" : "最新片段已写入"}`);
     }
   }
 
@@ -444,6 +615,7 @@ function initRecorderModule() {
     }
     try {
       mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      startWaveCanvas(mediaStream);
       mediaRecorder = new MediaRecorder(mediaStream);
       mediaRecorder.ondataavailable = (e) => {
         if (!e.data || e.data.size < 1024) {
@@ -460,6 +632,10 @@ function initRecorderModule() {
     }
 
     finalText = "";
+    timelineMarkers.length = 0;
+    if (timelineEl) {
+      timelineEl.innerHTML = '<li class="recorder-monitor__list-empty">等待开始</li>';
+    }
     renderTranscript();
     setRunning(true);
     setStatus("录音中，正在通过 ASR 接口分段转写…");
@@ -482,6 +658,8 @@ function initRecorderModule() {
     renderTranscript(finalText);
     const durationLabel = timerEl?.textContent || "--:--";
     setStatus("录音已停止。");
+    pushTimeline("停止录音");
+    setSyncState("已同步", "ASR · 输出已写入");
     pushRecentRecord(`会议记录 ${new Date().toLocaleDateString("zh-CN")}`, durationLabel);
     if (autoAnalyzeEl && autoAnalyzeEl.checked) {
       await analyzeTranscript();
@@ -671,6 +849,8 @@ function initRecorderModule() {
   });
 
   renderRecentRecords();
+  setSyncState("未连接", "ASR · 待机");
+  renderRiskList();
 }
 
 function initRecordAssistantNav() {
