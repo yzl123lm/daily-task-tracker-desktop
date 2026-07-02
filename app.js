@@ -2276,22 +2276,26 @@ function initModuleShell() {
       },
     });
   }
-  if (isRecordWindow() && window.initRecordAssistantUI) {
-    document.body.classList.add("jl-record-assistant-active");
-    const topStatus = document.getElementById("jlTopStatus");
-    if (topStatus) {
-      topStatus.hidden = true;
-      topStatus.setAttribute("aria-hidden", "true");
-    }
-    const topbar = document.querySelector(".topbar");
-    const breadcrumb = document.getElementById("breadcrumb");
-    if (topbar) {
-      topbar.hidden = true;
-    }
-    if (breadcrumb) {
-      breadcrumb.hidden = true;
-    }
-    window.initRecordAssistantUI();
+  if (isKnowledgeWindow() && window.FloatDesktop) {
+    window.FloatDesktop.init("knowledge", {
+      onRoute: () => {
+        activeRoute = "knowledge-base";
+        setHashRoute("knowledge-base");
+      },
+      onPanelVisible: () => {
+        if (typeof window.onKnowledgeBasePanelVisible === "function") {
+          void window.onKnowledgeBasePanelVisible();
+        }
+      },
+    });
+  }
+  if (isRecordWindow() && window.FloatDesktop) {
+    window.FloatDesktop.init("record", {
+      onRoute: () => {
+        activeRoute = "record";
+        setHashRoute("record");
+      },
+    });
   }
 
   const bindNavigate = (payload) => {
@@ -2517,7 +2521,12 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
 
   if (window.FloatDesktop?.isActive()) {
     activeRoute = route;
-    const floatRoute = isRecordWindow() ? "record" : route;
+    let floatRoute = route;
+    if (isRecordWindow()) {
+      floatRoute = "record";
+    } else if (isKnowledgeWindow()) {
+      floatRoute = "knowledge-base";
+    }
     window.FloatDesktop.handleRoute(floatRoute, {
       onList: () => {
         if (typeof window.onTaskListPanelVisible === "function") {

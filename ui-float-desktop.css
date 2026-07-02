@@ -16,11 +16,15 @@ body.jl-float-desktop-active #jlTopStatus {
 }
 
 body.jl-float-desktop-active.jl-window-workspace,
-body.jl-float-desktop-active.jl-window-record {
+body.jl-float-desktop-active.jl-window-record,
+body.jl-float-desktop-active.jl-window-knowledge,
+body.jl-float-desktop-active.jl-float-mode-workspace,
+body.jl-float-desktop-active.jl-float-mode-record,
+body.jl-float-desktop-active.jl-float-mode-knowledge {
   background:
     radial-gradient(1200px 640px at 12% -8%, rgba(147, 197, 253, 0.55), transparent 58%),
     radial-gradient(900px 520px at 88% 8%, rgba(191, 219, 254, 0.45), transparent 55%),
-    linear-gradient(165deg, #dbeafe 0%, #eff6ff 48%, #f8fbff 100%);
+    linear-gradient(165deg, #dbeafe 0%, #eff6ff 48%, #f8fbff 100%) !important;
 }
 
 body.jl-float-desktop-active .jl-workspace-body,
@@ -127,6 +131,19 @@ body.jl-float-desktop-active .main-column {
   font-size: 14px;
   font-weight: 600;
   color: #1e3a8a;
+}
+
+.jl-float-dock__item-desc {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+}
+
+.jl-float-dock__item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .jl-float-desktop {
@@ -305,6 +322,107 @@ body.jl-float-desktop-active .main-column {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+}
+
+.jl-float-section-host {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.jl-float-section-host .kb-left-pane,
+.jl-float-section-host .kb-search-workbench,
+.jl-float-section-host .kb-graph-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.jl-kb-launcher {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.jl-kb-launcher__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.jl-kb-launcher__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font: inherit;
+  color: #1e3a8a;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jl-kb-launcher__tile:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.12);
+}
+
+.jl-kb-launcher__tile-icon {
+  font-size: 20px;
+}
+
+.jl-kb-launcher__tile-label {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.record-float-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.record-float-card--capture {
+  align-items: center;
+  text-align: center;
+}
+
+.record-float-card__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+
+.record-float-card__desc {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+body.jl-float-desktop-active .jl-float-win__body .kb-left-pane {
+  width: 100%;
+  max-width: none;
+}
+
+body.jl-float-desktop-active .jl-float-win__body .kb-graph-stage {
+  min-height: 280px;
+}
+
+body.jl-float-desktop-active #panel-knowledge-base:not(.jl-float-panel-host) {
+  display: none !important;
+}
+
+body.jl-float-desktop-active #panel-record:not(.jl-float-panel-host) {
+  display: none !important;
 }
 
 body.jl-float-desktop-active .jl-workbench-hub {

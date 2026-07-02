@@ -11,7 +11,6 @@ function initRecorderModule() {
   const analysisEl = document.getElementById("recordAnalysis");
   const timerEl = document.getElementById("recordTimer");
   const recentListEl = document.getElementById("recordRecentList");
-  const recentPreviewEl = document.getElementById("recordRecentListPreview");
   const liveDotEl = document.getElementById("recordLiveDot");
   const waveEl = document.querySelector(".record-assistant__wave");
   const RECENT_KEY = "daily_task_tracker_record_recent_v1";
@@ -136,8 +135,8 @@ function initRecorderModule() {
         if (item.analysis) {
           analysisEl.value = item.analysis;
         }
-        if (typeof window.setRecordAssistantView === "function") {
-          window.setRecordAssistantView("transcript");
+        if (typeof window.FloatDesktop?.focusOrOpen === "function") {
+          window.FloatDesktop.focusOrOpen("record-transcript");
         }
         return;
       }
@@ -162,14 +161,7 @@ function initRecorderModule() {
     if (recentListEl) {
       recentListEl.innerHTML = html;
     }
-    if (recentPreviewEl) {
-      const previewItems = items.slice(0, 2);
-      recentPreviewEl.innerHTML = previewItems.length
-        ? previewItems.map((item, idx) => renderRecentItemHtml(item, idx)).join("")
-        : emptyHtml;
-    }
     bindRecentListActions(recentListEl);
-    bindRecentListActions(recentPreviewEl);
   }
 
   function pushRecentRecord(title, durationLabel) {
@@ -201,7 +193,7 @@ function initRecorderModule() {
     asrSettingsBtn.disabled = v;
     waveEl?.classList.toggle("is-active", v);
     liveDotEl?.classList.toggle("is-live", v);
-    document.querySelector(".record-assistant")?.classList.toggle("is-recording", v);
+    document.querySelector(".record-float-card--capture, .record-assistant")?.classList.toggle("is-recording", v);
     if (v) {
       startTimer();
     } else {
@@ -486,9 +478,6 @@ initRecorderModule();
 
 if (document.body.classList.contains("jl-window-record")) {
   queueMicrotask(() => {
-    if (typeof window.initRecordAssistantUI === "function") {
-      window.initRecordAssistantUI();
-    }
     if (typeof window.fitRecordModuleWindow === "function") {
       window.fitRecordModuleWindow();
     }

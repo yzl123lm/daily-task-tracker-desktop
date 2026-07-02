@@ -1,109 +1,182 @@
 (function (global) {
-  const WORKSPACE_WINDOWS = {
-    workbench: {
-      panelId: "panel-workbench-hub",
+  const DESKTOP_MODES = {
+    workspace: {
       title: "工作台",
-      icon: "⊞",
-      width: 520,
-      height: 460,
-      minWidth: 420,
-      minHeight: 360,
-      isLauncher: true,
+      hint: "拖拽窗口可重叠排列，点击窗口置顶",
+      bodyClass: "jl-float-mode-workspace",
+      windows: {
+        workbench: {
+          panelId: "panel-workbench-hub",
+          title: "工作台",
+          desc: "模块入口与快捷操作",
+          icon: "⊞",
+          width: 520,
+          height: 460,
+          minWidth: 420,
+          minHeight: 360,
+          isLauncher: true,
+        },
+        new: {
+          panelId: "panel-new",
+          title: "新增事项",
+          desc: "登记待处理任务",
+          icon: "✏",
+          width: 800,
+          height: 700,
+          minWidth: 560,
+          minHeight: 480,
+        },
+        filter: {
+          panelId: "panel-filter",
+          title: "查询筛选",
+          desc: "按条件筛选任务",
+          icon: "⌕",
+          width: 660,
+          height: 540,
+          minWidth: 480,
+          minHeight: 360,
+        },
+        dashboard: {
+          panelId: "panel-dashboard",
+          title: "数据看板",
+          desc: "统计与趋势分析",
+          icon: "▤",
+          width: 880,
+          height: 640,
+          minWidth: 560,
+          minHeight: 420,
+        },
+        list: {
+          panelId: "panel-list",
+          title: "任务列表",
+          desc: "查看全部跟进任务",
+          icon: "☰",
+          width: 1000,
+          height: 700,
+          minWidth: 720,
+          minHeight: 480,
+        },
+      },
+      bootWindows: ["workbench"],
     },
-    new: {
-      panelId: "panel-new",
-      title: "新增事项",
-      icon: "✏",
-      width: 780,
-      height: 680,
-      minWidth: 560,
-      minHeight: 480,
+    knowledge: {
+      title: "本地知识库",
+      hint: "各功能独立浮窗，可自由拖拽与叠放",
+      bodyClass: "jl-float-mode-knowledge",
+      windows: {
+        "kb-launcher": {
+          panelId: "jlKbLauncher",
+          title: "知识库",
+          desc: "模块入口与概览",
+          icon: "📚",
+          width: 480,
+          height: 420,
+          minWidth: 380,
+          minHeight: 320,
+          isLauncher: true,
+        },
+        "kb-libraries": {
+          panelId: "jlKbFloatLibraries",
+          title: "目录与入库",
+          desc: "管理知识库目录",
+          icon: "📁",
+          width: 440,
+          height: 680,
+          minWidth: 360,
+          minHeight: 420,
+        },
+        "kb-graph": {
+          panelId: "jlKbFloatGraph",
+          title: "知识图谱",
+          desc: "可视化关系网络",
+          icon: "🕸",
+          width: 760,
+          height: 560,
+          minWidth: 520,
+          minHeight: 400,
+        },
+        "kb-search": {
+          panelId: "jlKbFloatSearch",
+          title: "检索试用",
+          desc: "多路召回检索调试",
+          icon: "🔍",
+          width: 760,
+          height: 620,
+          minWidth: 520,
+          minHeight: 420,
+        },
+      },
+      bootWindows: ["kb-launcher", "kb-libraries", "kb-graph", "kb-search"],
     },
-    filter: {
-      panelId: "panel-filter",
-      title: "查询筛选",
-      icon: "⌕",
-      width: 640,
-      height: 520,
-      minWidth: 480,
-      minHeight: 360,
-    },
-    dashboard: {
-      panelId: "panel-dashboard",
-      title: "数据看板",
-      icon: "▤",
-      width: 860,
-      height: 620,
-      minWidth: 560,
-      minHeight: 420,
-    },
-    list: {
-      panelId: "panel-list",
-      title: "任务列表",
-      icon: "☰",
-      width: 980,
-      height: 680,
-      minWidth: 720,
-      minHeight: 480,
+    record: {
+      title: "记录助手",
+      hint: "录音、转写、纪要独立窗口",
+      bodyClass: "jl-float-mode-record",
+      windows: {
+        "record-capture": {
+          panelId: "jlRecordFloatCapture",
+          title: "录音",
+          desc: "开始录制音频",
+          icon: "🎙",
+          width: 540,
+          height: 480,
+          minWidth: 400,
+          minHeight: 360,
+        },
+        "record-transcript": {
+          panelId: "jlRecordFloatTranscript",
+          title: "转写",
+          desc: "音频转文字",
+          icon: "〰",
+          width: 540,
+          height: 420,
+          minWidth: 400,
+          minHeight: 300,
+        },
+        "record-summary": {
+          panelId: "jlRecordFloatSummary",
+          title: "纪要",
+          desc: "智能生成纪要",
+          icon: "📄",
+          width: 540,
+          height: 420,
+          minWidth: 400,
+          minHeight: 300,
+        },
+        "record-recent": {
+          panelId: "jlRecordFloatRecent",
+          title: "最近记录",
+          desc: "查看历史记录",
+          icon: "🕐",
+          width: 500,
+          height: 400,
+          minWidth: 360,
+          minHeight: 280,
+        },
+      },
+      bootWindows: ["record-capture", "record-transcript", "record-summary", "record-recent"],
     },
   };
-
-  const RECORD_WINDOWS = {
-    "record-capture": {
-      panelId: "jlRecordWinCapture",
-      title: "录音",
-      icon: "🎙",
-      width: 520,
-      height: 420,
-      minWidth: 400,
-      minHeight: 320,
-    },
-    "record-transcript": {
-      panelId: "jlRecordWinTranscript",
-      title: "转写",
-      icon: "〰",
-      width: 520,
-      height: 380,
-      minWidth: 400,
-      minHeight: 280,
-    },
-    "record-summary": {
-      panelId: "jlRecordWinSummary",
-      title: "纪要",
-      icon: "📄",
-      width: 520,
-      height: 380,
-      minWidth: 400,
-      minHeight: 280,
-    },
-    "record-recent": {
-      panelId: "jlRecordWinRecent",
-      title: "最近记录",
-      icon: "🕐",
-      width: 480,
-      height: 360,
-      minWidth: 360,
-      minHeight: 260,
-    },
-  };
-
-  const RECORD_ROUTE = "record-capture";
 
   let mode = "";
   let rootEl = null;
   let dockEl = null;
-  let zCounter = 20;
-  /** @type {Map<string, { el: HTMLElement, route: string, minimized: boolean }>} */
+  let zCounter = 30;
+  /** @type {Map<string, { el: HTMLElement, body: HTMLElement, route: string, minimized: boolean }>} */
   const windows = new Map();
   let routeHandler = null;
+  let panelVisibleHandler = null;
+
+  function modeConfig() {
+    return DESKTOP_MODES[mode] || null;
+  }
 
   function cfg(route) {
-    const map = mode === "record" ? RECORD_WINDOWS : WORKSPACE_WINDOWS;
-    return map[route] || null;
+    return modeConfig()?.windows?.[route] || null;
   }
 
   function allRoutes() {
-    return mode === "record" ? Object.keys(RECORD_WINDOWS) : Object.keys(WORKSPACE_WINDOWS);
+    return Object.keys(modeConfig()?.windows || {});
   }
 
   function escapeHtml(text) {
@@ -112,6 +185,35 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function storageKey(route) {
+    return `jl_float_win_${mode}_${route}`;
+  }
+
+  function readSavedGeometry(route) {
+    try {
+      const raw = sessionStorage.getItem(storageKey(route));
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function saveGeometry(route, winEl) {
+    try {
+      sessionStorage.setItem(
+        storageKey(route),
+        JSON.stringify({
+          left: winEl.offsetLeft,
+          top: winEl.offsetTop,
+          width: winEl.offsetWidth,
+          height: winEl.offsetHeight,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   function bringToFront(winEl) {
@@ -133,16 +235,16 @@
     const canvas = rootEl?.getBoundingClientRect();
     const cw = canvas?.width || 960;
     const ch = canvas?.height || 640;
-    const dockW = dockEl && !dockEl.hidden ? dockEl.offsetWidth + 24 : 0;
-    const baseX = dockW + 32 + (index % 3) * 36;
-    const baseY = 28 + (index % 4) * 32;
+    const dockW = dockEl && !dockEl.hidden ? dockEl.offsetWidth + 20 : 0;
+    const baseX = dockW + 24 + (index % 4) * 32;
+    const baseY = 20 + (index % 5) * 28;
     return {
-      x: clamp(baseX, 12, Math.max(12, cw - width - 12)),
-      y: clamp(baseY, 12, Math.max(12, ch - height - 12)),
+      x: clamp(baseX, 8, Math.max(8, cw - width - 8)),
+      y: clamp(baseY, 8, Math.max(8, ch - height - 8)),
     };
   }
 
-  function attachDrag(winEl, handleEl) {
+  function attachDrag(winEl, handleEl, route) {
     let dragging = false;
     let startX = 0;
     let startY = 0;
@@ -165,16 +267,14 @@
     });
 
     handleEl.addEventListener("pointermove", (event) => {
-      if (!dragging) {
+      if (!dragging || !rootEl) {
         return;
       }
       const canvas = rootEl.getBoundingClientRect();
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
-      const nextLeft = clamp(originLeft + dx, 0, Math.max(0, canvas.width - winEl.offsetWidth));
-      const nextTop = clamp(originTop + dy, 0, Math.max(0, canvas.height - winEl.offsetHeight));
-      winEl.style.left = `${nextLeft}px`;
-      winEl.style.top = `${nextTop}px`;
+      winEl.style.left = `${clamp(originLeft + dx, 0, Math.max(0, canvas.width - winEl.offsetWidth))}px`;
+      winEl.style.top = `${clamp(originTop + dy, 0, Math.max(0, canvas.height - winEl.offsetHeight))}px`;
     });
 
     const endDrag = (event) => {
@@ -183,6 +283,7 @@
       }
       dragging = false;
       winEl.classList.remove("is-dragging");
+      saveGeometry(route, winEl);
       try {
         handleEl.releasePointerCapture(event.pointerId);
       } catch {
@@ -194,7 +295,7 @@
     handleEl.addEventListener("pointercancel", endDrag);
   }
 
-  function attachResize(winEl, gripEl) {
+  function attachResize(winEl, gripEl, route) {
     let resizing = false;
     let startX = 0;
     let startY = 0;
@@ -217,16 +318,14 @@
     });
 
     gripEl.addEventListener("pointermove", (event) => {
-      if (!resizing) {
+      if (!resizing || !rootEl) {
         return;
       }
       const canvas = rootEl.getBoundingClientRect();
       const maxW = canvas.width - winEl.offsetLeft - 8;
       const maxH = canvas.height - winEl.offsetTop - 8;
-      const w = clamp(startW + (event.clientX - startX), minW, maxW);
-      const h = clamp(startH + (event.clientY - startY), minH, maxH);
-      winEl.style.width = `${w}px`;
-      winEl.style.height = `${h}px`;
+      winEl.style.width = `${clamp(startW + (event.clientX - startX), minW, maxW)}px`;
+      winEl.style.height = `${clamp(startH + (event.clientY - startY), minH, maxH)}px`;
     });
 
     const endResize = (event) => {
@@ -235,6 +334,7 @@
       }
       resizing = false;
       winEl.classList.remove("is-resizing");
+      saveGeometry(route, winEl);
       try {
         gripEl.releasePointerCapture(event.pointerId);
       } catch {
@@ -247,13 +347,16 @@
   }
 
   function createWindowElement(route, meta) {
+    const saved = readSavedGeometry(route);
     const index = windows.size;
-    const pos = defaultPosition(index, meta.width, meta.height);
+    const pos = saved
+      ? { x: saved.left, y: saved.top }
+      : defaultPosition(index, meta.width, meta.height);
     const winEl = document.createElement("div");
     winEl.className = "jl-float-win";
     winEl.dataset.route = route;
-    winEl.style.width = `${meta.width}px`;
-    winEl.style.height = `${meta.height}px`;
+    winEl.style.width = `${saved?.width || meta.width}px`;
+    winEl.style.height = `${saved?.height || meta.height}px`;
     winEl.style.left = `${pos.x}px`;
     winEl.style.top = `${pos.y}px`;
     winEl.dataset.minWidth = String(meta.minWidth || 320);
@@ -277,8 +380,8 @@
     const resize = winEl.querySelector(".jl-float-win__resize");
 
     winEl.addEventListener("pointerdown", () => bringToFront(winEl));
-    attachDrag(winEl, header);
-    attachResize(winEl, resize);
+    attachDrag(winEl, header, route);
+    attachResize(winEl, resize, route);
 
     header.querySelector('[data-action="minimize"]')?.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -290,7 +393,7 @@
     });
 
     rootEl.appendChild(winEl);
-    return { el: winEl, body, minimized: false };
+    return { el: winEl, body };
   }
 
   function mountPanel(route, bodyEl) {
@@ -306,6 +409,16 @@
     panel.classList.add("jl-float-panel-host");
     bodyEl.appendChild(panel);
     return panel;
+  }
+
+  function focusOrOpen(route, options = {}) {
+    const entry = windows.get(route);
+    if (entry && !entry.el.hidden && !entry.minimized) {
+      bringToFront(entry.el);
+      syncDockActive(route);
+      return true;
+    }
+    return openWindow(route, options);
   }
 
   function openWindow(route, options = {}) {
@@ -325,8 +438,8 @@
     entry.el.hidden = false;
     entry.minimized = false;
     entry.el.classList.remove("is-minimized");
-    bringToFront(entry.el);
     if (options.focus !== false) {
+      bringToFront(entry.el);
       entry.el.classList.add("jl-float-win--enter");
       window.setTimeout(() => entry.el.classList.remove("jl-float-win--enter"), 320);
     }
@@ -379,76 +492,59 @@
     if (dockEl) {
       return;
     }
+    const conf = modeConfig();
     dockEl = document.createElement("aside");
     dockEl.className = "jl-float-dock";
-    dockEl.setAttribute("aria-label", mode === "record" ? "会议记录模块" : "工作台模块");
-
-    const title = mode === "record" ? "会议记录" : "工作台";
-    const hint =
-      mode === "record"
-        ? "点击模块卡片打开或置顶对应窗口"
-        : "从桌面打开任务模块，窗口可重叠与拖拽";
+    dockEl.setAttribute("aria-label", `${conf?.title || "模块"}桌面`);
 
     dockEl.innerHTML = `
       <header class="jl-float-dock__head">
-        <h2 class="jl-float-dock__title">${escapeHtml(title)}</h2>
-        <p class="jl-float-dock__hint">${escapeHtml(hint)}</p>
+        <h2 class="jl-float-dock__title">${escapeHtml(conf?.title || "")}</h2>
+        <p class="jl-float-dock__hint">${escapeHtml(conf?.hint || "")}</p>
       </header>
       <div class="jl-float-dock__list"></div>
     `;
 
     const list = dockEl.querySelector(".jl-float-dock__list");
-    const routes = allRoutes();
-    routes.forEach((route) => {
+    allRoutes().forEach((route) => {
       const meta = cfg(route);
-      if (!meta || meta.isLauncher) {
+      if (!meta) {
         return;
       }
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "jl-float-dock__item";
+      btn.className = "jl-float-dock__item" + (meta.isLauncher ? " jl-float-dock__item--home" : "");
       btn.dataset.floatRoute = route;
       btn.innerHTML = `
         <span class="jl-float-dock__item-icon" aria-hidden="true">${escapeHtml(meta.icon || "◻")}</span>
         <span class="jl-float-dock__item-text">
           <span class="jl-float-dock__item-label">${escapeHtml(meta.title)}</span>
+          ${meta.desc ? `<span class="jl-float-dock__item-desc">${escapeHtml(meta.desc)}</span>` : ""}
         </span>
       `;
       btn.addEventListener("click", () => {
-        if (windows.has(route) && !windows.get(route).minimized) {
-          bringToFront(windows.get(route).el);
-          syncDockActive(route);
-          return;
-        }
-        openWindow(route);
-        if (mode === "record" && typeof routeHandler === "function") {
-          routeHandler("record");
+        focusOrOpen(route);
+        if (typeof routeHandler === "function") {
+          routeHandler(routeToAppRoute(route));
         }
       });
       list.appendChild(btn);
     });
 
-    if (mode === "workspace") {
-      const homeBtn = document.createElement("button");
-      homeBtn.type = "button";
-      homeBtn.className = "jl-float-dock__item jl-float-dock__item--home";
-      homeBtn.dataset.floatRoute = "workbench";
-      homeBtn.innerHTML = `
-        <span class="jl-float-dock__item-icon" aria-hidden="true">⊞</span>
-        <span class="jl-float-dock__item-text">
-          <span class="jl-float-dock__item-label">桌面首页</span>
-        </span>
-      `;
-      homeBtn.addEventListener("click", () => {
-        openWindow("workbench");
-        if (typeof routeHandler === "function") {
-          routeHandler("workbench");
-        }
-      });
-      list.prepend(homeBtn);
-    }
-
     rootEl.parentElement?.insertBefore(dockEl, rootEl);
+  }
+
+  function routeToAppRoute(route) {
+    if (mode === "workspace") {
+      return route;
+    }
+    if (mode === "knowledge") {
+      return "knowledge-base";
+    }
+    if (mode === "record") {
+      return "record";
+    }
+    return route;
   }
 
   function bindHubTiles() {
@@ -475,27 +571,53 @@
     });
   }
 
+  function bindKbLauncher() {
+    document.querySelectorAll("[data-kb-open]").forEach((btn) => {
+      if (btn.dataset.jlKbOpenBound === "1") {
+        return;
+      }
+      btn.dataset.jlKbOpenBound = "1";
+      btn.addEventListener("click", () => {
+        const target = btn.dataset.kbOpen;
+        if (target) {
+          focusOrOpen(target);
+        }
+      });
+    });
+  }
+
   function handleRoute(route, options = {}) {
     if (!isActive()) {
       return false;
     }
-    if (mode === "record") {
-      if (route === "record") {
-        openWindow("record-capture");
-        openWindow("record-transcript", { focus: false });
-        openWindow("record-summary", { focus: false });
-        openWindow("record-recent", { focus: false });
-        bringToFront(windows.get("record-capture")?.el);
-        syncDockActive("record-capture");
-        if (typeof options.onRecord === "function") {
-          options.onRecord();
+
+    if (mode === "knowledge") {
+      if (route === "knowledge-base") {
+        const boots = modeConfig()?.bootWindows || ["kb-launcher"];
+        boots.forEach((key, idx) => openWindow(key, { focus: idx === 0 }));
+        if (typeof panelVisibleHandler === "function") {
+          void panelVisibleHandler();
         }
         return true;
       }
       return false;
     }
 
-    if (!WORKSPACE_WINDOWS[route]) {
+    if (mode === "record") {
+      if (route === "record") {
+        const boots = modeConfig()?.bootWindows || [];
+        boots.forEach((key, idx) => openWindow(key, { focus: idx === 0 }));
+        return true;
+      }
+      const recordKey = route.startsWith("record-") ? route : null;
+      if (recordKey && cfg(recordKey)) {
+        focusOrOpen(recordKey);
+        return true;
+      }
+      return false;
+    }
+
+    if (!cfg(route)) {
       return false;
     }
 
@@ -516,6 +638,12 @@
 
   function hideLegacyChrome() {
     document.body.classList.add("jl-float-desktop-active");
+    const conf = modeConfig();
+    if (conf?.bodyClass) {
+      document.body.classList.add(conf.bodyClass);
+    }
+    ["jl-record-assistant-active"].forEach((cls) => document.body.classList.remove(cls));
+
     const topbar = document.querySelector(".topbar");
     const breadcrumb = document.getElementById("breadcrumb");
     const workbenchNav = document.getElementById("jlWorkbenchNav");
@@ -524,6 +652,9 @@
     if (topStatus) {
       topStatus.hidden = true;
       topStatus.setAttribute("aria-hidden", "true");
+    }
+    if (topbar) {
+      topbar.hidden = true;
     }
     if (breadcrumb) {
       breadcrumb.hidden = true;
@@ -551,21 +682,29 @@
     return root;
   }
 
+  function bootDefaultWindows() {
+    const boots = modeConfig()?.bootWindows || [];
+    boots.forEach((key, idx) => {
+      openWindow(key, { focus: idx === 0 });
+    });
+  }
+
   function init(nextMode, options = {}) {
-    if (nextMode !== "workspace" && nextMode !== "record") {
+    if (!DESKTOP_MODES[nextMode]) {
       return;
     }
     mode = nextMode;
     routeHandler = options.onRoute || null;
+    panelVisibleHandler = options.onPanelVisible || null;
     ensureRoot();
     buildDock();
     hideLegacyChrome();
     bindHubTiles();
+    bindKbLauncher();
+    bootDefaultWindows();
 
-    if (mode === "workspace") {
-      openWindow("workbench");
-    } else {
-      handleRoute("record", options);
+    if (mode === "knowledge" && typeof panelVisibleHandler === "function") {
+      void panelVisibleHandler();
     }
   }
 
@@ -583,6 +722,7 @@
     getMode,
     handleRoute,
     openWindow,
+    focusOrOpen,
     closeWindow,
     bringToFront,
   };

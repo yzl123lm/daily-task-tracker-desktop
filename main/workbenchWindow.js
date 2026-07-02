@@ -20,7 +20,7 @@ const MODULE_META = {
     title: "鲸落AI · 本地知识库",
     defaultRoute: "knowledge-base",
     windowMode: "knowledge",
-    backgroundColor: "#0a0f1a",
+    backgroundColor: "#dbeafe",
   },
   record: {
     title: "鲸落AI · 记录助手",
