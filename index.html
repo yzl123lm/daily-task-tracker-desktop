@@ -869,69 +869,126 @@
           </div>
         </div>
 
-        <div id="panel-record" class="tab-panel" role="tabpanel" hidden>
-          <div id="jlRecordFloatMain" class="jl-float-section-host record-glass-stage">
-            <div class="record-glass-stage__layout">
-              <section class="record-glass-panel record-glass-panel--capture">
-                <div class="record-assistant__timer-row">
-                  <span id="recordLiveDot" class="record-assistant__live-dot" aria-hidden="true"></span>
-                  <span id="recordTimer" class="record-assistant__timer" aria-live="polite">00:00:00</span>
-                </div>
-                <div class="record-assistant__wave" aria-hidden="true">
-                  <svg class="record-assistant__wave-svg" viewBox="0 0 320 64" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="recordWaveStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stop-color="#4facfe" />
-                        <stop offset="100%" stop-color="#00f2fe" />
-                      </linearGradient>
-                    </defs>
-                    <path class="record-assistant__wave-path" d="M0 32 Q20 8 40 32 T80 32 T120 32 T160 32 T200 32 T240 32 T280 32 T320 32" />
-                  </svg>
-                </div>
-                <div class="record-assistant__mic-wrap">
-                  <button type="button" id="recordStartBtn" class="record-assistant__mic-btn" title="开始录音" aria-label="开始录音">
-                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-                  </button>
-                </div>
-                <p class="record-assistant__hint">点击按钮开始录音</p>
-                <p class="record-assistant__subhint">支持高质量录音与实时转写</p>
-                <div class="record-assistant__toolbar">
-                  <button type="button" id="recordStopBtn" class="record-assistant__tool-btn" disabled>停止</button>
-                  <label class="record-assistant__check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
-                  <button type="button" id="recordASRSettingsBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">ASR 设置</button>
-                  <button type="button" id="recordAnalyzeBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">手动分析</button>
-                  <button type="button" id="recordExportBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">导出 Word</button>
-                </div>
-                <div id="recordStatus" class="record-assistant__status">待机</div>
-              </section>
+        <div id="panel-record" class="tab-panel record-assistant" role="tabpanel" hidden>
+          <div class="record-assistant__shell">
+            <aside class="record-assistant__nav" aria-label="记录助手导航">
+              <div class="record-assistant__brand">
+                <span class="record-assistant__brand-icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.8"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </span>
+                <span class="record-assistant__brand-title">记录助手</span>
+              </div>
+              <nav class="record-assistant__nav-list">
+                <button type="button" class="record-assistant__nav-item is-active" data-record-nav="capture" aria-current="page">
+                  <span class="record-assistant__nav-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  </span>
+                  <span class="record-assistant__nav-text">
+                    <span class="record-assistant__nav-label">录音</span>
+                    <span class="record-assistant__nav-desc">开始录制音频</span>
+                  </span>
+                </button>
+                <button type="button" class="record-assistant__nav-item" data-record-nav="transcript">
+                  <span class="record-assistant__nav-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  </span>
+                  <span class="record-assistant__nav-text">
+                    <span class="record-assistant__nav-label">转写</span>
+                    <span class="record-assistant__nav-desc">音频转文字</span>
+                  </span>
+                </button>
+                <button type="button" class="record-assistant__nav-item" data-record-nav="summary">
+                  <span class="record-assistant__nav-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                  </span>
+                  <span class="record-assistant__nav-text">
+                    <span class="record-assistant__nav-label">纪要</span>
+                    <span class="record-assistant__nav-desc">智能生成纪要</span>
+                  </span>
+                </button>
+                <button type="button" class="record-assistant__nav-item" data-record-nav="recent">
+                  <span class="record-assistant__nav-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                  </span>
+                  <span class="record-assistant__nav-text">
+                    <span class="record-assistant__nav-label">最近记录</span>
+                    <span class="record-assistant__nav-desc">查看历史记录</span>
+                  </span>
+                </button>
+              </nav>
+            </aside>
 
-              <section class="record-glass-panel record-glass-panel--recent">
-                <h3 class="record-glass-panel__title">最近记录</h3>
-                <ul id="recordRecentList" class="record-assistant__recent-list" aria-label="最近会议记录"></ul>
-              </section>
+            <div class="record-assistant__main">
+              <div class="record-assistant__panel" data-record-panel="capture">
+                <section class="record-assistant__card record-assistant__card--capture">
+                  <div class="record-assistant__timer-row">
+                    <span id="recordLiveDot" class="record-assistant__live-dot" aria-hidden="true"></span>
+                    <span id="recordTimer" class="record-assistant__timer" aria-live="polite">00:00:00</span>
+                  </div>
+                  <div class="record-assistant__wave" aria-hidden="true">
+                    <svg class="record-assistant__wave-svg" viewBox="0 0 320 64" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="recordWaveStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stop-color="#4facfe" />
+                          <stop offset="100%" stop-color="#00f2fe" />
+                        </linearGradient>
+                      </defs>
+                      <path class="record-assistant__wave-path" d="M0 32 Q20 8 40 32 T80 32 T120 32 T160 32 T200 32 T240 32 T280 32 T320 32" />
+                    </svg>
+                  </div>
+                  <div class="record-assistant__mic-wrap">
+                    <button type="button" id="recordStartBtn" class="record-assistant__mic-btn" title="开始录音" aria-label="开始录音">
+                      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </button>
+                  </div>
+                  <p class="record-assistant__hint">点击按钮开始录音</p>
+                  <p class="record-assistant__subhint">支持高质量录音与实时转写</p>
+                  <div class="record-assistant__toolbar">
+                    <button type="button" id="recordStopBtn" class="record-assistant__tool-btn" disabled>停止</button>
+                    <label class="record-assistant__check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
+                    <button type="button" id="recordASRSettingsBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">ASR 设置</button>
+                    <button type="button" id="recordAnalyzeBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">手动分析</button>
+                    <button type="button" id="recordExportBtn" class="record-assistant__tool-btn record-assistant__tool-btn--ghost">导出 Word</button>
+                  </div>
+                  <div id="recordStatus" class="record-assistant__status">待机</div>
+                </section>
+
+                <section class="record-assistant__card record-assistant__card--recent-preview">
+                  <h3 class="record-assistant__card-title">最近记录</h3>
+                  <ul id="recordRecentList" class="record-assistant__recent-list" aria-label="最近会议记录"></ul>
+                </section>
+              </div>
+
+              <div class="record-assistant__panel" data-record-panel="transcript" hidden>
+                <section class="record-assistant__card record-assistant__card--full">
+                  <h3 class="record-assistant__card-title">转写</h3>
+                  <p class="record-assistant__card-desc">实时语音转文字，停止后可继续编辑。</p>
+                  <label class="record-assistant__editor">
+                    <span class="visually-hidden">实时转写文本</span>
+                    <textarea id="recordTranscript" rows="12" placeholder="开始录音后，这里会实时显示转写文本。"></textarea>
+                  </label>
+                </section>
+              </div>
+
+              <div class="record-assistant__panel" data-record-panel="summary" hidden>
+                <section class="record-assistant__card record-assistant__card--full">
+                  <h3 class="record-assistant__card-title">纪要</h3>
+                  <p class="record-assistant__card-desc">AI 整理关键结论、待办事项与风险。</p>
+                  <label class="record-assistant__editor">
+                    <span class="visually-hidden">AI 整理分析结果</span>
+                    <textarea id="recordAnalysis" rows="12" placeholder="可手动点击「手动分析」或在停止录音后自动生成。"></textarea>
+                  </label>
+                </section>
+              </div>
+
+              <div class="record-assistant__panel" data-record-panel="recent" hidden>
+                <section class="record-assistant__card record-assistant__card--full">
+                  <h3 class="record-assistant__card-title">最近记录</h3>
+                  <p class="record-assistant__card-desc">查看与管理历史会议记录。</p>
+                  <ul id="recordRecentListFull" class="record-assistant__recent-list" aria-label="全部最近记录"></ul>
+                </section>
+              </div>
             </div>
-          </div>
-
-          <div id="jlRecordFloatTranscript" class="jl-float-section-host">
-            <section class="record-glass-panel record-glass-panel--full">
-              <h3 class="record-glass-panel__title">转写</h3>
-              <p class="record-glass-panel__desc">实时语音转文字，停止后可继续编辑。</p>
-              <label class="record-assistant__editor">
-                <span class="visually-hidden">实时转写文本</span>
-                <textarea id="recordTranscript" rows="12" placeholder="开始录音后，这里会实时显示转写文本。"></textarea>
-              </label>
-            </section>
-          </div>
-
-          <div id="jlRecordFloatSummary" class="jl-float-section-host">
-            <section class="record-glass-panel record-glass-panel--full">
-              <h3 class="record-glass-panel__title">纪要</h3>
-              <p class="record-glass-panel__desc">AI 整理关键结论、待办事项与风险。</p>
-              <label class="record-assistant__editor">
-                <span class="visually-hidden">AI 整理分析结果</span>
-                <textarea id="recordAnalysis" rows="12" placeholder="可手动点击「手动分析」或在停止录音后自动生成。"></textarea>
-              </label>
-            </section>
           </div>
         </div>
 

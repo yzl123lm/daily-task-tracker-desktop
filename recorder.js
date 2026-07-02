@@ -11,8 +11,10 @@ function initRecorderModule() {
   const analysisEl = document.getElementById("recordAnalysis");
   const timerEl = document.getElementById("recordTimer");
   const recentListEl = document.getElementById("recordRecentList");
+  const recentListFullEl = document.getElementById("recordRecentListFull");
   const liveDotEl = document.getElementById("recordLiveDot");
   const waveEl = document.querySelector(".record-assistant__wave");
+  const recordPanelEl = document.getElementById("panel-record");
   const RECENT_KEY = "daily_task_tracker_record_recent_v1";
   const asrDialog = document.getElementById("asrSettingsDialog");
   const asrForm = document.getElementById("asrSettingsForm");
@@ -135,7 +137,9 @@ function initRecorderModule() {
         if (item.analysis) {
           analysisEl.value = item.analysis;
         }
-        if (typeof window.FloatDesktop?.focusOrOpen === "function") {
+        if (typeof window.recordAssistantActivate === "function") {
+          window.recordAssistantActivate("transcript");
+        } else if (typeof window.FloatDesktop?.focusOrOpen === "function") {
           window.FloatDesktop.focusOrOpen("record-transcript");
         }
         return;
@@ -158,10 +162,12 @@ function initRecorderModule() {
     const html = items.length
       ? items.map((item, idx) => renderRecentItemHtml(item, idx)).join("")
       : emptyHtml;
-    if (recentListEl) {
-      recentListEl.innerHTML = html;
+    for (const listEl of [recentListEl, recentListFullEl]) {
+      if (listEl) {
+        listEl.innerHTML = html;
+        bindRecentListActions(listEl);
+      }
     }
-    bindRecentListActions(recentListEl);
   }
 
   function pushRecentRecord(title, durationLabel) {
@@ -193,7 +199,7 @@ function initRecorderModule() {
     asrSettingsBtn.disabled = v;
     waveEl?.classList.toggle("is-active", v);
     liveDotEl?.classList.toggle("is-live", v);
-    document.querySelector(".record-glass-stage")?.classList.toggle("is-recording", v);
+    recordPanelEl?.classList.toggle("is-recording", v);
     if (v) {
       startTimer();
     } else {
@@ -471,7 +477,37 @@ function initRecorderModule() {
   stopBtn.addEventListener("click", () => stopRecording());
   analyzeBtn.addEventListener("click", () => analyzeTranscript());
   exportBtn.addEventListener("click", () => exportWordDoc());
+  initRecordAssistantNav();
   renderRecentRecords();
+}
+
+function initRecordAssistantNav() {
+  const root = document.getElementById("panel-record");
+  if (!root?.classList.contains("record-assistant")) {
+    return;
+  }
+  const navItems = root.querySelectorAll("[data-record-nav]");
+  const panels = root.querySelectorAll("[data-record-panel]");
+  if (!navItems.length || !panels.length) {
+    return;
+  }
+
+  function activate(panelKey) {
+    navItems.forEach((btn) => {
+      const active = btn.dataset.recordNav === panelKey;
+      btn.classList.toggle("is-active", active);
+      btn.toggleAttribute("aria-current", active ? "page" : false);
+    });
+    panels.forEach((panel) => {
+      panel.hidden = panel.dataset.recordPanel !== panelKey;
+    });
+  }
+
+  navItems.forEach((btn) => {
+    btn.addEventListener("click", () => activate(btn.dataset.recordNav || "capture"));
+  });
+
+  window.recordAssistantActivate = activate;
 }
 
 initRecorderModule();

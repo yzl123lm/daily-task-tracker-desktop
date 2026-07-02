@@ -2178,15 +2178,11 @@ function fitRecordModuleWindow() {
   if (!isRecordWindow()) {
     return;
   }
-  const desktop = document.getElementById("jlFloatDesktop");
   const measure = () => {
     const width = 1120;
     const height = 760;
     if (typeof window.electronAPI?.moduleWindowFitContent === "function") {
       void window.electronAPI.moduleWindowFitContent({ width, height });
-    }
-    if (desktop) {
-      desktop.hidden = false;
     }
   };
   requestAnimationFrame(() => {
@@ -2289,13 +2285,13 @@ function initModuleShell() {
       },
     });
   }
-  if (isRecordWindow() && window.FloatDesktop) {
-    window.FloatDesktop.init("record", {
-      onRoute: () => {
-        activeRoute = "record";
-        setHashRoute("record");
-      },
-    });
+  if (isRecordWindow()) {
+    document.body.classList.add("jl-record-assistant-active");
+    const floatDesktop = document.getElementById("jlFloatDesktop");
+    if (floatDesktop) {
+      floatDesktop.hidden = true;
+      floatDesktop.setAttribute("aria-hidden", "true");
+    }
   }
 
   const bindNavigate = (payload) => {

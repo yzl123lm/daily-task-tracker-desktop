@@ -693,6 +693,32 @@ body.jl-record-assistant-active {
     linear-gradient(165deg, #dbeafe 0%, #eff6ff 50%, #f8fbff 100%) !important;
 }
 
+body.jl-record-assistant-active .jl-app-shell,
+body.jl-record-assistant-active .jl-nebula-bg {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+body.jl-record-assistant-active .jl-nebula-bg::after {
+  display: none !important;
+}
+
+body.jl-record-assistant-active .jl-main-workspace,
+body.jl-record-assistant-active .jl-workbench-stage,
+body.jl-record-assistant-active .jl-workspace-canvas {
+  background: transparent !important;
+}
+
+body.jl-record-assistant-active #jlFloatDesktop {
+  display: none !important;
+}
+
+body.jl-record-assistant-active .main-column {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+}
+
 body.jl-record-assistant-active .topbar,
 body.jl-record-assistant-active #breadcrumb,
 body.jl-record-assistant-active #jlTopStatus,
@@ -718,21 +744,23 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   flex: 1;
   min-height: 0;
   display: flex !important;
-  padding: 16px 18px 18px;
+  padding: 14px 16px 16px;
 }
 
 .record-assistant {
   flex: 1;
   min-height: 0;
   width: 100%;
+  display: flex;
 }
 
 .record-assistant__shell {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 18px;
   height: 100%;
   min-height: 0;
+  width: 100%;
 }
 
 .record-assistant__nav {
@@ -817,10 +845,14 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(145deg, #3b82f6, #6366f1);
+  background: linear-gradient(145deg, #4facfe 0%, #00f2fe 100%);
   color: #fff;
   font-size: 16px;
-  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.32);
+  box-shadow: 0 6px 16px rgba(79, 172, 254, 0.32);
+}
+
+.record-assistant__nav-icon svg {
+  display: block;
 }
 
 .record-assistant__nav-text {
@@ -863,14 +895,14 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
 
 .record-assistant__panel[data-record-panel="capture"] {
   display: grid;
-  grid-template-rows: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 14px;
+  grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 16px;
 }
 
 .record-assistant__card {
-  border-radius: 22px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.72);
-  background: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.58);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
   box-shadow: 0 16px 36px rgba(59, 130, 246, 0.1);
@@ -881,7 +913,7 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28px 24px 20px;
+  padding: 32px 28px 24px;
   text-align: center;
   min-height: 0;
 }
@@ -892,6 +924,7 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .record-assistant__card-title {
@@ -942,20 +975,20 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
 
 .record-assistant__timer {
   font-variant-numeric: tabular-nums;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  color: #334155;
-  letter-spacing: 0.04em;
+  color: #374151;
+  letter-spacing: 0.06em;
 }
 
 .record-assistant.is-recording .record-assistant__timer {
-  color: #dc2626;
+  color: #ef4444;
 }
 
 .record-assistant__wave {
-  width: min(100%, 360px);
-  height: 56px;
-  margin: 4px 0 16px;
+  width: min(100%, 400px);
+  height: 64px;
+  margin: 8px 0 20px;
   display: grid;
   place-items: center;
 }
@@ -993,14 +1026,14 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
 }
 
 .record-assistant__mic-btn {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(145deg, #3b82f6 0%, #6366f1 100%);
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 14px 32px rgba(59, 130, 246, 0.38);
+  box-shadow: 0 14px 32px rgba(79, 172, 254, 0.4);
   display: grid;
   place-items: center;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1022,15 +1055,15 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
 
 .record-assistant__hint {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #334155;
+  color: #374151;
 }
 
 .record-assistant__subhint {
-  margin: 4px 0 14px;
+  margin: 4px 0 12px;
   font-size: 12px;
-  color: #94a3b8;
+  color: #9ca3af;
 }
 
 .record-assistant__toolbar {
@@ -1041,7 +1074,13 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   gap: 8px 10px;
   width: 100%;
   max-width: 520px;
-  margin-top: 4px;
+  margin-top: 6px;
+  opacity: 0.88;
+}
+
+body.jl-record-assistant-active .record-assistant:not(.is-recording) .record-assistant__toolbar .record-assistant__tool-btn:not(#recordStopBtn):not(#recordASRSettingsBtn),
+body.jl-record-assistant-active .record-assistant:not(.is-recording) .record-assistant__status {
+  display: none;
 }
 
 .record-assistant__tool-btn {
@@ -1169,14 +1208,14 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   height: 34px;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(145deg, #3b82f6, #6366f1);
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   color: #fff;
   cursor: pointer;
   display: grid;
   place-items: center;
   font-size: 16px;
   line-height: 1;
-  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.28);
+  box-shadow: 0 6px 14px rgba(79, 172, 254, 0.28);
 }
 
 .record-assistant__recent-more {
