@@ -8393,6 +8393,150 @@ label.cap-check:last-child {
   border-top: 1px solid var(--border);
 }
 
+/* 操作日志 / 检索历史弹窗：固定浅色主题 */
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: linear-gradient(165deg, #ffffff 0%, #f8fbff 100%);
+  color: #1e293b;
+  box-shadow: 0 20px 48px rgba(37, 99, 235, 0.12);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light::backdrop {
+  background: rgba(15, 23, 42, 0.32);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-head {
+  border-bottom-color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1e3a8a;
+  letter-spacing: 0.02em;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-meta,
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .field-hint {
+  color: #64748b !important;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-close {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #64748b;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-close:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+  background: #f8fafc;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filters {
+  border-bottom-color: #e2e8f0;
+  background: rgba(248, 250, 252, 0.9);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filter {
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filter:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filter.is-active {
+  border-color: #2b6cf0;
+  background: rgba(43, 108, 240, 0.1);
+  color: #1d4ed8;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__head {
+  color: #64748b;
+  border-bottom-color: #e2e8f0;
+  background: #f1f5f9;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__body {
+  background: #fff;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row {
+  border-bottom-color: #f1f5f9;
+  color: #334155;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row:hover {
+  background: rgba(59, 130, 246, 0.06);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__time {
+  color: #94a3b8;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__type {
+  color: #2563eb;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__title {
+  color: #0f172a;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__action {
+  color: #64748b;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-empty__title {
+  color: #334155;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-empty__hint,
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-empty,
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-loading {
+  color: #94a3b8;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-foot {
+  border-top-color: #e2e8f0;
+  background: rgba(248, 250, 252, 0.95);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-foot .secondary {
+  border: 1px solid #dbe3f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-foot .secondary:hover {
+  border-color: #93c5fd;
+  color: #2563eb;
+  background: #f8fafc;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__body::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.28);
+}
+
+#kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__body::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 999px;
+}
+
 #kbSearchResultDialog.kb-search-result-dialog {
   border: 0;
   border-radius: 12px;

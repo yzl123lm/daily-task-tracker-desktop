@@ -1850,6 +1850,58 @@ body.theme-nebula {
   border-color: #e5e6eb;
 }
 
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light,
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-shell {
+  background: linear-gradient(165deg, #ffffff 0%, #f8fbff 100%);
+  color: #1e293b;
+  color-scheme: light;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-title {
+  color: #1e3a8a !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-meta,
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .field-hint,
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__action,
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-empty__hint {
+  color: #64748b !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filter {
+  background: #fff !important;
+  color: #475569 !important;
+  border-color: #dbe3f0 !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-filter.is-active {
+  background: rgba(43, 108, 240, 0.1) !important;
+  color: #1d4ed8 !important;
+  border-color: #2b6cf0 !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-table__head {
+  background: #f1f5f9 !important;
+  color: #64748b !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-row__title {
+  color: #0f172a !important;
+}
+
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-foot .secondary,
+.theme-nebula #kbOpsLogDialog.kb-ops-log-dialog.kb-dialog-light .kb-ops-log-close {
+  background: #fff !important;
+  color: #475569 !important;
+  border-color: #dbe3f0 !important;
+}
+
+.theme-nebula #jlKbFloatSearch .kb-search-history-btn {
+  background: rgba(239, 246, 255, 0.95) !important;
+  color: #2563eb !important;
+  border-color: rgba(43, 108, 240, 0.28) !important;
+}
+
 .theme-nebula .cap-nav-item {
   background: var(--surface-inset);
   color: var(--muted-foreground);

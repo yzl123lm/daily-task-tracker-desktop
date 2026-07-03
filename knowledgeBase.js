@@ -75,6 +75,7 @@
     ingestMoreBtn: document.getElementById("kbIngestMoreBtn"),
     statsOpsLogBtn: document.getElementById("kbStatsOpsLogBtn"),
     opsLogDialog: document.getElementById("kbOpsLogDialog"),
+    opsLogTitle: document.getElementById("kbOpsLogDialogTitle"),
     opsLogList: document.getElementById("kbOpsLogList"),
     opsLogMeta: document.getElementById("kbOpsLogDialogMeta"),
     opsLogCloseBtn: document.getElementById("kbOpsLogCloseBtn"),
@@ -1317,6 +1318,15 @@
       return;
     }
     opsLogCategory = String(category || "all");
+    const titleMap = {
+      all: "操作日志",
+      search: "检索历史",
+      ingest: "入库记录",
+      "auto-learn": "自动学习记录",
+    };
+    if (el.opsLogTitle) {
+      el.opsLogTitle.textContent = titleMap[opsLogCategory] || titleMap.all;
+    }
     el.opsLogFilters.forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.kbLogFilter === opsLogCategory);
     });

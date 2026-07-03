@@ -1250,7 +1250,10 @@
                             <button type="button" id="kbTrialSearchBtn" class="kb-trial-search-btn">检索</button>
                             <button type="button" id="kbTrialResetBtn" class="secondary kb-search-reset-btn">重置</button>
                           </div>
-                          <button type="button" id="kbTrialHistoryBtn" class="kb-panel-link kb-trial-history-link">检索历史 →</button>
+                          <button type="button" id="kbTrialHistoryBtn" class="kb-search-history-btn" title="查看检索历史">
+                            <span class="kb-search-history-btn__text">检索历史</span>
+                            <span class="kb-search-history-btn__arrow" aria-hidden="true">→</span>
+                          </button>
                         </div>
                       </div>
                       <p id="kbTrialStatus" class="kb-trial-status" hidden aria-live="polite"></p>
@@ -1269,7 +1272,7 @@
                   </div>
                 </div>
           </div>
-          <dialog id="kbOpsLogDialog" class="kb-ops-log-dialog" aria-labelledby="kbOpsLogDialogTitle">
+          <dialog id="kbOpsLogDialog" class="kb-ops-log-dialog kb-dialog-light" aria-labelledby="kbOpsLogDialogTitle">
             <div class="kb-ops-log-shell">
               <header class="kb-ops-log-head">
                 <div>

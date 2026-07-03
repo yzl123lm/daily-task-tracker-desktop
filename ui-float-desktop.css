@@ -797,10 +797,34 @@ body.jl-float-desktop-active .main-column {
   font-weight: 600;
 }
 
-#jlKbFloatSearch .kb-trial-history-link {
+#jlKbFloatSearch .kb-search-history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(43, 108, 240, 0.28);
+  background: rgba(239, 246, 255, 0.95);
   color: #2563eb;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#jlKbFloatSearch .kb-search-history-btn:hover {
+  border-color: rgba(43, 108, 240, 0.5);
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+#jlKbFloatSearch .kb-search-history-btn__arrow {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.85;
 }
 
 #jlKbFloatSearch .kb-trial-status {
