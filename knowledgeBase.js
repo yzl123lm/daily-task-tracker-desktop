@@ -163,7 +163,23 @@
   }
 
   function isKbTrialFloatPanel() {
-    return !!document.getElementById("jlKbFloatSearch")?.closest(".jl-float-win");
+    const panel = document.getElementById("jlKbFloatSearch");
+    if (!panel || panel.hidden) {
+      return false;
+    }
+    if (panel.classList.contains("jl-float-panel-host")) {
+      return true;
+    }
+    if (panel.closest(".jl-float-win")) {
+      return true;
+    }
+    const floatActive =
+      document.body.classList.contains("jl-knowledge-float-active")
+      || document.body.classList.contains("jl-float-desktop-active");
+    if (floatActive && panel.getBoundingClientRect().height > 0) {
+      return true;
+    }
+    return false;
   }
 
   function shouldAutoOpenSearchResultDialog() {
@@ -2570,13 +2586,22 @@
     selectSearchResultHit(0);
   }
 
-  function openSearchResultDialog(query) {
+  function openSearchResultDialog(query, options = {}) {
     portalKbDialogsToBody();
     const dlg = el.searchResultDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
       return;
     }
-    renderSearchResultLoading(query);
+    const canReuseResults =
+      options.reuseResults !== false
+      && Array.isArray(searchResultState.hits)
+      && searchResultState.hits.length > 0
+      && searchResultState.out;
+    if (canReuseResults) {
+      populateSearchResultDialog(searchResultState.out, query || searchResultState.query);
+    } else {
+      renderSearchResultLoading(query);
+    }
     if (!dlg.open) {
       dlg.showModal();
     }
@@ -2690,7 +2715,7 @@
           if (ev.target.closest(".kb-kb-followup-btn")) {
             return;
           }
-          openSearchResultDialog(query);
+          openSearchResultDialog(query, { reuseResults: true });
           selectSearchResultHit(index);
         });
         grid.appendChild(card);
