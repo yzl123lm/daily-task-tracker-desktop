@@ -1663,43 +1663,8 @@ body.jl-float-desktop-active .main-column {
 
 .theme-nebula #jlKbFloatLibraries .kb-lib-workbench,
 .theme-nebula #jlKbFloatLibraries .kb-lib-card,
-.theme-nebula #jlKbLauncher .kb-launcher-workbench {
+.theme-nebula #jlKbLauncher .jl-kb-launcher {
   color-scheme: light;
-}
-
-.theme-nebula #jlKbLauncher .kb-launcher-workbench,
-.theme-nebula #jlKbLauncher .kb-launcher-action-btn,
-.theme-nebula #jlKbLauncher .kb-stats-bar .kb-stat-card {
-  background: #ffffff;
-  color: #1a1c1e;
-}
-
-.theme-nebula #jlKbLauncher .kb-launcher-title {
-  color: #1a1c1e !important;
-}
-
-.theme-nebula #jlKbLauncher .kb-launcher-meta {
-  color: #70757a !important;
-}
-
-.theme-nebula #jlKbLauncher .kb-launcher-action-btn {
-  background: #ffffff !important;
-  color: #0066ff !important;
-  border-color: rgba(0, 102, 255, 0.28) !important;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
-}
-
-.theme-nebula #jlKbLauncher .kb-stats-bar .kb-stat-card {
-  background: #ffffff !important;
-  border-color: #e8eef5 !important;
-}
-
-.theme-nebula #jlKbLauncher .kb-stats-bar .kb-stat-card__label {
-  color: #70757a !important;
-}
-
-.theme-nebula #jlKbLauncher .kb-stats-bar .kb-stat-card__value {
-  color: #1a1c1e !important;
 }
 
 .theme-nebula #jlKbFloatLibraries .kb-dir-menu__trigger {
@@ -1795,187 +1760,85 @@ body.jl-float-desktop-active .jl-float-win__body:has(#jlKbFloatLibraries) {
   background: transparent;
 }
 
-#jlKbLauncher.jl-float-section-host {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-#jlKbLauncher.jl-float-panel-host {
-  display: flex !important;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+.jl-kb-launcher {
   height: 100%;
-  overflow: hidden;
-}
-
-body.jl-float-desktop-active .jl-float-win__body:has(#jlKbLauncher) {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
-  flex: 1 1 auto;
-  padding: 10px 12px 12px;
-  background: transparent;
-}
-
-#jlKbLauncher .kb-launcher-workbench {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
-  padding: 4px 2px 6px;
-  background: linear-gradient(165deg, #eef4ff 0%, #f0f4f8 48%, #f8fbff 100%);
+  padding: 4px 2px;
+  background: linear-gradient(165deg, #eef4ff 0%, #f4f7fa 48%, #f8fbff 100%);
+  border: 0;
+  box-shadow: none;
 }
 
-#jlKbLauncher .kb-launcher-topbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-shrink: 0;
-}
-
-#jlKbLauncher .kb-launcher-topbar__brand {
-  min-width: 0;
-  flex: 1 1 auto;
+#jlKbLauncher .kb-launcher-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e3a8a;
 }
 
 #jlKbLauncher .kb-launcher-title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 #jlKbLauncher .kb-launcher-title-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
-  font-size: 17px;
-  color: #0066ff;
-  background: rgba(0, 102, 255, 0.1);
-  border: 1px solid rgba(0, 102, 255, 0.12);
-  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.08);
-}
-
-#jlKbLauncher .kb-launcher-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: #1a1c1e;
-  letter-spacing: 0.01em;
-}
-
-#jlKbLauncher .kb-launcher-meta {
-  margin: 6px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #70757a !important;
-}
-
-#jlKbLauncher .kb-launcher-topbar__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-#jlKbLauncher .kb-launcher-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 36px;
-  padding: 0 14px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
-  border: 1px solid rgba(0, 102, 255, 0.28);
-  background: #ffffff;
-  color: #0066ff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-#jlKbLauncher .kb-launcher-action-btn:hover {
-  border-color: rgba(0, 102, 255, 0.45);
-  color: #0052cc;
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.1);
-}
-
-#jlKbLauncher .kb-launcher-action-btn--icon {
-  width: 36px;
-  min-width: 36px;
-  padding: 0;
   font-size: 16px;
+  background: rgba(0, 102, 255, 0.1);
 }
 
-#jlKbLauncher .kb-launcher-stats {
-  flex-shrink: 0;
+#jlKbLauncher .kb-panel-desc {
+  color: #64748b !important;
 }
 
-#jlKbLauncher .kb-stats-bar {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
+#jlKbLauncher .kb-stats-wrap {
+  margin-top: 4px;
 }
 
 #jlKbLauncher .kb-stats-bar .kb-stat-card {
   border: 1px solid #e8eef5;
   border-radius: 12px;
   background: #ffffff;
-  padding: 12px 14px;
-  min-height: 72px;
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.05);
+  padding: 10px 12px;
+  min-height: 58px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
 
 #jlKbLauncher .kb-stats-bar .kb-stat-card__label {
   font-size: 11px;
-  color: #70757a;
-  margin-bottom: 4px;
-}
-
-#jlKbLauncher .kb-stats-bar .kb-stat-card__value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1c1e;
-  line-height: 1.3;
-}
-
-#jlKbLauncher .kb-stats-bar .kb-stat-card--ok .kb-stat-card__value {
-  color: #059669;
-}
-
-#jlKbLauncher .kb-stats-bar .kb-stat-card--warn .kb-stat-card__value {
-  color: #d97706;
-}
-
-#jlKbLauncher .kb-stats-bar .kb-stat-stack__sub {
   color: #94a3b8;
 }
 
-@media (max-width: 900px) {
-  #jlKbLauncher .kb-stats-bar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+#jlKbLauncher .kb-stats-bar .kb-stat-card__value {
+  font-size: 15px;
+  color: #0f172a;
 }
 
-@media (max-width: 640px) {
-  #jlKbLauncher .kb-launcher-topbar {
-    flex-direction: column;
-  }
+#jlKbLauncher .kb-stats-ops-btn {
+  border-radius: 10px;
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #475569;
+  font-weight: 600;
+}
 
-  #jlKbLauncher .kb-stats-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+#jlKbLauncher .kb-stats-ops-btn:hover {
+  border-color: #93c5fd;
+  color: #0066ff;
+}
+
+#jlKbLauncher .kb-config-icon-btn {
+  border-radius: 10px;
+  border: 1px solid #dbe3f0;
+  background: #fff;
 }
 
 .jl-kb-launcher__grid {

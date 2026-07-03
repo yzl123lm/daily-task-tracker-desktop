@@ -974,26 +974,24 @@
 
         <div id="panel-knowledge-base" class="tab-panel kb-panel-stretch" role="tabpanel" hidden>
           <div id="jlKbLauncher" class="jl-float-section-host">
-            <div class="kb-launcher-workbench">
-              <header class="kb-launcher-topbar">
-                <div class="kb-launcher-topbar__brand">
+            <section class="card kb-panel-card jl-kb-launcher">
+              <div class="kb-panel-head kb-launcher-head">
+                <div class="kb-panel-head__titles">
                   <div class="kb-launcher-title-row">
                     <span class="kb-launcher-title-icon" aria-hidden="true">🛡</span>
-                    <h2 class="kb-launcher-title">本地知识库</h2>
+                    <h2>本地知识库</h2>
                   </div>
-                  <p class="field-hint kb-launcher-meta">向量 + 关键词 + 元数据多路召回 · 可解释排序与检索调试</p>
+                  <p class="field-hint kb-panel-desc">向量 + 关键词 + 元数据多路召回 · 可解释排序与检索调试</p>
                 </div>
-                <div class="kb-launcher-topbar__actions">
-                  <button type="button" id="kbConfigOpenBtn" class="kb-launcher-action-btn kb-launcher-action-btn--icon" title="知识库配置" aria-label="知识库配置">
-                    <span aria-hidden="true">⚙</span>
-                  </button>
-                  <button type="button" id="kbStatsOpsLogBtn" class="kb-launcher-action-btn">操作日志</button>
-                </div>
-              </header>
-              <section class="kb-launcher-stats" aria-label="知识库概览">
-                <div id="kbStatsBar" class="kb-stats-bar"></div>
-              </section>
-            </div>
+                <button type="button" id="kbConfigOpenBtn" class="secondary kb-config-icon-btn" title="知识库配置" aria-label="知识库配置">
+                  <span aria-hidden="true">⚙</span>
+                </button>
+              </div>
+              <div class="kb-stats-wrap">
+                <div id="kbStatsBar" class="kb-stats-bar" aria-label="知识库概览"></div>
+                <button type="button" id="kbStatsOpsLogBtn" class="secondary kb-stats-ops-btn" title="查看操作日志">操作日志</button>
+              </div>
+            </section>
           </div>
           <div id="jlKbFloatLibraries" class="jl-float-section-host kb-libraries-panel">
               <div class="kb-lib-workbench">
