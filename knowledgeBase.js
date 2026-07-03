@@ -114,6 +114,12 @@
     trialDebug: document.getElementById("kbTrialDebug"),
     trialSearchAllLibraries: document.getElementById("kbTrialSearchAllLibraries"),
     trialLibraries: document.getElementById("kbTrialLibraries"),
+    trialSettingsMeta: document.getElementById("kbTrialSettingsMeta"),
+    trialResultsToolbar: document.getElementById("kbTrialResultsToolbar"),
+    trialResultsSummary: document.getElementById("kbTrialResultsSummary"),
+    trialLayoutGrid: document.getElementById("kbTrialLayoutGrid"),
+    trialLayoutList: document.getElementById("kbTrialLayoutList"),
+    trialPagination: document.getElementById("kbTrialPagination"),
     configDialog: document.getElementById("kbConfigDialog"),
     configOpenBtn: document.getElementById("kbConfigOpenBtn"),
     configCloseBtn: document.getElementById("kbConfigCloseBtn"),
@@ -1272,7 +1278,7 @@
       if (!items.length) {
         el.opsLogList.innerHTML = `<div class="kb-ops-log-empty-state">
           <p class="kb-ops-log-empty__title">暂无操作记录</p>
-          <p class="kb-ops-log-empty__hint">执行检索试用、文件入库或自动学习后，将在此展示相关日志。</p>
+          <p class="kb-ops-log-empty__hint">执行知识检索、文件入库或自动学习后，将在此展示相关日志。</p>
         </div>`;
         return;
       }
@@ -1993,15 +1999,23 @@
 
   function buildKbTrialHitCardHtml(hit, index) {
     const score = Number(hit.finalScore ?? hit.score ?? 0);
+    const category = String(hit.libraryName || "文档").trim() || "文档";
+    const title = pathBasename(hit.sourceFile || hit.docName || "未命名文档") || formatHitTitle(hit);
     const preview = String(hit.text || "")
       .trim()
       .replace(/\s+/g, " ");
     const previewShort = preview.length > 160 ? `${preview.slice(0, 160)}…` : preview || "（无预览）";
+    const pathHint = hit.sourcePath && !String(hit.sourcePath).startsWith("ai://")
+      ? String(hit.sourcePath).trim()
+      : "";
+    const pathShort = pathHint.length > 72 ? `…${pathHint.slice(-68)}` : pathHint;
     return [
       `<header class="kb-trial-card__head">`,
       `<span class="kb-trial-card__rank" aria-hidden="true">${index + 1}</span>`,
-      `<h4 class="kb-trial-card__title">${htmlEsc(formatHitTitle(hit))}</h4>`,
+      `<span class="kb-trial-card__category">${htmlEsc(category)}</span>`,
       `</header>`,
+      `<h4 class="kb-trial-card__title">${htmlEsc(title)}</h4>`,
+      pathShort ? `<p class="kb-trial-card__path">${htmlEsc(pathShort)}</p>` : "",
       `<p class="kb-trial-card__snippet">${htmlEsc(previewShort)}</p>`,
       `<footer class="kb-trial-card__foot">`,
       `<span class="kb-trial-card__score">相关度 ${score.toFixed(3)}</span>`,
@@ -2404,7 +2418,7 @@
     setStatus(
       `${summary}（阈值 ≥ ${Number(pending.minScore ?? 0.55).toFixed(2)}，候选池 ${pending.searchCandidateK || "—"}）。`
     );
-    renderTrialResultHint(summary, (pending.hits || []).length, pending.hits || [], query || activeSearchQueryText);
+    renderTrialResultHint(summary, (pending.hits || []).length, pending.hits || [], query || activeSearchQueryText, pending.embedDevice);
     if (pending.debug && el.trialDebug) {
       const d = pending.debug;
       el.trialDebug.hidden = false;
@@ -2736,43 +2750,156 @@
     return parts[parts.length - 1] || text;
   }
 
-  function renderTrialResultHint(summary, hitCount, hits, query) {
+  const TRIAL_RESULTS_PAGE_SIZE = 6;
+  let trialDisplayState = {
+    hits: [],
+    query: "",
+    summary: "",
+    hitCount: 0,
+    page: 1,
+    layout: "grid",
+    lastEmbedDevice: null,
+  };
+
+  function formatTrialSearchModeLabel(mode) {
+    const map = { auto: "自动", vector: "向量优先", keyword: "关键词优先", hybrid: "混合" };
+    return map[String(mode || "").trim()] || String(mode || "自动");
+  }
+
+  function renderTrialSearchSettingsMeta(embedDevice) {
+    if (!el.trialSettingsMeta) {
+      return;
+    }
+    const hybrid = el.hybridSearch?.checked !== false;
+    const topK = Math.max(1, Number(el.searchTopK?.value) || 5);
+    const model = String(el.embedModel?.value || "bge-m3").trim() || "bge-m3";
+    const mode = formatTrialSearchModeLabel(el.searchMode?.value);
+    const rerankOn = el.rerankEnabled?.checked !== false;
+    const rerankModel = String(el.rerankModel?.value || "").trim();
+    const dev = embedDevice || trialDisplayState.lastEmbedDevice;
+    let vectorPower = "自动";
+    let vectorBadge = "";
+    if (dev) {
+      vectorPower = String(dev.label || dev.actual || "未知");
+      const reqMap = { gpu: "优先 GPU", cpu: "仅 CPU", auto: "自动" };
+      const req = reqMap[dev.requested] || String(dev.requested || "");
+      if (req) {
+        vectorBadge = `<span class="kb-search-settings-meta__badge">${htmlEsc(req)}</span>`;
+      }
+    }
+    const rows = [
+      ["向量算力", `${htmlEsc(vectorPower)}${vectorBadge}`],
+      ["嵌入模型", htmlEsc(model)],
+      ["返回条数", htmlEsc(String(topK))],
+      ["检索模式", htmlEsc(mode)],
+      ["混合检索", hybrid ? "已开启" : "已关闭"],
+      ["重排", rerankOn ? htmlEsc(rerankModel || "已开启") : "已关闭"],
+    ];
+    el.trialSettingsMeta.innerHTML = rows
+      .map(
+        ([label, value]) =>
+          `<div class="kb-search-settings-meta__row"><dt>${htmlEsc(label)}</dt><dd>${value}</dd></div>`,
+      )
+      .join("");
+  }
+
+  function syncTrialLayoutButtons() {
+    const isGrid = trialDisplayState.layout !== "list";
+    el.trialLayoutGrid?.classList.toggle("is-active", isGrid);
+    el.trialLayoutList?.classList.toggle("is-active", !isGrid);
+    el.trialLayoutGrid?.setAttribute("aria-pressed", isGrid ? "true" : "false");
+    el.trialLayoutList?.setAttribute("aria-pressed", !isGrid ? "true" : "false");
+  }
+
+  function renderTrialPagination(total, page, pageSize) {
+    if (!el.trialPagination) {
+      return;
+    }
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    if (total <= pageSize) {
+      el.trialPagination.hidden = true;
+      el.trialPagination.innerHTML = "";
+      return;
+    }
+    el.trialPagination.hidden = false;
+    const prevDisabled = page <= 1;
+    const nextDisabled = page >= pages;
+    const pageButtons = [];
+    for (let i = 1; i <= pages; i += 1) {
+      pageButtons.push(
+        `<button type="button" class="kb-trial-page-btn${i === page ? " is-active" : ""}" data-kb-trial-page="${i}" aria-label="第 ${i} 页"${i === page ? ' aria-current="page"' : ""}>${i}</button>`,
+      );
+    }
+    el.trialPagination.innerHTML = [
+      `<button type="button" class="kb-trial-page-btn kb-trial-page-btn--nav" data-kb-trial-page="prev" aria-label="上一页"${prevDisabled ? " disabled" : ""}>‹</button>`,
+      ...pageButtons,
+      `<button type="button" class="kb-trial-page-btn kb-trial-page-btn--nav" data-kb-trial-page="next" aria-label="下一页"${nextDisabled ? " disabled" : ""}>›</button>`,
+    ].join("");
+    el.trialPagination.querySelectorAll("[data-kb-trial-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const action = btn.getAttribute("data-kb-trial-page");
+        if (action === "prev" && trialDisplayState.page > 1) {
+          trialDisplayState.page -= 1;
+        } else if (action === "next" && trialDisplayState.page < pages) {
+          trialDisplayState.page += 1;
+        } else if (/^\d+$/.test(action)) {
+          trialDisplayState.page = Number(action);
+        } else {
+          return;
+        }
+        renderTrialResultCards();
+      });
+    });
+  }
+
+  function renderTrialResultCards() {
     if (!el.trialResults) {
       return;
     }
+    const { hits, query, summary, hitCount, page, layout } = trialDisplayState;
+    const pageSize = TRIAL_RESULTS_PAGE_SIZE;
+    const start = (page - 1) * pageSize;
+    const pageHits = hits.slice(start, start + pageSize);
     el.trialResults.innerHTML = "";
     const shell = document.createElement("div");
     shell.className = "kb-trial-results-shell";
 
-    const hint = document.createElement("p");
-    hint.className = "field-hint kb-trial-result-hint";
-    hint.textContent =
-      hitCount > 0
-        ? isKbTrialFloatPanel()
-          ? `共 ${hitCount} 条命中。点击下方卡片查看详情，或在卡片内继续追问。`
-          : `共 ${hitCount} 条命中。下方为预览，可继续追问或打开弹窗浏览详情。`
-        : isKbTrialFloatPanel()
-          ? String(summary || "未检索到相关内容。")
-          : String(summary || "未检索到相关内容。详细说明见检索结果弹窗。");
-    shell.appendChild(hint);
+    if (el.trialResultsToolbar) {
+      if (hitCount > 0 || summary) {
+        el.trialResultsToolbar.hidden = false;
+        if (el.trialResultsSummary) {
+          el.trialResultsSummary.textContent =
+            hitCount > 0
+              ? isKbTrialFloatPanel()
+                ? `共 ${hitCount} 条命中。点击下方卡片查看详情，或在卡片内继续追问。`
+                : `共 ${hitCount} 条命中。下方为预览，可继续追问或打开弹窗浏览详情。`
+              : isKbTrialFloatPanel()
+                ? String(summary || "未检索到相关内容。")
+                : String(summary || "未检索到相关内容。详细说明见检索结果弹窗。");
+        }
+      } else {
+        el.trialResultsToolbar.hidden = true;
+      }
+    }
 
-    if (Array.isArray(hits) && hits.length) {
+    if (pageHits.length) {
       const scroll = document.createElement("div");
       scroll.className = "kb-trial-card-scroll";
       scroll.setAttribute("tabindex", "0");
       scroll.setAttribute("aria-label", "检索命中卡片列表");
       const grid = document.createElement("div");
-      grid.className = "kb-trial-card-grid";
-      hits.forEach((hit, index) => {
+      grid.className = layout === "list" ? "kb-trial-card-grid is-list" : "kb-trial-card-grid";
+      pageHits.forEach((hit, localIndex) => {
+        const globalIndex = start + localIndex;
         const card = document.createElement("article");
         card.className = "kb-trial-hit-card";
-        card.innerHTML = buildKbTrialHitCardHtml(hit, index);
+        card.innerHTML = buildKbTrialHitCardHtml(hit, globalIndex);
         card.addEventListener("click", (ev) => {
           if (ev.target.closest(".kb-kb-followup-btn")) {
             return;
           }
           openSearchResultDialog(query, { reuseResults: true });
-          selectSearchResultHit(index);
+          selectSearchResultHit(globalIndex);
         });
         grid.appendChild(card);
       });
@@ -2782,6 +2909,24 @@
     }
     el.trialResults.appendChild(shell);
     el.trialResults.classList.add("is-active");
+    renderTrialPagination(hitCount, page, pageSize);
+    syncTrialLayoutButtons();
+  }
+
+  function renderTrialResultHint(summary, hitCount, hits, query, embedDevice) {
+    trialDisplayState = {
+      hits: Array.isArray(hits) ? hits : [],
+      query: String(query || ""),
+      summary: String(summary || ""),
+      hitCount: Number(hitCount) || 0,
+      page: 1,
+      layout: trialDisplayState.layout || "grid",
+      lastEmbedDevice: embedDevice || trialDisplayState.lastEmbedDevice,
+    };
+    if (embedDevice) {
+      renderTrialSearchSettingsMeta(embedDevice);
+    }
+    renderTrialResultCards();
   }
 
   function clearTrialForm() {
@@ -2793,6 +2938,22 @@
       el.trialResults.innerHTML = "";
       el.trialResults.classList.remove("is-active");
     }
+    if (el.trialResultsToolbar) {
+      el.trialResultsToolbar.hidden = true;
+    }
+    if (el.trialPagination) {
+      el.trialPagination.hidden = true;
+      el.trialPagination.innerHTML = "";
+    }
+    trialDisplayState = {
+      hits: [],
+      query: "",
+      summary: "",
+      hitCount: 0,
+      page: 1,
+      layout: trialDisplayState.layout || "grid",
+      lastEmbedDevice: trialDisplayState.lastEmbedDevice,
+    };
     if (el.trialDebug) {
       el.trialDebug.hidden = true;
       el.trialDebug.innerHTML = "";
@@ -2896,7 +3057,7 @@
       el.trialSelectAll.disabled = disabled;
     }
     el.trialLibraries.style.opacity = disabled ? "0.6" : "1";
-    const wrap = el.trialLibraries.closest(".kb-trial-libraries-wrap");
+    const wrap = el.trialLibraries.closest(".kb-search-libraries-section, .kb-trial-libraries-wrap");
     if (wrap) {
       wrap.style.opacity = disabled ? "0.6" : "1";
     }
@@ -3114,6 +3275,7 @@
       renderLibraries(st.activeLibraryId, st.libraries || []);
       renderTrialLibraries(st.activeLibraryId, st.libraries || []);
       syncTrialLibrarySelectorState();
+      renderTrialSearchSettingsMeta();
       const activeName =
         (st.libraries || []).find((x) => x.id === st.activeLibraryId)?.name || st.activeLibraryId || "默认";
       const groupedDocs =
@@ -5535,7 +5697,7 @@
     closeConfigDialog();
     el.trialQuery?.focus();
     el.trialQuery?.scrollIntoView({ behavior: "smooth", block: "center" });
-    setStatus("已切换到检索试用，可输入问题预览召回效果。");
+    setStatus("已切换到知识检索，可输入问题预览召回效果。");
   });
 
   el.configNavItems.forEach((btn) => {
@@ -5616,6 +5778,16 @@
 
   el.trialReset?.addEventListener("click", () => {
     clearTrialForm();
+  });
+
+  el.trialLayoutGrid?.addEventListener("click", () => {
+    trialDisplayState.layout = "grid";
+    renderTrialResultCards();
+  });
+
+  el.trialLayoutList?.addEventListener("click", () => {
+    trialDisplayState.layout = "list";
+    renderTrialResultCards();
   });
 
   el.trialClear?.addEventListener("click", () => {
@@ -5749,7 +5921,7 @@
           query: q,
         };
       }
-      renderTrialResultHint(summary, (out.hits || []).length, out.hits || [], q);
+      renderTrialResultHint(summary, (out.hits || []).length, out.hits || [], q, out.embedDevice);
       if (out.debug && el.trialDebug) {
         const d = out.debug;
         el.trialDebug.hidden = false;

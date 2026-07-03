@@ -964,8 +964,8 @@
               <button type="button" class="jl-kb-hub__tile" data-kb-hub-route="kb-search">
                 <span class="jl-kb-hub__tile-icon" aria-hidden="true">🔍</span>
                 <span class="jl-kb-hub__tile-text">
-                  <span class="jl-kb-hub__tile-label">检索试用</span>
-                  <span class="jl-kb-hub__tile-desc">多路召回检索测试</span>
+                  <span class="jl-kb-hub__tile-label">知识检索</span>
+                  <span class="jl-kb-hub__tile-desc">多库联合知识检索</span>
                 </span>
               </button>
             </div>
@@ -1204,48 +1204,68 @@
           </div>
           <div id="jlKbFloatSearch" class="jl-float-section-host">
                 <div class="kb-search-workbench">
-                  <div class="kb-search-box kb-search-trial-box">
-                    <div class="kb-trial-form">
-                      <div class="kb-trial-head">
-                        <h3 class="kb-subtitle">检索试用</h3>
-                        <div class="kb-trial-head__actions">
-                          <button type="button" id="kbTrialClearBtn" class="secondary kb-trial-head-btn">清空条件</button>
-                          <button type="button" id="kbTrialSettingsBtn" class="secondary kb-trial-head-btn">检索设置</button>
+                  <div class="kb-search-body">
+                    <aside class="kb-search-sidebar" aria-label="检索范围与设置">
+                      <header class="kb-search-sidebar__head">
+                        <span class="kb-search-sidebar__spark" aria-hidden="true">✦</span>
+                        <h3 class="kb-search-sidebar__title">知识检索</h3>
+                        <div class="kb-search-sidebar__head-actions">
+                          <button type="button" id="kbTrialClearBtn" class="kb-search-sidebar-btn" title="清空条件">清空</button>
+                          <button type="button" id="kbTrialSettingsBtn" class="kb-search-sidebar-btn is-link" title="打开检索设置">检索设置</button>
                         </div>
-                      </div>
-                      <p class="field-hint kb-trial-desc">在选定的知识库范围内进行检索测试，支持多库联合检索。</p>
-                      <div class="kb-trial-scope-box">
-                        <label class="record-inline-check kb-trial-multi-check">
-                          <input id="kbTrialSearchAllLibraries" type="checkbox" checked /> 多知识库联合检索
+                      </header>
+                      <section class="kb-search-sidebar__section">
+                        <label class="kb-search-toggle">
+                          <input id="kbTrialSearchAllLibraries" type="checkbox" checked />
+                          <span class="kb-search-toggle__track" aria-hidden="true"></span>
+                          <span class="kb-search-toggle__label">多知识库联合检索</span>
                         </label>
-                        <div class="kb-trial-libraries-wrap">
-                          <label class="record-inline-check kb-trial-select-all">
-                            <input id="kbTrialSelectAll" type="checkbox" checked /> 全选
-                          </label>
-                          <div id="kbTrialLibraries" class="kb-trial-libraries"></div>
-                        </div>
+                      </section>
+                      <section class="kb-search-sidebar__section kb-search-libraries-section">
+                        <label class="record-inline-check kb-trial-select-all">
+                          <input id="kbTrialSelectAll" type="checkbox" checked /> 全选
+                        </label>
+                        <div id="kbTrialLibraries" class="kb-trial-libraries"></div>
+                      </section>
+                      <section class="kb-search-sidebar__section">
+                        <h4 class="kb-search-sidebar__section-title">检索设置</h4>
+                        <dl id="kbTrialSettingsMeta" class="kb-search-settings-meta" aria-label="当前检索配置"></dl>
+                      </section>
+                      <div class="kb-search-tips" role="note">
+                        <span class="kb-search-tips__icon" aria-hidden="true">💡</span>
+                        <p class="kb-search-tips__text">勾选知识库范围后输入问题即可检索；可在「检索设置」中调整 TopK、混合检索与重排策略。</p>
                       </div>
-                      <div class="kb-trial-query-row">
-                        <label class="kb-trial-query-label">
-                          <span class="kb-trial-query-label__text">问题</span>
+                    </aside>
+                    <main class="kb-search-main">
+                      <div class="kb-search-main__query">
+                        <label class="kb-search-query-label">
+                          <span class="kb-search-query-label__text">提问</span>
                           <div class="kb-trial-query-field">
-                            <textarea id="kbTrialQuery" rows="2" maxlength="500" placeholder="请输入要问知识库的内容…" autocomplete="off"></textarea>
+                            <textarea id="kbTrialQuery" rows="3" maxlength="500" placeholder="请输入要问知识库的内容…" autocomplete="off"></textarea>
                             <span id="kbTrialCharCount" class="kb-trial-char-count">0/500</span>
                           </div>
                         </label>
+                        <div class="kb-trial-footer">
+                          <div class="kb-trial-footer__left">
+                            <button type="button" id="kbTrialSearchBtn" class="kb-trial-search-btn">检索</button>
+                            <button type="button" id="kbTrialResetBtn" class="secondary kb-search-reset-btn">重置</button>
+                          </div>
+                          <button type="button" id="kbTrialHistoryBtn" class="kb-panel-link kb-trial-history-link">检索历史 →</button>
+                        </div>
                       </div>
-                    </div>
-                    <div class="kb-trial-footer">
-                      <div class="kb-trial-footer__left">
-                        <button type="button" id="kbTrialSearchBtn" class="kb-trial-search-btn">检索</button>
-                        <button type="button" id="kbTrialResetBtn" class="secondary">重置</button>
+                      <p id="kbTrialStatus" class="kb-trial-status" hidden aria-live="polite"></p>
+                      <div id="kbTrialModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
+                      <div id="kbTrialResultsToolbar" class="kb-trial-results-toolbar" hidden>
+                        <p id="kbTrialResultsSummary" class="kb-trial-result-hint"></p>
+                        <div class="kb-trial-view-toggle" role="group" aria-label="结果视图">
+                          <button type="button" id="kbTrialLayoutGrid" class="kb-trial-view-btn is-active" title="网格视图" aria-pressed="true">▦</button>
+                          <button type="button" id="kbTrialLayoutList" class="kb-trial-view-btn" title="列表视图" aria-pressed="false">☰</button>
+                        </div>
                       </div>
-                      <button type="button" id="kbTrialHistoryBtn" class="kb-panel-link kb-trial-history-link">检索历史 →</button>
-                    </div>
-                    <p id="kbTrialStatus" class="kb-trial-status" hidden aria-live="polite"></p>
-                    <div id="kbTrialModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
-                    <div id="kbTrialResults" class="kb-trial-results" aria-live="polite"></div>
-                    <div id="kbTrialDebug" class="kb-trial-debug" hidden aria-hidden="true"></div>
+                      <div id="kbTrialResults" class="kb-trial-results" aria-live="polite"></div>
+                      <nav id="kbTrialPagination" class="kb-trial-pagination" hidden aria-label="结果分页"></nav>
+                      <div id="kbTrialDebug" class="kb-trial-debug" hidden aria-hidden="true"></div>
+                    </main>
                   </div>
                 </div>
           </div>
