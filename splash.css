@@ -91,6 +91,8 @@ body {
   height: 72px;
   border-radius: 18px;
   box-shadow: 0 8px 24px rgba(34, 211, 238, 0.18);
+  object-fit: contain;
+  background: transparent;
 }
 
 .splash-title {

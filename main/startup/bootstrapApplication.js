@@ -45,11 +45,22 @@ function readBootstrapPayload() {
     }
   }
   let logoDataUrl = "";
-  const iconPath = path.join(__dirname, "..", "..", "build", "icon.png");
-  if (fs.existsSync(iconPath)) {
+  const installRoot = process.resourcesPath
+    ? path.dirname(process.resourcesPath)
+    : path.join(__dirname, "..", "..");
+  const logoCandidates = [
+    path.join(installRoot, "icon.png"),
+    path.join(__dirname, "..", "..", "build", "icon.png"),
+    path.join(__dirname, "..", "..", "assets", "icons", "app-icon.png"),
+  ];
+  for (const iconPath of logoCandidates) {
+    if (!fs.existsSync(iconPath)) {
+      continue;
+    }
     try {
       const buf = fs.readFileSync(iconPath);
       logoDataUrl = `data:image/png;base64,${buf.toString("base64")}`;
+      break;
     } catch {
       logoDataUrl = "";
     }

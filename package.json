@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win",
+    "build": "python scripts/generate-app-icon.py && electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:mac:dmg": "electron-builder --mac dmg",
     "build:mac:zip": "electron-builder --mac zip",
@@ -29,7 +29,8 @@
     "fix:ollama-models-path": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-ollama-models-path-win.ps1",
     "restart:ollama-english-models": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-ollama-english-models.ps1",
     "pull:kb-rerank-model": "ollama pull dengcao/bge-reranker-v2-m3",
-    "preload:kb-rerank-model": "node scripts/kb-preload-rerank-model.js"
+    "preload:kb-rerank-model": "node scripts/kb-preload-rerank-model.js",
+    "icons:generate": "python scripts/generate-app-icon.py"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
@@ -136,6 +137,10 @@
       {
         "from": "build/icon.ico",
         "to": "icon.ico"
+      },
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
       }
     ],
     "asarUnpack": [
@@ -157,7 +162,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "build/icon.png",
+      "icon": "build/icon.icns",
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "identity": null,
@@ -165,7 +170,7 @@
     },
     "dmg": {
       "title": "${productName} ${version}",
-      "icon": "build/icon.png"
+      "icon": "build/icon.icns"
     }
   }
 }

@@ -20,11 +20,15 @@ if (-not $mainExe) {
 $appName = [System.IO.Path]::GetFileNameWithoutExtension($mainExe.Name)
 $wsh = New-Object -ComObject WScript.Shell
 
-# Always prefer the packaged whale .ico — exe may still carry Electron's default icon.
+# Always refresh packaged whale icons from the latest build output.
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $repoIcon = Join-Path $projectRoot "build\icon.ico"
-if (-not (Test-Path -LiteralPath (Join-Path $instDir "icon.ico")) -and (Test-Path -LiteralPath $repoIcon)) {
+$repoPng = Join-Path $projectRoot "build\icon.png"
+if (Test-Path -LiteralPath $repoIcon) {
   Copy-Item -LiteralPath $repoIcon -Destination (Join-Path $instDir "icon.ico") -Force
+}
+if (Test-Path -LiteralPath $repoPng) {
+  Copy-Item -LiteralPath $repoPng -Destination (Join-Path $instDir "icon.png") -Force
 }
 
 $iconCandidates = @(

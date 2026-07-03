@@ -302,8 +302,12 @@ if (-not $mainExe) {
 }
 
 $repoIcon = Join-Path $ProjectRoot "build\icon.ico"
+$repoPng = Join-Path $ProjectRoot "build\icon.png"
 if (Test-Path -LiteralPath $repoIcon) {
   Copy-Item -LiteralPath $repoIcon -Destination (Join-Path $instDir "icon.ico") -Force
+}
+if (Test-Path -LiteralPath $repoPng) {
+  Copy-Item -LiteralPath $repoPng -Destination (Join-Path $instDir "icon.png") -Force
 }
 
 $shortcutScript = Join-Path $PSScriptRoot "create-client-shortcut.ps1"

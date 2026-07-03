@@ -3,7 +3,11 @@ const fs = require("fs");
 const { BrowserWindow } = require("electron");
 
 function resolveAppIconPath() {
+  const installRoot = process.resourcesPath
+    ? path.dirname(process.resourcesPath)
+    : path.join(__dirname, "..");
   const candidates = [
+    path.join(installRoot, "icon.ico"),
     path.join(__dirname, "..", "build", "icon.ico"),
     path.join(process.resourcesPath, "icon.ico"),
   ];
