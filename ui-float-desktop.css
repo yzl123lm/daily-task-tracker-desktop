@@ -1401,6 +1401,14 @@ body.jl-knowledge-float-active {
   overflow: auto;
 }
 
+dialog.kb-dialog-portal {
+  z-index: 12000;
+}
+
+dialog.kb-dialog-portal::backdrop {
+  z-index: 11999;
+}
+
 .jl-float-desktop.jl-float-desktop--overlay {
   position: fixed;
   inset: 0;

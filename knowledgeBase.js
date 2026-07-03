@@ -139,6 +139,39 @@
     graphMeta: document.getElementById("kbGraphMeta"),
     graphCanvas: document.getElementById("kbGraphCanvas"),
   };
+
+  const KB_DIALOG_PORTAL_IDS = [
+    "kbOpsLogDialog",
+    "kbModelHealthDialog",
+    "kbSearchResultDialog",
+    "kbSourceLocateDialog",
+    "kbConfigDialog",
+  ];
+
+  function portalKbDialogsToBody() {
+    KB_DIALOG_PORTAL_IDS.forEach((id) => {
+      const dlg = document.getElementById(id);
+      if (!dlg || dlg.dataset.kbPortaled === "1") {
+        return;
+      }
+      if (dlg.parentElement !== document.body) {
+        document.body.appendChild(dlg);
+      }
+      dlg.classList.add("kb-dialog-portal");
+      dlg.dataset.kbPortaled = "1";
+    });
+  }
+
+  function isKbTrialFloatPanel() {
+    return !!document.getElementById("jlKbFloatSearch")?.closest(".jl-float-win");
+  }
+
+  function shouldAutoOpenSearchResultDialog() {
+    return !isKbTrialFloatPanel();
+  }
+
+  portalKbDialogsToBody();
+
   let lastOpStatus = "";
   let lastModelHealthDiagnostics = "";
   let modelHealthCheckInFlight = false;
@@ -853,6 +886,7 @@
   function openModelHealthDialog() {
     renderModelHealthHistory();
     if (el.modelHealthDialog && typeof el.modelHealthDialog.showModal === "function") {
+      portalKbDialogsToBody();
       el.modelHealthDialog.showModal();
     }
   }
@@ -1225,6 +1259,7 @@
   }
 
   async function openOpsLogDialog(category = "all") {
+    portalKbDialogsToBody();
     const dlg = el.opsLogDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
       setStatus("当前环境不支持操作日志弹窗。", true);
@@ -1241,6 +1276,7 @@
   }
 
   function openConfigDialog() {
+    portalKbDialogsToBody();
     const dlg = el.configDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
       return;
@@ -2283,8 +2319,17 @@
       return false;
     }
     searchResultApplied = true;
-    ensureSearchResultDialogVisible();
-    populateSearchResultDialog(pending, query || activeSearchQueryText);
+    if (shouldAutoOpenSearchResultDialog()) {
+      ensureSearchResultDialogVisible();
+      populateSearchResultDialog(pending, query || activeSearchQueryText);
+    } else {
+      searchResultState = {
+        hits: Array.isArray(pending.hits) ? pending.hits : [],
+        out: pending,
+        selectedIndex: -1,
+        query: query || activeSearchQueryText,
+      };
+    }
     const latency = Number(pending.elapsedMs || 0);
     const hybridLabel = pending.hybridSearch ? "混合" : "向量";
     const profileLabel = pending.queryProfile ? ` · ${pending.queryProfile}` : "";
@@ -2526,6 +2571,7 @@
   }
 
   function openSearchResultDialog(query) {
+    portalKbDialogsToBody();
     const dlg = el.searchResultDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
       return;
@@ -2537,6 +2583,10 @@
   }
 
   function ensureSearchResultDialogVisible() {
+    if (!shouldAutoOpenSearchResultDialog()) {
+      return;
+    }
+    portalKbDialogsToBody();
     const dlg = el.searchResultDialog;
     if (dlg && typeof dlg.showModal === "function" && !dlg.open) {
       dlg.showModal();
@@ -2622,8 +2672,12 @@
     hint.className = "field-hint kb-trial-result-hint";
     hint.textContent =
       hitCount > 0
-        ? `${summary}。下方为命中预览，可继续追问或打开弹窗浏览详情。`
-        : `${summary}。详细说明见检索结果弹窗。`;
+        ? isKbTrialFloatPanel()
+          ? `${summary}。下方为命中预览，点击卡片可打开详情弹窗。`
+          : `${summary}。下方为命中预览，可继续追问或打开弹窗浏览详情。`
+        : isKbTrialFloatPanel()
+          ? `${summary}。`
+          : `${summary}。详细说明见检索结果弹窗。`;
     el.trialResults.appendChild(hint);
     if (Array.isArray(hits) && hits.length) {
       const grid = document.createElement("div");
@@ -5202,8 +5256,11 @@
     setTrialStatus("正在检索，请稍候…", { busy: true });
     setStatus("正在检索…");
     renderTrialLoading(q);
-    openSearchResultDialog(q);
-    startSearchLoadingTimer();
+    const useSearchDialog = shouldAutoOpenSearchResultDialog();
+    if (useSearchDialog) {
+      openSearchResultDialog(q);
+      startSearchLoadingTimer();
+    }
     stopSearchProgressListener();
     activeSearchProgressId = createSearchId();
     activeSearchQueryText = q;
@@ -5228,10 +5285,14 @@
         searchId: activeSearchProgressId,
       });
       const out = resolveSearchOutput(outRaw, q);
-      ensureSearchResultDialogVisible();
+      if (useSearchDialog) {
+        ensureSearchResultDialogVisible();
+      }
       if (!out?.ok) {
         const errText = out?.error || "检索失败";
-        renderSearchResultError(errText);
+        if (useSearchDialog) {
+          renderSearchResultError(errText);
+        }
         if (el.trialResults) {
           el.trialResults.innerHTML = "";
           const errBox = document.createElement("p");
@@ -5257,7 +5318,16 @@
       setStatus(
         `${summary}（阈值 ≥ ${Number(out.minScore ?? 0.55).toFixed(2)}，候选池 ${out.searchCandidateK || "—"}）。`
       );
-      populateSearchResultDialog(out, q);
+      if (useSearchDialog) {
+        populateSearchResultDialog(out, q);
+      } else {
+        searchResultState = {
+          hits: Array.isArray(out.hits) ? out.hits : [],
+          out,
+          selectedIndex: -1,
+          query: q,
+        };
+      }
       renderTrialResultHint(summary, (out.hits || []).length, out.hits || [], q);
       if (out.debug && el.trialDebug) {
         const d = out.debug;
@@ -5279,8 +5349,10 @@
       }
     } catch (err) {
       const errText = err.message || String(err);
-      ensureSearchResultDialogVisible();
-      renderSearchResultError(errText);
+      if (useSearchDialog) {
+        ensureSearchResultDialogVisible();
+        renderSearchResultError(errText);
+      }
       if (el.trialResults) {
         el.trialResults.innerHTML = "";
         const errBox = document.createElement("p");
@@ -5292,7 +5364,9 @@
       setTrialStatus(errText, { isErr: true });
       setStatus(errText, true);
     } finally {
-      stopSearchLoadingTimer();
+      if (useSearchDialog) {
+        stopSearchLoadingTimer();
+      }
       stopSearchProgressListener();
       searchProgressLogEl = null;
       setTrialSearchBusy(false);
