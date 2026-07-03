@@ -1,7 +1,7 @@
 (function (global) {
-  const STORAGE_KEY = "jl_recorder_monitor_geom_v4";
-  const DEFAULT_W = 450;
-  const DEFAULT_H = 600;
+  const STORAGE_KEY = "jl_recorder_monitor_geom_v5";
+  const DEFAULT_W = 860;
+  const DEFAULT_H = 680;
   const PINNED_Z = 9000;
   const RECORDER_LAYER_BASE_Z = 2000;
 
@@ -196,12 +196,18 @@
     floatWin?.classList.toggle("is-drawer-open", drawerOpen);
   }
 
-  function activateTab(tab, openDrawer = true) {
+  function activateTab(tab, openDrawer = false) {
     activeTab = tab || "record";
     const root = floatWin || document.getElementById("recorderFloatWin");
     if (!root) {
       return;
     }
+
+    root.querySelectorAll("[data-recorder-nav]").forEach((btn) => {
+      const active = btn.dataset.recorderNav === activeTab;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
 
     root.querySelectorAll("[data-recorder-drawer-tab]").forEach((btn) => {
       const active = btn.dataset.recorderDrawerTab === activeTab;
@@ -220,6 +226,12 @@
   }
 
   function bindTabs() {
+    floatWin?.querySelectorAll("[data-recorder-nav]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activateTab(btn.dataset.recorderNav || "record", false);
+      });
+    });
+
     floatWin?.querySelectorAll("[data-recorder-drawer-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const tab = btn.dataset.recorderDrawerTab || "record";
@@ -362,7 +374,7 @@
         history: "history",
       };
       show();
-      activateTab(map[legacyKey] || legacyKey || "record", true);
+      activateTab(map[legacyKey] || legacyKey || "record", false);
     };
 
     global.RecorderMonitor = api();

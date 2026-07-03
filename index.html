@@ -1602,157 +1602,163 @@
         </header>
 
         <div class="recorder-monitor__shell">
-          <div class="recorder-monitor__body">
-            <div class="recorder-monitor__hero">
-              <div class="recorder-monitor__hero-top">
-                <span id="recordLiveBadge" class="recorder-monitor__live-badge">STANDBY</span>
-                <span id="recordTimer" class="recorder-timer" aria-live="polite">00:00:00</span>
-              </div>
-              <div class="recorder-wave recorder-monitor__wave" aria-hidden="true">
-                <canvas id="recordWaveCanvas" class="recorder-monitor__wave-canvas" width="400" height="56"></canvas>
-                <svg class="recorder-wave-svg recorder-monitor__wave-fallback" viewBox="0 0 320 64" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="recordWaveStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-                      <stop offset="0%" stop-color="#2F80FF" />
-                      <stop offset="100%" stop-color="#5DA8FF" />
-                    </linearGradient>
-                  </defs>
-                  <path class="recorder-wave-path" d="M0 32 Q20 8 40 32 T80 32 T120 32 T160 32 T200 32 T240 32 T280 32 T320 32" />
-                </svg>
-              </div>
-            </div>
+          <div class="record-assistant recorder-monitor__assistant">
+            <div class="record-assistant__shell">
+              <aside class="record-assistant__nav">
+                <nav class="record-assistant__nav-list" aria-label="会议记录模块">
+                  <button type="button" class="record-assistant__nav-item is-active" data-recorder-nav="record" aria-pressed="true">
+                    <span class="record-assistant__nav-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </span>
+                    <span class="record-assistant__nav-text">
+                      <span class="record-assistant__nav-label">录音</span>
+                      <span class="record-assistant__nav-desc">开始录制音频</span>
+                    </span>
+                  </button>
+                  <button type="button" class="record-assistant__nav-item" data-recorder-nav="transcribe" aria-pressed="false">
+                    <span class="record-assistant__nav-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12c2-6 6-8 8-8s6 2 8 8-6 8-8 8-6-2-8-8z" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <span class="record-assistant__nav-text">
+                      <span class="record-assistant__nav-label">转写</span>
+                      <span class="record-assistant__nav-desc">音频转文字</span>
+                    </span>
+                  </button>
+                  <button type="button" class="record-assistant__nav-item" data-recorder-nav="summary" aria-pressed="false">
+                    <span class="record-assistant__nav-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <span class="record-assistant__nav-text">
+                      <span class="record-assistant__nav-label">纪要</span>
+                      <span class="record-assistant__nav-desc">智能生成纪要</span>
+                    </span>
+                  </button>
+                  <button type="button" class="record-assistant__nav-item" data-recorder-nav="history" aria-pressed="false">
+                    <span class="record-assistant__nav-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                    </span>
+                    <span class="record-assistant__nav-text">
+                      <span class="record-assistant__nav-label">最近记录</span>
+                      <span class="record-assistant__nav-desc">查看历史记录</span>
+                    </span>
+                  </button>
+                </nav>
+              </aside>
 
-            <div class="recorder-monitor__grid">
-              <div class="recorder-monitor__tile">
-                <div class="recorder-monitor__tile-head">
-                  <span class="recorder-monitor__tile-label">Live</span>
-                  <span id="recordLiveIndicator" class="recorder-monitor__tile-dot" aria-hidden="true"></span>
-                </div>
-                <p id="recordStatus" class="recorder-monitor__tile-value">待机</p>
-              </div>
-              <div class="recorder-monitor__tile">
-                <div class="recorder-monitor__tile-head">
-                  <span class="recorder-monitor__tile-label">说话人</span>
-                </div>
-                <p id="recordCurrentSpeaker" class="recorder-monitor__tile-value">—</p>
-              </div>
-              <div class="recorder-monitor__tile">
-                <div class="recorder-monitor__tile-head">
-                  <span class="recorder-monitor__tile-label">风险提示</span>
-                </div>
-                <ul id="recordRiskList" class="recorder-monitor__list">
-                  <li class="recorder-monitor__list-empty">暂无风险</li>
-                </ul>
-              </div>
-              <div class="recorder-monitor__tile">
-                <div class="recorder-monitor__tile-head">
-                  <span class="recorder-monitor__tile-label">时间节点</span>
-                </div>
-                <ol id="recordTimeline" class="recorder-monitor__timeline">
-                  <li class="recorder-monitor__list-empty">等待开始</li>
-                </ol>
-              </div>
-              <div class="recorder-monitor__tile recorder-monitor__tile--wide">
-                <div class="recorder-monitor__tile-head">
-                  <span class="recorder-monitor__tile-label">同步状态</span>
-                </div>
-                <p id="recordSyncStatus" class="recorder-monitor__tile-value">未连接</p>
-                <p id="recordSyncDetail" class="recorder-monitor__tile-meta">ASR · 待机</p>
-              </div>
-            </div>
+              <main class="record-assistant__main">
+                <section class="record-assistant__panel" data-recorder-panel="record">
+                  <div class="record-assistant__card record-assistant__card--capture">
+                    <div class="record-assistant__timer-row">
+                      <span id="recordLiveDot" class="record-assistant__live-dot" aria-hidden="true"></span>
+                      <span id="recordTimer" class="record-assistant__timer" aria-live="polite">00:00:00</span>
+                    </div>
+                    <div class="recorder-wave record-assistant__wave" aria-hidden="true">
+                      <canvas id="recordWaveCanvas" class="recorder-monitor__wave-canvas" width="400" height="56"></canvas>
+                      <svg class="recorder-wave-svg record-assistant__wave-svg" viewBox="0 0 320 64" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="recordWaveStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#2F80FF" />
+                            <stop offset="100%" stop-color="#5DA8FF" />
+                          </linearGradient>
+                        </defs>
+                        <path class="recorder-wave-path record-assistant__wave-path" d="M0 32 Q20 8 40 32 T80 32 T120 32 T160 32 T200 32 T240 32 T280 32 T320 32" />
+                      </svg>
+                    </div>
+                    <div class="record-assistant__mic-wrap">
+                      <button type="button" id="recordStartBtn" class="record-assistant__mic-btn" title="开始录音" aria-label="开始录音">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                      </button>
+                    </div>
+                    <p class="record-assistant__hint">点击按钮开始录音</p>
+                    <p class="record-assistant__subhint">支持高质量录音与实时转写</p>
+                    <div id="recordCaptureToolbar" class="record-assistant__toolbar" hidden>
+                      <button type="button" id="recordStopBtn" class="recorder-btn recorder-btn--primary" disabled>停止</button>
+                      <label class="record-assistant__check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
+                      <button type="button" id="recordASRSettingsBtn" class="recorder-btn recorder-btn--ghost">ASR 设置</button>
+                    </div>
+                    <p id="recordStatus" class="record-assistant__status">待机</p>
+                  </div>
+                  <div class="record-assistant__card record-assistant__card--recent-preview">
+                    <h3 class="record-assistant__card-title">最近记录</h3>
+                    <ul id="recordRecentList" class="record-assistant__recent-list" aria-label="最近会议记录"></ul>
+                  </div>
+                </section>
 
-            <div class="recorder-monitor__footer">
-              <button type="button" id="recordStartBtn" class="recorder-mic-btn recorder-monitor__mic" title="开始录音" aria-label="开始录音">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path d="M6 11a6 6 0 0012 0M12 17v4M8 21h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-              </button>
-              <div class="recorder-monitor__actions" id="recordCaptureToolbar" hidden>
-                <button type="button" id="recordStopBtn" class="recorder-btn recorder-btn--primary" disabled>停止</button>
-                <label class="recorder-check"><input id="recordAutoAnalyze" type="checkbox" checked /> 停止后自动分析</label>
-                <button type="button" id="recordASRSettingsBtn" class="recorder-btn recorder-btn--ghost">ASR 设置</button>
-              </div>
-            </div>
+                <section class="record-assistant__panel" data-recorder-panel="transcribe" hidden>
+                  <div class="record-assistant__card record-assistant__card--full">
+                    <h3 class="record-assistant__card-title">音频转写</h3>
+                    <p class="record-assistant__card-desc">上传音频文件或查看实时录音转写结果</p>
+                    <input type="file" id="recordTranscriptFile" accept="audio/*,.mp3,.wav,.m4a" hidden />
+                    <div id="recordTranscribeDropzone" class="recorder-upload-zone" tabindex="0" role="button">
+                      <p class="recorder-upload-zone__hint">点击或拖拽音频文件到此处</p>
+                      <p class="recorder-upload-zone__formats">支持 mp3 / wav / m4a</p>
+                    </div>
+                    <div id="recordTranscribeStatus" class="recorder-status">等待上传或录音转写</div>
+                    <label class="record-assistant__editor">
+                      <span class="visually-hidden">转写结果</span>
+                      <textarea id="recordTranscript" rows="6" placeholder="转写结果将显示在这里…"></textarea>
+                    </label>
+                    <div class="recorder-actions">
+                      <button type="button" id="recordTranscribeStartBtn" class="recorder-btn recorder-btn--primary">开始转写</button>
+                      <button type="button" id="recordTranscribeCopyBtn" class="recorder-btn">复制文本</button>
+                      <button type="button" id="recordTranscribeExportBtn" class="recorder-btn recorder-btn--ghost">导出文档</button>
+                    </div>
+                  </div>
+                </section>
 
-            <div class="recorder-monitor__drawer-tabs" role="tablist" aria-label="工作区">
-              <button type="button" class="recorder-monitor__drawer-tab is-active" data-recorder-drawer-tab="record" role="tab" aria-selected="true">录音</button>
-              <button type="button" class="recorder-monitor__drawer-tab" data-recorder-drawer-tab="transcribe" role="tab" aria-selected="false">转写</button>
-              <button type="button" class="recorder-monitor__drawer-tab" data-recorder-drawer-tab="summary" role="tab" aria-selected="false">纪要</button>
-              <button type="button" class="recorder-monitor__drawer-tab" data-recorder-drawer-tab="history" role="tab" aria-selected="false">历史</button>
+                <section class="record-assistant__panel" data-recorder-panel="summary" hidden>
+                  <div class="record-assistant__card record-assistant__card--full">
+                    <h3 class="record-assistant__card-title">智能纪要</h3>
+                    <p class="record-assistant__card-desc">基于转写文本生成结构化会议纪要</p>
+                    <label class="recorder-field">
+                      <span class="recorder-field__label">转写来源</span>
+                      <select id="recordSummarySource" class="recorder-select">
+                        <option value="current">当前转写文本</option>
+                      </select>
+                    </label>
+                    <label class="record-assistant__editor">
+                      <span class="visually-hidden">纪要结果</span>
+                      <textarea id="recordAnalysis" rows="6" placeholder="点击「生成纪要」后，将在此展示会议主题、关键结论、待办事项、风险点与下一步计划。"></textarea>
+                    </label>
+                    <div class="recorder-actions">
+                      <button type="button" id="recordAnalyzeBtn" class="recorder-btn recorder-btn--primary">生成纪要</button>
+                      <button type="button" id="recordSummaryCopyBtn" class="recorder-btn">复制纪要</button>
+                      <button type="button" id="recordSummaryExportMdBtn" class="recorder-btn recorder-btn--ghost">导出 Markdown</button>
+                      <button type="button" id="recordExportBtn" class="recorder-btn recorder-btn--ghost">导出 Word</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="record-assistant__panel" data-recorder-panel="history" hidden>
+                  <div class="record-assistant__card record-assistant__card--full">
+                    <h3 class="record-assistant__card-title">最近记录</h3>
+                    <div class="recorder-history-toolbar">
+                      <input type="search" id="recordHistorySearch" class="recorder-search" placeholder="搜索记录标题…" aria-label="搜索记录" />
+                      <div class="recorder-filter-group" role="group" aria-label="时间筛选">
+                        <button type="button" class="recorder-filter-chip is-active" data-history-filter="all">全部</button>
+                        <button type="button" class="recorder-filter-chip" data-history-filter="today">今天</button>
+                        <button type="button" class="recorder-filter-chip" data-history-filter="week">本周</button>
+                        <button type="button" class="recorder-filter-chip" data-history-filter="month">本月</button>
+                      </div>
+                    </div>
+                    <ul id="recordRecentListFull" class="record-assistant__recent-list" aria-label="历史记录列表"></ul>
+                    <div id="recordHistoryDetail" class="recorder-history-detail" hidden></div>
+                  </div>
+                </section>
+              </main>
             </div>
           </div>
 
-          <div id="recorderMonitorDrawer" class="recorder-monitor__drawer" hidden>
-            <div class="recorder-panel" data-recorder-panel="record">
-              <section class="recorder-card recorder-card--capture recorder-card--compact">
-                <h3 class="recorder-card__title">录音控制</h3>
-                <p class="recorder-subhint">支持高质量录音与实时转写</p>
-                <ul id="recordRecentList" class="recorder-list" aria-label="最近会议记录"></ul>
-              </section>
-            </div>
-
-            <div class="recorder-panel" data-recorder-panel="transcribe" hidden>
-              <section class="recorder-card recorder-card--full">
-                <h3 class="recorder-card__title">音频转写</h3>
-                <p class="recorder-card__desc">上传音频文件或查看实时录音转写结果</p>
-                <input type="file" id="recordTranscriptFile" accept="audio/*,.mp3,.wav,.m4a" hidden />
-                <div id="recordTranscribeDropzone" class="recorder-upload-zone" tabindex="0" role="button">
-                  <p class="recorder-upload-zone__hint">点击或拖拽音频文件到此处</p>
-                  <p class="recorder-upload-zone__formats">支持 mp3 / wav / m4a</p>
-                </div>
-                <div id="recordTranscribeStatus" class="recorder-status">等待上传或录音转写</div>
-                <label class="recorder-editor">
-                  <span class="visually-hidden">转写结果</span>
-                  <textarea id="recordTranscript" rows="6" placeholder="转写结果将显示在这里…"></textarea>
-                </label>
-                <div class="recorder-actions">
-                  <button type="button" id="recordTranscribeStartBtn" class="recorder-btn recorder-btn--primary">开始转写</button>
-                  <button type="button" id="recordTranscribeCopyBtn" class="recorder-btn">复制文本</button>
-                  <button type="button" id="recordTranscribeExportBtn" class="recorder-btn recorder-btn--ghost">导出文档</button>
-                </div>
-              </section>
-            </div>
-
-            <div class="recorder-panel" data-recorder-panel="summary" hidden>
-              <section class="recorder-card recorder-card--full">
-                <h3 class="recorder-card__title">智能纪要</h3>
-                <p class="recorder-card__desc">基于转写文本生成结构化会议纪要</p>
-                <label class="recorder-field">
-                  <span class="recorder-field__label">转写来源</span>
-                  <select id="recordSummarySource" class="recorder-select">
-                    <option value="current">当前转写文本</option>
-                  </select>
-                </label>
-                <label class="recorder-editor">
-                  <span class="visually-hidden">纪要结果</span>
-                  <textarea id="recordAnalysis" rows="6" placeholder="点击「生成纪要」后，将在此展示会议主题、关键结论、待办事项、风险点与下一步计划。"></textarea>
-                </label>
-                <div class="recorder-actions">
-                  <button type="button" id="recordAnalyzeBtn" class="recorder-btn recorder-btn--primary">生成纪要</button>
-                  <button type="button" id="recordSummaryCopyBtn" class="recorder-btn">复制纪要</button>
-                  <button type="button" id="recordSummaryExportMdBtn" class="recorder-btn recorder-btn--ghost">导出 Markdown</button>
-                  <button type="button" id="recordExportBtn" class="recorder-btn recorder-btn--ghost">导出 Word</button>
-                </div>
-              </section>
-            </div>
-
-            <div class="recorder-panel" data-recorder-panel="history" hidden>
-              <section class="recorder-card recorder-card--full">
-                <div class="recorder-history-toolbar">
-                  <input type="search" id="recordHistorySearch" class="recorder-search" placeholder="搜索记录标题…" aria-label="搜索记录" />
-                  <div class="recorder-filter-group" role="group" aria-label="时间筛选">
-                    <button type="button" class="recorder-filter-chip is-active" data-history-filter="all">全部</button>
-                    <button type="button" class="recorder-filter-chip" data-history-filter="today">今天</button>
-                    <button type="button" class="recorder-filter-chip" data-history-filter="week">本周</button>
-                    <button type="button" class="recorder-filter-chip" data-history-filter="month">本月</button>
-                  </div>
-                </div>
-                <ul id="recordRecentListFull" class="recorder-list" aria-label="历史记录列表"></ul>
-                <div id="recordHistoryDetail" class="recorder-history-detail" hidden></div>
-              </section>
-            </div>
+          <div class="recorder-monitor__meta-sr" aria-hidden="true">
+            <span id="recordLiveBadge">STANDBY</span>
+            <span id="recordLiveIndicator"></span>
+            <p id="recordCurrentSpeaker">—</p>
+            <ul id="recordRiskList"><li>暂无风险</li></ul>
+            <ol id="recordTimeline"><li>等待开始</li></ol>
+            <p id="recordSyncStatus">未连接</p>
+            <p id="recordSyncDetail">ASR · 待机</p>
           </div>
         </div>
-
-        <span id="recordLiveDot" class="recorder-live-dot recorder-meta-sr" aria-hidden="true"></span>
       </div>
     </div>
   </div>

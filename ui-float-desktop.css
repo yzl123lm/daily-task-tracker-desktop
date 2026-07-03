@@ -969,7 +969,8 @@ body.jl-record-assistant-active #panel-record:not([hidden]) {
   display: none !important;
 }
 
-.record-assistant__panel[data-record-panel="capture"] {
+.record-assistant__panel[data-record-panel="capture"],
+.record-assistant__panel[data-recorder-panel="record"] {
   display: grid;
   grid-template-rows: minmax(0, 1.2fr) minmax(0, 0.8fr);
   gap: 16px;

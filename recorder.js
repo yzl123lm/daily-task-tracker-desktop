@@ -252,28 +252,29 @@ function initRecorderModule() {
     localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, 12)));
   }
 
-  function renderRecentItemHtml(item, idx) {
+  function renderRecentItemHtml(item, idx, { compact = false } = {}) {
     const title = String(item.title || "未命名记录").replace(/</g, "&lt;");
     const time = String(item.time || "").replace(/</g, "&lt;");
     const duration = String(item.duration || "--:--").replace(/</g, "&lt;");
     const typeLabel = String(item.type || "录音").replace(/</g, "&lt;");
+    const docIcon =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+    const playBtn = `<button type="button" class="record-assistant__recent-play" data-action="play" data-idx="${idx}" title="查看转写" aria-label="查看转写"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 7l10 5-10 5V7z" fill="currentColor"/></svg></button>`;
+    const moreBtn = `<button type="button" class="record-assistant__recent-more" data-action="detail" data-idx="${idx}" title="详情" aria-label="详情">⋯</button>`;
+    const deleteBtn = `<button type="button" class="record-assistant__recent-more" data-action="more" data-idx="${idx}" title="删除" aria-label="删除">×</button>`;
+    const actions = compact
+      ? `${playBtn}${moreBtn}`
+      : `${playBtn}${moreBtn}${deleteBtn}`;
+    const badge = compact ? "" : `<span class="recorder-list-item__badge">${typeLabel}</span>`;
     return `
-      <li class="recorder-list-item" data-idx="${idx}">
-        <span class="recorder-list-item__doc" aria-hidden="true">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M8 4h8l4 4v12a2 2 0 01-2 2H8a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6"/><path d="M16 4v4h4M8 11h8M8 15h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      <li class="record-assistant__recent-item recorder-list-item" data-idx="${idx}">
+        <span class="record-assistant__recent-doc" aria-hidden="true">${docIcon}</span>
+        <span class="record-assistant__recent-body">
+          <span class="record-assistant__recent-title">${title}</span>
+          <span class="record-assistant__recent-meta">${time} · 时长: ${duration}</span>
         </span>
-        <span class="recorder-list-item__body">
-          <span class="recorder-list-item__title">${title}</span>
-          <span class="recorder-list-item__meta">${time} · 时长: ${duration}</span>
-        </span>
-        <span class="recorder-list-item__badge">${typeLabel}</span>
-        <span class="recorder-list-item__actions">
-          <button type="button" class="recorder-icon-btn" data-action="play" data-idx="${idx}" title="查看转写" aria-label="查看转写">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 7l10 5-10 5V7z" fill="currentColor"/></svg>
-          </button>
-          <button type="button" class="recorder-icon-btn recorder-icon-btn--ghost" data-action="detail" data-idx="${idx}" title="详情" aria-label="详情">⋯</button>
-          <button type="button" class="recorder-icon-btn recorder-icon-btn--ghost" data-action="more" data-idx="${idx}" title="删除" aria-label="删除">×</button>
-        </span>
+        ${badge}
+        <span class="record-assistant__recent-actions">${actions}</span>
       </li>`;
   }
 
@@ -361,15 +362,15 @@ function initRecorderModule() {
 
   function renderRecentRecords() {
     const items = readRecentRecords();
-    const emptyHtml = '<li class="recorder-list-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
+    const emptyHtml = '<li class="record-assistant__recent-empty">暂无历史记录，完成一次录音后将出现在这里。</li>';
     const previewHtml = items.length
-      ? items.slice(0, 4).map((item, idx) => renderRecentItemHtml(item, idx)).join("")
+      ? items.slice(0, 4).map((item, idx) => renderRecentItemHtml(item, idx, { compact: true })).join("")
       : emptyHtml;
     const filtered = filterRecentItems(items);
     const fullHtml = filtered.length
       ? filtered.map((item) => {
           const idx = items.indexOf(item);
-          return renderRecentItemHtml(item, idx);
+          return renderRecentItemHtml(item, idx, { compact: false });
         }).join("")
       : emptyHtml;
 
