@@ -267,6 +267,46 @@ body.theme-nebula {
   border-color: var(--border);
 }
 
+/* 任务列表表格：浅色背景上使用深色文字，避免 Nebula 全局 td/th 污染 */
+.theme-nebula .task-table-v2 thead th {
+  background: #fff;
+  color: #1d2129;
+  border-bottom-color: #eee;
+}
+
+.theme-nebula .task-table-v2 tbody td {
+  color: #4e5969;
+  background: #fff;
+  border-bottom-color: #eee;
+}
+
+.theme-nebula .task-table-v2 tbody tr:hover td {
+  background: #f8f9fa;
+}
+
+.theme-nebula .task-table-v2 .mono-id,
+.theme-nebula .task-table-v2 .cell-ellipsis,
+.theme-nebula .task-table-v2 .td-seq,
+.theme-nebula .task-table-v2 .time-stack-date {
+  color: #4e5969;
+}
+
+.theme-nebula .task-table-v2 .person-meta,
+.theme-nebula .task-table-v2 .time-stack-time,
+.theme-nebula .task-table-v2 .placeholder-dash {
+  color: #86909c;
+}
+
+.theme-nebula .task-table-v2 .muted {
+  color: #6b7280;
+}
+
+.theme-nebula .task-table-v2[hidden],
+.theme-nebula .task-card-list[hidden],
+.theme-nebula .task-table-wrap[hidden] {
+  display: none !important;
+}
+
 .theme-nebula .field-hint {
   color: var(--muted-foreground);
 }
@@ -3171,7 +3211,7 @@ body.theme-nebula {
   color: var(--jl-text-secondary);
 }
 
-.jl-task-card-grid {
+.jl-task-card-grid:not([hidden]) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;

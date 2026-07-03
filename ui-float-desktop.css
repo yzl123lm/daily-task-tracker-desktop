@@ -1805,9 +1805,34 @@ body.jl-knowledge-float-active {
   outline: none !important;
 }
 
-.theme-nebula .jl-float-win .task-new-field input[readonly] {
-  background: #f5f5f5 !important;
-  color: #8c8c8c !important;
+.theme-nebula .jl-float-win .task-table-v2 thead th {
+  background: #fff !important;
+  color: #1d2129 !important;
+}
+
+.theme-nebula .jl-float-win .task-table-v2 tbody td {
+  color: #4e5969 !important;
+  background: #fff !important;
+}
+
+.theme-nebula .jl-float-win .task-table-v2 .mono-id,
+.theme-nebula .jl-float-win .task-table-v2 .cell-ellipsis,
+.theme-nebula .jl-float-win .task-table-v2 .td-seq,
+.theme-nebula .jl-float-win .task-table-v2 .time-stack-date {
+  color: #4e5969 !important;
+}
+
+.theme-nebula .jl-float-win .task-table-v2 .person-meta,
+.theme-nebula .jl-float-win .task-table-v2 .time-stack-time {
+  color: #86909c !important;
+}
+
+.theme-nebula .jl-float-win .task-card-list[hidden] {
+  display: none !important;
+}
+
+.theme-nebula .jl-float-win .task-table-wrap[hidden] {
+  display: none !important;
 }
 
 .theme-nebula .jl-float-win .filter-field input,

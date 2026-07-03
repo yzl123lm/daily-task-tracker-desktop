@@ -116,20 +116,34 @@
     baseIndex,
     taskTableBody,
     taskCardListEl,
+    viewMode = "cards",
     calcTaskRisk,
     latestRemark,
     taskRowClass = () => "task-row-v2",
     getLocalDateKey = () => "",
   }) {
-    const sig = pageSignature(pageSlice);
+    const sig = `${viewMode}|${pageSignature(pageSlice)}`;
     const rowCount = taskTableBody ? taskTableBody.childElementCount : 0;
-    if (sig === lastPageSignature && rowCount === pageSlice.length) {
+    const cardCount = taskCardListEl ? taskCardListEl.childElementCount : 0;
+    if (
+      sig === lastPageSignature &&
+      (viewMode === "table" ? rowCount === pageSlice.length : cardCount === pageSlice.length)
+    ) {
       return false;
     }
     lastPageSignature = sig;
 
+    const showTable = viewMode === "table";
+    const showCards = viewMode === "cards";
+
     if (taskTableBody) {
       taskTableBody.innerHTML = "";
+    }
+    if (taskCardListEl) {
+      taskCardListEl.innerHTML = "";
+    }
+
+    if (showTable && taskTableBody) {
       const frag = document.createDocumentFragment();
       pageSlice.forEach((task, idx) => {
         const remark = latestRemark(task);
@@ -186,8 +200,7 @@
       taskTableBody.appendChild(frag);
     }
 
-    if (taskCardListEl) {
-      taskCardListEl.innerHTML = "";
+    if (showCards && taskCardListEl) {
       const cardFrag = document.createDocumentFragment();
       pageSlice.forEach((task, cardIndex) => {
         const risk = calcTaskRisk(task);

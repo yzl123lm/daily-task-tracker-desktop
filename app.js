@@ -1115,16 +1115,20 @@ function applyTaskListViewMode(mode) {
   localStorage.setItem(TASK_LIST_VIEW_KEY, taskListViewMode);
   taskViewCardsBtn?.classList.toggle("is-active", taskListViewMode === "cards");
   taskViewTableBtn?.classList.toggle("is-active", taskListViewMode === "table");
+  tlv().invalidateTaskListCache?.();
   render();
 }
 
 function syncTaskListViewVisibility(isEmpty) {
   const cards = taskListViewMode === "cards";
+  const table = taskListViewMode === "table";
   if (taskTableWrapEl) {
     taskTableWrapEl.hidden = isEmpty || cards;
+    taskTableWrapEl.classList.toggle("is-view-active", !isEmpty && table);
   }
   if (taskCardListEl) {
     taskCardListEl.hidden = isEmpty || !cards;
+    taskCardListEl.classList.toggle("is-view-active", !isEmpty && cards);
   }
 }
 
@@ -1456,6 +1460,7 @@ function render() {
       baseIndex,
       taskTableBody,
       taskCardListEl,
+      viewMode: taskListViewMode,
       calcTaskRisk,
       latestRemark,
       taskRowClass,
