@@ -3588,44 +3588,12 @@
     return count;
   }
 
-  function renderKbLibrariesOverviewStats(st) {
-    if (!el.librariesStatsBar) {
-      return;
-    }
+  function buildKbOverviewStatCards(st) {
     const groups = latestDocGroups.length ? latestDocGroups : st.docsByLibrary || [];
-    const dirCount = groups.length;
     const docTotal = groups.reduce(
       (sum, g) => sum + (Array.isArray(g.documents) ? g.documents.length : Number(g.docCount || 0)),
       0
     );
-    const pending = Number(el.autoLearnPendingCount?.textContent || "0") || 0;
-    const todayCount = countDocsUpdatedToday(groups);
-    const esc = typeof escapeHtml === "function" ? escapeHtml : (t) => String(t ?? "");
-    const metrics = [
-      { icon: "📁", label: "目录总数", value: dirCount },
-      { icon: "📄", label: "文档总数", value: docTotal },
-      { icon: "🔄", label: "今日更新", value: todayCount },
-      { icon: "🤖", label: "待审批", value: pending },
-    ];
-    el.librariesStatsBar.innerHTML = metrics
-      .map(
-        (m) => `<article class="kb-lib-metric" title="${esc(m.label)}">
-          <span class="kb-lib-metric__icon" aria-hidden="true">${m.icon}</span>
-          <div class="kb-lib-metric__body">
-            <span class="kb-lib-metric__label">${esc(m.label)}</span>
-            <strong class="kb-lib-metric__value">${esc(String(m.value))}</strong>
-          </div>
-        </article>`
-      )
-      .join("");
-  }
-
-  function renderKbStats(st) {
-    if (!el.statsBar) {
-      return;
-    }
-    const groups = latestDocGroups.length ? latestDocGroups : st.docsByLibrary || [];
-    const docTotal = groups.reduce((sum, g) => sum + (Array.isArray(g.documents) ? g.documents.length : Number(g.docCount || 0)), 0);
     const gs = st.graphSummary || {};
     const nodeCount = Number(gs.nodeCount || 0);
     const edgeCount = Number(gs.edgeCount || 0);
@@ -3644,7 +3612,7 @@
     });
     const lastUpdatedShort = formatKbStatTime(lastUpdated);
     const esc = typeof escapeHtml === "function" ? escapeHtml : (t) => String(t ?? "");
-    const cards = [
+    return [
       { label: "知识库状态", value: '<span class="kb-stat-dot" aria-hidden="true"></span>已启用', tone: "ok", hint: "本地检索与入库可用" },
       { label: "入库文档", value: `${docTotal} 份`, tone: "num", hint: "全部目录合计" },
       { label: "知识节点", value: `${nodeCount} 个`, tone: "num", hint: "图谱节点总数" },
@@ -3656,16 +3624,27 @@
         tone: "time",
         hint: lastUpdated === "—" ? "暂无入库记录" : lastUpdated,
       },
-    ];
-    el.statsBar.innerHTML = cards
-      .map((c) => {
-        const valueHtml = c.tone === "ok" || c.tone === "time" ? c.value : esc(c.value);
-        return `<article class="kb-stat-card kb-stat-card--${c.tone}" title="${esc(c.hint)}">
-          <span class="kb-stat-card__label">${esc(c.label)}</span>
-          <strong class="kb-stat-card__value">${valueHtml}</strong>
-        </article>`;
-      })
-      .join("");
+    ].map((c) => {
+      const valueHtml = c.tone === "ok" || c.tone === "time" ? c.value : esc(c.value);
+      return `<article class="kb-stat-card kb-stat-card--${c.tone}" title="${esc(c.hint)}">
+        <span class="kb-stat-card__label">${esc(c.label)}</span>
+        <strong class="kb-stat-card__value">${valueHtml}</strong>
+      </article>`;
+    });
+  }
+
+  function renderKbLibrariesOverviewStats(st) {
+    if (!el.librariesStatsBar) {
+      return;
+    }
+    el.librariesStatsBar.innerHTML = buildKbOverviewStatCards(st).join("");
+  }
+
+  function renderKbStats(st) {
+    if (!el.statsBar) {
+      return;
+    }
+    el.statsBar.innerHTML = buildKbOverviewStatCards(st).join("");
     renderKbLibrariesOverviewStats(st);
     if (el.ingestTotal) {
       el.ingestTotal.textContent = `总数 ${docTotal} 份`;
