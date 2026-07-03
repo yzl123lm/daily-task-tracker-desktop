@@ -3746,15 +3746,27 @@
       const expanded = docsTreeExpanded[gid] === true;
       const docs = Array.isArray(g.documents) ? g.documents : [];
       const block = document.createElement("div");
-      block.className = "kb-dir-block";
+      block.className = `kb-dir-block${gid === activeLibraryId ? " is-current-library" : ""}`;
       block.dataset.libraryId = gid;
 
       const row = document.createElement("div");
-      row.className = `kb-dir-row${gid === activeLibraryId ? " is-active" : ""}`;
+      const isActiveLibrary = gid === activeLibraryId;
+      row.className = `kb-dir-row${isActiveLibrary ? " is-active" : ""}`;
       row.setAttribute("role", "row");
+      if (isActiveLibrary) {
+        row.setAttribute("aria-current", "true");
+      }
 
       const nameCell = document.createElement("div");
       nameCell.className = "kb-dir-row__name";
+
+      if (isActiveLibrary) {
+        const activeMark = document.createElement("span");
+        activeMark.className = "kb-dir-row__active-mark";
+        activeMark.textContent = "当前";
+        activeMark.title = "当前使用的知识库目录";
+        nameCell.appendChild(activeMark);
+      }
 
       const arrowBtn = document.createElement("button");
       arrowBtn.type = "button";
@@ -3774,7 +3786,7 @@
       folder.textContent = "📁";
 
       const title = document.createElement("span");
-      title.className = "kb-dir-row__title";
+      title.className = `kb-dir-row__title${isActiveLibrary ? " is-current" : ""}`;
       title.textContent = g.name || gid || "未命名目录";
       attachLibraryRename(title, g, gid);
       title.addEventListener("click", async () => {

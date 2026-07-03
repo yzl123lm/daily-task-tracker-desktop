@@ -783,9 +783,51 @@ body.jl-float-desktop-active .main-column {
   border-bottom: 1px solid #f0f0f0;
 }
 
-#jlKbFloatLibraries .kb-dir-row:hover,
+#jlKbFloatLibraries .kb-dir-row:hover {
+  background: #f8fbff;
+}
+
 #jlKbFloatLibraries .kb-dir-row.is-active {
-  background: #f5f9ff;
+  background: #eef5ff;
+  border-left: 3px solid #1677ff;
+  padding-left: 5px;
+  box-shadow: inset 0 0 0 1px rgba(22, 119, 255, 0.08);
+}
+
+#jlKbFloatLibraries .kb-dir-block.is-current-library .kb-dir-row.is-active {
+  position: relative;
+}
+
+#jlKbFloatLibraries .kb-dir-row__active-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  background: #1677ff;
+  box-shadow: 0 1px 4px rgba(22, 119, 255, 0.28);
+}
+
+#jlKbFloatLibraries .kb-dir-row__title.is-current {
+  color: #1677ff;
+  font-weight: 700;
+}
+
+#jlKbFloatLibraries .kb-dir-row.is-active .kb-dir-row__folder {
+  filter: saturate(1.15);
+}
+
+#jlKbFloatLibraries .kb-dir-row.is-active .kb-dir-status-badge {
+  background: #e6f4ff;
+  color: #1677ff;
+  border-color: #91caff;
 }
 
 #jlKbFloatLibraries .kb-dir-row__arrow-btn {
