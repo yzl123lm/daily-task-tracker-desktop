@@ -1072,27 +1072,133 @@
               </div>
           </div>
           <div id="jlKbFloatGraph" class="jl-float-section-host">
-                <div class="kb-search-box kb-graph-box kb-graph-panel">
-                  <div class="kb-graph-head">
-                    <h3 class="kb-subtitle">知识图谱预览</h3>
-                    <div class="kb-graph-actions">
-                      <label class="record-inline-check"><input id="kbGraphGlobalScope" type="checkbox" checked /> 全局图谱</label>
-                      <label class="record-inline-check"><input id="kbGraphForceEnabled" type="checkbox" checked /> 力导向</label>
-                      <label class="record-inline-check"><input id="kbGraphKeepLayout" type="checkbox" checked /> 保留布局</label>
-                      <label class="record-inline-check"><input id="kbGraphOnlyDocs" type="checkbox" /> 仅文档节点</label>
-                      <button type="button" id="kbGraphResetLayoutBtn" class="secondary">重置布局</button>
-                      <button type="button" id="kbGraphRefreshBtn" class="secondary">重建图谱</button>
+                <div class="kb-search-box kb-graph-box kb-graph-panel kb-graph-workbench">
+                  <header class="kb-graph-topbar">
+                    <div class="kb-graph-topbar__brand">
+                      <div class="kb-graph-topbar__title-row">
+                        <h3 class="kb-graph-title">知识图谱</h3>
+                        <span class="kb-graph-badge">实时模式</span>
+                      </div>
+                      <p id="kbGraphMeta" class="kb-graph-meta field-hint">尚未生成图谱。</p>
                     </div>
-                  </div>
-                  <p id="kbGraphMeta" class="field-hint kb-graph-meta">尚未生成图谱。</p>
-                  <div class="kb-graph-stage" id="kbGraphStage">
-                    <div class="kb-graph-stage__grid" aria-hidden="true"></div>
-                    <div class="kb-graph-stage__vignette" aria-hidden="true"></div>
-                    <svg id="kbGraphCanvas" class="kb-graph-canvas" viewBox="0 0 820 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="知识库关系图谱"></svg>
-                    <div class="kb-graph-stage__toolbar">
-                      <button type="button" id="kbGraphFullscreenBtn" class="kb-graph-stage__btn" title="全屏观看" aria-label="全屏观看">全屏</button>
+                    <div class="kb-graph-topbar__actions kb-graph-actions">
+                      <button type="button" id="kbGraphResetLayoutBtn" class="kb-graph-action-btn">
+                        <span class="kb-graph-action-btn__icon" aria-hidden="true">↻</span>重置布局
+                      </button>
+                      <label class="kb-graph-action-check record-inline-check">
+                        <input id="kbGraphKeepLayout" type="checkbox" checked /> 锁定布局
+                      </label>
+                      <label class="kb-graph-action-check record-inline-check">
+                        <input id="kbGraphOnlyDocs" type="checkbox" /> 仅看文档节点
+                      </label>
+                      <button type="button" id="kbGraphFocusBtn" class="kb-graph-action-btn is-primary">
+                        <span class="kb-graph-action-btn__icon" aria-hidden="true">◎</span>聚焦邻居
+                      </button>
+                      <details class="kb-graph-more">
+                        <summary class="kb-graph-action-btn kb-graph-more__trigger" title="更多选项">⋯</summary>
+                        <div class="kb-graph-more__menu">
+                          <label class="record-inline-check"><input id="kbGraphGlobalScope" type="checkbox" checked /> 全局图谱</label>
+                          <label class="record-inline-check"><input id="kbGraphForceEnabled" type="checkbox" checked /> 力导向布局</label>
+                          <button type="button" id="kbGraphRefreshBtn" class="secondary kb-graph-more__btn">重建图谱</button>
+                        </div>
+                      </details>
                     </div>
-                    <p class="kb-graph-stage__hint">滚轮缩放 · 拖拽平移 · 双击文档节点打开 · 双击空白重置</p>
+                  </header>
+
+                  <div class="kb-graph-body">
+                    <aside class="kb-graph-sidebar kb-graph-sidebar--left" aria-label="图谱设置">
+                      <div class="kb-graph-sidebar__head">
+                        <span class="kb-graph-sidebar__title">图谱设置</span>
+                      </div>
+                      <label class="kb-graph-sidebar__search">
+                        <span class="visually-hidden">搜索分组</span>
+                        <input id="kbGraphGroupSearch" type="search" placeholder="搜索分组…" autocomplete="off" />
+                      </label>
+                      <section class="kb-graph-sidebar__section">
+                        <h4 class="kb-graph-sidebar__section-title">分组与颜色</h4>
+                        <ul class="kb-graph-legend" id="kbGraphLegend">
+                          <li class="kb-graph-legend__item" data-graph-type="doc"><span class="kb-graph-legend__dot is-doc"></span><span class="kb-graph-legend__label">文档节点</span><span class="kb-graph-legend__count" data-kb-graph-count="doc">0</span></li>
+                          <li class="kb-graph-legend__item" data-graph-type="section"><span class="kb-graph-legend__dot is-section"></span><span class="kb-graph-legend__label">章节节点</span><span class="kb-graph-legend__count" data-kb-graph-count="section">0</span></li>
+                          <li class="kb-graph-legend__item" data-graph-type="folder"><span class="kb-graph-legend__dot is-folder"></span><span class="kb-graph-legend__label">目录节点</span><span class="kb-graph-legend__count" data-kb-graph-count="folder">0</span></li>
+                          <li class="kb-graph-legend__item" data-graph-type="concept"><span class="kb-graph-legend__dot is-concept"></span><span class="kb-graph-legend__label">协议码节点</span><span class="kb-graph-legend__count" data-kb-graph-count="concept">0</span></li>
+                        </ul>
+                      </section>
+                      <section class="kb-graph-sidebar__section">
+                        <h4 class="kb-graph-sidebar__section-title">显示设置</h4>
+                        <div class="kb-graph-toggle-list">
+                          <label class="kb-graph-toggle"><input id="kbGraphShowLabels" type="checkbox" checked /><span>显示标签</span></label>
+                          <label class="kb-graph-toggle"><input id="kbGraphShowEdges" type="checkbox" checked /><span>显示连线</span></label>
+                          <label class="kb-graph-toggle"><input id="kbGraphSmartCluster" type="checkbox" checked /><span>智能聚类</span></label>
+                        </div>
+                        <div class="kb-graph-slider-list">
+                          <label class="kb-graph-slider">
+                            <span class="kb-graph-slider__label">节点大小</span>
+                            <input id="kbGraphNodeSize" type="range" min="70" max="140" value="100" />
+                          </label>
+                          <label class="kb-graph-slider">
+                            <span class="kb-graph-slider__label">连线粗细</span>
+                            <input id="kbGraphEdgeWidth" type="range" min="50" max="200" value="100" />
+                          </label>
+                          <label class="kb-graph-slider">
+                            <span class="kb-graph-slider__label">标签阈值</span>
+                            <input id="kbGraphLabelThreshold" type="range" min="1" max="12" value="3" />
+                          </label>
+                        </div>
+                      </section>
+                    </aside>
+
+                    <div class="kb-graph-main">
+                      <div class="kb-graph-stage" id="kbGraphStage">
+                        <div class="kb-graph-stage__blobs" aria-hidden="true">
+                          <span class="kb-graph-blob kb-graph-blob--a"></span>
+                          <span class="kb-graph-blob kb-graph-blob--b"></span>
+                          <span class="kb-graph-blob kb-graph-blob--c"></span>
+                          <span class="kb-graph-blob kb-graph-blob--d"></span>
+                        </div>
+                        <div class="kb-graph-stage__grid" aria-hidden="true"></div>
+                        <svg id="kbGraphCanvas" class="kb-graph-canvas" viewBox="0 0 820 520" preserveAspectRatio="xMidYMid meet" role="img" aria-label="知识库关系图谱"></svg>
+                        <div class="kb-graph-stage__zoom" aria-label="缩放控制">
+                          <button type="button" id="kbGraphZoomOut" class="kb-graph-zoom-btn" title="缩小" aria-label="缩小">−</button>
+                          <span id="kbGraphZoomPct" class="kb-graph-zoom-pct">100%</span>
+                          <button type="button" id="kbGraphZoomIn" class="kb-graph-zoom-btn" title="放大" aria-label="放大">+</button>
+                          <button type="button" id="kbGraphZoomReset" class="kb-graph-zoom-btn" title="重置视图" aria-label="重置视图">◎</button>
+                          <button type="button" id="kbGraphFullscreenBtn" class="kb-graph-zoom-btn" title="全屏观看" aria-label="全屏观看">⛶</button>
+                        </div>
+                        <p class="kb-graph-stage__hint">滚轮缩放 · 拖拽平移 · 双击文档节点打开 · 双击空白重置</p>
+                      </div>
+                    </div>
+
+                    <aside class="kb-graph-sidebar kb-graph-sidebar--right" id="kbGraphDetailPanel" aria-label="节点详情">
+                      <div class="kb-graph-sidebar__head">
+                        <span class="kb-graph-sidebar__title">节点详情</span>
+                      </div>
+                      <div id="kbGraphDetailEmpty" class="kb-graph-detail-empty">
+                        <p>悬停或点击图谱节点查看详情</p>
+                      </div>
+                      <div id="kbGraphDetailBody" class="kb-graph-detail" hidden>
+                        <div class="kb-graph-detail__hero">
+                          <span id="kbGraphDetailIcon" class="kb-graph-detail__icon is-doc" aria-hidden="true">◆</span>
+                          <div class="kb-graph-detail__hero-text">
+                            <h4 id="kbGraphDetailTitle" class="kb-graph-detail__title">—</h4>
+                            <span id="kbGraphDetailType" class="kb-graph-detail__tag">文档</span>
+                          </div>
+                        </div>
+                        <p id="kbGraphDetailSummary" class="kb-graph-detail__summary"></p>
+                        <dl class="kb-graph-detail__props">
+                          <div><dt>类型</dt><dd id="kbGraphDetailPropType">—</dd></div>
+                          <div><dt>权重</dt><dd id="kbGraphDetailPropWeight">—</dd></div>
+                          <div><dt>关联数</dt><dd id="kbGraphDetailPropLinks">—</dd></div>
+                        </dl>
+                        <section class="kb-graph-detail__section">
+                          <h5 class="kb-graph-detail__section-title">关联节点</h5>
+                          <ul id="kbGraphDetailNeighbors" class="kb-graph-detail__neighbors"></ul>
+                        </section>
+                        <div class="kb-graph-detail__actions">
+                          <button type="button" id="kbGraphDetailOpenBtn" class="kb-graph-detail__action">查看文档</button>
+                          <button type="button" id="kbGraphDetailFocusBtn" class="kb-graph-detail__action is-primary">聚焦邻居</button>
+                        </div>
+                      </div>
+                    </aside>
                   </div>
                 </div>
           </div>

@@ -1479,6 +1479,13 @@ body.theme-nebula {
   color: var(--foreground);
 }
 
+.theme-nebula #jlKbFloatGraph .kb-graph-box,
+.theme-nebula #jlKbFloatGraph .kb-search-box {
+  background: transparent;
+  border: 0;
+  color: #1e293b;
+}
+
 .theme-nebula .kb-doc-group {
   background: var(--surface-inset);
   border-color: var(--border);

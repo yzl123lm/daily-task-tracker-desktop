@@ -140,6 +140,30 @@
     graphStage: document.getElementById("kbGraphStage"),
     graphMeta: document.getElementById("kbGraphMeta"),
     graphCanvas: document.getElementById("kbGraphCanvas"),
+    graphFocusBtn: document.getElementById("kbGraphFocusBtn"),
+    graphZoomIn: document.getElementById("kbGraphZoomIn"),
+    graphZoomOut: document.getElementById("kbGraphZoomOut"),
+    graphZoomReset: document.getElementById("kbGraphZoomReset"),
+    graphZoomPct: document.getElementById("kbGraphZoomPct"),
+    graphGroupSearch: document.getElementById("kbGraphGroupSearch"),
+    graphShowLabels: document.getElementById("kbGraphShowLabels"),
+    graphShowEdges: document.getElementById("kbGraphShowEdges"),
+    graphSmartCluster: document.getElementById("kbGraphSmartCluster"),
+    graphNodeSize: document.getElementById("kbGraphNodeSize"),
+    graphEdgeWidth: document.getElementById("kbGraphEdgeWidth"),
+    graphLabelThreshold: document.getElementById("kbGraphLabelThreshold"),
+    graphDetailEmpty: document.getElementById("kbGraphDetailEmpty"),
+    graphDetailBody: document.getElementById("kbGraphDetailBody"),
+    graphDetailTitle: document.getElementById("kbGraphDetailTitle"),
+    graphDetailType: document.getElementById("kbGraphDetailType"),
+    graphDetailSummary: document.getElementById("kbGraphDetailSummary"),
+    graphDetailIcon: document.getElementById("kbGraphDetailIcon"),
+    graphDetailPropType: document.getElementById("kbGraphDetailPropType"),
+    graphDetailPropWeight: document.getElementById("kbGraphDetailPropWeight"),
+    graphDetailPropLinks: document.getElementById("kbGraphDetailPropLinks"),
+    graphDetailNeighbors: document.getElementById("kbGraphDetailNeighbors"),
+    graphDetailOpenBtn: document.getElementById("kbGraphDetailOpenBtn"),
+    graphDetailFocusBtn: document.getElementById("kbGraphDetailFocusBtn"),
   };
 
   const KB_DIALOG_PORTAL_IDS = [
@@ -419,7 +443,9 @@
     scene: null,
     activeLibraryId: "",
     hoveredNodeId: "",
+    selectedNodeId: "",
     tooltipEl: null,
+    lastSummary: null,
   };
   let renamingLibraryId = "";
   let ingestProgressState = null;
@@ -4268,6 +4294,222 @@
       "transform",
       `translate(${graphViewState.tx.toFixed(2)} ${graphViewState.ty.toFixed(2)}) scale(${graphViewState.scale.toFixed(4)})`
     );
+    updateGraphZoomLabel();
+  }
+
+  function updateGraphZoomLabel() {
+    if (!el.graphZoomPct) {
+      return;
+    }
+    el.graphZoomPct.textContent = `${Math.round(graphViewState.scale * 100)}%`;
+  }
+
+  function getGraphNodeSizeScale() {
+    const value = Number(el.graphNodeSize?.value || 100);
+    return Math.max(0.7, Math.min(1.4, value / 100));
+  }
+
+  function getGraphEdgeWidthScale() {
+    const value = Number(el.graphEdgeWidth?.value || 100);
+    return Math.max(0.5, Math.min(2, value / 100));
+  }
+
+  function graphNodeTypeLabel(type) {
+    if (type === "doc") {
+      return "文档";
+    }
+    if (type === "folder") {
+      return "目录";
+    }
+    if (type === "concept") {
+      return "协议码";
+    }
+    return "章节";
+  }
+
+  function updateGraphLegendCounts(summary) {
+    const counts = {
+      doc: Number(summary?.docNodeCount || 0),
+      section: Number(summary?.sectionNodeCount || 0),
+      folder: Number(summary?.folderNodeCount || 0),
+      concept: Number(summary?.conceptNodeCount || 0),
+    };
+    document.querySelectorAll("[data-kb-graph-count]").forEach((countEl) => {
+      const key = countEl.getAttribute("data-kb-graph-count");
+      if (key && Object.prototype.hasOwnProperty.call(counts, key)) {
+        countEl.textContent = String(counts[key]);
+      }
+    });
+  }
+
+  function applyGraphDisplaySettings() {
+    const showEdges = el.graphShowEdges?.checked !== false;
+    el.graphStage?.classList.toggle("is-edges-hidden", !showEdges);
+    const scene = graphViewState.scene;
+    if (!scene) {
+      return;
+    }
+    const showLabels = el.graphShowLabels?.checked !== false;
+    scene.nodeGroupMap.forEach((group) => {
+      const label = group.querySelector(".kb-graph-label");
+      if (label) {
+        label.style.display = showLabels ? "" : "none";
+      }
+    });
+  }
+
+  function repaintGraphVisualStyles() {
+    const scene = graphViewState.scene;
+    if (!scene) {
+      return;
+    }
+    const nodeScale = getGraphNodeSizeScale();
+    const edgeScale = getGraphEdgeWidthScale();
+    scene.nodeGroupMap.forEach((group, id) => {
+      const node = scene.nodeMap.get(id);
+      if (!node) {
+        return;
+      }
+      const weight = Math.max(1, Number(node.weight || 1));
+      const radius = Math.min(13, 4.4 + Math.log(weight + 1) * 1.9) * nodeScale;
+      const circle = group.querySelector(".kb-graph-node");
+      const halo = group.querySelector(".kb-graph-node-halo");
+      if (circle) {
+        circle.setAttribute("r", String(radius));
+      }
+      if (halo) {
+        halo.setAttribute("r", String(radius + 5));
+      }
+      const label = group.querySelector(".kb-graph-label");
+      if (label) {
+        label.setAttribute("y", String(radius + 12));
+      }
+    });
+    scene.edges.forEach((edge) => {
+      const line = scene.edgeElMap.get(edge.id);
+      if (!line) {
+        return;
+      }
+      const width = Math.min(2.2, 0.65 + Number(edge.weight || 1) * 0.18) * edgeScale;
+      line.setAttribute("stroke-width", String(width));
+    });
+  }
+
+  function focusGraphNeighbors(nodeId) {
+    const id = String(nodeId || graphViewState.selectedNodeId || graphViewState.hoveredNodeId || "").trim();
+    if (!id) {
+      setStatus("请先选择或悬停一个节点。", true);
+      return;
+    }
+    graphViewState.selectedNodeId = id;
+    setGraphHover(id);
+  }
+
+  async function openGraphDocumentNode(node) {
+    if (!node || node.type !== "doc" || !node.docId || typeof api.kbOpenDocument !== "function") {
+      setStatus("当前节点不是可打开的文档。", true);
+      return;
+    }
+    try {
+      const out = await runKbOpenWithLocateFlow(
+        {
+          docId: node.docId,
+          libraryId: String(node.libraryId || graphViewState.activeLibraryId || ""),
+        },
+        { docName: node.label || node.name || "" }
+      );
+      if (out?.canceled) {
+        return;
+      }
+      if (!out?.ok) {
+        setStatus(out?.error || "打开文档失败", true);
+      } else {
+        setStatus(out.relocated ? `文档路径已自动更新，已打开：${out.path || ""}` : "已打开对应文档。");
+      }
+    } catch (err) {
+      setStatus(err.message || String(err), true);
+    }
+  }
+
+  function updateGraphDetailPanel(nodeId) {
+    const id = String(nodeId || "").trim();
+    const scene = graphViewState.scene;
+    if (!id || !scene) {
+      if (el.graphDetailEmpty) {
+        el.graphDetailEmpty.hidden = false;
+      }
+      if (el.graphDetailBody) {
+        el.graphDetailBody.hidden = true;
+      }
+      return;
+    }
+    const node = scene.nodeMap.get(id);
+    if (!node) {
+      return;
+    }
+    const typeLabel = graphNodeTypeLabel(node.type);
+    const weight = Math.max(1, Number(node.weight || 1));
+    const neighbors = (scene.adjacency.get(id) || new Set());
+    const neighborNodes = [...neighbors]
+      .map((nid) => scene.nodeMap.get(nid))
+      .filter(Boolean)
+      .slice(0, 8);
+
+    if (el.graphDetailEmpty) {
+      el.graphDetailEmpty.hidden = true;
+    }
+    if (el.graphDetailBody) {
+      el.graphDetailBody.hidden = false;
+    }
+    if (el.graphDetailTitle) {
+      el.graphDetailTitle.textContent = String(node.label || node.name || "未命名");
+    }
+    if (el.graphDetailType) {
+      el.graphDetailType.textContent = typeLabel;
+    }
+    if (el.graphDetailSummary) {
+      el.graphDetailSummary.textContent = `${typeLabel}节点 · 权重 ${weight} · 与 ${neighbors.size} 个节点存在关联。`;
+    }
+    if (el.graphDetailIcon) {
+      el.graphDetailIcon.className = `kb-graph-detail__icon is-${node.type === "doc" ? "doc" : node.type === "folder" ? "folder" : node.type === "concept" ? "concept" : "section"}`;
+    }
+    if (el.graphDetailPropType) {
+      el.graphDetailPropType.textContent = typeLabel;
+    }
+    if (el.graphDetailPropWeight) {
+      el.graphDetailPropWeight.textContent = String(weight);
+    }
+    if (el.graphDetailPropLinks) {
+      el.graphDetailPropLinks.textContent = String(neighbors.size);
+    }
+    if (el.graphDetailNeighbors) {
+      el.graphDetailNeighbors.innerHTML = "";
+      if (!neighborNodes.length) {
+        const li = document.createElement("li");
+        li.textContent = "暂无关联节点";
+        el.graphDetailNeighbors.appendChild(li);
+      } else {
+        neighborNodes.forEach((neighbor) => {
+          const li = document.createElement("li");
+          li.dataset.nodeId = String(neighbor.id || "");
+          const name = document.createElement("span");
+          name.textContent = shortGraphLabel(neighbor.label || neighbor.name, 18);
+          const score = document.createElement("span");
+          score.className = "kb-graph-neighbor-score";
+          score.textContent = graphNodeTypeLabel(neighbor.type);
+          li.appendChild(name);
+          li.appendChild(score);
+          li.addEventListener("click", () => {
+            graphViewState.selectedNodeId = String(neighbor.id || "");
+            setGraphHover(graphViewState.selectedNodeId);
+          });
+          el.graphDetailNeighbors.appendChild(li);
+        });
+      }
+    }
+    if (el.graphDetailOpenBtn) {
+      el.graphDetailOpenBtn.hidden = node.type !== "doc";
+    }
   }
 
   function resetGraphTransform() {
@@ -4567,31 +4809,25 @@
         const nodeId = String(nodeEl.dataset.nodeId || "").trim();
         const scene = graphViewState.scene;
         const node = scene?.nodeMap?.get?.(nodeId);
-        if (node && node.type === "doc" && node.docId && typeof api.kbOpenDocument === "function") {
-          try {
-            const out = await runKbOpenWithLocateFlow({
-              docId: node.docId,
-              libraryId: String(node.libraryId || graphViewState.activeLibraryId || ""),
-            }, { docName: node.label || node.name || "" });
-            if (out?.canceled) {
-              return;
-            }
-            if (!out?.ok) {
-              setStatus(out?.error || "打开文档失败", true);
-            } else {
-              setStatus(
-                out.relocated
-                  ? `文档路径已自动更新，已打开：${out.path || ""}`
-                  : "已打开对应文档。"
-              );
-            }
-          } catch (err) {
-            setStatus(err.message || String(err), true);
-          }
+        if (node && node.type === "doc" && node.docId) {
+          await openGraphDocumentNode(node);
           return;
         }
       }
       resetGraphTransform();
+    });
+
+    svg.addEventListener("click", (ev) => {
+      const nodeEl = ev.target && ev.target.closest ? ev.target.closest(".kb-graph-node-group") : null;
+      if (!nodeEl) {
+        return;
+      }
+      const nodeId = String(nodeEl.dataset.nodeId || "").trim();
+      if (!nodeId) {
+        return;
+      }
+      graphViewState.selectedNodeId = nodeId;
+      setGraphHover(nodeId);
     });
   }
 
@@ -4620,13 +4856,13 @@
       '<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>',
       "</filter>",
       '<linearGradient id="kbGraphGradDoc" x1="0%" y1="0%" x2="100%" y2="100%">',
-      '<stop offset="0%" stop-color="#5eead4"/>',
-      '<stop offset="55%" stop-color="#22d3ee"/>',
-      '<stop offset="100%" stop-color="#0284c7"/>',
+      '<stop offset="0%" stop-color="#93c5fd"/>',
+      '<stop offset="55%" stop-color="#3b82f6"/>',
+      '<stop offset="100%" stop-color="#1d4ed8"/>',
       "</linearGradient>",
       '<linearGradient id="kbGraphGradSection" x1="0%" y1="0%" x2="100%" y2="100%">',
-      '<stop offset="0%" stop-color="#6ee7b7"/>',
-      '<stop offset="100%" stop-color="#3d6b68"/>',
+      '<stop offset="0%" stop-color="#86efac"/>',
+      '<stop offset="100%" stop-color="#16a34a"/>',
       "</linearGradient>",
       '<filter id="kbGraphGlowFolder" x="-70%" y="-70%" width="240%" height="240%">',
       '<feGaussianBlur stdDeviation="2.4" result="blur"/>',
@@ -4676,6 +4912,7 @@
     const focusId = String(nodeId || "").trim();
     graphViewState.hoveredNodeId = focusId;
     if (!scene) {
+      updateGraphDetailPanel("");
       return;
     }
     const adjacency = scene.adjacency || new Map();
@@ -4698,23 +4935,22 @@
     const tooltip = graphViewState.tooltipEl;
     if (!tooltip || !focusId) {
       tooltip?.classList.remove("is-visible");
+      updateGraphDetailPanel(graphViewState.selectedNodeId || "");
       return;
     }
     const node = scene.nodeMap.get(focusId);
     if (!node) {
       tooltip.classList.remove("is-visible");
+      updateGraphDetailPanel(graphViewState.selectedNodeId || "");
       return;
+    }
+    if (focusId === graphViewState.selectedNodeId || !graphViewState.selectedNodeId) {
+      graphViewState.selectedNodeId = focusId;
+      updateGraphDetailPanel(focusId);
     }
     const labelText = shortGraphLabel(node.label, 28);
     const weight = Math.max(1, Number(node.weight || 1));
-    const typeLabel =
-      node.type === "doc"
-        ? "文档"
-        : node.type === "folder"
-          ? "目录"
-          : node.type === "concept"
-            ? "协议码"
-            : "章节";
+    const typeLabel = graphNodeTypeLabel(node.type);
     tooltip.querySelector(".kb-graph-tooltip__text").textContent = `${labelText} · ${typeLabel} · 权重 ${weight}`;
     tooltip.setAttribute("transform", `translate(${node.x} ${node.y - 18})`);
     const textEl = tooltip.querySelector(".kb-graph-tooltip__text");
@@ -4741,7 +4977,7 @@
     const active =
       document.fullscreenElement === el.graphStage ||
       el.graphStage?.classList.contains("is-graph-fullscreen");
-    btn.textContent = active ? "退出全屏" : "全屏";
+    btn.title = active ? "退出全屏" : "全屏观看";
     btn.setAttribute("aria-label", active ? "退出全屏" : "全屏观看");
   }
 
@@ -5001,7 +5237,7 @@
       line.setAttribute("class", `kb-graph-edge kb-graph-edge--${String(e.type || "link").replace(/[^a-z0-9-]/gi, "-")}`);
       line.setAttribute("stroke-dasharray", "6 4");
       line.style.animationDelay = `${(edgeIdx % 12) * 0.18}s`;
-      line.setAttribute("stroke-width", String(Math.min(2.2, 0.65 + Number(e.weight || 1) * 0.18)));
+      line.setAttribute("stroke-width", String(Math.min(2.2, 0.65 + Number(e.weight || 1) * 0.18) * getGraphEdgeWidthScale()));
       edgeLayer.appendChild(line);
       edgeElMap.set(e.id, line);
     });
@@ -5010,13 +5246,17 @@
     nodeLayer.setAttribute("class", "kb-graph-nodes");
     viewport.appendChild(nodeLayer);
 
+    const labelThreshold = Number(el.graphLabelThreshold?.value || 3);
+    const showLabels = el.graphShowLabels?.checked !== false;
+    const nodeScale = getGraphNodeSizeScale();
+
     [...nodeMap.values()].forEach((n) => {
       const p = n;
       if (!p) {
         return;
       }
       const weight = Math.max(1, Number(n.weight || 1));
-      const radius = Math.min(13, 4.4 + Math.log(weight + 1) * 1.9);
+      const radius = Math.min(13, 4.4 + Math.log(weight + 1) * 1.9) * nodeScale;
       const isDoc = n.type === "doc";
       const isFolder = n.type === "folder";
       const isConcept = n.type === "concept";
@@ -5058,6 +5298,14 @@
       group.appendChild(tip);
       group.appendChild(halo);
       group.appendChild(circle);
+      if (showLabels && weight >= labelThreshold && (isDoc || weight >= labelThreshold + 1)) {
+        const label = createSvgEl("text");
+        label.setAttribute("class", "kb-graph-label");
+        label.setAttribute("y", String(radius + 12));
+        label.setAttribute("text-anchor", "middle");
+        label.textContent = shortGraphLabel(n.label, isDoc ? 16 : 12);
+        group.appendChild(label);
+      }
       nodeLayer.appendChild(group);
       nodeGroupMap.set(n.id, group);
     });
@@ -5094,6 +5342,10 @@
     if (hasStructuralEdges && el.graphForceEnabled?.checked !== false) {
       scheduleGraphSimulation(0.32);
     }
+    applyGraphDisplaySettings();
+    if (graphViewState.selectedNodeId) {
+      setGraphHover(graphViewState.selectedNodeId);
+    }
   }
 
   async function refreshGraphSnapshot(forceRebuild = false) {
@@ -5114,6 +5366,8 @@
       return;
     }
     const summary = out.graph?.summary || {};
+    graphViewState.lastSummary = summary;
+    updateGraphLegendCounts(summary);
     const onlyDocs = el.graphOnlyDocs?.checked === true;
     const pickedPreview = selectGraphDisplayNodes(out.graph?.nodes || [], out.graph?.edges || [], onlyDocs);
     if (el.graphMeta) {
@@ -5628,6 +5882,92 @@
     void toggleGraphFullscreen();
   });
 
+  el.graphFocusBtn?.addEventListener("click", () => {
+    focusGraphNeighbors(graphViewState.selectedNodeId || graphViewState.hoveredNodeId);
+  });
+
+  el.graphDetailFocusBtn?.addEventListener("click", () => {
+    focusGraphNeighbors(graphViewState.selectedNodeId);
+  });
+
+  el.graphDetailOpenBtn?.addEventListener("click", () => {
+    const node = graphViewState.scene?.nodeMap?.get(graphViewState.selectedNodeId);
+    void openGraphDocumentNode(node);
+  });
+
+  el.graphZoomIn?.addEventListener("click", () => {
+    const next = Math.min(graphViewState.maxScale, graphViewState.scale * 1.15);
+    graphViewState.scale = next;
+    applyGraphTransform();
+  });
+
+  el.graphZoomOut?.addEventListener("click", () => {
+    const next = Math.max(graphViewState.minScale, graphViewState.scale * 0.87);
+    graphViewState.scale = next;
+    applyGraphTransform();
+  });
+
+  el.graphZoomReset?.addEventListener("click", () => {
+    resetGraphTransform();
+  });
+
+  el.graphShowLabels?.addEventListener("change", () => {
+    applyGraphDisplaySettings();
+    if (el.graphShowLabels.checked) {
+      void refreshGraphSnapshot(false);
+    }
+  });
+
+  el.graphShowEdges?.addEventListener("change", applyGraphDisplaySettings);
+
+  el.graphSmartCluster?.addEventListener("change", () => {
+    if (el.graphForceEnabled) {
+      el.graphForceEnabled.checked = el.graphSmartCluster.checked;
+    }
+    if (el.graphSmartCluster.checked) {
+      scheduleGraphSimulation(0.28);
+      setStatus("已开启智能聚类（力导向布局）。");
+    } else {
+      stopGraphSimulation();
+      setStatus("已关闭智能聚类。");
+    }
+  });
+
+  el.graphForceEnabled?.addEventListener("change", () => {
+    if (el.graphSmartCluster) {
+      el.graphSmartCluster.checked = el.graphForceEnabled.checked;
+    }
+    if (el.graphForceEnabled.checked) {
+      scheduleGraphSimulation(0.28);
+      setStatus("已开启力导向布局。");
+    } else {
+      stopGraphSimulation();
+      setStatus("已关闭力导向布局（保持当前布局）。");
+    }
+  });
+
+  [el.graphNodeSize, el.graphEdgeWidth, el.graphLabelThreshold].forEach((input) => {
+    input?.addEventListener("input", () => {
+      if (input === el.graphLabelThreshold) {
+        void refreshGraphSnapshot(false);
+        return;
+      }
+      repaintGraphVisualStyles();
+    });
+  });
+
+  el.graphGroupSearch?.addEventListener("input", () => {
+    const q = String(el.graphGroupSearch.value || "").trim().toLowerCase();
+    document.querySelectorAll("#kbGraphLegend .kb-graph-legend__item").forEach((item) => {
+      const label = item.querySelector(".kb-graph-legend__label")?.textContent?.toLowerCase() || "";
+      item.hidden = Boolean(q) && !label.includes(q);
+    });
+  });
+
+  if (el.graphSmartCluster && el.graphForceEnabled) {
+    el.graphSmartCluster.checked = el.graphForceEnabled.checked;
+  }
+
   document.addEventListener("fullscreenchange", () => {
     updateGraphFullscreenButton();
     if (!document.fullscreenElement) {
@@ -5669,16 +6009,6 @@
       await refreshGraphSnapshot(false);
     } catch (err) {
       setStatus(err.message || String(err), true);
-    }
-  });
-
-  el.graphForceEnabled?.addEventListener("change", () => {
-    if (el.graphForceEnabled.checked) {
-      scheduleGraphSimulation(0.28);
-      setStatus("已开启力导向布局。");
-    } else {
-      stopGraphSimulation();
-      setStatus("已关闭力导向布局（保持当前布局）。");
     }
   });
 
