@@ -3475,6 +3475,7 @@
   }
 
   function rerenderLibraryViews(groups, activeLibraryId) {
+    purgePortaledKbDirMenus();
     renderDirectoryTree(groups, activeLibraryId);
     renderIngestSummary(groups);
     renderIngestedDocsFull(groups, activeLibraryId);
@@ -3550,15 +3551,40 @@
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      menu.open = false;
+      purgePortaledKbDirMenus();
       try {
         await handler();
       } finally {
         menu.open = false;
+        purgePortaledKbDirMenus();
+      }
+    });
+  }
+
+  function purgePortaledKbDirMenus() {
+    document.querySelectorAll(".kb-dir-menu[open]").forEach((menu) => {
+      menu.open = false;
+    });
+    document.querySelectorAll(".kb-dir-menu__panel.kb-dir-menu__panel--portaled").forEach((panel) => {
+      const owner = panel._kbMenuOwner;
+      panel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("width");
+      panel.style.removeProperty("z-index");
+      if (owner?.isConnected && panel.parentElement !== owner) {
+        owner.appendChild(panel);
+      } else if (panel.parentElement === document.body || !owner?.isConnected) {
+        panel.remove();
       }
     });
   }
 
   function wireKbDirMenu(menu, menuBtn, menuPanel) {
+    menuPanel._kbMenuOwner = menu;
+    menu._kbMenuPanel = menuPanel;
     menuPanel.addEventListener("mousedown", (ev) => ev.stopPropagation());
     menuPanel.addEventListener("click", (ev) => ev.stopPropagation());
 
@@ -3605,33 +3631,18 @@
     };
 
     menu.addEventListener("toggle", () => {
-      requestAnimationFrame(reposition);
+      requestAnimationFrame(() => {
+        if (!menu.open) {
+          purgePortaledKbDirMenus();
+          return;
+        }
+        reposition();
+      });
     });
   }
 
   function closeAllKbDirMenus() {
-    document.querySelectorAll(".kb-dir-menu[open]").forEach((menu) => {
-      menu.open = false;
-      const panel = menu.querySelector(".kb-dir-menu__panel");
-      if (panel?.classList.contains("kb-dir-menu__panel--portaled") && panel.parentElement !== menu) {
-        menu.appendChild(panel);
-        panel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
-        panel.style.removeProperty("position");
-        panel.style.removeProperty("top");
-        panel.style.removeProperty("left");
-        panel.style.removeProperty("width");
-        panel.style.removeProperty("z-index");
-      }
-    });
-    document.querySelectorAll(".kb-dir-menu__panel.kb-dir-menu__panel--portaled").forEach((panel) => {
-      const menu = panel.closest(".kb-dir-menu") || panel.parentElement?.querySelector?.(".kb-dir-menu");
-      panel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
-      panel.style.removeProperty("position");
-      panel.style.removeProperty("top");
-      panel.style.removeProperty("left");
-      panel.style.removeProperty("width");
-      panel.style.removeProperty("z-index");
-    });
+    purgePortaledKbDirMenus();
   }
 
   async function confirmDeleteLibraryDialog(name, docCount) {
