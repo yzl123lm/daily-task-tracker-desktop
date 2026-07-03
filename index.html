@@ -990,73 +990,83 @@
               </div>
             </section>
           </div>
-          <div id="jlKbFloatLibraries" class="jl-float-section-host">
-              <aside class="kb-left-pane">
-                <section class="kb-left-card kb-dir-panel">
-                  <div class="kb-section-head">
-                    <h3 class="kb-subtitle">知识库目录</h3>
-                    <button type="button" id="kbMainCreateLibraryBtn" class="secondary kb-dir-create-btn">+ 新建目录</button>
-                  </div>
+          <div id="jlKbFloatLibraries" class="jl-float-section-host kb-libraries-panel">
+              <div class="kb-libraries-layout">
+                <section class="kb-lib-card kb-lib-card--dirs kb-dir-panel">
+                  <header class="kb-lib-card__head">
+                    <h3 class="kb-lib-card__title">知识库目录概览</h3>
+                    <button type="button" id="kbMainCreateLibraryBtn" class="kb-lib-primary-btn">+ 新建目录</button>
+                  </header>
+                  <div id="kbLibrariesStatsBar" class="kb-lib-metrics" aria-label="知识库概览统计"></div>
                   <p id="kbIngestProgress" class="kb-ingest-progress" hidden aria-live="polite"></p>
                   <div id="kbIngestModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
-                  <div class="kb-dir-table" role="table" aria-label="知识库目录列表">
-                    <div class="kb-dir-table__head" role="row">
-                      <span role="columnheader">目录名称</span>
-                      <span role="columnheader">文档数</span>
-                      <span role="columnheader">状态</span>
-                      <span role="columnheader">操作</span>
-                    </div>
-                    <div id="kbDirTree" class="kb-dir-table__body"></div>
-                  </div>
-                </section>
-                <section class="kb-left-card kb-ingest-panel">
-                  <div class="kb-section-head">
-                    <h3 class="kb-subtitle">入库文档（按知识库目录）</h3>
-                    <span id="kbIngestTotal" class="kb-ingest-total">总数 0 份</span>
-                  </div>
-                  <div class="kb-ingest-table kb-ingest-table--summary" role="table" aria-label="入库文档汇总">
-                    <div class="kb-ingest-table__head kb-ingest-table__head--summary" role="row">
-                      <span role="columnheader">目录</span>
-                      <span role="columnheader">文档数</span>
-                      <span role="columnheader">最近更新</span>
-                    </div>
-                    <div id="kbDocSummary" class="kb-ingest-table__body"></div>
-                  </div>
-                  <button type="button" id="kbViewAllDocsBtn" class="kb-panel-link">查看全部文档 →</button>
-                  <div id="kbIngestFull" class="kb-ingest-full" hidden>
-                    <div class="kb-ingest-table kb-ingest-table--full" role="table" aria-label="全部入库文档">
-                      <div class="kb-ingest-table__head kb-ingest-table__head--full" role="row">
-                        <span role="columnheader">目录</span>
-                        <span role="columnheader">文档名称</span>
-                        <span role="columnheader">入库时间</span>
+                  <div class="kb-lib-table-wrap">
+                    <div class="kb-dir-table" role="table" aria-label="知识库目录列表">
+                      <div class="kb-dir-table__head" role="row">
+                        <span role="columnheader">目录名称</span>
+                        <span role="columnheader">文档数</span>
+                        <span role="columnheader">状态</span>
                         <span role="columnheader">操作</span>
                       </div>
-                      <div id="kbDocList" class="kb-ingest-table__body"></div>
+                      <div id="kbDirTree" class="kb-dir-table__body"></div>
                     </div>
                   </div>
                 </section>
-                <section class="kb-left-card kb-auto-learn-queue-box" id="kbAutoLearnQueueBox">
-                  <div class="kb-auto-learn-queue-head">
-                    <h3 class="kb-subtitle">自动学习待审核</h3>
-                    <span id="kbAutoLearnPendingBadge" class="kb-pending-badge">待审核 <span id="kbAutoLearnPendingCount">0</span></span>
-                  </div>
-                  <div class="kb-queue-table" role="table" aria-label="自动学习待审核列表">
-                    <div class="kb-queue-table__head" role="row">
-                      <span role="columnheader">标题</span>
-                      <span role="columnheader">来源</span>
-                      <span role="columnheader">发现时间</span>
-                      <span role="columnheader">操作</span>
-                    </div>
-                    <div id="kbAutoLearnQueueList" class="kb-queue-table__body">
-                      <div class="kb-queue-empty-state">
-                        <p class="kb-queue-empty__title">暂无待审核条目</p>
-                        <p class="kb-queue-empty__hint">系统将在此展示自动学习待审核内容。</p>
+                <div class="kb-lib-bottom-grid">
+                  <section class="kb-lib-card kb-ingest-panel">
+                    <header class="kb-lib-card__head">
+                      <h3 class="kb-lib-card__title">入库文档（按知识库目录）</h3>
+                      <button type="button" id="kbIngestMoreBtn" class="kb-lib-more-btn" aria-label="查看更多入库文档">更多 &gt;</button>
+                    </header>
+                    <span id="kbIngestTotal" class="kb-ingest-total" hidden aria-hidden="true">总数 0 份</span>
+                    <div class="kb-lib-table-wrap">
+                      <div class="kb-ingest-table kb-ingest-table--summary" role="table" aria-label="入库文档汇总">
+                        <div class="kb-ingest-table__head kb-ingest-table__head--summary" role="row">
+                          <span role="columnheader">目录</span>
+                          <span role="columnheader">文档数</span>
+                          <span role="columnheader">最近更新</span>
+                        </div>
+                        <div id="kbDocSummary" class="kb-ingest-table__body"></div>
                       </div>
                     </div>
-                  </div>
-                  <button type="button" id="kbAutoLearnQueueRefreshBtn" class="kb-panel-link">查看全部记录 →</button>
-                </section>
-              </aside>
+                    <button type="button" id="kbViewAllDocsBtn" class="kb-panel-link kb-lib-footer-link">查看全部文档 →</button>
+                    <div id="kbIngestFull" class="kb-ingest-full" hidden>
+                      <div class="kb-ingest-table kb-ingest-table--full" role="table" aria-label="全部入库文档">
+                        <div class="kb-ingest-table__head kb-ingest-table__head--full" role="row">
+                          <span role="columnheader">目录</span>
+                          <span role="columnheader">文档名称</span>
+                          <span role="columnheader">入库时间</span>
+                          <span role="columnheader">操作</span>
+                        </div>
+                        <div id="kbDocList" class="kb-ingest-table__body"></div>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="kb-lib-card kb-auto-learn-queue-box" id="kbAutoLearnQueueBox">
+                    <header class="kb-lib-card__head kb-auto-learn-queue-head">
+                      <h3 class="kb-lib-card__title">自动学习/待审核</h3>
+                      <span id="kbAutoLearnPendingBadge" class="kb-pending-badge">待审核 <span id="kbAutoLearnPendingCount">0</span></span>
+                    </header>
+                    <div class="kb-lib-table-wrap">
+                      <div class="kb-queue-table" role="table" aria-label="自动学习待审核列表">
+                        <div class="kb-queue-table__head" role="row">
+                          <span role="columnheader">标题</span>
+                          <span role="columnheader">来源</span>
+                          <span role="columnheader">发现时间</span>
+                          <span role="columnheader" class="kb-queue-table__ops-col">操作</span>
+                        </div>
+                        <div id="kbAutoLearnQueueList" class="kb-queue-table__body">
+                          <div class="kb-queue-empty-state">
+                            <p class="kb-queue-empty__title">暂无待审核条目</p>
+                            <p class="kb-queue-empty__hint">系统将在此展示自动学习待审核内容。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" id="kbAutoLearnQueueRefreshBtn" class="kb-panel-link kb-lib-footer-link">查看全部记录 →</button>
+                  </section>
+                </div>
+              </div>
           </div>
           <div id="jlKbFloatGraph" class="jl-float-section-host">
                 <div class="kb-search-box kb-graph-box kb-graph-panel">

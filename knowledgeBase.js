@@ -71,6 +71,8 @@
     opsFeedback: document.getElementById("kbOpsFeedback"),
     status: document.getElementById("kbStatus"),
     statsBar: document.getElementById("kbStatsBar"),
+    librariesStatsBar: document.getElementById("kbLibrariesStatsBar"),
+    ingestMoreBtn: document.getElementById("kbIngestMoreBtn"),
     statsOpsLogBtn: document.getElementById("kbStatsOpsLogBtn"),
     opsLogDialog: document.getElementById("kbOpsLogDialog"),
     opsLogList: document.getElementById("kbOpsLogList"),
@@ -3370,6 +3372,55 @@
     return latestRaw ? formatKbStatTime(latestRaw) : "—";
   }
 
+  function countDocsUpdatedToday(groups) {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const startMs = todayStart.getTime();
+    let count = 0;
+    (Array.isArray(groups) ? groups : []).forEach((g) => {
+      (g.documents || []).forEach((d) => {
+        const raw = String(d.updatedAt || d.createdAt || "");
+        const ts = Date.parse(raw.replace(/\//g, "-")) || 0;
+        if (ts >= startMs) {
+          count += 1;
+        }
+      });
+    });
+    return count;
+  }
+
+  function renderKbLibrariesOverviewStats(st) {
+    if (!el.librariesStatsBar) {
+      return;
+    }
+    const groups = latestDocGroups.length ? latestDocGroups : st.docsByLibrary || [];
+    const dirCount = groups.length;
+    const docTotal = groups.reduce(
+      (sum, g) => sum + (Array.isArray(g.documents) ? g.documents.length : Number(g.docCount || 0)),
+      0
+    );
+    const pending = Number(el.autoLearnPendingCount?.textContent || "0") || 0;
+    const todayCount = countDocsUpdatedToday(groups);
+    const esc = typeof escapeHtml === "function" ? escapeHtml : (t) => String(t ?? "");
+    const metrics = [
+      { icon: "📁", label: "目录总数", value: dirCount },
+      { icon: "📄", label: "文档总数", value: docTotal },
+      { icon: "🔄", label: "今日更新", value: todayCount },
+      { icon: "🤖", label: "待审批", value: pending },
+    ];
+    el.librariesStatsBar.innerHTML = metrics
+      .map(
+        (m) => `<article class="kb-lib-metric" title="${esc(m.label)}">
+          <span class="kb-lib-metric__icon" aria-hidden="true">${m.icon}</span>
+          <div class="kb-lib-metric__body">
+            <span class="kb-lib-metric__label">${esc(m.label)}</span>
+            <strong class="kb-lib-metric__value">${esc(String(m.value))}</strong>
+          </div>
+        </article>`
+      )
+      .join("");
+  }
+
   function renderKbStats(st) {
     if (!el.statsBar) {
       return;
@@ -3416,6 +3467,7 @@
         </article>`;
       })
       .join("");
+    renderKbLibrariesOverviewStats(st);
     if (el.ingestTotal) {
       el.ingestTotal.textContent = `总数 ${docTotal} 份`;
     }
@@ -4082,7 +4134,15 @@
       row.setAttribute("role", "row");
       const libCell = document.createElement("span");
       libCell.className = "kb-ingest-summary-row__lib";
-      libCell.textContent = g.name || gid || "—";
+      const folder = document.createElement("span");
+      folder.className = "kb-ingest-summary-row__folder";
+      folder.setAttribute("aria-hidden", "true");
+      folder.textContent = "📁";
+      const libName = document.createElement("span");
+      libName.className = "kb-ingest-summary-row__name";
+      libName.textContent = g.name || gid || "—";
+      libCell.appendChild(folder);
+      libCell.appendChild(libName);
       const countCell = document.createElement("span");
       countCell.className = "kb-ingest-summary-row__count";
       countCell.textContent = String(docs.length || g.docCount || 0);
@@ -5582,6 +5642,10 @@
   el.viewAllDocsBtn?.addEventListener("click", () => {
     ingestDocsExpanded = !ingestDocsExpanded;
     rerenderLibraryViews(latestDocGroups, activeLibraryIdCache);
+  });
+
+  el.ingestMoreBtn?.addEventListener("click", () => {
+    el.viewAllDocsBtn?.click();
   });
 
   el.statsOpsLogBtn?.addEventListener("click", () => {
