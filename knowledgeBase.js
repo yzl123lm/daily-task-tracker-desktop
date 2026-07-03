@@ -382,6 +382,7 @@
 
         menuPanel.appendChild(approveBtn);
         menuPanel.appendChild(rejectBtn);
+        wireKbDirMenu(menu, menuBtn, menuPanel);
         menu.appendChild(menuBtn);
         menu.appendChild(menuPanel);
         opsCell.appendChild(menu);
@@ -3561,14 +3562,21 @@
     menuPanel.addEventListener("mousedown", (ev) => ev.stopPropagation());
     menuPanel.addEventListener("click", (ev) => ev.stopPropagation());
 
+    const restorePanel = () => {
+      menuPanel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
+      menuPanel.style.removeProperty("position");
+      menuPanel.style.removeProperty("top");
+      menuPanel.style.removeProperty("left");
+      menuPanel.style.removeProperty("width");
+      menuPanel.style.removeProperty("z-index");
+      if (menuPanel.parentElement !== menu) {
+        menu.appendChild(menuPanel);
+      }
+    };
+
     const reposition = () => {
       if (!menu.open) {
-        menuPanel.classList.remove("is-floating");
-        menuPanel.style.removeProperty("position");
-        menuPanel.style.removeProperty("top");
-        menuPanel.style.removeProperty("left");
-        menuPanel.style.removeProperty("width");
-        menuPanel.style.removeProperty("z-index");
+        restorePanel();
         return;
       }
       document.querySelectorAll(".kb-dir-menu[open]").forEach((other) => {
@@ -3576,12 +3584,15 @@
           other.open = false;
         }
       });
+      if (menuPanel.parentElement !== document.body) {
+        document.body.appendChild(menuPanel);
+      }
       const rect = menuBtn.getBoundingClientRect();
-      menuPanel.classList.add("is-floating");
+      menuPanel.classList.add("is-floating", "kb-dir-menu__panel--portaled");
       menuPanel.style.position = "fixed";
-      menuPanel.style.zIndex = "10000";
-      menuPanel.style.width = `${Math.max(140, menuBtn.offsetWidth + 112)}px`;
-      const panelWidth = menuPanel.offsetWidth || 160;
+      menuPanel.style.zIndex = "12050";
+      menuPanel.style.width = `${Math.max(148, menuBtn.offsetWidth + 120)}px`;
+      const panelWidth = menuPanel.offsetWidth || 168;
       const panelHeight = menuPanel.offsetHeight || 120;
       let left = rect.right - panelWidth;
       left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8));
@@ -3601,6 +3612,25 @@
   function closeAllKbDirMenus() {
     document.querySelectorAll(".kb-dir-menu[open]").forEach((menu) => {
       menu.open = false;
+      const panel = menu.querySelector(".kb-dir-menu__panel");
+      if (panel?.classList.contains("kb-dir-menu__panel--portaled") && panel.parentElement !== menu) {
+        menu.appendChild(panel);
+        panel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
+        panel.style.removeProperty("position");
+        panel.style.removeProperty("top");
+        panel.style.removeProperty("left");
+        panel.style.removeProperty("width");
+        panel.style.removeProperty("z-index");
+      }
+    });
+    document.querySelectorAll(".kb-dir-menu__panel.kb-dir-menu__panel--portaled").forEach((panel) => {
+      const menu = panel.closest(".kb-dir-menu") || panel.parentElement?.querySelector?.(".kb-dir-menu");
+      panel.classList.remove("is-floating", "kb-dir-menu__panel--portaled");
+      panel.style.removeProperty("position");
+      panel.style.removeProperty("top");
+      panel.style.removeProperty("left");
+      panel.style.removeProperty("width");
+      panel.style.removeProperty("z-index");
     });
   }
 
