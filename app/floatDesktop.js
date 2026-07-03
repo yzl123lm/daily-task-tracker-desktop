@@ -107,8 +107,8 @@
           icon: "📁",
           width: 550,
           height: 600,
-          minWidth: 480,
-          minHeight: 480,
+          minWidth: 420,
+          minHeight: 420,
         },
         "kb-graph": {
           panelId: "jlKbFloatGraph",
@@ -248,7 +248,75 @@
   }
 
   function storageKey(route) {
-    return `jl_float_win_${mode}_${route}`;
+    return `jl_float_win_${mode}_${route}_v2`;
+  }
+
+  function windowSizeLimits(meta, winEl) {
+    const { width: cw, height: ch } = canvasBounds();
+    const minW = Number(winEl?.dataset?.minWidth) || meta?.minWidth || meta?.width || 320;
+    const minH = Number(winEl?.dataset?.minHeight) || meta?.minHeight || meta?.height || 240;
+    const maxW = Math.floor(cw * 0.92);
+    const maxH = Math.floor(ch * 0.9);
+    return { minW, minH, maxW, maxH };
+  }
+
+  function normalizeSavedGeometry(saved, meta) {
+    if (!saved || typeof saved !== "object") {
+      return null;
+    }
+    const limits = windowSizeLimits(meta);
+    let width = Number(saved.width);
+    let height = Number(saved.height);
+    let left = Number(saved.left);
+    let top = Number(saved.top);
+    const widthInvalid = !Number.isFinite(width) || width > limits.maxW || width < limits.minW;
+    const heightInvalid = !Number.isFinite(height) || height > limits.maxH || height < limits.minH;
+    if (widthInvalid || heightInvalid) {
+      width = meta.width;
+      height = meta.height;
+      left = NaN;
+      top = NaN;
+    }
+    return {
+      left: Number.isFinite(left) ? left : null,
+      top: Number.isFinite(top) ? top : null,
+      width: clamp(width, limits.minW, limits.maxW),
+      height: clamp(height, limits.minH, limits.maxH),
+    };
+  }
+
+  function applyWindowGeometry(winEl, meta, savedRaw, index) {
+    const saved = normalizeSavedGeometry(savedRaw, meta);
+    const limits = windowSizeLimits(meta, winEl);
+    const width = saved?.width || meta.width;
+    const height = saved?.height || meta.height;
+    const pos =
+      saved?.left != null && saved?.top != null
+        ? (() => {
+            const { width: cw, height: ch } = canvasBounds();
+            return {
+              x: clamp(saved.left, 8, Math.max(8, cw - width - 8)),
+              y: clamp(saved.top, 8, Math.max(8, ch - height - 8)),
+            };
+          })()
+        : defaultPosition(index, width, height);
+    winEl.style.width = `${clamp(width, limits.minW, limits.maxW)}px`;
+    winEl.style.height = `${clamp(height, limits.minH, limits.maxH)}px`;
+    winEl.style.left = `${pos.x}px`;
+    winEl.style.top = `${pos.y}px`;
+  }
+
+  function ensureReasonableWindowSize(entry, meta) {
+    if (!entry?.el || !meta) {
+      return;
+    }
+    const limits = windowSizeLimits(meta, entry.el);
+    const tooWide = entry.el.offsetWidth > limits.maxW;
+    const tooTall = entry.el.offsetHeight > limits.maxH;
+    if (!tooWide && !tooTall) {
+      return;
+    }
+    applyWindowGeometry(entry.el, meta, null, winMap().size);
   }
 
   function geometryStore() {
@@ -282,17 +350,27 @@
 
   function saveGeometry(route, winEl) {
     const store = geometryStore();
+    const meta = cfg(route);
     if (!store || !winEl) {
       return;
     }
     try {
+      const limits = windowSizeLimits(meta, winEl);
+      const width = clamp(winEl.offsetWidth, limits.minW, limits.maxW);
+      const height = clamp(winEl.offsetHeight, limits.minH, limits.maxH);
+      if (width !== winEl.offsetWidth) {
+        winEl.style.width = `${width}px`;
+      }
+      if (height !== winEl.offsetHeight) {
+        winEl.style.height = `${height}px`;
+      }
       store.setItem(
         storageKey(route),
         JSON.stringify({
           left: winEl.offsetLeft,
           top: winEl.offsetTop,
-          width: winEl.offsetWidth,
-          height: winEl.offsetHeight,
+          width,
+          height,
         })
       );
     } catch {
@@ -561,9 +639,6 @@
   function createWindowElement(route, meta) {
     const saved = readSavedGeometry(route);
     const index = winMap().size;
-    const pos = saved
-      ? { x: saved.left, y: saved.top }
-      : defaultPosition(index, meta.width, meta.height);
     const winEl = document.createElement("div");
     winEl.className = "jl-float-win";
     winEl.dataset.route = route;
@@ -571,13 +646,12 @@
       winEl.dataset.panelKey = meta.panelKey;
     }
     const useFixedSize = !!meta.fixedSize;
-    winEl.style.width = `${useFixedSize ? meta.width : (saved?.width || meta.width)}px`;
-    winEl.style.height = `${useFixedSize ? meta.height : (saved?.height || meta.height)}px`;
-    winEl.style.left = `${pos.x}px`;
-    winEl.style.top = `${pos.y}px`;
     winEl.dataset.minWidth = String(meta.minWidth || meta.width || 320);
     winEl.dataset.minHeight = String(meta.minHeight || meta.height || 240);
+    applyWindowGeometry(winEl, meta, useFixedSize ? null : saved, index);
     if (useFixedSize) {
+      winEl.style.width = `${meta.width}px`;
+      winEl.style.height = `${meta.height}px`;
       winEl.classList.add("jl-float-win--fixed-size");
       winEl.dataset.maxWidth = String(meta.width);
       winEl.dataset.maxHeight = String(meta.height);
@@ -781,6 +855,8 @@
     if (meta.fixedSize) {
       entry.el.style.width = `${meta.width}px`;
       entry.el.style.height = `${meta.height}px`;
+    } else {
+      ensureReasonableWindowSize(entry, meta);
     }
 
     setFloatWindowVisible(entry, true);

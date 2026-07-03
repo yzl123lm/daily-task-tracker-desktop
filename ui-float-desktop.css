@@ -626,6 +626,10 @@ body.jl-float-desktop-active .main-column {
 #jlKbFloatLibraries.jl-float-panel-host {
   display: flex !important;
   flex-direction: column;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 #jlKbFloatLibraries .kb-libraries-layout {
@@ -745,7 +749,7 @@ body.jl-float-desktop-active .main-column {
 
 #jlKbFloatLibraries .kb-lib-bottom-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 14px;
   align-items: stretch;
 }
@@ -932,7 +936,11 @@ body.jl-float-desktop-active .main-column {
 }
 
 body.jl-float-desktop-active .jl-float-win__body:has(#jlKbFloatLibraries) {
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
   padding: 10px 12px 12px;
   background: transparent;
 }
@@ -941,12 +949,9 @@ body.jl-float-desktop-active .jl-float-win__body:has(#jlKbFloatLibraries) {
   #jlKbFloatLibraries .kb-lib-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  #jlKbFloatLibraries .kb-lib-bottom-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
+.jl-kb-launcher {
   height: 100%;
   display: flex;
   flex-direction: column;
