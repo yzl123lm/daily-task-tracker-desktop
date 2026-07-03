@@ -1676,3 +1676,146 @@ body.jl-knowledge-float-active {
 .theme-nebula .jl-float-win .jl-float-win__btn--close {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
+
+/* 工作台浮窗：覆盖 Nebula 全局深色 button，恢复浅色玻璃工作台风格 */
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile {
+  background: rgba(255, 255, 255, 0.58) !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  color: #1e3a8a !important;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.06) !important;
+}
+
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile[data-wb-hub-route="new"] {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(219, 234, 254, 0.62)) !important;
+  border-color: rgba(59, 130, 246, 0.22) !important;
+}
+
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile[data-wb-hub-route="filter"] {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(207, 250, 254, 0.55)) !important;
+  border-color: rgba(6, 182, 212, 0.22) !important;
+}
+
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile[data-wb-hub-route="dashboard"] {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(237, 233, 254, 0.62)) !important;
+  border-color: rgba(139, 92, 246, 0.22) !important;
+}
+
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile[data-wb-hub-route="list"] {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(254, 243, 199, 0.52)) !important;
+  border-color: rgba(245, 158, 11, 0.24) !important;
+}
+
+.theme-nebula .jl-float-win button.jl-workbench-hub__tile:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(59, 130, 246, 0.32) !important;
+  color: #1e3a8a !important;
+}
+
+.theme-nebula .jl-float-win .filter-btn-primary {
+  color: #ffffff !important;
+  background: #1677ff !important;
+  border-color: #1677ff !important;
+}
+
+.theme-nebula .jl-float-win .filter-btn-primary:hover {
+  color: #ffffff !important;
+  background: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.theme-nebula .jl-float-win .filter-btn-secondary,
+.theme-nebula .jl-float-win button.secondary:not(.jl-float-win__btn--pin):not(.jl-float-win__btn--minimize):not(.jl-float-win__btn--close) {
+  color: #1677ff !important;
+  background: #ffffff !important;
+  border: 1px solid #1677ff !important;
+}
+
+.theme-nebula .jl-float-win .filter-btn-secondary:hover,
+.theme-nebula .jl-float-win button.secondary:not(.jl-float-win__btn--pin):not(.jl-float-win__btn--minimize):not(.jl-float-win__btn--close):hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+  background: rgba(22, 119, 255, 0.04) !important;
+}
+
+.theme-nebula .jl-float-win .task-new-template-extra button.secondary {
+  color: #262626 !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+.theme-nebula .jl-float-win .task-new-template-extra button.secondary:hover {
+  color: #1677ff !important;
+  border-color: #1677ff !important;
+  background: #ffffff !important;
+}
+
+.theme-nebula .jl-float-win .task-list-view-toggle {
+  background: #f0f2f5 !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+.theme-nebula .jl-float-win button.task-view-btn {
+  background: transparent !important;
+  border: none !important;
+  color: #64748b !important;
+}
+
+.theme-nebula .jl-float-win button.task-view-btn:hover {
+  background: rgba(255, 255, 255, 0.55) !important;
+  color: #475569 !important;
+}
+
+.theme-nebula .jl-float-win button.task-view-btn.is-active {
+  background: #ffffff !important;
+  color: #1677ff !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
+}
+
+.theme-nebula .jl-float-win button.task-toolbar-btn {
+  background: #ffffff !important;
+  color: #1d2129 !important;
+  border: 1px solid #d8e0eb !important;
+  font-weight: 500 !important;
+}
+
+.theme-nebula .jl-float-win button.task-toolbar-btn:hover {
+  background: #f8f9fa !important;
+  color: #1d2129 !important;
+  border-color: #c5cdd8 !important;
+}
+
+.theme-nebula .jl-float-win input,
+.theme-nebula .jl-float-win select,
+.theme-nebula .jl-float-win textarea {
+  background: #ffffff !important;
+  border-color: #d9d9d9 !important;
+  color: #262626 !important;
+}
+
+.theme-nebula .jl-float-win input::placeholder,
+.theme-nebula .jl-float-win textarea::placeholder {
+  color: rgba(60, 60, 67, 0.45) !important;
+}
+
+.theme-nebula .jl-float-win input:focus-visible,
+.theme-nebula .jl-float-win select:focus-visible,
+.theme-nebula .jl-float-win textarea:focus-visible {
+  border-color: #1677ff !important;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.12) !important;
+  outline: none !important;
+}
+
+.theme-nebula .jl-float-win .task-new-field input[readonly] {
+  background: #f5f5f5 !important;
+  color: #8c8c8c !important;
+}
+
+.theme-nebula .jl-float-win .filter-field input,
+.theme-nebula .jl-float-win .filter-field select,
+.theme-nebula .jl-float-win .task-new-field input,
+.theme-nebula .jl-float-win .task-new-field select,
+.theme-nebula .jl-float-win .task-new-field textarea,
+.theme-nebula .jl-float-win .task-quick-search input[type="search"],
+.theme-nebula .jl-float-win .task-list-sort select {
+  border-radius: 6px !important;
+}
