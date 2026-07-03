@@ -81,10 +81,11 @@
           title: "本地知识库",
           desc: "模块入口与状态概览",
           icon: "📚",
-          width: 360,
-          height: 440,
-          minWidth: 320,
-          minHeight: 360,
+          width: 455,
+          height: 500,
+          minWidth: 455,
+          minHeight: 500,
+          fixedSize: true,
           isLauncher: true,
         },
         "kb-main": {
@@ -529,8 +530,12 @@
         return;
       }
       const { width: cw, height: ch } = canvasBounds();
-      const maxW = cw - winEl.offsetLeft - 8;
-      const maxH = ch - winEl.offsetTop - 8;
+      const maxW = winEl.classList.contains("jl-float-win--fixed-size")
+        ? minW
+        : cw - winEl.offsetLeft - 8;
+      const maxH = winEl.classList.contains("jl-float-win--fixed-size")
+        ? minH
+        : ch - winEl.offsetTop - 8;
       winEl.style.width = `${clamp(startW + (event.clientX - startX), minW, maxW)}px`;
       winEl.style.height = `${clamp(startH + (event.clientY - startY), minH, maxH)}px`;
     });
@@ -565,12 +570,18 @@
     if (meta.panelKey) {
       winEl.dataset.panelKey = meta.panelKey;
     }
-    winEl.style.width = `${saved?.width || meta.width}px`;
-    winEl.style.height = `${saved?.height || meta.height}px`;
+    const useFixedSize = !!meta.fixedSize;
+    winEl.style.width = `${useFixedSize ? meta.width : (saved?.width || meta.width)}px`;
+    winEl.style.height = `${useFixedSize ? meta.height : (saved?.height || meta.height)}px`;
     winEl.style.left = `${pos.x}px`;
     winEl.style.top = `${pos.y}px`;
-    winEl.dataset.minWidth = String(meta.minWidth || 320);
-    winEl.dataset.minHeight = String(meta.minHeight || 240);
+    winEl.dataset.minWidth = String(meta.minWidth || meta.width || 320);
+    winEl.dataset.minHeight = String(meta.minHeight || meta.height || 240);
+    if (useFixedSize) {
+      winEl.classList.add("jl-float-win--fixed-size");
+      winEl.dataset.maxWidth = String(meta.width);
+      winEl.dataset.maxHeight = String(meta.height);
+    }
 
     winEl.innerHTML = `
       <header class="jl-float-win__header">
@@ -766,6 +777,11 @@
       winMap().set(route, entry);
     }
     mountPanel(route, entry.body);
+
+    if (meta.fixedSize) {
+      entry.el.style.width = `${meta.width}px`;
+      entry.el.style.height = `${meta.height}px`;
+    }
 
     setFloatWindowVisible(entry, true);
     entry.minimized = false;
