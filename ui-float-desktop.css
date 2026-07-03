@@ -1749,6 +1749,31 @@ body.jl-knowledge-float-active {
   background: #ffffff !important;
 }
 
+.theme-nebula .jl-float-win button.task-new-submit-primary {
+  color: #ffffff !important;
+  background: #1677ff !important;
+  border: 1px solid #1677ff !important;
+  font-weight: 500 !important;
+}
+
+.theme-nebula .jl-float-win button.task-new-submit-primary:hover {
+  color: #ffffff !important;
+  background: #4096ff !important;
+  border-color: #4096ff !important;
+}
+
+.theme-nebula .jl-float-win button.task-new-submit-secondary {
+  color: #1677ff !important;
+  background: #ffffff !important;
+  border: 1px solid #1677ff !important;
+}
+
+.theme-nebula .jl-float-win button.task-new-submit-secondary:hover {
+  color: #4096ff !important;
+  border-color: #4096ff !important;
+  background: rgba(22, 119, 255, 0.04) !important;
+}
+
 .theme-nebula .jl-float-win .task-list-view-toggle {
   background: #f0f2f5 !important;
   border: 1px solid #d9d9d9 !important;
