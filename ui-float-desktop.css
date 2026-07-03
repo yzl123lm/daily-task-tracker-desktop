@@ -1597,11 +1597,12 @@ body.jl-knowledge-float-active {
 .jl-float-panel-host .jl-kb-hub__grid {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  margin-top: 8px;
 }
 
 .jl-float-panel-host .jl-kb-hub__tile {
   min-height: 0;
-  padding: 10px;
+  padding: 8px 10px;
 }
 
 .jl-float-panel-host .jl-kb-hub__tile-desc {
