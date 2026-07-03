@@ -99,6 +99,17 @@ try {
   if (Test-Path -LiteralPath $ie4u) {
     Start-Process -FilePath $ie4u -ArgumentList "-show" -WindowStyle Hidden -Wait
   }
+  # Force Explorer to reload shortcut icons after icon.ico replacement.
+  $sig = @"
+using System;
+using System.Runtime.InteropServices;
+public static class ShellNotify {
+  [DllImport("shell32.dll")]
+  public static extern void SHChangeNotify(int eventId, int flags, IntPtr item1, IntPtr item2);
+}
+"@
+  Add-Type -TypeDefinition $sig -ErrorAction SilentlyContinue | Out-Null
+  [ShellNotify]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero) | Out-Null
 } catch { }
 
 Write-Host "(create-client-shortcut) Desktop: $desktopLink"

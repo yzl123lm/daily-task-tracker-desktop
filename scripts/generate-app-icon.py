@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 ICONS = ROOT / "assets" / "icons"
 TARGET_SIDE = 1024
-SAFE_MARGIN_RATIO = 0.07  # 7% transparent padding on each side
+SAFE_MARGIN_RATIO = 0.07  # 7% transparent padding for PNG / macOS / splash
+WINDOWS_SHELL_MARGIN_RATIO = 0.0  # Windows renders ICO transparency as white — fill canvas
 ICO_SIZES = [16, 32, 48, 64, 128, 256]
 ICNS_SIZES = [16, 32, 64, 128, 256, 512, 1024]
 
@@ -105,9 +106,13 @@ def content_bbox(image: Image.Image) -> tuple[int, int, int, int]:
     return left, top, right, bottom
 
 
-def compose_with_safe_margin(cropped: Image.Image, side: int = TARGET_SIDE) -> Image.Image:
+def compose_with_safe_margin(
+    cropped: Image.Image,
+    side: int = TARGET_SIDE,
+    margin_ratio: float = SAFE_MARGIN_RATIO,
+) -> Image.Image:
     canvas = Image.new("RGBA", (side, side), (0, 0, 0, 0))
-    max_content = max(1, int(round(side * (1 - SAFE_MARGIN_RATIO * 2))))
+    max_content = max(1, int(round(side * (1 - margin_ratio * 2))))
     src_w, src_h = cropped.size
     scale = min(max_content / src_w, max_content / src_h)
     target_w = max(1, int(round(src_w * scale)))
@@ -119,11 +124,11 @@ def compose_with_safe_margin(cropped: Image.Image, side: int = TARGET_SIDE) -> I
     return canvas
 
 
-def build_master_icon(source: Image.Image) -> Image.Image:
+def build_master_icon(source: Image.Image, margin_ratio: float = SAFE_MARGIN_RATIO) -> Image.Image:
     transparent = remove_outer_matte(source)
     left, top, right, bottom = content_bbox(transparent)
     cropped = transparent.crop((left, top, right + 1, bottom + 1))
-    return compose_with_safe_margin(cropped)
+    return compose_with_safe_margin(cropped, margin_ratio=margin_ratio)
 
 
 def resize_icon(image: Image.Image, size: int) -> Image.Image:
@@ -291,12 +296,35 @@ def verify_transparent_master(master: Image.Image) -> None:
     )
 
 
+def verify_windows_shell_master(master: Image.Image) -> None:
+    rgba = master.convert("RGBA")
+    pixels = rgba.load()
+    width, height = rgba.size
+    bbox = content_bbox(rgba)
+    margin_x = min(bbox[0], width - 1 - bbox[2])
+    margin_y = min(bbox[1], height - 1 - bbox[3])
+    margin_ratio_x = margin_x / width
+    margin_ratio_y = margin_y / height
+    if margin_ratio_x > 0.03 or margin_ratio_y > 0.03:
+        raise RuntimeError(
+            f"Windows shell icon margin too large (shows as white desktop halo): "
+            f"{margin_ratio_x * 100:.1f}% x {margin_ratio_y * 100:.1f}%"
+        )
+    print(
+        "verify windows shell ok:"
+        f" margin {margin_ratio_x * 100:.1f}% x {margin_ratio_y * 100:.1f}%"
+    )
+
+
 def main() -> int:
     BUILD.mkdir(parents=True, exist_ok=True)
     ICONS.mkdir(parents=True, exist_ok=True)
 
-    master = build_master_icon(load_source())
+    source = load_source()
+    master = build_master_icon(source, SAFE_MARGIN_RATIO)
+    windows_master = build_master_icon(source, WINDOWS_SHELL_MARGIN_RATIO)
     verify_transparent_master(master)
+    verify_windows_shell_master(windows_master)
 
     outputs = {
         "app-icon.png": ICONS / "app-icon.png",
@@ -311,8 +339,8 @@ def main() -> int:
     write_png(outputs["app-icon.png"], master)
     write_png(outputs["icon.png"], master)
     write_png(outputs["icon-master.png"], master)
-    write_ico(outputs["icon.ico"], master)
-    write_ico(outputs["assets-icon.ico"], master)
+    write_ico(outputs["icon.ico"], windows_master)
+    write_ico(outputs["assets-icon.ico"], windows_master)
     write_png(BUILD / "whale-mascot.png", master)
 
     if not try_write_icns_with_png2icons(outputs["icon.icns"], outputs["app-icon.png"]):
