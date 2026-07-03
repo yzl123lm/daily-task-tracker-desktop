@@ -1962,6 +1962,25 @@
     }, 120);
   }
 
+  function buildKbTrialHitCardHtml(hit, index) {
+    const score = Number(hit.finalScore ?? hit.score ?? 0);
+    const preview = String(hit.text || "")
+      .trim()
+      .replace(/\s+/g, " ");
+    const previewShort = preview.length > 160 ? `${preview.slice(0, 160)}…` : preview || "（无预览）";
+    return [
+      `<header class="kb-trial-card__head">`,
+      `<span class="kb-trial-card__rank" aria-hidden="true">${index + 1}</span>`,
+      `<h4 class="kb-trial-card__title">${htmlEsc(formatHitTitle(hit))}</h4>`,
+      `</header>`,
+      `<p class="kb-trial-card__snippet">${htmlEsc(previewShort)}</p>`,
+      `<footer class="kb-trial-card__foot">`,
+      `<span class="kb-trial-card__score">相关度 ${score.toFixed(3)}</span>`,
+      `<button type="button" class="kb-trial-card__followup kb-kb-followup-btn" data-kb-followup="${index}">继续追问</button>`,
+      `</footer>`,
+    ].join("");
+  }
+
   function buildKbHitCardHtml(hit, index, query) {
     const score = Number(hit.finalScore ?? hit.score ?? 0);
     const preview = String(hit.text || "")
@@ -2693,24 +2712,32 @@
       return;
     }
     el.trialResults.innerHTML = "";
+    const shell = document.createElement("div");
+    shell.className = "kb-trial-results-shell";
+
     const hint = document.createElement("p");
     hint.className = "field-hint kb-trial-result-hint";
     hint.textContent =
       hitCount > 0
         ? isKbTrialFloatPanel()
-          ? `${summary}。下方为命中预览，点击卡片可打开详情弹窗。`
-          : `${summary}。下方为命中预览，可继续追问或打开弹窗浏览详情。`
+          ? `共 ${hitCount} 条命中。点击下方卡片查看详情，或在卡片内继续追问。`
+          : `共 ${hitCount} 条命中。下方为预览，可继续追问或打开弹窗浏览详情。`
         : isKbTrialFloatPanel()
-          ? `${summary}。`
-          : `${summary}。详细说明见检索结果弹窗。`;
-    el.trialResults.appendChild(hint);
+          ? String(summary || "未检索到相关内容。")
+          : String(summary || "未检索到相关内容。详细说明见检索结果弹窗。");
+    shell.appendChild(hint);
+
     if (Array.isArray(hits) && hits.length) {
+      const scroll = document.createElement("div");
+      scroll.className = "kb-trial-card-scroll";
+      scroll.setAttribute("tabindex", "0");
+      scroll.setAttribute("aria-label", "检索命中卡片列表");
       const grid = document.createElement("div");
-      grid.className = "jl-kb-card-grid";
-      hits.slice(0, 5).forEach((hit, index) => {
+      grid.className = "kb-trial-card-grid";
+      hits.forEach((hit, index) => {
         const card = document.createElement("article");
-        card.className = "jl-kb-card kb-trial-hit-card";
-        card.innerHTML = buildKbHitCardHtml(hit, index, query);
+        card.className = "kb-trial-hit-card";
+        card.innerHTML = buildKbTrialHitCardHtml(hit, index);
         card.addEventListener("click", (ev) => {
           if (ev.target.closest(".kb-kb-followup-btn")) {
             return;
@@ -2720,9 +2747,11 @@
         });
         grid.appendChild(card);
       });
-      wireKbHitCardActions(grid, hits.slice(0, 5), query);
-      el.trialResults.appendChild(grid);
+      wireKbHitCardActions(grid, hits, query);
+      scroll.appendChild(grid);
+      shell.appendChild(scroll);
     }
+    el.trialResults.appendChild(shell);
     el.trialResults.classList.add("is-active");
   }
 

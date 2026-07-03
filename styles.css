@@ -10200,16 +10200,16 @@ label.cap-check:last-child {
 
 .kb-trial-results {
   margin-top: 4px;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   font-size: 12px;
   line-height: 1.45;
 }
 
 .kb-trial-results.is-active {
-  flex: 1 1 0;
-  min-height: 56px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .kb-trial-results:empty:not(.is-active) {
