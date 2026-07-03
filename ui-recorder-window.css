@@ -1084,6 +1084,21 @@ body.jl-recorder-monitor-active {
   display: none !important;
 }
 
+.recorder-monitor.is-collapsed {
+  min-height: 0;
+  box-shadow: 0 12px 32px rgba(47, 128, 255, 0.16), 0 0 0 1px rgba(47, 128, 255, 0.1);
+}
+
+.recorder-monitor.is-collapsed .recorder-monitor__titlebar {
+  border-bottom: none;
+  cursor: grab;
+}
+
+.recorder-monitor__ctrl--minimize.is-restored {
+  background: #ffbd2e;
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
 .recorder-monitor__shell {
   flex: 1 1 auto;
   min-height: 0;

@@ -707,12 +707,95 @@ dialog::backdrop {
   font-size: 14px;
 }
 
-/* 备注 / 跟进事物内容弹窗：固定白底黑字（不受星云深色主题影响） */
+/* 备注 / 跟进事物内容 / 自定义报表弹窗：固定白底黑字（不受星云深色主题影响） */
 #remarkDialog.remark-dialog-light,
 #taskContentDialog.remark-dialog-light,
+#customReportDialog.remark-dialog-light,
 #remarkDialog.remark-dialog-light .remark-dialog-inner,
-#taskContentDialog.remark-dialog-light .remark-dialog-inner {
+#taskContentDialog.remark-dialog-light .remark-dialog-inner,
+#customReportDialog.remark-dialog-light .remark-dialog-inner,
+#customReportDialog.remark-dialog-light.custom-report-form {
   background: #fff;
+  color: #1d2129;
+}
+
+#customReportDialog.remark-dialog-light {
+  width: min(720px, 94vw);
+  border: 1px solid #e5e6eb;
+  border-radius: 12px;
+  color-scheme: light;
+}
+
+#customReportDialog.remark-dialog-light::backdrop {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+#customReportDialog.remark-dialog-light h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1d2129;
+}
+
+#customReportDialog.remark-dialog-light .field-hint {
+  margin: 0;
+  color: #64748b;
+}
+
+#customReportDialog.remark-dialog-light .grid-form label,
+#customReportDialog.remark-dialog-light .custom-report-fieldset legend,
+#customReportDialog.remark-dialog-light .custom-report-fieldset label {
+  color: #1d2129;
+}
+
+#customReportDialog.remark-dialog-light input,
+#customReportDialog.remark-dialog-light select,
+#customReportDialog.remark-dialog-light textarea {
+  background: #fff;
+  color: #1d2129;
+  border: 1px solid #d9d9d9;
+}
+
+#customReportDialog.remark-dialog-light input::placeholder {
+  color: #8c8c8c;
+}
+
+#customReportDialog.remark-dialog-light fieldset.custom-report-fieldset {
+  background: #f8fafc;
+  border-color: #e5e6eb;
+}
+
+#customReportDialog.remark-dialog-light .dialog-actions button {
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+#customReportDialog.remark-dialog-light .dialog-actions button:not(.secondary) {
+  background: #1677ff;
+  color: #fff;
+  border: 1px solid #1677ff;
+}
+
+#customReportDialog.remark-dialog-light .dialog-actions button:not(.secondary):hover {
+  background: #4096ff;
+  border-color: #4096ff;
+}
+
+#customReportDialog.remark-dialog-light .dialog-actions .secondary {
+  background: #fff;
+  color: #1d2129;
+  border: 1px solid #d9d9d9;
+}
+
+#customReportDialog.remark-dialog-light .dialog-actions .secondary:hover {
+  color: #1677ff;
+  border-color: #1677ff;
+  background: #fff;
+}
+
+#customReportDialog.remark-dialog-light .custom-report-result h4,
+#customReportDialog.remark-dialog-light .custom-report-result table th,
+#customReportDialog.remark-dialog-light .custom-report-result table td {
   color: #1d2129;
 }
 
@@ -11196,6 +11279,15 @@ body.kb-graph-fullscreen-open {
 .dashboard-summary {
   margin-top: 12px;
   font-size: 13px;
+}
+
+.custom-report-form.remark-dialog-inner {
+  padding: 18px 20px;
+  gap: 14px;
+}
+
+.custom-report-form .grid-form {
+  gap: 12px 14px;
 }
 
 .custom-report-form fieldset.custom-report-fieldset {

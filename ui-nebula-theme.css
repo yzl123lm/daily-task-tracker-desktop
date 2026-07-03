@@ -1727,6 +1727,53 @@ body.theme-nebula {
   color: var(--primary);
 }
 
+.theme-nebula #customReportDialog.remark-dialog-light,
+.theme-nebula #customReportDialog.remark-dialog-light .remark-dialog-inner,
+.theme-nebula #customReportDialog.remark-dialog-light.custom-report-form {
+  background: #fff !important;
+  color: #1d2129 !important;
+  border-color: #e5e6eb;
+  color-scheme: light;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light h3,
+.theme-nebula #customReportDialog.remark-dialog-light .field-hint,
+.theme-nebula #customReportDialog.remark-dialog-light .grid-form label,
+.theme-nebula #customReportDialog.remark-dialog-light .custom-report-fieldset legend,
+.theme-nebula #customReportDialog.remark-dialog-light .custom-report-fieldset label,
+.theme-nebula #customReportDialog.remark-dialog-light .custom-report-result h4 {
+  color: #1d2129 !important;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light .field-hint {
+  color: #64748b !important;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light input,
+.theme-nebula #customReportDialog.remark-dialog-light select,
+.theme-nebula #customReportDialog.remark-dialog-light textarea {
+  background: #fff !important;
+  color: #1d2129 !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light fieldset.custom-report-fieldset {
+  background: #f8fafc !important;
+  border-color: #e5e6eb !important;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light .dialog-actions button:not(.secondary) {
+  background: #1677ff !important;
+  color: #fff !important;
+  border-color: #1677ff !important;
+}
+
+.theme-nebula #customReportDialog.remark-dialog-light .dialog-actions .secondary {
+  background: #fff !important;
+  color: #1d2129 !important;
+  border: 1px solid #d9d9d9 !important;
+}
+
 .theme-nebula #remarkDialog.remark-dialog-light,
 .theme-nebula #remarkDialog.remark-dialog-light .remark-dialog-inner {
   background: #fff;

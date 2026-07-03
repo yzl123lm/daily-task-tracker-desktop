@@ -1,7 +1,8 @@
 (function (global) {
-  const STORAGE_KEY = "jl_recorder_monitor_geom_v5";
+  const STORAGE_KEY = "jl_recorder_monitor_geom_v6";
   const DEFAULT_W = 860;
   const DEFAULT_H = 680;
+  const MIN_EXPANDED_H = 120;
   const PINNED_Z = 9000;
   const RECORDER_LAYER_BASE_Z = 2000;
 
@@ -10,6 +11,8 @@
   let visible = false;
   let pinned = false;
   let collapsed = false;
+  let expandedWidth = DEFAULT_W;
+  let expandedHeight = DEFAULT_H;
   let inited = false;
   let zCounter = 2000;
   let activeTab = "record";
@@ -30,21 +33,42 @@
     try {
       let raw = global.localStorage.getItem(STORAGE_KEY);
       if (!raw) {
+        raw = global.localStorage.getItem("jl_recorder_monitor_geom_v5");
+        if (raw) {
+          global.localStorage.setItem(STORAGE_KEY, raw);
+        }
+      }
+      if (!raw) {
         raw = sessionStorage.getItem(STORAGE_KEY);
         if (raw) {
           global.localStorage.setItem(STORAGE_KEY, raw);
           sessionStorage.removeItem(STORAGE_KEY);
         }
       }
-      return raw ? JSON.parse(raw) : null;
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && parsed.height < MIN_EXPANDED_H) {
+        parsed.height = DEFAULT_H;
+      }
+      return parsed;
     } catch {
       return null;
     }
   }
 
+  function normalizeExpandedHeight(height) {
+    if (!height || height < MIN_EXPANDED_H) {
+      return expandedHeight >= MIN_EXPANDED_H ? expandedHeight : DEFAULT_H;
+    }
+    return height;
+  }
+
   function saveGeometry() {
     if (!floatWin) {
       return;
+    }
+    if (!collapsed) {
+      expandedWidth = floatWin.offsetWidth || expandedWidth || DEFAULT_W;
+      expandedHeight = normalizeExpandedHeight(floatWin.offsetHeight);
     }
     try {
       global.localStorage.setItem(
@@ -52,13 +76,31 @@
         JSON.stringify({
           left: floatWin.offsetLeft,
           top: floatWin.offsetTop,
-          width: floatWin.offsetWidth,
-          height: floatWin.offsetHeight,
+          width: expandedWidth || DEFAULT_W,
+          height: normalizeExpandedHeight(expandedHeight),
         })
       );
     } catch {
       /* ignore */
     }
+  }
+
+  function applyGeometry() {
+    if (!floatWin) {
+      return;
+    }
+    const saved = readGeometry();
+    const { width: cw, height: ch } = viewportSize();
+    const w = saved?.width || expandedWidth || DEFAULT_W;
+    const h = normalizeExpandedHeight(saved?.height || expandedHeight);
+    expandedWidth = w;
+    expandedHeight = h;
+    const left = saved?.left ?? Math.max(16, Math.round(cw - w - 24));
+    const top = saved?.top ?? Math.max(16, Math.round((ch - h) / 2));
+    floatWin.style.width = `${w}px`;
+    floatWin.style.height = collapsed ? "auto" : `${h}px`;
+    floatWin.style.left = `${clamp(left, 8, Math.max(8, cw - w - 8))}px`;
+    floatWin.style.top = `${clamp(top, 8, Math.max(8, ch - (collapsed ? 56 : h) - 8))}px`;
   }
 
   function syncRecorderLayerZIndex(bump) {
@@ -90,22 +132,6 @@
       floatWin.style.zIndex = String(zCounter);
     }
     floatWin.classList.add("is-focused");
-  }
-
-  function applyGeometry() {
-    if (!floatWin) {
-      return;
-    }
-    const saved = readGeometry();
-    const { width: cw, height: ch } = viewportSize();
-    const w = saved?.width || DEFAULT_W;
-    const h = saved?.height || DEFAULT_H;
-    const left = saved?.left ?? Math.max(16, Math.round(cw - w - 24));
-    const top = saved?.top ?? Math.max(16, Math.round((ch - h) / 2));
-    floatWin.style.width = `${w}px`;
-    floatWin.style.height = collapsed ? "auto" : `${h}px`;
-    floatWin.style.left = `${clamp(left, 8, Math.max(8, cw - w - 8))}px`;
-    floatWin.style.top = `${clamp(top, 8, Math.max(8, ch - (collapsed ? 56 : h) - 8))}px`;
   }
 
   function attachDrag() {
@@ -178,13 +204,35 @@
     bringToFront();
   }
 
+  function updateCollapseButton() {
+    const collapseBtn = floatWin?.querySelector('[data-action="collapse"]');
+    if (!collapseBtn) {
+      return;
+    }
+    collapseBtn.title = collapsed ? "展开" : "最小化";
+    collapseBtn.setAttribute("aria-label", collapsed ? "展开" : "最小化");
+    collapseBtn.classList.toggle("is-restored", collapsed);
+  }
+
   function setCollapsed(next) {
-    collapsed = !!next;
+    const willCollapse = !!next;
+    if (willCollapse && !collapsed && floatWin) {
+      expandedWidth = floatWin.offsetWidth || expandedWidth || DEFAULT_W;
+      expandedHeight = normalizeExpandedHeight(floatWin.offsetHeight);
+      saveGeometry();
+    }
+    collapsed = willCollapse;
     floatWin?.classList.toggle("is-collapsed", collapsed);
     if (collapsed) {
       setDrawerOpen(false);
+    } else if (floatWin) {
+      floatWin.style.height = `${normalizeExpandedHeight(expandedHeight)}px`;
     }
+    updateCollapseButton();
     applyGeometry();
+    if (!collapsed) {
+      saveGeometry();
+    }
   }
 
   function setDrawerOpen(next) {
@@ -249,7 +297,11 @@
       setPinned(!pinned);
     });
 
-    floatWin?.querySelector('[data-action="collapse"]')?.addEventListener("click", () => {
+    floatWin?.querySelector('[data-action="collapse"]')?.addEventListener("mousedown", (ev) => {
+      ev.stopPropagation();
+    });
+    floatWin?.querySelector('[data-action="collapse"]')?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       setCollapsed(!collapsed);
     });
 
@@ -347,6 +399,7 @@
     bindControls();
     bindTabs();
     setDrawerOpen(false);
+    updateCollapseButton();
     activateTab("record", false);
     bringToFront();
 
