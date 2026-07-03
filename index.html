@@ -992,15 +992,18 @@
           </div>
           <div id="jlKbFloatLibraries" class="jl-float-section-host kb-libraries-panel">
               <div class="kb-libraries-layout">
-                <section class="kb-lib-card kb-lib-card--dirs kb-dir-panel">
-                  <header class="kb-lib-card__head">
-                    <h3 class="kb-lib-card__title">知识库目录概览</h3>
-                    <button type="button" id="kbMainCreateLibraryBtn" class="kb-lib-primary-btn">+ 新建目录</button>
-                  </header>
+                <section class="kb-lib-card kb-lib-card--overview">
+                  <h3 class="kb-lib-card__title kb-lib-card__title--section">知识库目录概览</h3>
                   <div id="kbLibrariesStatsBar" class="kb-lib-metrics" aria-label="知识库概览统计"></div>
                   <p id="kbIngestProgress" class="kb-ingest-progress" hidden aria-live="polite"></p>
                   <div id="kbIngestModelHealthBanner" class="kb-mh-action-banner-host" hidden></div>
-                  <div class="kb-lib-table-wrap">
+                </section>
+                <section class="kb-lib-card kb-lib-card--dir-list kb-dir-panel">
+                  <header class="kb-lib-card__head">
+                    <h3 class="kb-lib-card__title">知识库目录</h3>
+                    <button type="button" id="kbMainCreateLibraryBtn" class="kb-lib-primary-btn">+ 新建目录</button>
+                  </header>
+                  <div class="kb-lib-table-wrap kb-lib-table-wrap--dir">
                     <div class="kb-dir-table" role="table" aria-label="知识库目录列表">
                       <div class="kb-dir-table__head" role="row">
                         <span role="columnheader">目录名称</span>
