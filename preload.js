@@ -363,5 +363,21 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return () => ipcRenderer.removeListener("workbench-navigate", handler);
   },
 
+  wbProjectsList: (payload) => ipcRenderer.invoke("wb-projects-list", payload || {}),
+  wbProjectGet: (payload) => ipcRenderer.invoke("wb-project-get", payload || {}),
+  wbProjectCreate: (payload) => ipcRenderer.invoke("wb-project-create", payload || {}),
+  wbProjectUpdate: (payload) => ipcRenderer.invoke("wb-project-update", payload || {}),
+  wbProjectTasksList: (payload) => ipcRenderer.invoke("wb-project-tasks-list", payload || {}),
+  wbProjectTaskCreate: (payload) => ipcRenderer.invoke("wb-project-task-create", payload || {}),
+  wbProjectAgentRun: (payload) => ipcRenderer.invoke("wb-project-agent-run", payload || {}),
+  wbChatsList: (payload) => ipcRenderer.invoke("wb-chats-list", payload || {}),
+  wbChatGet: (payload) => ipcRenderer.invoke("wb-chat-get", payload || {}),
+  wbChatCreate: (payload) => ipcRenderer.invoke("wb-chat-create", payload || {}),
+  wbChatUpdate: (payload) => ipcRenderer.invoke("wb-chat-update", payload || {}),
+  wbChatSendMessage: (payload) => ipcRenderer.invoke("wb-chat-send-message", payload || {}),
+  wbMemorySearch: (payload) => ipcRenderer.invoke("wb-memory-search", payload || {}),
+  wbMemoryWrite: (payload) => ipcRenderer.invoke("wb-memory-write", payload || {}),
+  wbNamespaceProbe: (payload) => ipcRenderer.invoke("wb-namespace-probe", payload || {}),
+
 });
 

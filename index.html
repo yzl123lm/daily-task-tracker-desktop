@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./ui-recorder-window.css" />
   <link rel="stylesheet" href="./kb-dashboard.css" />
   <link rel="stylesheet" href="./kb-config-layout.css" />
+  <link rel="stylesheet" href="./workbench-dev.css" />
 </head>
 <body class="theme-nebula">
   <div class="app-shell bg-nebula jl-nebula-bg jl-app-shell">
@@ -79,7 +80,10 @@
           </div>
           </section>
           <section class="jl-workbench-nav__zone jl-workbench-nav__zone--project" aria-label="项目区域">
-            <h3 class="jl-workbench-nav__zone-title">项目区域</h3>
+            <div class="jl-workbench-nav__zone-head">
+              <h3 class="jl-workbench-nav__zone-title">项目区域</h3>
+              <button type="button" id="jlProjectNewBtn" class="jl-ai-session-new" title="新建项目" aria-label="新建项目">+</button>
+            </div>
             <div class="jl-project-list scroll-tech" id="jlProjectList" role="list" aria-label="项目列表">
               <p class="jl-workbench-nav__zone-empty" id="jlProjectListEmpty">暂无项目</p>
             </div>
@@ -3307,6 +3311,11 @@
   <script src="./taskAttachmentsUI.js"></script>
   <script src="./environmentSetup.js"></script>
   <script src="./app.js"></script>
+  <script src="./app/workbench/store.js"></script>
+  <script src="./app/workbench/projectArea.js"></script>
+  <script src="./app/workbench/projectWorkspace.js"></script>
+  <script src="./app/workbench/chatArea.js"></script>
+  <script src="./app/workbench/index.js"></script>
   <script src="./utils/kbConfigLayout.js"></script>
   <script src="./app/kbDashboard.js"></script>
   <script src="./knowledgeBase.js"></script>

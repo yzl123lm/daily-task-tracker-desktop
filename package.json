@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.10.96",
+  "version": "1.10.97",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -76,6 +76,7 @@
       "ui-recorder-window.css",
       "kb-dashboard.css",
       "kb-config-layout.css",
+      "workbench-dev.css",
       "utils/dom.js",
       "utils/settingsStore.js",
       "utils/ipcValidate.js",

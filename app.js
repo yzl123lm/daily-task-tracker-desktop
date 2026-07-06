@@ -2271,6 +2271,9 @@ function initAiSessionSidebar() {
   if (!isAiWindow()) {
     return;
   }
+  if (typeof window.electronAPI?.wbChatsList === "function") {
+    return;
+  }
   const threads = readAiThreads();
   if (!threads.some((t) => t.id === activeAiThreadId)) {
     activeAiThreadId = threads[0].id;
@@ -2517,6 +2520,8 @@ function initShell() {
   openTabs = ["ai"];
   activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
 }
+
+window.activateRoute = activateRoute;
 
 window.openWorkbenchCapInline = openWorkbenchCapInline;
 window.closeWorkbenchCapInline = closeWorkbenchCapInline;
