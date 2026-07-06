@@ -278,7 +278,11 @@ async function deleteProject(project) {
 }
 
 function selectProject(projectId) {
+  const prevChat = window.__wbStore?.getState?.().selectedChatId;
   window.__wbPersistActiveChatSnapshot?.();
+  if (prevChat) {
+    window.__wbPersistActiveChatId?.(prevChat);
+  }
   window.__wbStore?.selectProject?.(projectId);
   window.__wbShowProjectWorkspace?.(projectId);
   if (typeof window.activateRoute === "function") {

@@ -44,14 +44,17 @@ function initWorkbenchDev() {
     await window.__wbMigrateLegacyChats?.();
     await refreshProjects();
     await refreshChats();
-    const chatId = window.__wbStore?.getState?.().selectedChatId;
+    const chats = window.__wbStore?.getState?.().chats || [];
+    const storedActive = window.__wbReadStoredActiveChatId?.();
+    let chatId = window.__wbStore?.getState?.().selectedChatId;
+    if (!chatId && storedActive && chats.some((c) => c.id === storedActive)) {
+      chatId = storedActive;
+    }
+    if (!chatId && chats[0]?.id) {
+      chatId = chats[0].id;
+    }
     if (chatId) {
       await window.__wbSwitchChat?.(chatId);
-    } else {
-      const chats = window.__wbStore?.getState?.().chats || [];
-      if (chats[0]?.id) {
-        await window.__wbSwitchChat?.(chats[0].id);
-      }
     }
   })();
 }

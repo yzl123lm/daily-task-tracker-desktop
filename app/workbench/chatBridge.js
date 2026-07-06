@@ -1,4 +1,5 @@
 const WB_CHAT_SNAPSHOTS_KEY = "wb_chat_snapshots_v1";
+const WB_ACTIVE_CHAT_KEY = "wb_active_chat_id_v1";
 const WB_CHAT_MIGRATED_KEY = "wb_chat_migrated_v1";
 const AI_THREADS_STORAGE_KEY = "daily_task_tracker_ai_threads_v1";
 const AI_THREAD_SNAPSHOTS_KEY = "daily_task_tracker_ai_thread_snapshots_v1";
@@ -34,6 +35,55 @@ function writeChatSnapshots(map) {
 
 function getActiveChatId() {
   return window.__wbStore?.getState?.().selectedChatId || null;
+}
+
+function persistActiveChatId(chatId) {
+  const id = String(chatId || "").trim();
+  if (id) {
+    localStorage.setItem(WB_ACTIVE_CHAT_KEY, id);
+  }
+}
+
+function readStoredActiveChatId() {
+  try {
+    return String(localStorage.getItem(WB_ACTIVE_CHAT_KEY) || "").trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+async function ensureActiveChatSession({ titleSeed, title } = {}) {
+  const existing = getActiveChatId();
+  if (existing) {
+    return existing;
+  }
+  const api = wbApi();
+  if (typeof api.wbChatCreate !== "function") {
+    return null;
+  }
+  const seed = String(titleSeed || "").trim();
+  const nextTitle =
+    String(title || "").trim() ||
+    (seed
+      ? seed.slice(0, 24)
+      : `对话 ${new Date().toLocaleString("zh-CN", {
+          month: "numeric",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`);
+  try {
+    const chat = await api.wbChatCreate({ title: nextTitle });
+    const chatId = chat.id;
+    window.__wbStore?.selectChat?.(chatId);
+    persistActiveChatId(chatId);
+    window.__wbHideProjectWorkspace?.();
+    await window.__wbRefreshChats?.();
+    window.__wbRenderChats?.();
+    return chatId;
+  } catch {
+    return null;
+  }
 }
 
 function persistActiveChatSnapshot(html) {
@@ -81,6 +131,7 @@ async function migrateLegacyChats() {
     }
     if (thread.id === activeLegacy) {
       window.__wbStore?.selectChat?.(chat.id);
+      persistActiveChatId(chat.id);
     }
   }
 
@@ -88,6 +139,7 @@ async function migrateLegacyChats() {
   localStorage.setItem(WB_CHAT_MIGRATED_KEY, "1");
   if (!window.__wbStore?.getState?.().selectedChatId && firstChatId) {
     window.__wbStore?.selectChat?.(firstChatId);
+    persistActiveChatId(firstChatId);
   }
 }
 
@@ -97,32 +149,28 @@ async function loadChatIntoAi(chatId) {
   if (!id) {
     return;
   }
+  if (typeof api.wbChatGet === "function") {
+    try {
+      const chat = await api.wbChatGet({ chatId: id, includeMessages: true });
+      const turns = (chat.messages || []).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+      if (typeof window.__aiLoadChatTurns === "function" && turns.length) {
+        window.__aiLoadChatTurns(turns);
+        return;
+      }
+    } catch {
+      /* fall through to snapshot */
+    }
+  }
   const snapshots = readChatSnapshots();
   if (snapshots[id] && typeof window.__aiSetChatLogHtml === "function") {
     window.__aiSetChatLogHtml(snapshots[id]);
     return;
   }
-  if (typeof api.wbChatGet !== "function") {
-    if (typeof window.__aiClearChatLog === "function") {
-      window.__aiClearChatLog();
-    }
-    return;
-  }
-  try {
-    const chat = await api.wbChatGet({ chatId: id, includeMessages: true });
-    const turns = (chat.messages || []).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-    if (typeof window.__aiLoadChatTurns === "function" && turns.length) {
-      window.__aiLoadChatTurns(turns);
-    } else if (typeof window.__aiClearChatLog === "function") {
-      window.__aiClearChatLog();
-    }
-  } catch {
-    if (typeof window.__aiClearChatLog === "function") {
-      window.__aiClearChatLog();
-    }
+  if (typeof window.__aiClearChatLog === "function") {
+    window.__aiClearChatLog();
   }
 }
 
@@ -136,6 +184,7 @@ async function switchChat(chatId) {
     persistActiveChatSnapshot();
   }
   window.__wbStore?.selectChat?.(nextId);
+  persistActiveChatId(nextId);
   window.__wbHideProjectWorkspace?.();
   await loadChatIntoAi(nextId);
   window.__wbRenderChats?.();
@@ -220,18 +269,28 @@ function devRequestReply() {
 
 window.__wbMigrateLegacyChats = migrateLegacyChats;
 window.__wbGetActiveChatId = getActiveChatId;
+window.__wbPersistActiveChatId = persistActiveChatId;
+window.__wbReadStoredActiveChatId = readStoredActiveChatId;
+window.__wbEnsureActiveChatSession = ensureActiveChatSession;
 window.__wbSwitchChat = switchChat;
 window.__wbPersistActiveChatSnapshot = persistActiveChatSnapshot;
 window.__wbSaveChatSnapshot = persistActiveChatSnapshot;
 window.__wbTouchChatTitle = touchChatTitle;
-window.__wbOnAiUserMessage = (text) => {
-  void touchChatTitle(text);
-  void persistChatMessage("user", text);
+window.__wbOnAiUserMessage = async (text) => {
+  await ensureActiveChatSession({ titleSeed: text });
+  await touchChatTitle(text);
+  await persistChatMessage("user", text);
+  await window.__wbRefreshChats?.();
 };
-window.__wbOnAiAssistantMessage = (text) => {
-  void persistChatMessage("assistant", text);
+window.__wbOnAiAssistantMessage = async (text) => {
+  await ensureActiveChatSession({});
+  await persistChatMessage("assistant", text);
   persistActiveChatSnapshot();
+  await window.__wbRefreshChats?.();
 };
+window.__wbIsWorkbenchChatMode = () =>
+  typeof wbApi().wbChatsList === "function" &&
+  typeof window.__wbOnAiUserMessage === "function";
 window.__wbFetchChatAgentContext = fetchChatAgentContextBlock;
 window.__wbDetectDevRequest = detectDevRequest;
 window.__wbDevRequestReply = devRequestReply;

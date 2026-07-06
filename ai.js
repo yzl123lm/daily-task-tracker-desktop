@@ -4072,8 +4072,10 @@ function initAI() {
     if (
       aiMode === "chat" &&
       typeof window.__wbDetectDevRequest === "function" &&
-      window.__wbGetActiveChatId?.() &&
-      window.__wbDetectDevRequest(trimmed)
+      window.__wbDetectDevRequest(trimmed) &&
+      (typeof window.__wbIsWorkbenchChatMode === "function"
+        ? window.__wbIsWorkbenchChatMode()
+        : Boolean(window.__wbGetActiveChatId?.()))
     ) {
       appendBubble("user", trimmed);
       const reply =
@@ -4082,10 +4084,10 @@ function initAI() {
           : "请切换到项目区域处理开发请求。";
       appendBubble("assistant", reply);
       if (typeof window.__wbOnAiUserMessage === "function") {
-        window.__wbOnAiUserMessage(trimmed);
+        await window.__wbOnAiUserMessage(trimmed);
       }
       if (typeof window.__wbOnAiAssistantMessage === "function") {
-        window.__wbOnAiAssistantMessage(reply);
+        await window.__wbOnAiAssistantMessage(reply);
       }
       return true;
     }
@@ -4102,8 +4104,13 @@ function initAI() {
     draftBeforeHistory = "";
     const docEntriesForTurn = aiMode === "chat" ? clonePendingDocEntries() : [];
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
-    if (typeof window.__wbOnAiUserMessage === "function" && window.__wbGetActiveChatId?.()) {
-      window.__wbOnAiUserMessage(trimmed);
+    if (
+      typeof window.__wbOnAiUserMessage === "function" &&
+      (typeof window.__wbIsWorkbenchChatMode === "function"
+        ? window.__wbIsWorkbenchChatMode()
+        : Boolean(window.__wbGetActiveChatId?.()))
+    ) {
+      await window.__wbOnAiUserMessage(trimmed);
     } else if (typeof window.__aiNotifyThreadUserMessage === "function") {
       window.__aiNotifyThreadUserMessage(trimmed);
     }
@@ -4200,8 +4207,13 @@ function initAI() {
           setMemoryToggleUI(true);
         }
         appendBubble("assistant", reply, { ollamaUsage });
-        if (typeof window.__wbOnAiAssistantMessage === "function" && window.__wbGetActiveChatId?.()) {
-          window.__wbOnAiAssistantMessage(reply);
+        if (
+          typeof window.__wbOnAiAssistantMessage === "function" &&
+          (typeof window.__wbIsWorkbenchChatMode === "function"
+            ? window.__wbIsWorkbenchChatMode()
+            : Boolean(window.__wbGetActiveChatId?.()))
+        ) {
+          await window.__wbOnAiAssistantMessage(reply);
         }
         void tryAutoLearnTurn(trimmed, reply, "chat");
         void maybeSpeakAssistantReply(api, reply);

@@ -125,6 +125,11 @@ async function afterChatRemoved(chatId) {
     await window.__wbSwitchChat?.(chats[0].id);
   } else {
     window.__wbStore?.clearSelection?.();
+    try {
+      localStorage.removeItem("wb_active_chat_id_v1");
+    } catch {
+      /* ignore */
+    }
     const aiMain = document.getElementById("aiPanelMain");
     if (aiMain) {
       aiMain.hidden = false;
