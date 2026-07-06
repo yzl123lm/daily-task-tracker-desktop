@@ -486,9 +486,6 @@
     if (route === "workbench" && typeof global.refreshWorkbenchHubStatus === "function") {
       global.refreshWorkbenchHubStatus();
     }
-    if ((route === "kb-main" || route === "kb-launcher") && typeof global.onKnowledgeBasePanelVisible === "function") {
-      void global.onKnowledgeBasePanelVisible();
-    }
   }
 
   function clamp(value, min, max) {
@@ -1300,7 +1297,7 @@
     bootDefaultWindows();
 
     if (mode === "knowledge" && typeof panelVisibleHandler === "function") {
-      void panelVisibleHandler();
+      void panelVisibleHandler("kb-launcher");
     }
   }
 

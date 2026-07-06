@@ -2397,9 +2397,9 @@ function initModuleShell() {
         activeRoute = "knowledge-base";
         setHashRoute("knowledge-base");
       },
-      onPanelVisible: () => {
+      onPanelVisible: (route) => {
         if (typeof window.onKnowledgeBasePanelVisible === "function") {
-          void window.onKnowledgeBasePanelVisible();
+          void window.onKnowledgeBasePanelVisible({ route });
         }
       },
     });
@@ -2486,9 +2486,9 @@ function initShell() {
       activeRoute = "knowledge-base";
       syncWorkbenchNavActive("knowledge-base");
     },
-    onPanelVisible: () => {
+    onPanelVisible: (route) => {
       if (typeof window.onKnowledgeBasePanelVisible === "function") {
-        void window.onKnowledgeBasePanelVisible();
+        void window.onKnowledgeBasePanelVisible({ route });
       }
     },
   });
@@ -2788,7 +2788,7 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
     window.onAIPanelVisible();
   }
   if (route === "knowledge-base" && typeof window.onKnowledgeBasePanelVisible === "function") {
-    void window.onKnowledgeBasePanelVisible();
+    void window.onKnowledgeBasePanelVisible({ route: "kb-main" });
   }
   if (route === "record") {
     if (isWorkspaceWindow() || isAiWindow()) {

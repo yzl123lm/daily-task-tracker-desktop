@@ -4117,17 +4117,29 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     }
   }
 
-  ipcMain.handle("kb-get-state", async () => {
+  ipcMain.handle("kb-get-state", async (_e, payload) => {
+    const light = payload && typeof payload === "object" && payload.light === true;
     const meta = readKbMeta(ud());
     const st = loadStore(ud(), meta.activeLibraryId);
     const storageSetting = readKbStorageSettings(ud());
     const resolvedRoot = kbRoot(ud());
     const rootDetails = kbRootDetails(ud());
-    const chunkTotal = await lanceCountChunks(ud(), meta.activeLibraryId, st);
-    const graph = ensureGraphSnapshot(st, false);
-    saveStore(ud(), meta.activeLibraryId, st);
+    const chunkTotal = light
+      ? Array.isArray(st.chunks)
+        ? st.chunks.length
+        : (st.documents || []).reduce((sum, d) => sum + Number(d.chunkCount || 0), 0)
+      : await lanceCountChunks(ud(), meta.activeLibraryId, st);
+    let graph;
+    if (light) {
+      graph = st.graph && st.graph.summary ? st.graph : ensureGraphSnapshot(st, false);
+    } else {
+      graph = ensureGraphSnapshot(st, false);
+      saveStore(ud(), meta.activeLibraryId, st);
+    }
     const allLibIds = (meta.libraries || []).map((x) => x.id);
-    const globalGraph = ensureGlobalGraphSnapshot(ud(), meta, allLibIds, false);
+    const globalGraph = light
+      ? null
+      : ensureGlobalGraphSnapshot(ud(), meta, allLibIds, false);
     const docsByLibrary = (meta.libraries || []).map((lib) => {
       const ls = loadStore(ud(), lib.id);
       return {

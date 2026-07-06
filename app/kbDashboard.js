@@ -5,7 +5,6 @@
     "kb-libraries": "kb-libraries",
     "kb-graph": "kb-graph",
     "auto-learn": "kb-libraries",
-    "ops-log": "ops-log",
   };
 
   function esc(text) {
@@ -191,10 +190,6 @@
         n.classList.toggle("is-active", n === btn);
       });
       const route = NAV_ROUTES[key];
-      if (route === "ops-log") {
-        global.kbOpenOpsLog?.("all");
-        return;
-      }
       if (route === null) {
         return;
       }
@@ -217,7 +212,7 @@
     if (refreshBtn && refreshBtn.dataset.wired !== "1") {
       refreshBtn.dataset.wired = "1";
       refreshBtn.addEventListener("click", () => {
-        global.onKnowledgeBasePanelVisible?.();
+        global.onKnowledgeBasePanelVisible?.({ route: "kb-main" });
       });
     }
   }

@@ -1345,16 +1345,18 @@
     if (!dlg || typeof dlg.showModal !== "function") {
       return;
     }
-    scrollToConfigSection(sectionId);
-    setConfigSynced();
-    if (el.opsFeedback) {
-      el.opsFeedback.hidden = true;
-      el.opsFeedback.textContent = "";
-      el.opsFeedback.classList.remove("is-error", "is-success", "is-busy");
-    }
-    if (!dlg.open) {
-      dlg.showModal();
-    }
+    void refreshState({ scope: "config" }).then(() => {
+      scrollToConfigSection(sectionId);
+      setConfigSynced();
+      if (el.opsFeedback) {
+        el.opsFeedback.hidden = true;
+        el.opsFeedback.textContent = "";
+        el.opsFeedback.classList.remove("is-error", "is-success", "is-busy");
+      }
+      if (!dlg.open) {
+        dlg.showModal();
+      }
+    });
   }
 
   function closeConfigDialog() {
@@ -3186,108 +3188,169 @@
     }
   }
 
-  async function refreshState() {
+  function isKbFloatPanelActive(panelId) {
+    const panel = document.getElementById(panelId);
+    if (!panel || panel.hidden) {
+      return false;
+    }
+    if (!panel.classList.contains("jl-float-panel-host")) {
+      return false;
+    }
+    const win = panel.closest(".jl-float-win");
+    return !!(win && !win.hidden && !win.classList.contains("is-closed"));
+  }
+
+  function resolveRefreshScope(route) {
+    const r = String(route || "").trim();
+    if (r === "kb-main") {
+      return "dashboard";
+    }
+    if (r === "kb-launcher") {
+      return "launcher";
+    }
+    if (r === "kb-libraries") {
+      return "libraries";
+    }
+    if (r === "kb-graph") {
+      return "graph";
+    }
+    if (r === "kb-search") {
+      return "search";
+    }
+    return "full";
+  }
+
+  let kbPanelVisibleTimer = null;
+  let kbWarmEmbedTimer = null;
+
+  function scheduleKbWarmEmbed() {
+    clearTimeout(kbWarmEmbedTimer);
+    kbWarmEmbedTimer = window.setTimeout(() => {
+      if (typeof api.kbWarmEmbedModel === "function") {
+        void api.kbWarmEmbedModel({});
+      }
+    }, 2800);
+  }
+
+  async function refreshState(options = {}) {
     if (typeof api.kbGetState !== "function") {
       setStatus("当前环境非桌面版，知识库不可用。", true);
       return;
     }
+    const scope = options.scope || resolveRefreshScope(options.route);
+    if (scope === "launcher") {
+      return;
+    }
+    const includeLibraries =
+      scope === "libraries" || scope === "full" || isKbFloatPanelActive("jlKbFloatLibraries");
+    const includeSearch = scope === "search" || scope === "full" || isKbFloatPanelActive("jlKbFloatSearch");
+    const includeGraph = scope === "graph" || scope === "full" || isKbFloatPanelActive("jlKbFloatGraph");
+    const includeDashboard = scope === "dashboard" || scope === "full" || isKbFloatPanelActive("jlKbLauncher");
+    const includeConfigForms = scope === "full" || scope === "libraries" || scope === "config";
+    const deferAutoLearn = scope === "dashboard";
     try {
-      const st = await api.kbGetState();
+      const st = await api.kbGetState(scope === "dashboard" ? { light: true } : undefined);
       const s = st.settings || {};
-      if (el.chunkSize) {
-        el.chunkSize.value = String(s.chunkSize ?? 800);
+      if (includeConfigForms) {
+        if (el.chunkSize) {
+          el.chunkSize.value = String(s.chunkSize ?? 800);
+        }
+        if (el.chunkOverlap) {
+          el.chunkOverlap.value = String(s.chunkOverlap ?? 120);
+        }
+        if (el.embedModel) {
+          el.embedModel.value = s.embedModel || "bge-m3";
+        }
+        if (el.searchTopK) {
+          el.searchTopK.value = String(s.searchTopK ?? 10);
+        }
+        if (el.searchMinScore) {
+          el.searchMinScore.value = String(s.searchMinScore ?? 0.55);
+        }
+        if (el.searchCandidateK) {
+          el.searchCandidateK.value = String(s.searchCandidateK ?? 200);
+        }
+        if (el.hybridVectorWeight) {
+          el.hybridVectorWeight.value = String(s.hybridVectorWeight ?? 0.6);
+        }
+        if (el.keywordRecallLimit) {
+          el.keywordRecallLimit.value = String(s.keywordRecallLimit ?? 50);
+        }
+        if (el.searchMode) {
+          el.searchMode.value = s.searchMode || "auto";
+        }
+        if (el.chunkStrategy) {
+          el.chunkStrategy.value = s.chunkStrategy === "fixed" ? "fixed" : "semantic";
+        }
+        if (el.hybridSearch) {
+          el.hybridSearch.checked = s.hybridSearch !== false;
+        }
+        if (el.useRrfRanking) {
+          el.useRrfRanking.checked = s.useRrfRanking !== false;
+        }
+        if (el.rerankEnabled) {
+          el.rerankEnabled.checked = s.rerankEnabled !== false;
+        }
+        if (el.rerankModel) {
+          el.rerankModel.value = s.rerankModel || KB_CONFIG_DEFAULTS.rerankModel;
+        }
+        if (el.rerankTopN) {
+          el.rerankTopN.value = String(s.rerankTopN ?? 30);
+        }
+        if (el.rerankWeight) {
+          el.rerankWeight.value = String(s.rerankWeight ?? 0.75);
+        }
+        if (el.rerankProvider) {
+          el.rerankProvider.value = s.rerankProvider || KB_CONFIG_DEFAULTS.rerankProvider;
+        }
+        if (el.autoWebVerify) {
+          el.autoWebVerify.checked = s.autoWebVerify === true;
+        }
+        if (el.aiVerifyWriteback) {
+          el.aiVerifyWriteback.checked = s.aiVerifyWriteback === true;
+        }
+        if (el.autoLearnEnabled) {
+          el.autoLearnEnabled.checked = s.autoLearnEnabled === true;
+        }
+        if (el.autoLearnRequireConfirm) {
+          el.autoLearnRequireConfirm.checked = s.autoLearnRequireConfirm === true;
+        }
+        if (el.autoLearnMinQuestionChars) {
+          el.autoLearnMinQuestionChars.value = String(s.autoLearnMinQuestionChars ?? 6);
+        }
+        if (el.autoLearnMinAnswerChars) {
+          el.autoLearnMinAnswerChars.value = String(s.autoLearnMinAnswerChars ?? 80);
+        }
+        if (el.watchDirInput) {
+          el.watchDirInput.value = s.watchDirPath || "";
+          el.watchDirInput.title = s.watchDirPath || "选择文件夹后，新增/修改文件将自动解析入库";
+        }
+        if (el.watchDirEnabled) {
+          el.watchDirEnabled.checked = s.watchDirEnabled === true;
+        }
+        renderWatchStatus(st.watchStatus, st.watchStatuses);
+        if (el.storageDirInput) {
+          el.storageDirInput.value = st.storageRoot || "";
+          el.storageDirInput.title = st.storageCustomRoot
+            ? `自定义目录：${st.storageCustomRoot}`
+            : "当前使用默认应用目录";
+        }
+        if (el.indexHealthHint) {
+          const backend = st.storageBackend || "sqlite";
+          const sqlitePath = st.sqlitePath || "";
+          el.indexHealthHint.textContent = sqlitePath
+            ? `元数据存储：${backend} · ${sqlitePath}`
+            : `元数据存储：${backend}`;
+        }
       }
-      if (el.chunkOverlap) {
-        el.chunkOverlap.value = String(s.chunkOverlap ?? 120);
+      if (includeLibraries) {
+        renderLibraries(st.activeLibraryId, st.libraries || []);
       }
-      if (el.embedModel) {
-        el.embedModel.value = s.embedModel || "bge-m3";
+      if (includeSearch) {
+        renderTrialLibraries(st.activeLibraryId, st.libraries || []);
+        syncTrialLibrarySelectorState();
+        renderTrialSearchSettingsMeta();
       }
-      if (el.searchTopK) {
-        el.searchTopK.value = String(s.searchTopK ?? 10);
-      }
-      if (el.searchMinScore) {
-        el.searchMinScore.value = String(s.searchMinScore ?? 0.55);
-      }
-      if (el.searchCandidateK) {
-        el.searchCandidateK.value = String(s.searchCandidateK ?? 200);
-      }
-      if (el.hybridVectorWeight) {
-        el.hybridVectorWeight.value = String(s.hybridVectorWeight ?? 0.6);
-      }
-      if (el.keywordRecallLimit) {
-        el.keywordRecallLimit.value = String(s.keywordRecallLimit ?? 50);
-      }
-      if (el.searchMode) {
-        el.searchMode.value = s.searchMode || "auto";
-      }
-      if (el.chunkStrategy) {
-        el.chunkStrategy.value = s.chunkStrategy === "fixed" ? "fixed" : "semantic";
-      }
-      if (el.hybridSearch) {
-        el.hybridSearch.checked = s.hybridSearch !== false;
-      }
-      if (el.useRrfRanking) {
-        el.useRrfRanking.checked = s.useRrfRanking !== false;
-      }
-      if (el.rerankEnabled) {
-        el.rerankEnabled.checked = s.rerankEnabled !== false;
-      }
-      if (el.rerankModel) {
-        el.rerankModel.value = s.rerankModel || KB_CONFIG_DEFAULTS.rerankModel;
-      }
-      if (el.rerankTopN) {
-        el.rerankTopN.value = String(s.rerankTopN ?? 30);
-      }
-      if (el.rerankWeight) {
-        el.rerankWeight.value = String(s.rerankWeight ?? 0.75);
-      }
-      if (el.rerankProvider) {
-        el.rerankProvider.value = s.rerankProvider || KB_CONFIG_DEFAULTS.rerankProvider;
-      }
-      if (el.autoWebVerify) {
-        el.autoWebVerify.checked = s.autoWebVerify === true;
-      }
-      if (el.aiVerifyWriteback) {
-        el.aiVerifyWriteback.checked = s.aiVerifyWriteback === true;
-      }
-      if (el.autoLearnEnabled) {
-        el.autoLearnEnabled.checked = s.autoLearnEnabled === true;
-      }
-      if (el.autoLearnRequireConfirm) {
-        el.autoLearnRequireConfirm.checked = s.autoLearnRequireConfirm === true;
-      }
-      if (el.autoLearnMinQuestionChars) {
-        el.autoLearnMinQuestionChars.value = String(s.autoLearnMinQuestionChars ?? 6);
-      }
-      if (el.autoLearnMinAnswerChars) {
-        el.autoLearnMinAnswerChars.value = String(s.autoLearnMinAnswerChars ?? 80);
-      }
-      if (el.watchDirInput) {
-        el.watchDirInput.value = s.watchDirPath || "";
-        el.watchDirInput.title = s.watchDirPath || "选择文件夹后，新增/修改文件将自动解析入库";
-      }
-      if (el.watchDirEnabled) {
-        el.watchDirEnabled.checked = s.watchDirEnabled === true;
-      }
-      renderWatchStatus(st.watchStatus, st.watchStatuses);
-      if (el.storageDirInput) {
-        el.storageDirInput.value = st.storageRoot || "";
-        el.storageDirInput.title = st.storageCustomRoot
-          ? `自定义目录：${st.storageCustomRoot}`
-          : "当前使用默认应用目录";
-      }
-      if (el.indexHealthHint) {
-        const backend = st.storageBackend || "sqlite";
-        const sqlitePath = st.sqlitePath || "";
-        el.indexHealthHint.textContent = sqlitePath
-          ? `元数据存储：${backend} · ${sqlitePath}`
-          : `元数据存储：${backend}`;
-      }
-      renderLibraries(st.activeLibraryId, st.libraries || []);
-      renderTrialLibraries(st.activeLibraryId, st.libraries || []);
-      syncTrialLibrarySelectorState();
-      renderTrialSearchSettingsMeta();
       const activeName =
         (st.libraries || []).find((x) => x.id === st.activeLibraryId)?.name || st.activeLibraryId || "默认";
       const groupedDocs =
@@ -3316,28 +3379,48 @@
       });
       docsTreeExpanded = nextExpanded;
       writeTreeExpandedState(docsTreeExpanded);
-      rerenderLibraryViews(groupedDocs, st.activeLibraryId);
-      activeLibraryIdCache = st.activeLibraryId || "";
-      updateConfigSidebar(st);
-      if (!configDirty) {
-        setConfigSynced();
+      if (includeLibraries) {
+        rerenderLibraryViews(groupedDocs, st.activeLibraryId);
       }
-      await refreshAutoLearnQueue(activeLibraryIdCache);
-      renderKbStats(st);
-      if (el.graphMeta && st.graphSummary) {
+      activeLibraryIdCache = st.activeLibraryId || "";
+      if (includeConfigForms) {
+        updateConfigSidebar(st);
+        if (!configDirty) {
+          setConfigSynced();
+        }
+      }
+      if (deferAutoLearn) {
+        window.setTimeout(() => {
+          void refreshAutoLearnQueue(activeLibraryIdCache).then(() => {
+            if (includeDashboard) {
+              renderKbStats(st);
+            }
+          });
+        }, 0);
+      } else {
+        await refreshAutoLearnQueue(activeLibraryIdCache);
+      }
+      if (includeDashboard) {
+        renderKbStats(st);
+      }
+      if (includeGraph && el.graphMeta && st.graphSummary) {
         const gs = st.graphSummary;
         el.graphMeta.textContent =
           `节点 ${Number(gs.nodeCount || 0)}（文档 ${Number(gs.docNodeCount || 0)} / 章节 ${Number(
             gs.sectionNodeCount || 0
           )}） · 关联线 ${Number(gs.edgeCount || 0)}。`;
       }
-      await refreshGraphSnapshot(false);
-      if (!lastOpStatus || /^当前目录：/.test(lastOpStatus)) {
-        const modeTip =
-          st.storageRootMode === "custom-legacy-direct" ? "（已兼容识别旧版目录结构）" : "";
-        setStatus(`当前目录：${activeName}；共 ${st.chunkTotal || 0} 条向量分片。${modeTip}`);
-      } else {
-        setStatus(`${lastOpStatus}（当前目录：${activeName}；共 ${st.chunkTotal || 0} 条向量分片）`, lastOpIsErr);
+      if (includeGraph) {
+        await refreshGraphSnapshot(false);
+      }
+      if (includeLibraries || includeDashboard) {
+        if (!lastOpStatus || /^当前目录：/.test(lastOpStatus)) {
+          const modeTip =
+            st.storageRootMode === "custom-legacy-direct" ? "（已兼容识别旧版目录结构）" : "";
+          setStatus(`当前目录：${activeName}；共 ${st.chunkTotal || 0} 条向量分片。${modeTip}`);
+        } else {
+          setStatus(`${lastOpStatus}（当前目录：${activeName}；共 ${st.chunkTotal || 0} 条向量分片）`, lastOpIsErr);
+        }
       }
     } catch (err) {
       setStatus(err.message || String(err), true);
@@ -5539,6 +5622,9 @@
   }
 
   async function refreshGraphSnapshot(forceRebuild = false) {
+    if (!isKbFloatPanelActive("jlKbFloatGraph")) {
+      return;
+    }
     if (!api || typeof api.kbGraphSnapshot !== "function" || !el.graphCanvas) {
       return;
     }
@@ -6475,13 +6561,15 @@
     });
   }
 
-  window.onKnowledgeBasePanelVisible = function onKnowledgeBasePanelVisible() {
+  window.onKnowledgeBasePanelVisible = function onKnowledgeBasePanelVisible(options = {}) {
     closeConfigDialog();
     window.KbDashboard?.init?.();
-    void refreshState();
-    if (typeof api.kbWarmEmbedModel === "function") {
-      void api.kbWarmEmbedModel({});
-    }
+    const route = typeof options === "object" ? options.route : options;
+    clearTimeout(kbPanelVisibleTimer);
+    kbPanelVisibleTimer = window.setTimeout(() => {
+      void refreshState({ route });
+    }, 0);
+    scheduleKbWarmEmbed();
   };
 
   window.kbScrollToConfigSection = scrollToConfigSection;
@@ -6490,6 +6578,6 @@
 
   const kbPanel = document.getElementById("panel-knowledge-base");
   if (kbPanel && !kbPanel.hidden) {
-    void window.onKnowledgeBasePanelVisible();
+    void window.onKnowledgeBasePanelVisible({ route: "kb-main" });
   }
 })();

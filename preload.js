@@ -180,7 +180,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   cnlunarCalendarQuery: (payload) => ipcRenderer.invoke("cnlunar-calendar-query", payload),
 
-  kbGetState: () => ipcRenderer.invoke("kb-get-state"),
+  kbGetState: (payload) => ipcRenderer.invoke("kb-get-state", payload),
 
   kbLibraryList: () => ipcRenderer.invoke("kb-library-list"),
 
