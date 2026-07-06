@@ -133,6 +133,49 @@
   font-size: 12px;
 }
 
+.wb-confirm-modal {
+  z-index: 12010;
+}
+
+.wb-confirm-modal__panel {
+  width: min(400px, calc(100vw - 32px));
+}
+
+.wb-confirm-modal__body {
+  padding: 4px 18px 16px;
+}
+
+.wb-confirm-modal__message {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1d2129;
+  line-height: 1.45;
+}
+
+.wb-confirm-modal__detail {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.wb-confirm-modal__foot {
+  padding: 0 18px 18px;
+}
+
+.wb-modal button.danger {
+  color: #fff;
+  background: #d92d20;
+  border: 1px solid #b42318;
+}
+
+.wb-modal button.danger:hover {
+  color: #fff;
+  background: #b42318;
+  border-color: #912018;
+}
+
 .wb-project-card {
   display: flex;
   flex-direction: row;
@@ -1336,6 +1379,20 @@ body.jl-window-ai.theme-nebula .wb-modal button.primary:hover {
   color: #1d2129;
   background: #d6e8ff;
   border-color: #69b1ff;
+}
+
+body.theme-nebula .wb-modal button.danger,
+body.jl-window-ai.theme-nebula .wb-modal button.danger {
+  color: #fff;
+  background: #d92d20;
+  border: 1px solid #b42318;
+}
+
+body.theme-nebula .wb-modal button.danger:hover,
+body.jl-window-ai.theme-nebula .wb-modal button.danger:hover {
+  color: #fff;
+  background: #b42318;
+  border-color: #912018;
 }
 
 body.theme-nebula .wb-modal input,

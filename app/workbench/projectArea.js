@@ -240,7 +240,13 @@ async function archiveProject(project) {
   if (!project?.id || typeof api.wbProjectArchive !== "function") {
     return;
   }
-  const ok = window.confirm(`归档项目「${project.name}」？\n\n归档后将从列表隐藏，数据仍保留。`);
+  const ok = await window.__wbConfirm?.({
+    title: "归档项目",
+    message: `确定归档项目「${project.name}」吗？`,
+    detail:
+      "归档后该项目将不再显示在「项目区域」列表中。任务、开发记忆与备份数据仍保留在本机，需要时可联系管理员恢复。",
+    confirmLabel: "归档",
+  });
   if (!ok) {
     return;
   }
@@ -253,9 +259,14 @@ async function deleteProject(project) {
   if (!project?.id || typeof api.wbProjectDelete !== "function") {
     return;
   }
-  const ok = window.confirm(
-    `删除项目「${project.name}」？\n\n此为软删除，项目将从列表移除。关联任务与记忆仍保留在数据库中。`
-  );
+  const ok = await window.__wbConfirm?.({
+    title: "删除项目",
+    message: `确定删除项目「${project.name}」吗？`,
+    detail:
+      "删除后该项目将从「项目区域」移除，并关闭当前项目工作区。项目下的任务、开发记忆与文件备份仍保留在本机，不会自动清空。",
+    confirmLabel: "删除",
+    danger: true,
+  });
   if (!ok) {
     return;
   }

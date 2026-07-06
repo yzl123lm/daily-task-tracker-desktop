@@ -140,7 +140,12 @@ async function archiveChat(chat) {
   if (!chat?.id || typeof api.wbChatArchive !== "function") {
     return;
   }
-  const ok = window.confirm(`归档会话「${chat.title}」？\n\n归档后将从列表隐藏，消息仍保留。`);
+  const ok = await window.__wbConfirm?.({
+    title: "归档会话",
+    message: `确定归档会话「${chat.title}」吗？`,
+    detail: "归档后该会话将不再显示在「会话区域」列表中，聊天记录与摘要仍保留在本机。",
+    confirmLabel: "归档",
+  });
   if (!ok) {
     return;
   }
@@ -154,7 +159,14 @@ async function deleteChat(chat) {
   if (!chat?.id || typeof api.wbChatDelete !== "function") {
     return;
   }
-  const ok = window.confirm(`删除会话「${chat.title}」？\n\n此为软删除，会话将从列表移除。`);
+  const ok = await window.__wbConfirm?.({
+    title: "删除会话",
+    message: `确定删除会话「${chat.title}」吗？`,
+    detail:
+      "删除后该会话将从「会话区域」列表移除，本页聊天快照缓存会清除。历史消息与摘要仍保留在本机数据库。",
+    confirmLabel: "删除",
+    danger: true,
+  });
   if (!ok) {
     return;
   }
