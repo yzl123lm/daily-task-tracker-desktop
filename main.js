@@ -2469,13 +2469,16 @@ if (process.env.JINGLUO_DISABLE_GPU === "1") {
 }
 
 let kbHandlers = null;
+let shutdownMcp = null;
 
 app.on("before-quit", () => {
   kbHandlers?.kbWatch?.stopAll?.();
+  void shutdownMcp?.();
 });
 
 app.whenReady().then(async () => {
-  registerExtractedIpcHandlers(ipcMain, { app });
+  const extracted = registerExtractedIpcHandlers(ipcMain, { app });
+  shutdownMcp = extracted?.shutdownMcp || null;
   registerWorkbenchWindowIpc(ipcMain);
   registerWindowChromeHandlers(ipcMain);
   registerStartupIpc(ipcMain);

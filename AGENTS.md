@@ -20,6 +20,15 @@ Rules:
 3. **安全**：payload 经 `utils/ipcValidate.js` 校验；密钥用 `safeStorage`；路径白名单；禁止向 renderer 泄漏 `ipcRenderer` 或明文密钥
 4. **风格**：CommonJS、最小改动；交付流程仍见上一节 `client-ship-after-change.mdc`
 
+## MCP Phase B（graphify 代码库图谱）
+
+AI 助手可通过 **graphify_* 工具** 查询 `graphify-out/` 代码库知识图谱（与业务知识库 `kb_search` 独立）：
+
+1. **启用**：设置 → 技能中心 →「graphify 代码库图谱 Skill」
+2. **前置**：项目根存在 `graphify-out/graph.json`（运行 graphify 流水线生成）
+3. **实现**：主进程 `main/mcp/` — 默认 **native** 读 graph.json；若本机有 Python `graphifyy` 则尝试 **MCP stdio**（`python -m graphify.serve`）
+4. **IPC**：`graphify-status-get`、`graphify-tool-call`（见 `preload.js`）
+
 ## UI design (taste-skill)
 
 For UI design, frontend visuals, layout, styling, motion, landing pages, portfolios, or redesigns:

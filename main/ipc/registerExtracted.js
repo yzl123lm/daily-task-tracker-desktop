@@ -9,6 +9,7 @@ const { registerModularSettingsHandlers } = require("../credentialSettings");
 const { registerOllamaVoiceHandlers } = require("../ollamaRuntime");
 const path = require("path");
 const { registerWorkbenchHandlers } = require("../workbench/registerHandlers.js");
+const { registerMcpHandlers } = require("../mcp/registerHandlers.js");
 
 function registerExtractedIpcHandlers(ipcMain, { app }) {
   registerExportHandlers(ipcMain);
@@ -24,6 +25,10 @@ function registerExtractedIpcHandlers(ipcMain, { app }) {
     getUserDataPath: () => app.getPath("userData"),
     getDefaultProjectRoot: () => path.resolve(__dirname, "..", ".."),
   });
+  const mcp = registerMcpHandlers(ipcMain, {
+    getAppRoot: () => path.resolve(__dirname, "..", ".."),
+  });
+  return { shutdownMcp: mcp.shutdownMcp };
 }
 
 module.exports = { registerExtractedIpcHandlers };

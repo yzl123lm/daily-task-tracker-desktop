@@ -410,5 +410,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbContextSnapshotGet: (payload) => ipcRenderer.invoke("wb-context-snapshot-get", payload || {}),
   wbContextSnapshotRestore: (payload) => ipcRenderer.invoke("wb-context-snapshot-restore", payload || {}),
 
+  graphifyStatusGet: () => ipcRenderer.invoke("graphify-status-get"),
+  graphifyToolsList: () => ipcRenderer.invoke("graphify-tools-list"),
+  graphifyToolCall: (payload) => ipcRenderer.invoke("graphify-tool-call", payload),
+  graphifyMcpConnect: () => ipcRenderer.invoke("graphify-mcp-connect"),
+
 });
 

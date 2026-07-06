@@ -55,6 +55,22 @@ const APP_SKILL_CATALOG = [
   },
   { id: "rag-kb", name: "知识库检索 Skill (RAG)", priority: "P1", defaultEnabled: false, planned: false, description: "检索已入库的本地文档片段（语义检索），用于 SOP/FAQ 等可追溯引用；依赖本机 Ollama 嵌入模型。", capabilities: ["kb_search"] },
   {
+    id: "graphify-code-graph",
+    name: "graphify 代码库图谱 Skill (Phase B MCP)",
+    priority: "P1",
+    defaultEnabled: false,
+    planned: false,
+    description:
+      "读取 graphify-out/ 代码库知识图谱（需先在项目根运行 graphify 流水线）。工具：graphify_query_graph、graphify_get_node、graphify_god_nodes 等；若本机已安装 Python graphifyy 则优先走 MCP stdio，否则使用内置 native 适配。",
+    capabilities: [
+      "graphify_query_graph",
+      "graphify_get_node",
+      "graphify_god_nodes",
+      "graphify_graph_stats",
+      "graphify_shortest_path",
+    ],
+  },
+  {
     id: "baai-embed-m3",
     name: "BAAI General Embedding-M3（BGE-M3）",
     priority: "P1",
@@ -336,6 +352,40 @@ const AI_SKILL_TOOLS = [
       top_k: { type: "number", description: "返回条数，默认 12，最大 15；响应字段/报文类建议 12–15" },
     },
     ["query"]
+  ),
+  buildFunctionTool(
+    "graphify_query_graph",
+    "在 graphify 代码库知识图谱（graphify-out/graph.json）中检索架构/模块/依赖相关问题。与业务知识库 kb_search 不同，仅用于理解本仓库代码结构。",
+    {
+      question: { type: "string", description: "自然语言问题，如「AI 聊天 IPC 在哪」" },
+      budget: { type: "number", description: "返回字符上限，默认 4000" },
+    },
+    ["question"]
+  ),
+  buildFunctionTool(
+    "graphify_get_node",
+    "按节点 id 获取 graphify 图谱节点详情与邻居。",
+    { node_id: { type: "string", description: "graphify 节点 id" } },
+    ["node_id"]
+  ),
+  buildFunctionTool(
+    "graphify_god_nodes",
+    "返回 graphify 图谱枢纽节点（高度连接），用于快速理解架构核心。",
+    { limit: { type: "number", description: "返回条数，默认 15" } }
+  ),
+  buildFunctionTool(
+    "graphify_graph_stats",
+    "返回 graphify-out 图谱统计与 GRAPH_REPORT 摘要预览。",
+    {}
+  ),
+  buildFunctionTool(
+    "graphify_shortest_path",
+    "求 graphify 图谱中两概念/节点之间的最短关联路径。",
+    {
+      source: { type: "string", description: "起点 id 或 label 关键词" },
+      target: { type: "string", description: "终点 id 或 label 关键词" },
+    },
+    ["source", "target"]
   ),
   buildFunctionTool(
     "baai_embedding_m3",

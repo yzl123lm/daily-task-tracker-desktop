@@ -2901,6 +2901,13 @@ function aiFindTaskForTool(ref) {
 window.runAITaskTool = async function runAITaskTool(name, args) {
   const a = args && typeof args === "object" ? args : {};
   try {
+    if (String(name || "").startsWith("graphify_")) {
+      const api = window.electronAPI;
+      if (!api || typeof api.graphifyToolCall !== "function") {
+        return { ok: false, error: "graphify 工具仅支持桌面版（Electron）。" };
+      }
+      return api.graphifyToolCall({ name, args: a });
+    }
     if (name === "task_list_snapshot") {
       return {
         ok: true,
