@@ -384,8 +384,8 @@
 
 #jlKbLauncher .kb-dashboard-mid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 14px;
   flex: 1 1 auto;
   min-height: 0;
   align-items: stretch;
@@ -407,7 +407,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-card__head--trend {
+  margin-bottom: 6px;
 }
 
 #jlKbLauncher .kb-dashboard-card__head h3 {
@@ -417,9 +423,102 @@
   color: var(--kb-text-main);
 }
 
-#jlKbLauncher .kb-dashboard-card__hint {
+#jlKbLauncher .kb-dashboard-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #f0f5fd;
+  border: 1px solid #e8f0fc;
+}
+
+#jlKbLauncher .kb-dashboard-range__btn {
+  border: 0;
+  background: transparent;
+  color: var(--kb-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-range__btn.is-active {
+  background: #fff;
+  color: var(--kb-primary);
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.12);
+}
+
+#jlKbLauncher .kb-dashboard-trend-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-trend-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--kb-text-secondary);
+  font-weight: 600;
+}
+
+#jlKbLauncher .kb-dashboard-trend-legend__item::before {
+  content: "";
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+#jlKbLauncher .kb-dashboard-trend-legend__item--docs::before {
+  background: #1677ff;
+}
+
+#jlKbLauncher .kb-dashboard-trend-legend__item--nodes::before {
+  background: #9254de;
+  background-image: repeating-linear-gradient(90deg, #9254de 0 4px, transparent 4px 7px);
+  height: 2px;
+}
+
+#jlKbLauncher .kb-dashboard-trend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eef3fb;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-trend-summary__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+#jlKbLauncher .kb-dashboard-trend-summary__label {
   font-size: 11px;
   color: var(--kb-text-muted);
+  font-weight: 600;
+}
+
+#jlKbLauncher .kb-dashboard-trend-summary__value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+  line-height: 1.2;
+}
+
+#jlKbLauncher .kb-dashboard-trend-summary__delta {
+  font-size: 11px;
+  color: var(--kb-success);
+  font-weight: 600;
 }
 
 #jlKbLauncher .kb-dashboard-trend {
@@ -450,22 +549,26 @@
 
 #jlKbLauncher .kb-dashboard-recent-item {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px solid #eef3fb;
   background: #fafcff;
 }
 
+#jlKbLauncher .kb-dashboard-recent-item__body {
+  min-width: 0;
+}
+
 #jlKbLauncher .kb-dashboard-recent-item__icon {
-  font-size: 14px;
+  font-size: 16px;
   text-align: center;
 }
 
 #jlKbLauncher .kb-dashboard-recent-item__title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--kb-text-main);
   overflow: hidden;
@@ -474,8 +577,13 @@
 }
 
 #jlKbLauncher .kb-dashboard-recent-item__meta {
+  margin-top: 3px;
   font-size: 10px;
   color: var(--kb-text-muted);
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 #jlKbLauncher .kb-dashboard-recent-item__tag {
@@ -499,6 +607,30 @@
 #jlKbLauncher .kb-dashboard-recent-item__tag.is-link {
   color: #7c3aed;
   background: #f3e8ff;
+}
+
+#jlKbLauncher .kb-dashboard-recent-foot {
+  flex-shrink: 0;
+  padding-top: 10px;
+  margin-top: auto;
+  text-align: center;
+  border-top: 1px solid #eef3fb;
+}
+
+#jlKbLauncher .kb-dashboard-recent-more {
+  border: 0;
+  background: transparent;
+  color: var(--kb-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-recent-more:hover {
+  background: var(--kb-primary-light);
 }
 
 #jlKbLauncher .kb-dashboard-quick__title {
@@ -667,6 +799,10 @@
   #jlKbLauncher .kb-dashboard-mid {
     grid-template-columns: 1fr;
   }
+
+  #jlKbLauncher .kb-dashboard-trend-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 @container kb-dash (max-width: 640px) {
@@ -704,7 +840,8 @@
 /* 覆盖浮窗内全局 button 深色样式，确保看板组件使用白蓝主题 */
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__item,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-icon-btn,
-.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-action-btn,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-range__btn,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-recent-more,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings-fab,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings__close {
   font: inherit;

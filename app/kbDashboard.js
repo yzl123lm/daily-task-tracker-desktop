@@ -7,6 +7,10 @@
     "auto-learn": "kb-libraries",
   };
 
+  let latestGroups = [];
+  let latestState = null;
+  let trendRangeDays = 7;
+
   function esc(text) {
     if (typeof global.escapeHtml === "function") {
       return global.escapeHtml(text);
@@ -58,65 +62,245 @@
     if (ext === "doc" || ext === "docx") return "📘";
     if (ext === "xls" || ext === "xlsx") return "📗";
     if (ext === "md" || ext === "txt") return "📝";
+    if (ext === "png" || ext === "jpg" || ext === "svg" || ext === "ico") return "🖼";
+    if (ext === "yml" || ext === "yaml" || ext === "json") return "⚙";
     return "📄";
   }
 
-  function buildTrendSvg(groups) {
-    const days = [];
+  function docCategory(name, lib) {
+    const ext = String(name || "").split(".").pop()?.toLowerCase() || "";
+    if (["yml", "yaml", "json", "toml"].includes(ext)) return "构建配置";
+    if (["png", "jpg", "jpeg", "svg", "ico", "webp"].includes(ext)) return "协议文档";
+    if (["md", "txt", "rst"].includes(ext)) return "说明文档";
+    if (["pdf", "doc", "docx"].includes(ext)) return "业务文档";
+    return lib || "知识文档";
+  }
+
+  function parseDocTs(raw) {
+    return Date.parse(String(raw || "").replace(/\//g, "-")) || 0;
+  }
+
+  function formatPct(current, previous) {
+    if (!previous) {
+      return current > 0 ? "+100.00%" : "—";
+    }
+    const pct = ((current - previous) / previous) * 100;
+    const sign = pct >= 0 ? "+" : "";
+    return `${sign}${pct.toFixed(2)}%`;
+  }
+
+  function collectDocEvents(groups) {
+    const events = [];
+    (groups || []).forEach((g) => {
+      (g.documents || []).forEach((doc) => {
+        const ts = parseDocTs(doc.createdAt);
+        if (!ts) return;
+        events.push({
+          ts,
+          key: new Date(ts).toISOString().slice(0, 10),
+          chunks: Number(doc.chunkCount || 0),
+        });
+      });
+    });
+    return events;
+  }
+
+  function buildTrendBuckets(rangeDays) {
     const now = new Date();
-    for (let i = 6; i >= 0; i -= 1) {
+    now.setHours(0, 0, 0, 0);
+    const buckets = [];
+    if (rangeDays === 90) {
+      for (let w = 12; w >= 0; w -= 1) {
+        const end = new Date(now);
+        end.setDate(now.getDate() - w * 7);
+        const start = new Date(end);
+        start.setDate(end.getDate() - 6);
+        const key = end.toISOString().slice(0, 10);
+        buckets.push({
+          key,
+          startTs: start.getTime(),
+          endTs: end.getTime() + 86400000 - 1,
+          label: `${end.getMonth() + 1}/${end.getDate()}`,
+        });
+      }
+      return buckets;
+    }
+    const count = rangeDays === 30 ? 30 : 7;
+    for (let i = count - 1; i >= 0; i -= 1) {
       const d = new Date(now);
       d.setDate(now.getDate() - i);
       const key = d.toISOString().slice(0, 10);
-      days.push({ key, label: `${d.getMonth() + 1}/${d.getDate()}`, docs: 0, nodes: 0 });
-    }
-    const dayMap = Object.fromEntries(days.map((d) => [d.key, d]));
-    (groups || []).forEach((g) => {
-      (g.documents || []).forEach((doc) => {
-        const raw = String(doc.createdAt || "").replace(/\//g, "-");
-        const ts = Date.parse(raw);
-        if (!ts) return;
-        const key = new Date(ts).toISOString().slice(0, 10);
-        if (dayMap[key]) {
-          dayMap[key].docs += 1;
-        }
+      buckets.push({
+        key,
+        startTs: d.getTime(),
+        endTs: d.getTime() + 86400000 - 1,
+        label: `${d.getMonth() + 1}/${d.getDate()}`,
       });
+    }
+    return buckets;
+  }
+
+  function buildTrendSeries(groups, rangeDays, nodeTotal, docTotal) {
+    const events = collectDocEvents(groups);
+    const buckets = buildTrendBuckets(rangeDays);
+    const nodeRatio = docTotal > 0 && nodeTotal > 0 ? nodeTotal / docTotal : 20;
+    const docSeries = buckets.map((b) =>
+      events.filter((e) => e.ts >= b.startTs && e.ts <= b.endTs).length
+    );
+    const nodeSeries = buckets.map((b) => {
+      const dayDocs = events.filter((e) => e.ts >= b.startTs && e.ts <= b.endTs);
+      const chunkSum = dayDocs.reduce((sum, e) => sum + (e.chunks || 0), 0);
+      if (chunkSum > 0) return chunkSum;
+      return Math.max(0, Math.round(dayDocs.length * nodeRatio));
     });
-    const docSeries = days.map((d) => d.docs);
-    const nodeSeries = days.map((d, i) => Math.max(0, Math.round((docSeries[i] || 0) * 1.6 + i * 2)));
-    const max = Math.max(1, ...docSeries, ...nodeSeries, 1);
-    const w = 520;
-    const h = 200;
-    const pad = 16;
-    const step = (w - pad * 2) / Math.max(1, days.length - 1);
-    const toPoints = (series) =>
+    return { buckets, docSeries, nodeSeries };
+  }
+
+  function sumSeriesInWindow(events, startTs, endTs) {
+    return events.filter((e) => e.ts >= startTs && e.ts <= endTs).length;
+  }
+
+  function buildTrendSummary(groups, rangeDays, nodeTotal, docTotal) {
+    const events = collectDocEvents(groups);
+    const now = new Date();
+    now.setHours(23, 59, 59, 999);
+    const periodMs = rangeDays * 86400000;
+    const curEnd = now.getTime();
+    const curStart = curEnd - periodMs + 1;
+    const prevEnd = curStart - 1;
+    const prevStart = prevEnd - periodMs + 1;
+    const curDocs = sumSeriesInWindow(events, curStart, curEnd);
+    const prevDocs = sumSeriesInWindow(events, prevStart, prevEnd);
+    const nodeRatio = docTotal > 0 && nodeTotal > 0 ? nodeTotal / docTotal : 20;
+    const curNodes = Math.round(curDocs * nodeRatio);
+    const prevNodes = Math.round(prevDocs * nodeRatio);
+    const avgDaily = rangeDays > 0 ? curDocs / rangeDays : 0;
+    const prevAvgDaily = rangeDays > 0 ? prevDocs / rangeDays : 0;
+    const rangeLabel = rangeDays === 7 ? "7天" : rangeDays === 30 ? "30天" : "90天";
+    return [
+      {
+        label: `${rangeLabel}新增文档`,
+        value: `+${curDocs} 份`,
+        delta: formatPct(curDocs, prevDocs),
+      },
+      {
+        label: `${rangeLabel}新增节点`,
+        value: `+${curNodes} 个`,
+        delta: formatPct(curNodes, prevNodes),
+      },
+      {
+        label: "平均每日新增文档",
+        value: `${avgDaily.toFixed(1)} 份`,
+        delta: formatPct(avgDaily, prevAvgDaily),
+      },
+    ];
+  }
+
+  function buildTrendSvg(buckets, docSeries, nodeSeries) {
+    const docMax = Math.max(1, ...docSeries);
+    const nodeMax = Math.max(1, ...nodeSeries);
+    const w = 560;
+    const h = 210;
+    const padL = 36;
+    const padR = 36;
+    const padT = 12;
+    const padB = 28;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const step = innerW / Math.max(1, buckets.length - 1);
+    const toPoints = (series, max) =>
       series
         .map((v, i) => {
-          const x = pad + i * step;
-          const y = h - pad - (v / max) * (h - pad * 2);
+          const x = padL + i * step;
+          const y = padT + innerH - (v / max) * innerH;
           return `${x},${y}`;
         })
         .join(" ");
-    const docPoints = toPoints(docSeries);
-    const nodePoints = toPoints(nodeSeries);
-    const docArea = `${pad},${h - pad} ${docPoints} ${pad + (days.length - 1) * step},${h - pad}`;
-    const labels = days
-      .map((d, i) => {
-        const x = pad + i * step;
-        return `<text x="${x}" y="${h - 2}" font-size="9" fill="#8A97AB" text-anchor="middle">${esc(d.label)}</text>`;
+    const docPoints = toPoints(docSeries, docMax);
+    const nodePoints = toPoints(nodeSeries, nodeMax);
+    const docArea = `${padL},${padT + innerH} ${docPoints} ${padL + (buckets.length - 1) * step},${padT + innerH}`;
+    const labelEvery = buckets.length > 14 ? Math.ceil(buckets.length / 7) : 1;
+    const labels = buckets
+      .map((b, i) => {
+        if (i % labelEvery !== 0 && i !== buckets.length - 1) return "";
+        const x = padL + i * step;
+        return `<text x="${x}" y="${h - 6}" font-size="9" fill="#8A97AB" text-anchor="middle">${esc(b.label)}</text>`;
       })
       .join("");
-    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="近7天增长趋势">
-      <defs><linearGradient id="kbTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1677FF" stop-opacity="0.22"/><stop offset="100%" stop-color="#1677FF" stop-opacity="0.02"/></linearGradient></defs>
+    const yTicksDocs = [0, 0.5, 1]
+      .map((ratio) => {
+        const val = Math.round(docMax * ratio);
+        const y = padT + innerH - ratio * innerH;
+        return `<text x="${padL - 6}" y="${y + 3}" font-size="8" fill="#8A97AB" text-anchor="end">${val}</text>`;
+      })
+      .join("");
+    const yTicksNodes = [0, 0.5, 1]
+      .map((ratio) => {
+        const val = Math.round(nodeMax * ratio);
+        const y = padT + innerH - ratio * innerH;
+        return `<text x="${w - padR + 6}" y="${y + 3}" font-size="8" fill="#8A97AB" text-anchor="start">${val}</text>`;
+      })
+      .join("");
+    const gridLines = [0.25, 0.5, 0.75]
+      .map((ratio) => {
+        const y = padT + innerH - ratio * innerH;
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#EEF3FB" stroke-width="1"/>`;
+      })
+      .join("");
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="知识库增长趋势">
+      <defs><linearGradient id="kbTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1677FF" stop-opacity="0.18"/><stop offset="100%" stop-color="#1677FF" stop-opacity="0.02"/></linearGradient></defs>
+      ${gridLines}
+      ${yTicksDocs}
+      ${yTicksNodes}
       <polygon points="${docArea}" fill="url(#kbTrendFill)"/>
-      <polyline points="${docPoints}" fill="none" stroke="#1677FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      <polyline points="${nodePoints}" fill="none" stroke="#7eb8ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3"/>
+      <polyline points="${docPoints}" fill="none" stroke="#1677FF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="${nodePoints}" fill="none" stroke="#9254DE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 4"/>
       ${labels}
-      <g transform="translate(${pad}, 8)">
-        <rect x="0" y="0" width="8" height="8" rx="2" fill="#1677FF"/><text x="12" y="8" font-size="9" fill="#5F6F89">入库文档</text>
-        <rect x="68" y="0" width="8" height="8" rx="2" fill="#7eb8ff"/><text x="80" y="8" font-size="9" fill="#5F6F89">知识节点</text>
-      </g>
     </svg>`;
+  }
+
+  function renderTrendSummary(groups, rangeDays) {
+    const host = document.getElementById("kbDashboardTrendSummary");
+    if (!host) return;
+    const nodeTotal = Number(latestState?.graphSummary?.nodeCount || 0);
+    const docTotal = (groups || []).reduce(
+      (sum, g) => sum + (Array.isArray(g.documents) ? g.documents.length : Number(g.docCount || 0)),
+      0
+    );
+    const items = buildTrendSummary(groups, rangeDays, nodeTotal, docTotal);
+    host.innerHTML = items
+      .map(
+        (item) => `<div class="kb-dashboard-trend-summary__item">
+          <span class="kb-dashboard-trend-summary__label">${esc(item.label)}</span>
+          <strong class="kb-dashboard-trend-summary__value">${esc(item.value)}</strong>
+          <span class="kb-dashboard-trend-summary__delta">${esc(item.delta)}</span>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderTrend(groups, rangeDays) {
+    const host = document.getElementById("kbDashboardTrend");
+    if (!host) return;
+    const nodeTotal = Number(latestState?.graphSummary?.nodeCount || 0);
+    const docTotal = (groups || []).reduce(
+      (sum, g) => sum + (Array.isArray(g.documents) ? g.documents.length : Number(g.docCount || 0)),
+      0
+    );
+    const { buckets, docSeries, nodeSeries } = buildTrendSeries(groups, rangeDays, nodeTotal, docTotal);
+    host.innerHTML = buildTrendSvg(buckets, docSeries, nodeSeries);
+    renderTrendSummary(groups, rangeDays);
+  }
+
+  function inferTag(doc, index) {
+    if (doc.autoLearn) return { cls: "is-new", text: "新增" };
+    if (doc.verification) return { cls: "is-update", text: "更新" };
+    const tags = [
+      { cls: "is-update", text: "更新" },
+      { cls: "is-new", text: "新增" },
+      { cls: "is-link", text: "关联" },
+    ];
+    return tags[index % tags.length];
   }
 
   function renderRecentUpdates(groups) {
@@ -126,41 +310,34 @@
     (groups || []).forEach((g) => {
       (g.documents || []).forEach((doc) => {
         items.push({
+          doc,
           name: doc.name || doc.sourceFile || "未命名文档",
           lib: g.name || g.id || "",
           time: doc.createdAt || "",
-          ts: Date.parse(String(doc.createdAt || "").replace(/\//g, "-")) || 0,
+          ts: parseDocTs(doc.createdAt),
         });
       });
     });
     items.sort((a, b) => b.ts - a.ts);
     const top = items.slice(0, 5);
     if (!top.length) {
-      list.innerHTML = `<li class="kb-dashboard-recent-item"><span class="kb-dashboard-recent-item__title">暂无最近更新</span></li>`;
+      list.innerHTML = `<li class="kb-dashboard-recent-item kb-dashboard-recent-item--empty"><span class="kb-dashboard-recent-item__title">暂无最近更新</span></li>`;
       return;
     }
-    const tags = ["is-update", "is-new", "is-link", "is-update", "is-new"];
-    const tagText = ["更新", "新增", "关联", "更新", "新增"];
     list.innerHTML = top
       .map((item, i) => {
-        const tagCls = tags[i % tags.length];
+        const tag = inferTag(item.doc, i);
+        const category = docCategory(item.name, item.lib);
         return `<li class="kb-dashboard-recent-item">
           <span class="kb-dashboard-recent-item__icon" aria-hidden="true">${fileTypeIcon(item.name)}</span>
-          <div>
+          <div class="kb-dashboard-recent-item__body">
             <div class="kb-dashboard-recent-item__title">${esc(item.name)}</div>
-            <div class="kb-dashboard-recent-item__meta">${esc(item.lib)} · ${esc(item.time || "—")}</div>
+            <div class="kb-dashboard-recent-item__meta">${esc(category)} · ${esc(item.time || "—")} · 由系统触发</div>
           </div>
-          <span class="kb-dashboard-recent-item__tag ${tagCls}">${tagText[i % tagText.length]}</span>
+          <span class="kb-dashboard-recent-item__tag ${tag.cls}">${tag.text}</span>
         </li>`;
       })
       .join("");
-  }
-
-  function renderTrend(groups) {
-    const host = document.getElementById("kbDashboardTrend");
-    if (host) {
-      host.innerHTML = buildTrendSvg(groups);
-    }
   }
 
   function renderStorage(st) {
@@ -202,6 +379,26 @@
     });
   }
 
+  function wireTrendRange() {
+    const rangeHost = document.querySelector("#jlKbLauncher .kb-dashboard-range");
+    if (!rangeHost || rangeHost.dataset.wired === "1") {
+      return;
+    }
+    rangeHost.dataset.wired = "1";
+    rangeHost.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-kb-trend-range]");
+      if (!btn) return;
+      const days = Number(btn.getAttribute("data-kb-trend-range") || "7");
+      trendRangeDays = days;
+      rangeHost.querySelectorAll(".kb-dashboard-range__btn").forEach((n) => {
+        const active = n === btn;
+        n.classList.toggle("is-active", active);
+        n.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      renderTrend(latestGroups, trendRangeDays);
+    });
+  }
+
   function wireChrome() {
     const refreshBtn = document.getElementById("kbDashboardRefreshBtn");
     if (refreshBtn && refreshBtn.dataset.wired !== "1") {
@@ -210,11 +407,19 @@
         global.onKnowledgeBasePanelVisible?.({ route: "kb-main" });
       });
     }
+    const viewAllBtn = document.getElementById("kbDashboardViewAllUpdates");
+    if (viewAllBtn && viewAllBtn.dataset.wired !== "1") {
+      viewAllBtn.dataset.wired = "1";
+      viewAllBtn.addEventListener("click", () => {
+        global.FloatDesktop?.focusOrOpen?.("kb-libraries");
+      });
+    }
   }
 
   function init() {
     restoreSettingsToDialog();
     wireNav();
+    wireTrendRange();
     wireChrome();
   }
 
@@ -222,8 +427,10 @@
     if (!document.getElementById("kbDashboard")) {
       return;
     }
-    renderTrend(groups);
-    renderRecentUpdates(groups);
+    latestState = st || null;
+    latestGroups = groups || [];
+    renderTrend(latestGroups, trendRangeDays);
+    renderRecentUpdates(latestGroups);
     renderStorage(st);
   }
 

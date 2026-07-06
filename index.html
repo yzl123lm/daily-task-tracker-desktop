@@ -1011,22 +1011,32 @@
                     <button type="button" id="kbConfigOpenBtn" class="kb-dashboard-icon-btn" title="知识库配置" aria-label="知识库配置"><span aria-hidden="true">⚙</span></button>
                     <button type="button" class="kb-dashboard-icon-btn" title="收藏" aria-label="收藏">☆</button>
                     <button type="button" class="kb-dashboard-icon-btn kb-dashboard-icon-btn--notify" title="通知" aria-label="通知"><span aria-hidden="true">🔔</span></button>
-                    <span class="kb-dashboard-avatar" aria-hidden="true">A</span>
-                    <button type="button" id="kbStatsOpsLogBtn" class="kb-dashboard-action-btn" title="查看操作日志">操作日志</button>
                   </div>
                 </header>
                 <section class="kb-dashboard-metrics" id="kbStatsBar" aria-label="知识库概览"></section>
                 <div class="kb-dashboard-mid">
                   <section class="kb-dashboard-card kb-dashboard-card--trend">
-                    <header class="kb-dashboard-card__head">
+                    <header class="kb-dashboard-card__head kb-dashboard-card__head--trend">
                       <h3>知识库增长趋势</h3>
-                      <span class="kb-dashboard-card__hint">近 7 天</span>
+                      <div class="kb-dashboard-range" role="tablist" aria-label="趋势时间范围">
+                        <button type="button" class="kb-dashboard-range__btn is-active" data-kb-trend-range="7" role="tab" aria-selected="true">近7天</button>
+                        <button type="button" class="kb-dashboard-range__btn" data-kb-trend-range="30" role="tab" aria-selected="false">近30天</button>
+                        <button type="button" class="kb-dashboard-range__btn" data-kb-trend-range="90" role="tab" aria-selected="false">近90天</button>
+                      </div>
                     </header>
+                    <div class="kb-dashboard-trend-legend" aria-hidden="true">
+                      <span class="kb-dashboard-trend-legend__item kb-dashboard-trend-legend__item--docs">入库文档 (份)</span>
+                      <span class="kb-dashboard-trend-legend__item kb-dashboard-trend-legend__item--nodes">知识节点 (个)</span>
+                    </div>
                     <div id="kbDashboardTrend" class="kb-dashboard-trend" aria-hidden="false"></div>
+                    <div id="kbDashboardTrendSummary" class="kb-dashboard-trend-summary" aria-live="polite"></div>
                   </section>
                   <section class="kb-dashboard-card kb-dashboard-card--recent">
                     <header class="kb-dashboard-card__head"><h3>最近更新</h3></header>
                     <ul id="kbDashboardRecent" class="kb-dashboard-recent-list"></ul>
+                    <footer class="kb-dashboard-recent-foot">
+                      <button type="button" id="kbDashboardViewAllUpdates" class="kb-dashboard-recent-more">查看全部更新 ›</button>
+                    </footer>
                   </section>
                 </div>
               </div>
