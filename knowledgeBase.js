@@ -1338,35 +1338,23 @@
     await loadOpsLogList(opsLogCategory);
   }
 
-  function openConfigDialog() {
-    if (window.KbDashboard?.isDashboardVisible?.()) {
-      window.KbDashboard.mountSettingsPanel?.();
-      window.KbDashboard.focusSettingsPanel?.("basic");
-      scrollToConfigSection("basic");
-      setConfigSynced();
-      if (el.opsFeedback) {
-        el.opsFeedback.hidden = true;
-        el.opsFeedback.textContent = "";
-        el.opsFeedback.classList.remove("is-error", "is-success", "is-busy");
-      }
-      return;
-    }
+  function openConfigDialog(sectionId = "basic") {
+    window.KbDashboard?.restoreSettingsToDialog?.();
     portalKbDialogsToBody();
     const dlg = el.configDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
       return;
     }
-    if (dlg.open) {
-      return;
-    }
-    scrollToConfigSection("basic");
+    scrollToConfigSection(sectionId);
     setConfigSynced();
     if (el.opsFeedback) {
       el.opsFeedback.hidden = true;
       el.opsFeedback.textContent = "";
       el.opsFeedback.classList.remove("is-error", "is-success", "is-busy");
     }
-    dlg.showModal();
+    if (!dlg.open) {
+      dlg.showModal();
+    }
   }
 
   function closeConfigDialog() {
@@ -6498,6 +6486,7 @@
 
   window.kbScrollToConfigSection = scrollToConfigSection;
   window.kbOpenOpsLog = openOpsLogDialog;
+  window.kbOpenConfigDialog = openConfigDialog;
 
   const kbPanel = document.getElementById("panel-knowledge-base");
   if (kbPanel && !kbPanel.hidden) {

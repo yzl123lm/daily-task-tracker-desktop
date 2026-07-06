@@ -21,7 +21,7 @@
 
 #jlKbLauncher .kb-dashboard {
   display: grid;
-  grid-template-columns: 212px minmax(0, 1fr) 380px;
+  grid-template-columns: 212px minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
@@ -117,6 +117,34 @@
   border-radius: 12px;
   border: 1px solid var(--kb-border);
   background: linear-gradient(180deg, #fafcff 0%, #f3f8ff 100%);
+}
+
+#jlKbLauncher .kb-dashboard-nav__footer {
+  flex-shrink: 0;
+  padding: 10px 4px 2px;
+}
+
+#jlKbLauncher .kb-dashboard-nav__settings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--kb-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--kb-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-nav__settings:hover {
+  background: var(--kb-primary-light);
+  color: var(--kb-primary);
+  border-color: rgba(22, 119, 255, 0.28);
 }
 
 #jlKbLauncher .kb-dashboard-storage__head {
@@ -624,54 +652,13 @@
   box-shadow: 0 8px 20px rgba(22, 119, 255, 0.28);
 }
 
-@container kb-dash (max-width: 1180px) {
-  #jlKbLauncher .kb-dashboard {
-    grid-template-columns: 200px minmax(0, 1fr) 340px;
-  }
-
+@container kb-dash (max-width: 960px) {
   #jlKbLauncher .kb-dashboard-metrics {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@container kb-dash (max-width: 960px) {
-  #jlKbLauncher .kb-dashboard {
-    grid-template-columns: 188px minmax(0, 1fr);
-    position: relative;
-  }
-
-  #jlKbLauncher .kb-dashboard-settings {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(380px, 92%);
-    z-index: 6;
-    box-shadow: -12px 0 32px rgba(22, 119, 255, 0.12);
-    transform: translateX(100%);
-    transition: transform 0.22s ease;
-  }
-
-  #jlKbLauncher .kb-dashboard.is-settings-open .kb-dashboard-settings {
-    transform: translateX(0);
-  }
-
-  #jlKbLauncher .kb-dashboard-settings__close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  #jlKbLauncher .kb-dashboard-settings-fab {
-    display: inline-flex;
   }
 
   #jlKbLauncher .kb-dashboard-mid {
     grid-template-columns: 1fr;
-  }
-
-  #jlKbLauncher .kb-dashboard-quick__grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -686,10 +673,6 @@
 
   #jlKbLauncher .kb-dashboard-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  #jlKbLauncher .kb-dashboard-quick__grid {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -713,7 +696,7 @@
 
 /* 覆盖浮窗内全局 button 深色样式，确保看板组件使用白蓝主题 */
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__item,
-.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-quick-card,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__settings,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-icon-btn,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-action-btn,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings-fab,

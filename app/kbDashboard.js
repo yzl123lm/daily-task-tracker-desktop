@@ -1,23 +1,12 @@
 (function initKbDashboard(global) {
-  const QUICK_ACTIONS = [
-    { id: "search", icon: "🔍", label: "智能搜索", desc: "打开知识检索", route: "kb-search" },
-    { id: "upload", icon: "📤", label: "上传文档", desc: "目录与入库", route: "kb-libraries" },
-    { id: "graph", icon: "🕸", label: "新建节点", desc: "知识图谱", route: "kb-graph" },
-    { id: "ops", icon: "📋", label: "操作日志", desc: "查看运行记录", action: "ops-log" },
-    { id: "settings", icon: "⚙", label: "设置", desc: "知识库配置", action: "settings" },
-  ];
-
   const NAV_ROUTES = {
     overview: null,
     "kb-search": "kb-search",
     "kb-libraries": "kb-libraries",
     "kb-graph": "kb-graph",
     "auto-learn": "kb-libraries",
-    settings: "settings",
     "ops-log": "ops-log",
   };
-
-  let mounted = false;
 
   function esc(text) {
     if (typeof global.escapeHtml === "function") {
@@ -41,41 +30,27 @@
     return host.closest(".jl-float-win") && host.getBoundingClientRect().height > 0;
   }
 
-  function mountSettingsPanel() {
-    const scroll = document.getElementById("kbDashboardSettingsScroll");
-    const foot = document.getElementById("kbDashboardSettingsFoot");
+  function restoreSettingsToDialog() {
     const sections = document.getElementById("kbConfigSections");
+    const mainScroll = document.querySelector("#kbConfigDialog .kb-main-scroll");
     const footer = document.querySelector("#kbConfigDialog .kb-footer-actions");
-    if (!scroll || !sections) {
-      return;
+    const shell = document.querySelector("#kbConfigDialog .kb-config-shell");
+    if (sections && mainScroll && !mainScroll.contains(sections)) {
+      mainScroll.appendChild(sections);
     }
-    if (scroll.contains(sections) && (!footer || foot?.contains(footer))) {
-      mounted = true;
-      return;
+    if (footer && shell && !shell.contains(footer)) {
+      shell.appendChild(footer);
     }
-    if (!scroll.contains(sections)) {
-      scroll.appendChild(sections);
-      scroll.classList.add("kb-dashboard-settings-panel");
-    }
-    if (foot && footer && !foot.contains(footer)) {
-      foot.appendChild(footer);
-    }
-    mounted = true;
+    document.getElementById("kbDashboardSettingsScroll")?.classList.remove("kb-dashboard-settings-panel");
   }
 
-  function focusSettingsPanel(section) {
-    const root = document.getElementById("kbDashboard");
-    root?.classList.add("is-settings-open");
-    if (section && typeof global.kbScrollToConfigSection === "function") {
-      global.kbScrollToConfigSection(section);
-    } else {
-      const scroll = document.getElementById("kbDashboardSettingsScroll");
-      scroll?.scrollTo({ top: 0, behavior: "smooth" });
+  function openSettingsPage(section) {
+    restoreSettingsToDialog();
+    if (typeof global.kbOpenConfigDialog === "function") {
+      global.kbOpenConfigDialog(section || "basic");
+      return;
     }
-  }
-
-  function closeSettingsDrawer() {
-    document.getElementById("kbDashboard")?.classList.remove("is-settings-open");
+    document.getElementById("kbConfigOpenBtn")?.click();
   }
 
   function fileTypeIcon(name) {
@@ -202,39 +177,6 @@
     metaEl.textContent = `${usedLabel} · ${st?.storageBackend || "sqlite"}`;
   }
 
-  function renderQuickActions() {
-    const grid = document.getElementById("kbDashboardQuick");
-    if (!grid || grid.dataset.wired === "1") {
-      return;
-    }
-    grid.innerHTML = QUICK_ACTIONS.map(
-      (a) => `<button type="button" class="kb-dashboard-quick-card" data-kb-quick="${a.id}">
-        <span class="kb-dashboard-quick-card__label">${esc(a.label)}</span>
-        <span class="kb-dashboard-quick-card__desc">${esc(a.desc)}</span>
-        <span class="kb-dashboard-quick-card__icon" aria-hidden="true">${a.icon}</span>
-      </button>`,
-    ).join("");
-    grid.dataset.wired = "1";
-    grid.addEventListener("click", (ev) => {
-      const btn = ev.target.closest("[data-kb-quick]");
-      if (!btn) return;
-      const id = btn.getAttribute("data-kb-quick");
-      const item = QUICK_ACTIONS.find((x) => x.id === id);
-      if (!item) return;
-      if (item.route) {
-        global.FloatDesktop?.focusOrOpen(item.route);
-        return;
-      }
-      if (item.action === "ops-log" && typeof global.kbOpenOpsLog === "function") {
-        global.kbOpenOpsLog("all");
-        return;
-      }
-      if (item.action === "settings") {
-        focusSettingsPanel("basic");
-      }
-    });
-  }
-
   function wireNav() {
     const menu = document.querySelector("#jlKbLauncher .kb-dashboard-nav__menu");
     if (!menu || menu.dataset.wired === "1") {
@@ -249,10 +191,6 @@
         n.classList.toggle("is-active", n === btn);
       });
       const route = NAV_ROUTES[key];
-      if (route === "settings") {
-        focusSettingsPanel("basic");
-        return;
-      }
       if (route === "ops-log") {
         global.kbOpenOpsLog?.("all");
         return;
@@ -263,22 +201,17 @@
       if (route) {
         global.FloatDesktop?.focusOrOpen(route);
       }
-      if (key === "auto-learn" && typeof global.kbScrollToConfigSection === "function") {
-        setTimeout(() => global.kbScrollToConfigSection("retrieval"), 300);
+      if (key === "auto-learn") {
+        setTimeout(() => openSettingsPage("retrieval"), 300);
       }
     });
   }
 
   function wireChrome() {
-    const fab = document.getElementById("kbDashboardSettingsFab");
-    if (fab && fab.dataset.wired !== "1") {
-      fab.dataset.wired = "1";
-      fab.addEventListener("click", () => focusSettingsPanel("basic"));
-    }
-    const closeBtn = document.getElementById("kbDashboardSettingsClose");
-    if (closeBtn && closeBtn.dataset.wired !== "1") {
-      closeBtn.dataset.wired = "1";
-      closeBtn.addEventListener("click", closeSettingsDrawer);
+    const settingsBtn = document.getElementById("kbDashboardOpenSettingsBtn");
+    if (settingsBtn && settingsBtn.dataset.wired !== "1") {
+      settingsBtn.dataset.wired = "1";
+      settingsBtn.addEventListener("click", () => openSettingsPage("basic"));
     }
     const refreshBtn = document.getElementById("kbDashboardRefreshBtn");
     if (refreshBtn && refreshBtn.dataset.wired !== "1") {
@@ -290,8 +223,7 @@
   }
 
   function init() {
-    mountSettingsPanel();
-    renderQuickActions();
+    restoreSettingsToDialog();
     wireNav();
     wireChrome();
   }
@@ -300,7 +232,6 @@
     if (!document.getElementById("kbDashboard")) {
       return;
     }
-    mountSettingsPanel();
     renderTrend(groups);
     renderRecentUpdates(groups);
     renderStorage(st);
@@ -310,9 +241,8 @@
     init,
     refresh,
     isDashboardVisible,
-    focusSettingsPanel,
-    closeSettingsDrawer,
-    mountSettingsPanel,
+    restoreSettingsToDialog,
+    openSettingsPage,
   };
 
   if (document.readyState === "loading") {
