@@ -133,7 +133,7 @@
           minHeight: 480,
         },
       },
-      bootWindows: ["kb-launcher"],
+      bootWindows: ["kb-main"],
     },
     record: {
       title: "记录助手",
@@ -509,7 +509,7 @@
   function defaultPosition(index, width, height) {
     const { width: cw, height: ch } = canvasBounds();
     if (overlayMode && mode === "knowledge" && index > 0) {
-      const launcher = winMap().get("kb-launcher");
+      const launcher = winMap().get("kb-main");
       if (launcher && isWindowOpen(launcher)) {
         const offsetX = launcher.el.offsetLeft + launcher.el.offsetWidth + 16;
         const offsetY = launcher.el.offsetTop + (index - 1) * 28;
@@ -1093,10 +1093,10 @@
 
     if (mode === "knowledge") {
       if (route === "knowledge-base") {
-        const boots = modeConfig()?.bootWindows || ["kb-launcher"];
+        const boots = modeConfig()?.bootWindows || ["kb-main"];
         boots.forEach((key, idx) => openWindow(key, { focus: idx === 0 }));
         if (typeof panelVisibleHandler === "function") {
-          void panelVisibleHandler();
+          void panelVisibleHandler(boots[0] || "kb-main");
         }
         return true;
       }
@@ -1297,7 +1297,7 @@
     bootDefaultWindows();
 
     if (mode === "knowledge" && typeof panelVisibleHandler === "function") {
-      void panelVisibleHandler("kb-launcher");
+      void panelVisibleHandler("kb-main");
     }
   }
 

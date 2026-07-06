@@ -49,7 +49,11 @@
     layerEl.setAttribute("aria-hidden", "false");
     visible = true;
     global.FloatDesktop?.setOverlayVisible?.(true, "knowledge");
-    global.FloatDesktop?.openWindow("kb-launcher");
+    global.FloatDesktop?.closeWindow?.("kb-launcher");
+    global.FloatDesktop?.openWindow("kb-main");
+    if (typeof panelVisibleHandler === "function") {
+      void panelVisibleHandler("kb-main");
+    }
     fireRoute("knowledge-base");
     syncNavActive(true);
   }
@@ -85,9 +89,13 @@
       show();
     }
     global.FloatDesktop?.activateOverlayMode?.("knowledge");
-    const key = String(route || "kb-launcher").trim() || "kb-launcher";
-    if (key === "knowledge-base" || key === "kb-launcher") {
-      global.FloatDesktop?.focusOrOpen("kb-launcher");
+    const key = String(route || "kb-main").trim() || "kb-main";
+    if (key === "knowledge-base" || key === "kb-launcher" || key === "kb-main") {
+      global.FloatDesktop?.closeWindow?.("kb-launcher");
+      global.FloatDesktop?.focusOrOpen("kb-main");
+      if (typeof panelVisibleHandler === "function") {
+        void panelVisibleHandler("kb-main");
+      }
     } else {
       global.FloatDesktop?.openWindow(key);
     }
