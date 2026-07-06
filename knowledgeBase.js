@@ -1129,7 +1129,9 @@
   }
 
   function scrollToConfigSection(sectionId) {
-    const panel = document.querySelector(`#kbConfigDialog .kb-card[data-section="${sectionId}"]`);
+    const panel =
+      document.querySelector(`#kbConfigSections .kb-card[data-section="${sectionId}"]`) ||
+      document.querySelector(`#kbConfigDialog .kb-card[data-section="${sectionId}"]`);
     const navItem = el.configNavItems.find((n) => n.dataset.section === sectionId);
     if (navItem) {
       el.configNavItems.forEach((n) => n.classList.toggle("is-active", n === navItem));
@@ -1337,6 +1339,18 @@
   }
 
   function openConfigDialog() {
+    if (window.KbDashboard?.isDashboardVisible?.()) {
+      window.KbDashboard.mountSettingsPanel?.();
+      window.KbDashboard.focusSettingsPanel?.("basic");
+      scrollToConfigSection("basic");
+      setConfigSynced();
+      if (el.opsFeedback) {
+        el.opsFeedback.hidden = true;
+        el.opsFeedback.textContent = "";
+        el.opsFeedback.classList.remove("is-error", "is-success", "is-busy");
+      }
+      return;
+    }
     portalKbDialogsToBody();
     const dlg = el.configDialog;
     if (!dlg || typeof dlg.showModal !== "function") {
@@ -3643,7 +3657,17 @@
       });
     });
     const lastUpdatedShort = formatKbStatTime(lastUpdated);
+    const todayCount = countDocsUpdatedToday(groups);
     const esc = typeof escapeHtml === "function" ? escapeHtml : (t) => String(t ?? "");
+    const metricIcons = ["🛡", "📄", "🧩", "🔗", "🧠", "🕐"];
+    const metricDeltas = [
+      "运行正常",
+      todayCount > 0 ? `较昨日 +${todayCount}` : "较昨日 —",
+      nodeCount > 0 ? `较昨日 +${Math.min(nodeCount, 99)}` : "较昨日 —",
+      edgeCount > 0 ? `较昨日 +${Math.min(edgeCount, 99)}` : "较昨日 —",
+      pending > 0 ? `待处理 ${pending}` : "较昨日 —",
+      "由系统触发",
+    ];
     const cards = [
       { label: "知识库状态", value: '<span class="kb-stat-dot" aria-hidden="true"></span>已启用', tone: "ok", hint: "本地检索与入库可用" },
       { label: "入库文档", value: `${docTotal} 份`, tone: "num", hint: "全部目录合计" },
@@ -3658,15 +3682,21 @@
       },
     ];
     el.statsBar.innerHTML = cards
-      .map((c) => {
+      .map((c, index) => {
         const valueHtml = c.tone === "ok" || c.tone === "time" ? c.value : esc(c.value);
-        return `<article class="kb-stat-card kb-stat-card--${c.tone}" title="${esc(c.hint)}">
-          <span class="kb-stat-card__label">${esc(c.label)}</span>
-          <strong class="kb-stat-card__value">${valueHtml}</strong>
+        const deltaCls = String(metricDeltas[index] || "").includes("+") ? " is-up" : "";
+        return `<article class="kb-dash-metric kb-dash-metric--${c.tone}" title="${esc(c.hint)}">
+          <div class="kb-dash-metric__top">
+            <span class="kb-dash-metric__label">${esc(c.label)}</span>
+            <span class="kb-dash-metric__icon" aria-hidden="true">${metricIcons[index] || "📊"}</span>
+          </div>
+          <strong class="kb-dash-metric__value">${valueHtml}</strong>
+          <span class="kb-dash-metric__delta${deltaCls}">${esc(metricDeltas[index] || "")}</span>
         </article>`;
       })
       .join("");
     renderKbLibrariesOverviewStats(st);
+    window.KbDashboard?.refresh?.(st, groups);
     if (el.ingestTotal) {
       el.ingestTotal.textContent = `总数 ${docTotal} 份`;
     }
@@ -6459,11 +6489,15 @@
 
   window.onKnowledgeBasePanelVisible = function onKnowledgeBasePanelVisible() {
     closeConfigDialog();
+    window.KbDashboard?.init?.();
     void refreshState();
     if (typeof api.kbWarmEmbedModel === "function") {
       void api.kbWarmEmbedModel({});
     }
   };
+
+  window.kbScrollToConfigSection = scrollToConfigSection;
+  window.kbOpenOpsLog = openOpsLogDialog;
 
   const kbPanel = document.getElementById("panel-knowledge-base");
   if (kbPanel && !kbPanel.hidden) {

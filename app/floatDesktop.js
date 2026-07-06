@@ -94,10 +94,10 @@
           title: "知识库",
           desc: "维护个人知识库",
           icon: "📚",
-          width: 420,
-          height: 480,
-          minWidth: 360,
-          minHeight: 380,
+          width: 1440,
+          height: 860,
+          minWidth: 1024,
+          minHeight: 640,
         },
         "kb-libraries": {
           panelId: "jlKbFloatLibraries",
@@ -306,17 +306,20 @@
     winEl.style.top = `${pos.y}px`;
   }
 
-  function ensureReasonableWindowSize(entry, meta) {
+  function ensureReasonableWindowSize(entry, meta, route) {
     if (!entry?.el || !meta) {
       return;
     }
     const limits = windowSizeLimits(meta, entry.el);
+    const tooSmallW = entry.el.offsetWidth < limits.minW;
+    const tooSmallH = entry.el.offsetHeight < limits.minH;
     const tooWide = entry.el.offsetWidth > limits.maxW;
     const tooTall = entry.el.offsetHeight > limits.maxH;
-    if (!tooWide && !tooTall) {
+    if (!tooSmallW && !tooSmallH && !tooWide && !tooTall) {
       return;
     }
-    applyWindowGeometry(entry.el, meta, null, winMap().size);
+    const saved = tooSmallW || tooSmallH ? null : readSavedGeometry(route);
+    applyWindowGeometry(entry.el, meta, saved, winMap().size);
   }
 
   function geometryStore() {
@@ -830,6 +833,10 @@
   function focusOrOpen(route, options = {}) {
     const entry = winMap().get(route);
     if (entry && isWindowOpen(entry)) {
+      const meta = cfg(route);
+      if (meta) {
+        ensureReasonableWindowSize(entry, meta, route);
+      }
       bringToFront(entry.el, route);
       syncDockActive(route);
       notifyPanelVisible(route);
@@ -856,7 +863,7 @@
       entry.el.style.width = `${meta.width}px`;
       entry.el.style.height = `${meta.height}px`;
     } else {
-      ensureReasonableWindowSize(entry, meta);
+      ensureReasonableWindowSize(entry, meta, route);
     }
 
     setFloatWindowVisible(entry, true);

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="./ui-nebula-theme.css" />
   <link rel="stylesheet" href="./ui-float-desktop.css" />
   <link rel="stylesheet" href="./ui-recorder-window.css" />
+  <link rel="stylesheet" href="./kb-dashboard.css" />
   <link rel="stylesheet" href="./kb-config-layout.css" />
 </head>
 <body class="theme-nebula">
@@ -973,22 +974,78 @@
         </div>
 
         <div id="panel-knowledge-base" class="tab-panel kb-panel-stretch" role="tabpanel" hidden>
-          <div id="jlKbLauncher" class="jl-float-section-host">
-            <section class="card kb-panel-card jl-kb-launcher">
-              <div class="kb-panel-head">
-                <div class="kb-panel-head__titles">
-                  <h2>本地知识库</h2>
-                  <p class="field-hint kb-panel-desc">向量 + 关键词 + 元数据多路召回 · 可解释排序与检索调试</p>
+          <div id="jlKbLauncher" class="jl-float-section-host kb-dashboard-host">
+            <div class="kb-dashboard" id="kbDashboard">
+              <aside class="kb-dashboard-nav" aria-label="知识库导航">
+                <div class="kb-dashboard-nav__brand">
+                  <span class="kb-dashboard-nav__logo" aria-hidden="true">📚</span>
+                  <span class="kb-dashboard-nav__title">知识库</span>
                 </div>
-                <button type="button" id="kbConfigOpenBtn" class="secondary kb-config-icon-btn" title="知识库配置" aria-label="知识库配置">
-                  <span aria-hidden="true">⚙</span>
-                </button>
+                <nav class="kb-dashboard-nav__menu">
+                  <button type="button" class="kb-dashboard-nav__item is-active" data-kb-dash-nav="overview"><span class="kb-dashboard-nav__icon" aria-hidden="true">📊</span>本地知识库</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="kb-search"><span class="kb-dashboard-nav__icon" aria-hidden="true">🔍</span>知识检索</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="kb-libraries"><span class="kb-dashboard-nav__icon" aria-hidden="true">📁</span>数据文档</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="kb-graph"><span class="kb-dashboard-nav__icon" aria-hidden="true">🕸</span>知识节点</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="auto-learn"><span class="kb-dashboard-nav__icon" aria-hidden="true">🤖</span>自动学习</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="settings"><span class="kb-dashboard-nav__icon" aria-hidden="true">⚙</span>系统设置</button>
+                  <button type="button" class="kb-dashboard-nav__item" data-kb-dash-nav="ops-log"><span class="kb-dashboard-nav__icon" aria-hidden="true">📋</span>操作日志</button>
+                </nav>
+                <div class="kb-dashboard-nav__storage" id="kbDashboardStorage">
+                  <div class="kb-dashboard-storage__head">
+                    <span>存储使用</span>
+                    <span id="kbDashboardStoragePct">—</span>
+                  </div>
+                  <div class="kb-dashboard-storage__bar"><span id="kbDashboardStorageFill"></span></div>
+                  <p class="kb-dashboard-storage__meta" id="kbDashboardStorageMeta">—</p>
+                </div>
+              </aside>
+              <div class="kb-dashboard-main">
+                <header class="kb-dashboard-header">
+                  <div class="kb-dashboard-header__brand">
+                    <div class="kb-dashboard-header__title-row">
+                      <span class="kb-dashboard-header__shield" aria-hidden="true">🛡</span>
+                      <h2>本地知识库</h2>
+                    </div>
+                    <p class="kb-dashboard-header__desc">向量 + 关键词 + 元数据多路召回 · 可解释排序与检索调试</p>
+                  </div>
+                  <div class="kb-dashboard-header__actions">
+                    <button type="button" id="kbDashboardRefreshBtn" class="kb-dashboard-icon-btn" title="刷新" aria-label="刷新">↻</button>
+                    <button type="button" id="kbConfigOpenBtn" class="kb-dashboard-icon-btn" title="知识库配置" aria-label="知识库配置"><span aria-hidden="true">⚙</span></button>
+                    <button type="button" class="kb-dashboard-icon-btn" title="收藏" aria-label="收藏">☆</button>
+                    <button type="button" class="kb-dashboard-icon-btn kb-dashboard-icon-btn--notify" title="通知" aria-label="通知"><span aria-hidden="true">🔔</span></button>
+                    <span class="kb-dashboard-avatar" aria-hidden="true">A</span>
+                    <button type="button" id="kbStatsOpsLogBtn" class="kb-dashboard-action-btn" title="查看操作日志">操作日志</button>
+                  </div>
+                </header>
+                <section class="kb-dashboard-metrics" id="kbStatsBar" aria-label="知识库概览"></section>
+                <div class="kb-dashboard-mid">
+                  <section class="kb-dashboard-card kb-dashboard-card--trend">
+                    <header class="kb-dashboard-card__head">
+                      <h3>知识库增长趋势</h3>
+                      <span class="kb-dashboard-card__hint">近 7 天</span>
+                    </header>
+                    <div id="kbDashboardTrend" class="kb-dashboard-trend" aria-hidden="false"></div>
+                  </section>
+                  <section class="kb-dashboard-card kb-dashboard-card--recent">
+                    <header class="kb-dashboard-card__head"><h3>最近更新</h3></header>
+                    <ul id="kbDashboardRecent" class="kb-dashboard-recent-list"></ul>
+                  </section>
+                </div>
+                <section class="kb-dashboard-quick">
+                  <h3 class="kb-dashboard-quick__title">快捷操作</h3>
+                  <div class="kb-dashboard-quick__grid" id="kbDashboardQuick"></div>
+                </section>
               </div>
-              <div class="kb-stats-wrap">
-                <div id="kbStatsBar" class="kb-stats-bar" aria-label="知识库概览"></div>
-                <button type="button" id="kbStatsOpsLogBtn" class="secondary kb-stats-ops-btn" title="查看操作日志">操作日志</button>
-              </div>
-            </section>
+              <aside class="kb-dashboard-settings" id="kbDashboardSettings" aria-label="知识库设置">
+                <header class="kb-dashboard-settings__head">
+                  <h3>设置</h3>
+                  <button type="button" id="kbDashboardSettingsClose" class="kb-dashboard-settings__close" aria-label="关闭设置">×</button>
+                </header>
+                <div class="kb-dashboard-settings__scroll" id="kbDashboardSettingsScroll"></div>
+                <div class="kb-dashboard-settings__foot" id="kbDashboardSettingsFoot"></div>
+              </aside>
+              <button type="button" id="kbDashboardSettingsFab" class="kb-dashboard-settings-fab">设置</button>
+            </div>
           </div>
           <div id="jlKbFloatLibraries" class="jl-float-section-host kb-libraries-panel">
               <div class="kb-libraries-layout">
@@ -3279,6 +3336,7 @@
   <script src="./environmentSetup.js"></script>
   <script src="./app.js"></script>
   <script src="./utils/kbConfigLayout.js"></script>
+  <script src="./app/kbDashboard.js"></script>
   <script src="./knowledgeBase.js"></script>
   <script src="./docPreviewController.js"></script>
   <script src="./ai/aiDocVisual.js"></script>

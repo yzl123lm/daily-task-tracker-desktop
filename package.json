@@ -74,6 +74,7 @@
       "ui-nebula-theme.css",
       "ui-float-desktop.css",
       "ui-recorder-window.css",
+      "kb-dashboard.css",
       "kb-config-layout.css",
       "utils/dom.js",
       "utils/settingsStore.js",

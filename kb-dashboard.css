@@ -1,0 +1,1075 @@
+/* 知识库管理看板 — 白蓝企业风 */
+
+#jlKbLauncher.kb-dashboard-host {
+  --kb-bg: #f6faff;
+  --kb-card-bg: #ffffff;
+  --kb-primary: #1677ff;
+  --kb-primary-light: #eaf3ff;
+  --kb-border: #dde8f7;
+  --kb-text-main: #17233d;
+  --kb-text-secondary: #5f6f89;
+  --kb-text-muted: #8a97ab;
+  --kb-success: #16b978;
+  --kb-warning: #faad14;
+  --kb-danger: #ff4d4f;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  height: 100%;
+}
+
+#jlKbLauncher .kb-dashboard {
+  display: grid;
+  grid-template-columns: 212px minmax(0, 1fr) 380px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  background: linear-gradient(165deg, #f6faff 0%, #f8fbff 55%, #f3f8ff 100%);
+  color: var(--kb-text-main);
+  overflow: hidden;
+  container-type: inline-size;
+  container-name: kb-dash;
+}
+
+#jlKbLauncher .kb-dashboard-nav {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--kb-card-bg);
+  border-right: 1px solid var(--kb-border);
+  padding: 14px 10px 12px;
+}
+
+#jlKbLauncher .kb-dashboard-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 14px;
+}
+
+#jlKbLauncher .kb-dashboard-nav__logo {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--kb-primary-light);
+  font-size: 16px;
+}
+
+#jlKbLauncher .kb-dashboard-nav__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-nav__menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+#jlKbLauncher .kb-dashboard-nav__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--kb-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-nav__icon {
+  width: 18px;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.88;
+}
+
+#jlKbLauncher .kb-dashboard-nav__item:hover {
+  background: var(--kb-primary-light);
+  color: var(--kb-primary);
+}
+
+#jlKbLauncher .kb-dashboard-nav__item.is-active {
+  background: var(--kb-primary);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(22, 119, 255, 0.22);
+}
+
+#jlKbLauncher .kb-dashboard-nav__storage {
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--kb-border);
+  background: linear-gradient(180deg, #fafcff 0%, #f3f8ff 100%);
+}
+
+#jlKbLauncher .kb-dashboard-storage__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--kb-text-secondary);
+  margin-bottom: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-storage__bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #e8f0fc;
+  overflow: hidden;
+}
+
+#jlKbLauncher .kb-dashboard-storage__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4da3ff, var(--kb-primary));
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+#jlKbLauncher .kb-dashboard-storage__meta {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: var(--kb-text-muted);
+  line-height: 1.45;
+}
+
+#jlKbLauncher .kb-dashboard-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 18px 18px;
+  gap: 14px;
+}
+
+#jlKbLauncher .kb-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-header__shield {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--kb-primary-light);
+  font-size: 17px;
+}
+
+#jlKbLauncher .kb-dashboard-header h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-header__desc {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--kb-text-muted);
+  line-height: 1.5;
+}
+
+#jlKbLauncher .kb-dashboard-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-avatar {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #4da3ff, var(--kb-primary));
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#jlKbLauncher .kb-dashboard-icon-btn--notify {
+  position: relative;
+}
+
+#jlKbLauncher .kb-dashboard-icon-btn--notify::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--kb-danger);
+  border: 1px solid #fff;
+}
+
+#jlKbLauncher .kb-dashboard-icon-btn,
+#jlKbLauncher .kb-dashboard-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--kb-border);
+  background: var(--kb-card-bg);
+  color: var(--kb-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.05);
+}
+
+#jlKbLauncher .kb-dashboard-icon-btn {
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  font-size: 15px;
+}
+
+#jlKbLauncher .kb-dashboard-action-btn {
+  color: var(--kb-primary);
+  border-color: rgba(22, 119, 255, 0.28);
+}
+
+#jlKbLauncher .kb-dashboard-icon-btn:hover,
+#jlKbLauncher .kb-dashboard-action-btn:hover {
+  border-color: rgba(22, 119, 255, 0.45);
+  color: var(--kb-primary);
+}
+
+#jlKbLauncher .kb-dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dash-metric {
+  position: relative;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--kb-border);
+  background: var(--kb-card-bg);
+  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.08);
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#jlKbLauncher .kb-dash-metric__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#jlKbLauncher .kb-dash-metric__label {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+  font-weight: 600;
+}
+
+#jlKbLauncher .kb-dash-metric__icon {
+  font-size: 16px;
+  opacity: 0.85;
+}
+
+#jlKbLauncher .kb-dash-metric__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#jlKbLauncher .kb-dash-metric__delta {
+  font-size: 10px;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dash-metric__delta.is-up {
+  color: var(--kb-success);
+}
+
+#jlKbLauncher .kb-dash-metric--ok .kb-dash-metric__value {
+  color: var(--kb-success);
+}
+
+#jlKbLauncher .kb-dash-metric--warn .kb-dash-metric__value {
+  color: var(--kb-warning);
+}
+
+#jlKbLauncher .kb-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--kb-success);
+}
+
+#jlKbLauncher .kb-stat-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#jlKbLauncher .kb-stat-stack__sub {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dashboard-mid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-card {
+  border-radius: 14px;
+  border: 1px solid var(--kb-border);
+  background: var(--kb-card-bg);
+  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.08);
+  padding: 14px 16px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+#jlKbLauncher .kb-dashboard-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+#jlKbLauncher .kb-dashboard-card__head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-card__hint {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dashboard-trend {
+  flex: 1 1 auto;
+  min-height: 150px;
+}
+
+#jlKbLauncher .kb-dashboard-trend svg {
+  width: 100%;
+  height: 150px;
+  display: block;
+}
+
+#jlKbLauncher .kb-dashboard-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #eef3fb;
+  background: #fafcff;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__icon {
+  font-size: 14px;
+  text-align: center;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--kb-text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__meta {
+  font-size: 10px;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__tag.is-update {
+  color: #0f766e;
+  background: #ecfdf5;
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__tag.is-new {
+  color: var(--kb-primary);
+  background: var(--kb-primary-light);
+}
+
+#jlKbLauncher .kb-dashboard-recent-item__tag.is-link {
+  color: #7c3aed;
+  background: #f3e8ff;
+}
+
+#jlKbLauncher .kb-dashboard-quick__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-quick__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+#jlKbLauncher .kb-dashboard-quick-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px 42px;
+  border-radius: 14px;
+  border: 1px solid var(--kb-border);
+  background: linear-gradient(145deg, #ffffff 0%, #f5f9ff 100%);
+  box-shadow: 0 6px 18px rgba(22, 119, 255, 0.06);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  min-height: 96px;
+}
+
+#jlKbLauncher .kb-dashboard-quick-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(22, 119, 255, 0.12);
+}
+
+#jlKbLauncher .kb-dashboard-quick-card__icon {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--kb-primary-light);
+  font-size: 16px;
+  opacity: 1;
+}
+
+#jlKbLauncher .kb-dashboard-quick-card__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-quick-card__desc {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+  line-height: 1.4;
+}
+
+#jlKbLauncher .kb-dashboard-settings {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--kb-card-bg);
+  border-left: 1px solid var(--kb-border);
+}
+
+#jlKbLauncher .kb-dashboard-settings__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--kb-border);
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings__head h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#jlKbLauncher .kb-dashboard-settings__close {
+  display: none;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--kb-border);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#jlKbLauncher .kb-dashboard-settings__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card {
+  border-color: var(--kb-border);
+  background: #fafcff;
+  margin-bottom: 10px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__title {
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-label,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-help {
+  color: var(--kb-text-secondary);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-input,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-select {
+  background: #fff;
+  border-color: var(--kb-border);
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-settings__foot .kb-footer-actions {
+  border-top: 1px solid var(--kb-border);
+  padding: 10px 12px 12px;
+  background: #fafcff;
+}
+
+#jlKbLauncher .kb-dashboard-settings__foot .kb-footer-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+#jlKbLauncher .kb-dashboard-settings__foot .kb-btn--primary {
+  background: var(--kb-primary) !important;
+  border-color: var(--kb-primary) !important;
+}
+
+#jlKbLauncher .kb-dashboard-settings-fab {
+  display: none;
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 5;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--kb-primary);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(22, 119, 255, 0.28);
+}
+
+@container kb-dash (max-width: 1180px) {
+  #jlKbLauncher .kb-dashboard {
+    grid-template-columns: 200px minmax(0, 1fr) 340px;
+  }
+
+  #jlKbLauncher .kb-dashboard-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container kb-dash (max-width: 960px) {
+  #jlKbLauncher .kb-dashboard {
+    grid-template-columns: 188px minmax(0, 1fr);
+    position: relative;
+  }
+
+  #jlKbLauncher .kb-dashboard-settings {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(380px, 92%);
+    z-index: 6;
+    box-shadow: -12px 0 32px rgba(22, 119, 255, 0.12);
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+  }
+
+  #jlKbLauncher .kb-dashboard.is-settings-open .kb-dashboard-settings {
+    transform: translateX(0);
+  }
+
+  #jlKbLauncher .kb-dashboard-settings__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #jlKbLauncher .kb-dashboard-settings-fab {
+    display: inline-flex;
+  }
+
+  #jlKbLauncher .kb-dashboard-mid {
+    grid-template-columns: 1fr;
+  }
+
+  #jlKbLauncher .kb-dashboard-quick__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container kb-dash (max-width: 640px) {
+  #jlKbLauncher .kb-dashboard {
+    grid-template-columns: 1fr;
+  }
+
+  #jlKbLauncher .kb-dashboard-nav {
+    display: none;
+  }
+
+  #jlKbLauncher .kb-dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #jlKbLauncher .kb-dashboard-quick__grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  #jlKbLauncher .kb-dashboard-header {
+    flex-direction: column;
+  }
+
+  #jlKbLauncher .kb-dashboard-header__actions {
+    flex-wrap: wrap;
+  }
+}
+
+.theme-nebula #jlKbLauncher .kb-dashboard,
+.theme-nebula #jlKbLauncher .kb-dashboard-nav,
+.theme-nebula #jlKbLauncher .kb-dashboard-settings,
+.theme-nebula #jlKbLauncher .kb-dash-metric,
+.theme-nebula #jlKbLauncher .kb-dashboard-card {
+  color-scheme: light;
+}
+
+/* 覆盖浮窗内全局 button 深色样式，确保看板组件使用白蓝主题 */
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__item,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-quick-card,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-icon-btn,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-action-btn,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings-fab,
+.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings__close {
+  font: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+body.jl-float-desktop-active .jl-float-win__body:has(#jlKbLauncher) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 0;
+  background: transparent;
+}
+
+#jlKbLauncher.jl-float-panel-host {
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.jl-float-desktop-active .jl-float-win:has(#jlKbLauncher) {
+  background: #f6faff;
+  border: 1px solid #dde8f7;
+  box-shadow: 0 18px 40px rgba(22, 119, 255, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+body.jl-float-desktop-active .jl-float-win:has(#jlKbLauncher) .jl-float-win__header {
+  background: #fff;
+  border-bottom-color: #e8f0fc;
+}
+
+body.jl-float-desktop-active .jl-float-win:has(#jlKbLauncher) .jl-float-win__title {
+  color: #17233d;
+}
+
+/* --- 右侧设置面板：迁出 dialog 后的浅色表单样式 --- */
+#jlKbLauncher .kb-dashboard-settings-panel {
+  --kb-input-h: 36px;
+  --kb-radius: 12px;
+  --kb-card-px: 14px;
+  --kb-card-py: 12px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: none;
+  padding-bottom: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel details.kb-card {
+  border: 1px solid var(--kb-border);
+  border-radius: var(--kb-radius);
+  background: #fafcff;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 0 var(--kb-card-px);
+  border-bottom: 1px solid #eef3fb;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: #fff;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel summary.kb-card__header::-webkit-details-marker {
+  display: none;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__subtitle {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__chevron {
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--kb-text-muted);
+  border-bottom: 2px solid var(--kb-text-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel details[open] .kb-card__chevron {
+  transform: rotate(-135deg);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-card__body {
+  padding: var(--kb-card-py) var(--kb-card-px);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--kb-text-secondary);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-input,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-select {
+  width: 100%;
+  height: var(--kb-input-h);
+  padding: 0 10px;
+  border: 1px solid var(--kb-border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--kb-text-main);
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-input:focus,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-select:focus {
+  border-color: rgba(22, 119, 255, 0.55);
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.12);
+  outline: none;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-help,
+#jlKbLauncher .kb-dashboard-settings-panel .field-hint {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+  line-height: 1.45;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-dir-grid--compact,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-form-grid,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-form-grid--basic-4,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-form-grid--basic-5,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-strategy-row,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-monitor-grid,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-index-actions__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-dir-grid__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-path-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-path-field .kb-input {
+  border-radius: 9px 0 0 9px;
+  min-width: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-icon-btn {
+  height: var(--kb-input-h);
+  border: 1px solid var(--kb-border);
+  border-left: 0;
+  border-radius: 0 9px 9px 0;
+  background: #f5f9ff;
+  cursor: pointer;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--kb-border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--kb-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-btn--primary,
+#jlKbLauncher .kb-dashboard-settings-panel .kb-btn--ops.kb-btn--primary {
+  background: var(--kb-primary);
+  border-color: var(--kb-primary);
+  color: #fff;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-strategy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--kb-border);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-strategy-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-strategy-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-strategy-card__desc {
+  font-size: 11px;
+  color: var(--kb-text-muted);
+  line-height: 1.4;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch {
+  appearance: none;
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #c5d8f0;
+  background: #e8f0fc;
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(22, 119, 255, 0.18);
+  transition: transform 0.15s ease;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch:checked {
+  background: var(--kb-primary);
+  border-color: var(--kb-primary);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch:checked::after {
+  transform: translateX(16px);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-threshold-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-threshold-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-input--inline-num {
+  max-width: 120px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-monitor-main {
+  padding: 0;
+  border: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-monitor-path-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-monitor-path-input {
+  min-width: 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-index-actions {
+  padding: 12px 0 0;
+  border-top: 1px solid #eef3fb;
+  margin-top: 4px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-index-actions__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--kb-text-main);
+  margin-bottom: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-index-actions__warn {
+  font-size: 10px;
+  color: var(--kb-warning);
+  margin: 8px 0 0;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch-line__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--kb-text-main);
+}
+
+#jlKbLauncher .kb-dashboard-settings-panel .kb-switch-line__text small {
+  font-size: 10px;
+  color: var(--kb-text-muted);
+}
+
+#jlKbLauncher .kb-dashboard-settings__foot .kb-footer-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--kb-text-muted);
+  margin-bottom: 8px;
+}
+
+#jlKbLauncher .kb-dashboard-settings__foot .kb-footer-status .success {
+  color: var(--kb-success);
+}
