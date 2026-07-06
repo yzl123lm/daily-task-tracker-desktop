@@ -5570,7 +5570,7 @@ body.jl-window-ai .jl-ai-session-list {
   padding: 0 4px 6px;
 }
 
-body.jl-window-ai .jl-ai-session-item {
+body.jl-window-ai .jl-ai-session-item:not(.wb-chat-card):not(.wb-project-card) {
   display: block;
   width: 100%;
   padding: 8px 10px;
@@ -5586,12 +5586,12 @@ body.jl-window-ai .jl-ai-session-item {
   white-space: nowrap;
 }
 
-body.jl-window-ai .jl-ai-session-item:hover {
+body.jl-window-ai .jl-ai-session-item:not(.wb-chat-card):not(.wb-project-card):hover {
   background: rgba(255, 255, 255, 0.32);
   color: #1e293b;
 }
 
-body.jl-window-ai .jl-ai-session-item.is-active {
+body.jl-window-ai .jl-ai-session-item:not(.wb-chat-card):not(.wb-project-card).is-active {
   background: rgba(255, 255, 255, 0.48);
   border-color: rgba(37, 99, 235, 0.28);
   color: #1d4ed8;

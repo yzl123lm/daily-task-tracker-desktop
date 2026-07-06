@@ -189,7 +189,7 @@ function renderChatSessionList() {
     const timeLabel = formatChatListTime(chat.updatedAt);
     card.innerHTML = `
       <div class="wb-list-card__surface">
-        <button type="button" class="wb-chat-card jl-ai-session-item wb-list-card__body">
+        <button type="button" class="wb-chat-card wb-list-card__body">
           <span class="wb-chat-card__icon">${CHAT_ICON_SVG}</span>
           <span class="wb-chat-card__content">
             <span class="wb-chat-card__title">${escapeHtml(chat.title || "未命名对话")}</span>
@@ -197,7 +197,7 @@ function renderChatSessionList() {
           </span>
           <span class="wb-chat-card__aside">
             <span class="wb-chat-card__time">${escapeHtml(timeLabel)}</span>
-            <span class="wb-chat-card__chevron" aria-hidden="true">›</span>
+            <span class="wb-chat-card__chevron" aria-hidden="true">&gt;</span>
           </span>
         </button>
         <div class="wb-list-card__actions wb-list-card__actions--overlay" role="group" aria-label="会话操作">

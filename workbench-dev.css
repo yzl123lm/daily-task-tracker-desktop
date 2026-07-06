@@ -307,9 +307,30 @@
 }
 
 .wb-list-card--chat .wb-list-card__surface {
-  padding: 7px 10px;
+  padding: 8px 10px;
   gap: 0;
   border-radius: 12px;
+}
+
+.wb-list-card--chat .wb-list-card__body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  font-weight: inherit;
+  text-align: left;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  cursor: pointer;
+  transform: none;
 }
 
 .wb-list-card--chat .wb-list-card__actions--overlay {
@@ -328,6 +349,7 @@
 
 .wb-chat-card {
   display: flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -338,14 +360,15 @@
   font: inherit;
   font-weight: inherit;
   text-align: left;
+  white-space: normal;
   cursor: pointer;
 }
 
 .wb-chat-card__icon {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  flex: 0 0 30px;
   width: 30px;
   height: 30px;
   border-radius: 8px;
@@ -354,15 +377,17 @@
 }
 
 .wb-chat-card__content {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  justify-content: center;
+  gap: 2px;
   line-height: 1.2;
 }
 
 .wb-chat-card__title {
+  display: block;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.25;
@@ -373,6 +398,7 @@
 }
 
 .wb-chat-card__preview {
+  display: block;
   font-size: 11px;
   color: #94a3b8;
   line-height: 1.2;
@@ -382,10 +408,10 @@
 }
 
 .wb-chat-card__aside {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 2px;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   margin-left: 4px;
   align-self: center;
 }
@@ -404,8 +430,42 @@
   color: #cbd5e1;
 }
 
-body.jl-window-ai .wb-project-card.jl-ai-session-item,
-body.jl-window-ai .wb-chat-card.jl-ai-session-item {
+body.jl-window-ai .wb-list-card--chat .wb-list-card__body.wb-chat-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+body.jl-window-ai .wb-list-card--chat .wb-list-card__body.wb-chat-card:hover {
+  background: transparent;
+  border-color: transparent;
+  color: inherit;
+  font-weight: inherit;
+}
+
+body.jl-window-ai .wb-list-card--chat.is-active .wb-chat-card__title {
+  color: #1d4ed8;
+}
+
+body.jl-window-ai .wb-project-card.jl-ai-session-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  color: inherit;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+body.jl-window-ai .wb-list-card--chat .wb-list-card__body.wb-chat-card {
   color: inherit;
   white-space: normal;
   overflow: visible;
@@ -421,9 +481,8 @@ body.jl-window-ai .wb-chat-card.jl-ai-session-item {
 }
 
 body.jl-window-ai .wb-project-card.jl-ai-session-item:hover,
-body.jl-window-ai .wb-chat-card.jl-ai-session-item:hover,
-body.jl-window-ai .wb-project-card.jl-ai-session-item.is-active,
-body.jl-window-ai .wb-chat-card.jl-ai-session-item.is-active {
+body.jl-window-ai .wb-list-card--chat .wb-list-card__body.wb-chat-card:hover,
+body.jl-window-ai .wb-project-card.jl-ai-session-item.is-active {
   background: transparent;
   border-color: transparent;
   color: inherit;
