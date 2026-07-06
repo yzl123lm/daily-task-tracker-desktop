@@ -29,8 +29,12 @@ function ensureWorkspaceRoot() {
         <p class="wb-project-workspace__eyebrow">项目开发模式 · PLAN_ONLY</p>
         <h2 id="wbProjectWorkspaceTitle">项目工作区</h2>
         <p id="wbProjectWorkspaceNs" class="wb-project-workspace__ns"></p>
+        <div id="wbProjectContextHealth" class="wb-project-workspace__health"></div>
       </div>
-      <button type="button" id="wbNewTaskBtn" class="primary wb-project-workspace__new-task">新建任务</button>
+      <div class="wb-project-workspace__head-actions">
+        <button type="button" id="wbCompressBtn" class="secondary">手动压缩</button>
+        <button type="button" id="wbNewTaskBtn" class="primary wb-project-workspace__new-task">新建任务</button>
+      </div>
     </header>
     <section class="wb-project-workspace__tasks">
       <h3>项目任务</h3>
@@ -43,6 +47,10 @@ function ensureWorkspaceRoot() {
         <button type="button" id="wbAgentRunBtn" class="primary">生成开发方案</button>
       </div>
       <pre id="wbAgentOutput" class="wb-agent-output scroll-tech"></pre>
+    </section>
+    <section class="wb-project-workspace__snapshots">
+      <h3>压缩快照历史</h3>
+      <div id="wbSnapshotHistory" class="wb-snapshot-history-panel"></div>
     </section>
   `;
   panelAi.prepend(root);
@@ -76,6 +84,10 @@ function renderTasks(tasks, selectedTaskId) {
       list.querySelectorAll(".wb-task-item").forEach((el) => el.classList.remove("is-active"));
       item.classList.add("is-active");
       list.dataset.selectedTaskId = task.id;
+      const projectId = window.__wbStore?.getState?.().selectedProjectId;
+      if (projectId) {
+        void refreshProjectContextHealth(projectId, task.id);
+      }
     });
     list.appendChild(item);
   });
@@ -103,6 +115,35 @@ async function loadProjectWorkspace(projectId) {
     aiMain.hidden = true;
   }
   document.getElementById("wbAgentOutput").textContent = "";
+  await refreshProjectContextHealth(projectId, tasks[0]?.id);
+}
+
+async function refreshProjectContextHealth(projectId, taskId) {
+  const healthEl = document.getElementById("wbProjectContextHealth");
+  const historyEl = document.getElementById("wbSnapshotHistory");
+  if (!taskId || !window.__wbContextHealth) {
+    return;
+  }
+  const namespace = `task:${projectId}:${taskId}`;
+  const health = await window.__wbContextHealth.fetchHealth(namespace, []);
+  window.__wbContextHealth.renderHealthBadge(healthEl, health);
+  const snaps = await window.__wbContextHealth.listSnapshots(namespace);
+  window.__wbContextHealth.renderSnapshotHistory(historyEl, snaps);
+}
+
+async function manualCompressProject() {
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  if (!projectId || !taskId || !window.__wbContextHealth) {
+    return;
+  }
+  const namespace = `task:${projectId}:${taskId}`;
+  const result = await window.__wbContextHealth.manualCompress(namespace, []);
+  const out = document.getElementById("wbAgentOutput");
+  if (out) {
+    out.textContent = JSON.stringify(result, null, 2);
+  }
+  await refreshProjectContextHealth(projectId, taskId);
 }
 
 function hideProjectWorkspace() {
@@ -149,6 +190,7 @@ async function runProjectAgent(projectId) {
       mode: "PLAN_ONLY",
     });
     out.textContent = JSON.stringify(result.output, null, 2);
+    await refreshProjectContextHealth(projectId, taskId);
   } catch (err) {
     out.textContent = err?.message || "生成失败";
   }
@@ -156,6 +198,9 @@ async function runProjectAgent(projectId) {
 
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
+  document.getElementById("wbCompressBtn")?.addEventListener("click", () => {
+    void manualCompressProject();
+  });
   document.getElementById("wbNewTaskBtn")?.addEventListener("click", () => {
     const projectId = window.__wbStore?.getState?.().selectedProjectId;
     if (projectId) {

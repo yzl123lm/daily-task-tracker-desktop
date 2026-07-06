@@ -378,6 +378,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbMemorySearch: (payload) => ipcRenderer.invoke("wb-memory-search", payload || {}),
   wbMemoryWrite: (payload) => ipcRenderer.invoke("wb-memory-write", payload || {}),
   wbNamespaceProbe: (payload) => ipcRenderer.invoke("wb-namespace-probe", payload || {}),
+  wbContextHealth: (payload) => ipcRenderer.invoke("wb-context-health", payload || {}),
+  wbContextCompress: (payload) => ipcRenderer.invoke("wb-context-compress", payload || {}),
+  wbContextSnapshotsList: (payload) => ipcRenderer.invoke("wb-context-snapshots-list", payload || {}),
+  wbContextSnapshotGet: (payload) => ipcRenderer.invoke("wb-context-snapshot-get", payload || {}),
+  wbContextSnapshotRestore: (payload) => ipcRenderer.invoke("wb-context-snapshot-restore", payload || {}),
 
 });
 

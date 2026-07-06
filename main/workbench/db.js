@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -86,6 +86,48 @@ function ensureSchema(db) {
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_context_memories_ns ON context_memories(namespace, importance DESC, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS context_snapshots (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      namespace TEXT NOT NULL,
+      scope_type TEXT NOT NULL,
+      scope_id TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      validation_status TEXT NOT NULL DEFAULT 'PENDING',
+      risk_level TEXT NOT NULL DEFAULT 'LOW',
+      is_latest INTEGER NOT NULL DEFAULT 0,
+      tokens_before INTEGER,
+      tokens_after INTEGER,
+      created_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_context_snapshots_revision ON context_snapshots(namespace, revision);
+    CREATE INDEX IF NOT EXISTS idx_context_snapshots_latest ON context_snapshots(namespace, is_latest, created_at DESC);
+    CREATE TABLE IF NOT EXISTS compression_events (
+      id TEXT PRIMARY KEY,
+      snapshot_id TEXT,
+      user_id TEXT NOT NULL,
+      namespace TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      tokens_before INTEGER NOT NULL,
+      tokens_after INTEGER NOT NULL,
+      blocks_kept INTEGER DEFAULT 0,
+      blocks_summarized INTEGER DEFAULT 0,
+      blocks_dropped INTEGER DEFAULT 0,
+      validation_result_json TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS raw_context_fragments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      namespace TEXT NOT NULL,
+      fragment_type TEXT NOT NULL,
+      content_ref TEXT,
+      summary TEXT,
+      token_count INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS agent_runs (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -112,8 +154,11 @@ function ensureSchema(db) {
     );
   `);
   const row = db.prepare("SELECT value FROM wb_meta WHERE key = 'schema_version'").get();
+  const current = Number(row?.value) || 0;
   if (!row) {
     db.prepare("INSERT INTO wb_meta(key, value) VALUES('schema_version', ?)").run(String(SCHEMA_VERSION));
+  } else if (current < SCHEMA_VERSION) {
+    db.prepare("UPDATE wb_meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
   }
 }
 

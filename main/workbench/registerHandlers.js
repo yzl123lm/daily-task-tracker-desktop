@@ -3,7 +3,9 @@ const projectService = require("./projectService.js");
 const chatService = require("./chatService.js");
 const contextMemoryService = require("./contextMemoryService.js");
 const agentOrchestrator = require("./agentOrchestrator.js");
-const { assertNoCrossScopeRead, NAMESPACE_FORBIDDEN } = require("./namespace.js");
+const compressionManager = require("./context-compression/contextCompressionManager.js");
+const contextStore = require("./context-compression/contextStore.js");
+const { parseNamespace, assertNoCrossScopeRead, NAMESPACE_FORBIDDEN } = require("./namespace.js");
 
 function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
   if (!ipcMain || typeof getUserDataPath !== "function") {
@@ -124,6 +126,40 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
         message: err.message,
       };
     }
+  });
+
+  ipcMain.handle("wb-context-health", (_event, payload) => {
+    const namespace = String(payload?.namespace || "").trim();
+    parseNamespace(namespace);
+    return compressionManager.getContextHealth(getUserDataPath, payload?.userId, payload || {});
+  });
+
+  ipcMain.handle("wb-context-compress", (_event, payload) => {
+    const namespace = String(payload?.namespace || "").trim();
+    parseNamespace(namespace);
+    return compressionManager.applyCompression(getUserDataPath, payload?.userId, payload || {});
+  });
+
+  ipcMain.handle("wb-context-snapshots-list", (_event, payload) => {
+    const namespace = String(payload?.namespace || "").trim();
+    parseNamespace(namespace);
+    return contextStore.listSnapshots(getUserDataPath, payload?.userId, namespace, {
+      limit: payload?.limit,
+    });
+  });
+
+  ipcMain.handle("wb-context-snapshot-get", (_event, payload) => {
+    const snapshotId = assertSafeId(payload?.snapshotId, "snapshotId");
+    const snap = contextStore.getSnapshotById(getUserDataPath, payload?.userId, snapshotId);
+    if (!snap) {
+      throw new Error("快照不存在");
+    }
+    return snap;
+  });
+
+  ipcMain.handle("wb-context-snapshot-restore", (_event, payload) => {
+    const snapshotId = assertSafeId(payload?.snapshotId, "snapshotId");
+    return contextStore.restoreSnapshot(getUserDataPath, payload?.userId, snapshotId);
   });
 }
 
