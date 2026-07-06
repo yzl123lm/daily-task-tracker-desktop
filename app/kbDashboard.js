@@ -86,7 +86,7 @@
     const nodeSeries = days.map((d, i) => Math.max(0, Math.round((docSeries[i] || 0) * 1.6 + i * 2)));
     const max = Math.max(1, ...docSeries, ...nodeSeries, 1);
     const w = 520;
-    const h = 140;
+    const h = 200;
     const pad = 16;
     const step = (w - pad * 2) / Math.max(1, days.length - 1);
     const toPoints = (series) =>
@@ -203,11 +203,6 @@
   }
 
   function wireChrome() {
-    const settingsBtn = document.getElementById("kbDashboardOpenSettingsBtn");
-    if (settingsBtn && settingsBtn.dataset.wired !== "1") {
-      settingsBtn.dataset.wired = "1";
-      settingsBtn.addEventListener("click", () => openSettingsPage("basic"));
-    }
     const refreshBtn = document.getElementById("kbDashboardRefreshBtn");
     if (refreshBtn && refreshBtn.dataset.wired !== "1") {
       refreshBtn.dataset.wired = "1";

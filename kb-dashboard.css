@@ -183,7 +183,7 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 16px 18px 18px;
   gap: 14px;
 }
@@ -386,7 +386,9 @@
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   gap: 12px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
 }
 
 #jlKbLauncher .kb-dashboard-card {
@@ -395,7 +397,8 @@
   background: var(--kb-card-bg);
   box-shadow: 0 8px 24px rgba(22, 119, 255, 0.08);
   padding: 14px 16px;
-  min-height: 200px;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -421,12 +424,15 @@
 
 #jlKbLauncher .kb-dashboard-trend {
   flex: 1 1 auto;
-  min-height: 150px;
+  min-height: 240px;
+  display: flex;
+  align-items: stretch;
 }
 
 #jlKbLauncher .kb-dashboard-trend svg {
   width: 100%;
-  height: 150px;
+  height: 100%;
+  min-height: 240px;
   display: block;
 }
 
@@ -438,6 +444,7 @@
   flex-direction: column;
   gap: 8px;
   flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -696,7 +703,6 @@
 
 /* 覆盖浮窗内全局 button 深色样式，确保看板组件使用白蓝主题 */
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__item,
-.theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-nav__settings,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-icon-btn,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-action-btn,
 .theme-nebula .jl-float-win #jlKbLauncher button.kb-dashboard-settings-fab,
