@@ -37,15 +37,31 @@
 .wb-modal__head h2 {
   margin: 0;
   font-size: 18px;
+  font-weight: 600;
+  color: #1d2129;
+  letter-spacing: 0.01em;
 }
 
 .wb-modal__close {
-  border: none;
-  background: transparent;
-  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  color: #64748b;
+  color: #1d2129;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.wb-modal__close:hover {
+  background: #eef2f7;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 .wb-modal__body {
@@ -78,6 +94,37 @@
   justify-content: flex-end;
   gap: 8px;
   padding-top: 4px;
+}
+
+.wb-modal button {
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+
+.wb-modal button.secondary {
+  color: #1d2129;
+  background: #fff;
+  border: 1px solid #d8e0eb;
+}
+
+.wb-modal button.secondary:hover {
+  color: #1d2129;
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.wb-modal button.primary {
+  color: #1d2129;
+  background: #e8f3ff;
+  border: 1px solid #91caff;
+}
+
+.wb-modal button.primary:hover {
+  color: #1d2129;
+  background: #d6e8ff;
+  border-color: #69b1ff;
 }
 
 .wb-form-error {
