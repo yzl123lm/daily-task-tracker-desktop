@@ -16,6 +16,18 @@ const PROJECT_STATUS_LABELS = {
   DELETED: "已删除",
 };
 
+const PROJECT_ICON_SVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>`;
+
+function statusPillClass(status) {
+  if (status === "ACTIVE") {
+    return "wb-status-pill--active";
+  }
+  if (status === "ARCHIVED") {
+    return "wb-status-pill--archived";
+  }
+  return "wb-status-pill--muted";
+}
+
 function ensureNewProjectModal() {
   let modal = document.getElementById("wbNewProjectModal");
   if (modal) {
@@ -274,18 +286,24 @@ function renderProjectList() {
   }
   projects.forEach((project) => {
     const card = document.createElement("div");
-    card.className = "wb-list-card";
+    card.className = "wb-list-card wb-list-card--project";
     card.dataset.projectId = project.id;
     const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
     card.innerHTML = `
-      <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
-        <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
-        <span class="wb-project-card__meta">${escapeHtml(statusLabel)}</span>
-      </button>
-      <div class="wb-list-card__actions" role="group" aria-label="项目操作">
-        <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
-        <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
-        <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+      <div class="wb-list-card__surface">
+        <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
+          <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
+          <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
+          <span class="wb-status-pill ${statusPillClass(project.status)}">
+            <span class="wb-status-pill__dot" aria-hidden="true"></span>
+            ${escapeHtml(statusLabel)}
+          </span>
+        </button>
+        <div class="wb-list-card__actions" role="group" aria-label="项目操作">
+          <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
+          <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
+          <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+        </div>
       </div>
     `;
     card.classList.toggle("is-active", project.id === store.selectedProjectId);

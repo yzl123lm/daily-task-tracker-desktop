@@ -10,6 +10,33 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+const CHAT_ICON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15a2 2 0 01-2 2H8l-5 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>`;
+
+function formatChatListTime(iso) {
+  if (!iso) {
+    return "";
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  if (date >= todayStart) {
+    return date.toLocaleTimeString("zh-CN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+  if (date >= yesterdayStart) {
+    return "昨天";
+  }
+  return date.toLocaleDateString("zh-CN", { month: "numeric", day: "numeric" });
+}
+
 function ensureEditChatModal() {
   let modal = document.getElementById("wbEditChatModal");
   if (modal) {
@@ -156,17 +183,28 @@ function renderChatSessionList() {
   }
   chats.forEach((chat) => {
     const card = document.createElement("div");
-    card.className = "wb-list-card";
+    card.className = "wb-list-card wb-list-card--chat";
     card.dataset.chatId = chat.id;
+    const preview = chat.summary || "点击开始对话…";
+    const timeLabel = formatChatListTime(chat.updatedAt);
     card.innerHTML = `
-      <button type="button" class="jl-ai-session-item wb-list-card__body">
-        <span class="wb-chat-item__title">${escapeHtml(chat.title || "未命名对话")}</span>
-        ${chat.summary ? `<span class="wb-chat-item__summary">${escapeHtml(chat.summary)}</span>` : ""}
-      </button>
-      <div class="wb-list-card__actions" role="group" aria-label="会话操作">
-        <button type="button" class="wb-icon-btn" data-action="rename" title="重命名" aria-label="重命名">✎</button>
-        <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
-        <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+      <div class="wb-list-card__surface">
+        <button type="button" class="wb-chat-card jl-ai-session-item wb-list-card__body">
+          <span class="wb-chat-card__icon">${CHAT_ICON_SVG}</span>
+          <span class="wb-chat-card__content">
+            <span class="wb-chat-card__title">${escapeHtml(chat.title || "未命名对话")}</span>
+            <span class="wb-chat-card__preview">${escapeHtml(preview)}</span>
+          </span>
+          <span class="wb-chat-card__aside">
+            <span class="wb-chat-card__time">${escapeHtml(timeLabel)}</span>
+            <span class="wb-chat-card__chevron" aria-hidden="true">›</span>
+          </span>
+        </button>
+        <div class="wb-list-card__actions wb-list-card__actions--overlay" role="group" aria-label="会话操作">
+          <button type="button" class="wb-icon-btn" data-action="rename" title="重命名" aria-label="重命名">✎</button>
+          <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
+          <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+        </div>
       </div>
     `;
     card.classList.toggle("is-active", chat.id === store.selectedChatId);

@@ -5489,8 +5489,8 @@ body.jl-window-ai .jl-project-list {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 2px 4px;
+  gap: 8px;
+  padding: 0 4px 6px;
 }
 
 body.jl-window-ai .jl-workbench-nav__zone-empty {
@@ -5524,13 +5524,13 @@ body.jl-window-ai .jl-workbench-nav__zone-head {
 }
 
 body.jl-window-ai .jl-workbench-nav__zone-title {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   padding: 0 4px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #64748b;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: #334155;
 }
 
 body.jl-window-ai .jl-workbench-nav__zone-head .jl-workbench-nav__zone-title {
@@ -5541,22 +5541,23 @@ body.jl-window-ai .jl-ai-session-new {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.55);
-  color: #475569;
-  font-size: 15px;
+  border: 1px solid #d8e0eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d2129;
+  font-size: 16px;
+  font-weight: 500;
   line-height: 1;
   cursor: pointer;
 }
 
 body.jl-window-ai .jl-ai-session-new:hover {
-  background: rgba(255, 255, 255, 0.85);
-  color: #1d4ed8;
-  border-color: rgba(37, 99, 235, 0.35);
+  background: #f8fafc;
+  color: #1d2129;
+  border-color: #94a3b8;
 }
 
 body.jl-window-ai .jl-ai-session-list {
@@ -5565,8 +5566,8 @@ body.jl-window-ai .jl-ai-session-list {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 0 2px 4px;
+  gap: 8px;
+  padding: 0 4px 6px;
 }
 
 body.jl-window-ai .jl-ai-session-item {
