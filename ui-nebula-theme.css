@@ -4739,6 +4739,25 @@ body.jl-window-ai #panel-ai {
   padding: 0 0 4px;
 }
 
+body.jl-window-ai #panel-ai .ai-panel-main[hidden],
+body.jl-project-workspace-active #panel-ai .ai-panel-main {
+  display: none !important;
+}
+
+body.jl-project-workspace-active .jl-prompt-dock {
+  display: none !important;
+}
+
+body.jl-project-workspace-active #panel-ai #wbProjectWorkspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  border-radius: 16px;
+  margin: 0 auto;
+  max-width: min(960px, calc(100% - 24px));
+  box-shadow: 0 4px 20px rgba(148, 163, 184, 0.1);
+}
+
 body.jl-window-ai #panel-ai .ai-panel-main {
   flex: 1;
   min-height: 0;

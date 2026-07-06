@@ -269,6 +269,7 @@ async function loadProjectWorkspace(projectId) {
   const selectedId = tasks[0]?.id;
   renderTasks(tasks, selectedId);
   root.hidden = false;
+  syncProjectViewChrome(true);
   if (aiMain) {
     aiMain.hidden = true;
   }
@@ -281,6 +282,21 @@ async function loadProjectWorkspace(projectId) {
   }
   window.__wbBindCodePanel?.();
   await window.__wbRefreshCodePanel?.(projectId, selectedId);
+}
+
+function syncProjectViewChrome(active) {
+  document.body.classList.toggle("jl-project-workspace-active", Boolean(active));
+  const dock = document.getElementById("jlPromptDock");
+  if (active) {
+    if (dock) {
+      dock.hidden = true;
+      dock.setAttribute("aria-hidden", "true");
+    }
+    return;
+  }
+  if (typeof window.syncJlPromptDock === "function") {
+    window.syncJlPromptDock("ai");
+  }
 }
 
 async function refreshProjectContextHealth(projectId, taskId) {
@@ -319,6 +335,7 @@ function hideProjectWorkspace() {
   if (root) {
     root.hidden = true;
   }
+  syncProjectViewChrome(false);
   if (aiMain) {
     aiMain.hidden = false;
   }

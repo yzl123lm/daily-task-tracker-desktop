@@ -177,9 +177,12 @@ async function submitNewProject(ev) {
   const localPath = document.getElementById("wbProjectPathInput")?.value?.trim() || null;
   const errEl = document.getElementById("wbNewProjectError");
   try {
-    await api.wbProjectCreate({ name, description, techStack, localPath });
+    const project = await api.wbProjectCreate({ name, description, techStack, localPath });
     document.getElementById("wbNewProjectModal").hidden = true;
     await window.__wbRefreshProjects?.();
+    if (project?.id) {
+      selectProject(project.id);
+    }
   } catch (err) {
     if (errEl) {
       errEl.hidden = false;

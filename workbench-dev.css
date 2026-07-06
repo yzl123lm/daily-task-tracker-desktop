@@ -553,6 +553,15 @@ body.jl-window-ai .wb-project-card.jl-ai-session-item.is-active {
   display: none !important;
 }
 
+body.jl-window-ai #panel-ai .ai-panel-main[hidden],
+body.jl-project-workspace-active #panel-ai .ai-panel-main {
+  display: none !important;
+}
+
+body.jl-project-workspace-active .jl-prompt-dock {
+  display: none !important;
+}
+
 .wb-project-workspace__head {
   display: flex;
   align-items: flex-start;
