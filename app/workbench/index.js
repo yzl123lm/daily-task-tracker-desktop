@@ -39,8 +39,20 @@ function initWorkbenchDev() {
   window.__wbBindProjectArea?.();
   window.__wbBindProjectWorkspace?.();
   window.__wbBindChatArea?.();
-  void refreshProjects();
-  void refreshChats();
+  void (async () => {
+    await window.__wbMigrateLegacyChats?.();
+    await refreshProjects();
+    await refreshChats();
+    const chatId = window.__wbStore?.getState?.().selectedChatId;
+    if (chatId) {
+      await window.__wbSwitchChat?.(chatId);
+    } else {
+      const chats = window.__wbStore?.getState?.().chats || [];
+      if (chats[0]?.id) {
+        await window.__wbSwitchChat?.(chats[0].id);
+      }
+    }
+  })();
 }
 
 if (document.readyState === "loading") {

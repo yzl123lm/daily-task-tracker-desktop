@@ -158,13 +158,93 @@ function hideProjectWorkspace() {
 }
 
 async function createTaskForProject(projectId) {
-  const title = window.prompt("任务标题", "新开发任务");
-  if (!title?.trim()) {
+  openNewTaskModal(projectId);
+}
+
+function ensureNewTaskModal() {
+  let modal = document.getElementById("wbNewTaskModal");
+  if (modal) {
+    return modal;
+  }
+  modal = document.createElement("div");
+  modal.id = "wbNewTaskModal";
+  modal.className = "wb-modal";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="wb-modal__backdrop" data-wb-close="1"></div>
+    <div class="wb-modal__panel" role="dialog" aria-labelledby="wbNewTaskTitle">
+      <header class="wb-modal__head">
+        <h2 id="wbNewTaskTitle">新建任务</h2>
+        <button type="button" class="wb-modal__close" data-wb-close="1" aria-label="关闭">×</button>
+      </header>
+      <form id="wbNewTaskForm" class="wb-modal__body">
+        <input type="hidden" id="wbNewTaskProjectId" value="" />
+        <label class="wb-field">
+          <span>任务标题</span>
+          <input id="wbTaskTitleInput" type="text" maxlength="160" required placeholder="例如：实现项目卡片列表" />
+        </label>
+        <label class="wb-field">
+          <span>任务描述</span>
+          <textarea id="wbTaskDescInput" rows="3" placeholder="可选：补充需求背景"></textarea>
+        </label>
+        <label class="wb-field">
+          <span>优先级（1 最高，5 最低）</span>
+          <input id="wbTaskPriorityInput" type="number" min="1" max="5" value="3" />
+        </label>
+        <p id="wbNewTaskError" class="wb-form-error" hidden></p>
+        <footer class="wb-modal__foot">
+          <button type="button" class="secondary" data-wb-close="1">取消</button>
+          <button type="submit" class="primary">创建</button>
+        </footer>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (ev) => {
+    if (ev.target?.dataset?.wbClose === "1") {
+      modal.hidden = true;
+    }
+  });
+  return modal;
+}
+
+function openNewTaskModal(projectId) {
+  const modal = ensureNewTaskModal();
+  document.getElementById("wbNewTaskProjectId").value = String(projectId || "");
+  const err = document.getElementById("wbNewTaskError");
+  if (err) {
+    err.hidden = true;
+    err.textContent = "";
+  }
+  modal.hidden = false;
+  document.getElementById("wbTaskTitleInput")?.focus();
+}
+
+async function submitNewTask(ev) {
+  ev.preventDefault();
+  const api = wbApi();
+  const projectId = document.getElementById("wbNewTaskProjectId")?.value?.trim();
+  const title = document.getElementById("wbTaskTitleInput")?.value?.trim();
+  const description = document.getElementById("wbTaskDescInput")?.value?.trim() || "";
+  const priority = Number(document.getElementById("wbTaskPriorityInput")?.value) || 3;
+  const errEl = document.getElementById("wbNewTaskError");
+  if (!projectId || !title) {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = "请填写任务标题";
+    }
     return;
   }
-  const api = wbApi();
-  await api.wbProjectTaskCreate({ projectId, title: title.trim() });
-  await loadProjectWorkspace(projectId);
+  try {
+    await api.wbProjectTaskCreate({ projectId, title, description, priority });
+    document.getElementById("wbNewTaskModal").hidden = true;
+    await loadProjectWorkspace(projectId);
+  } catch (err) {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = err?.message || "创建失败";
+    }
+  }
 }
 
 async function runProjectAgent(projectId) {
@@ -198,6 +278,12 @@ async function runProjectAgent(projectId) {
 
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
+  ensureNewTaskModal();
+  const taskForm = document.getElementById("wbNewTaskForm");
+  if (taskForm && taskForm.dataset.wbBound !== "1") {
+    taskForm.dataset.wbBound = "1";
+    taskForm.addEventListener("submit", submitNewTask);
+  }
   document.getElementById("wbCompressBtn")?.addEventListener("click", () => {
     void manualCompressProject();
   });

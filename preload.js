@@ -375,6 +375,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbChatCreate: (payload) => ipcRenderer.invoke("wb-chat-create", payload || {}),
   wbChatUpdate: (payload) => ipcRenderer.invoke("wb-chat-update", payload || {}),
   wbChatSendMessage: (payload) => ipcRenderer.invoke("wb-chat-send-message", payload || {}),
+  wbChatAppendMessage: (payload) => ipcRenderer.invoke("wb-chat-append-message", payload || {}),
+  wbChatAgentContext: (payload) => ipcRenderer.invoke("wb-chat-agent-context", payload || {}),
   wbMemorySearch: (payload) => ipcRenderer.invoke("wb-memory-search", payload || {}),
   wbMemoryWrite: (payload) => ipcRenderer.invoke("wb-memory-write", payload || {}),
   wbNamespaceProbe: (payload) => ipcRenderer.invoke("wb-namespace-probe", payload || {}),

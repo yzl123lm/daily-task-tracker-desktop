@@ -27,11 +27,7 @@ function renderChatSessionList() {
     btn.textContent = chat.title || "未命名对话";
     btn.classList.toggle("is-active", chat.id === store.selectedChatId);
     btn.addEventListener("click", () => {
-      window.__wbStore?.selectChat?.(chat.id);
-      window.__wbHideProjectWorkspace?.();
-      if (typeof window.activateRoute === "function") {
-        window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
-      }
+      void window.__wbSwitchChat?.(chat.id);
     });
     list.appendChild(btn);
   });
@@ -44,11 +40,7 @@ async function createChatSession() {
   }
   const chat = await api.wbChatCreate({ title: `对话 ${Date.now().toString().slice(-4)}` });
   await window.__wbRefreshChats?.();
-  window.__wbStore?.selectChat?.(chat.id);
-  window.__wbHideProjectWorkspace?.();
-  if (typeof window.activateRoute === "function") {
-    window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
-  }
+  await window.__wbSwitchChat?.(chat.id);
 }
 
 function bindChatArea() {

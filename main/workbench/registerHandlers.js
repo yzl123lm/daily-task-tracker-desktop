@@ -93,6 +93,32 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
     });
   });
 
+  ipcMain.handle("wb-chat-append-message", (_event, payload) => {
+    const chatId = assertSafeId(payload?.chatId, "chatId");
+    return chatService.appendMessage(getUserDataPath, payload?.userId, chatId, {
+      role: payload?.role,
+      content: payload?.content,
+    });
+  });
+
+  ipcMain.handle("wb-chat-agent-context", (_event, payload) => {
+    const chatId = assertSafeId(payload?.chatId, "chatId");
+    const chat = chatService.getChat(getUserDataPath, payload?.userId, chatId, {
+      includeMessages: true,
+    });
+    if (!chat) {
+      throw new Error("会话不存在");
+    }
+    const messages = (chat.messages || []).map((m) => ({
+      role: m.role,
+      content: m.content,
+    }));
+    return compressionManager.prepareContextForAgent(getUserDataPath, payload?.userId, {
+      namespace: `chat:${chatId}`,
+      messages,
+    });
+  });
+
   ipcMain.handle("wb-memory-search", (_event, payload) => {
     const namespace = String(payload?.namespace || "").trim();
     const callerNamespace = String(payload?.callerNamespace || namespace).trim();

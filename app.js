@@ -2258,12 +2258,20 @@ window.__aiSaveActiveThreadSnapshot = function __aiSaveActiveThreadSnapshot(html
   if (!isAiWindow()) {
     return;
   }
+  if (typeof window.__wbSaveChatSnapshot === "function" && window.__wbGetActiveChatId?.()) {
+    window.__wbSaveChatSnapshot(html);
+    return;
+  }
   const snapshots = readAiThreadSnapshots();
   snapshots[activeAiThreadId] = String(html || "");
   writeAiThreadSnapshots(snapshots);
 };
 
 window.__aiNotifyThreadUserMessage = function __aiNotifyThreadUserMessage(text) {
+  if (typeof window.__wbOnAiUserMessage === "function" && window.__wbGetActiveChatId?.()) {
+    window.__wbOnAiUserMessage(text);
+    return;
+  }
   touchActiveAiThreadTitle(text);
 };
 

@@ -4028,8 +4028,17 @@ function initAI() {
       activeProfile && isLocalProfileConfig(activeProfile) && /:0\.5b|:0\.6b|:1\.5b|:1\.7b|:3b|:4b|:7b\b/i.test(String(activeProfile.model || ""))
         ? "【本机小参数模型】使用 kb_search 后：字段表行数须与 grounding.fieldNames 一致，禁止新增文档未出现的字段行；章节备注中的「二选一」写入 orderId 备注，勿虚构 outOrderId。JSON 样例逐字复述 evidence，禁止 {...} 占位。"
         : "";
+    let wbChatBlock = "";
+    if (aiMode === "chat" && typeof window.__wbFetchChatAgentContext === "function" && window.__wbGetActiveChatId?.()) {
+      try {
+        wbChatBlock = String((await window.__wbFetchChatAgentContext()) || "").trim();
+      } catch {
+        wbChatBlock = "";
+      }
+    }
     const systemContent =
       `${AI_SYSTEM}\n\n【任务列表摘要】\n${ctx}` +
+      (wbChatBlock ? `\n\n${wbChatBlock}` : "") +
       (sessionBlock
         ? `\n\n【跨会话上下文摘要（历史对话要点，供延续语境；遇冲突以本轮用户输入为准）】\n${sessionBlock}`
         : "") +
@@ -4058,6 +4067,26 @@ function initAI() {
       appendBubble("assistant", AI_HELP_TEXT);
       return true;
     }
+    if (
+      aiMode === "chat" &&
+      typeof window.__wbDetectDevRequest === "function" &&
+      window.__wbGetActiveChatId?.() &&
+      window.__wbDetectDevRequest(trimmed)
+    ) {
+      appendBubble("user", trimmed);
+      const reply =
+        typeof window.__wbDevRequestReply === "function"
+          ? window.__wbDevRequestReply()
+          : "请切换到项目区域处理开发请求。";
+      appendBubble("assistant", reply);
+      if (typeof window.__wbOnAiUserMessage === "function") {
+        window.__wbOnAiUserMessage(trimmed);
+      }
+      if (typeof window.__wbOnAiAssistantMessage === "function") {
+        window.__wbOnAiAssistantMessage(reply);
+      }
+      return true;
+    }
     if (aiMode === "image-vision" && !pendingVisionEntries.length) {
       appendBubble(
         "assistant",
@@ -4071,7 +4100,9 @@ function initAI() {
     draftBeforeHistory = "";
     const docEntriesForTurn = aiMode === "chat" ? clonePendingDocEntries() : [];
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
-    if (typeof window.__aiNotifyThreadUserMessage === "function") {
+    if (typeof window.__wbOnAiUserMessage === "function" && window.__wbGetActiveChatId?.()) {
+      window.__wbOnAiUserMessage(trimmed);
+    } else if (typeof window.__aiNotifyThreadUserMessage === "function") {
       window.__aiNotifyThreadUserMessage(trimmed);
     }
     if (aiMode === "chat" && pendingDocEntries.length) {
@@ -4167,6 +4198,9 @@ function initAI() {
           setMemoryToggleUI(true);
         }
         appendBubble("assistant", reply, { ollamaUsage });
+        if (typeof window.__wbOnAiAssistantMessage === "function" && window.__wbGetActiveChatId?.()) {
+          window.__wbOnAiAssistantMessage(reply);
+        }
         void tryAutoLearnTurn(trimmed, reply, "chat");
         void maybeSpeakAssistantReply(api, reply);
       }
@@ -4453,9 +4487,35 @@ function initAI() {
       return;
     }
     chatLog.innerHTML = "";
+    chatTurns.length = 0;
     syncChatEmptyState();
-    if (typeof window.__aiSaveActiveThreadSnapshot === "function") {
+    if (typeof window.__wbSaveChatSnapshot === "function" && window.__wbGetActiveChatId?.()) {
+      window.__wbSaveChatSnapshot("");
+    } else if (typeof window.__aiSaveActiveThreadSnapshot === "function") {
       window.__aiSaveActiveThreadSnapshot("");
+    }
+  };
+
+  window.__aiLoadChatTurns = function __aiLoadChatTurns(turns) {
+    if (!chatLog) {
+      return;
+    }
+    chatLog.innerHTML = "";
+    chatTurns.length = 0;
+    const list = Array.isArray(turns) ? turns : [];
+    list.forEach((t) => {
+      const role = t?.role === "assistant" ? "assistant" : "user";
+      const content = String(t?.content || "").trim();
+      if (!content) {
+        return;
+      }
+      chatTurns.push({ role, content });
+      appendBubble(role, content);
+    });
+    syncChatEmptyState();
+    scrollChatToBottom();
+    if (typeof window.__wbSaveChatSnapshot === "function" && window.__wbGetActiveChatId?.()) {
+      window.__wbSaveChatSnapshot(chatLog.innerHTML);
     }
   };
 

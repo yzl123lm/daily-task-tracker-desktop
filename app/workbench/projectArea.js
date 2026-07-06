@@ -116,6 +116,7 @@ function renderProjectList() {
       <span class="wb-project-card__meta">${escapeHtml(project.status || "ACTIVE")}</span>
     `;
     btn.addEventListener("click", () => {
+      window.__wbPersistActiveChatSnapshot?.();
       window.__wbStore?.selectProject?.(project.id);
       window.__wbShowProjectWorkspace?.(project.id);
       if (typeof window.activateRoute === "function") {
