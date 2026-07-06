@@ -247,22 +247,6 @@
   font-weight: 700;
 }
 
-#jlKbLauncher .kb-dashboard-icon-btn--notify {
-  position: relative;
-}
-
-#jlKbLauncher .kb-dashboard-icon-btn--notify::after {
-  content: "";
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--kb-danger);
-  border: 1px solid #fff;
-}
-
 #jlKbLauncher .kb-dashboard-icon-btn,
 #jlKbLauncher .kb-dashboard-action-btn {
   display: inline-flex;
