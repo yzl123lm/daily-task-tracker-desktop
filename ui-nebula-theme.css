@@ -5893,6 +5893,12 @@ body.jl-window-ai .jl-nebula-bg::after {
   opacity: 0.02;
 }
 
+body.jl-knowledge-float-active .jl-titlebar-drag-main,
+body.jl-workspace-float-active .jl-titlebar-drag-main {
+  -webkit-app-region: no-drag !important;
+  pointer-events: none !important;
+}
+
 body.jl-window-ai .jl-titlebar-drag-main {
   flex: 1 1 auto;
   min-width: 0;

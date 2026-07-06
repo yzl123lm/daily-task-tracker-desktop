@@ -248,6 +248,9 @@ body.jl-float-desktop-active .main-column {
 }
 
 .jl-float-win__header {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -259,7 +262,29 @@ body.jl-float-desktop-active .main-column {
   cursor: grab;
 }
 
-.jl-float-win__header:active {
+.jl-float-win__drag {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  cursor: grab;
+  -webkit-app-region: no-drag;
+}
+
+.jl-float-win__header > .jl-float-win__icon,
+.jl-float-win__header > .jl-float-win__title {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.jl-float-win__header > .jl-float-win__actions {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.jl-float-win__header:active,
+.jl-float-win__header:active .jl-float-win__drag {
   cursor: grabbing;
 }
 
@@ -2636,6 +2661,7 @@ dialog.kb-dialog-portal::backdrop {
 
 .jl-float-desktop.jl-float-desktop--overlay .jl-float-win {
   pointer-events: auto;
+  -webkit-app-region: no-drag;
   border-radius: 16px;
   min-width: 280px;
   min-height: 220px;

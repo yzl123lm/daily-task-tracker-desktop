@@ -659,6 +659,7 @@
 
     winEl.innerHTML = `
       <header class="jl-float-win__header">
+        <div class="jl-float-win__drag" aria-hidden="true"></div>
         <span class="jl-float-win__icon" aria-hidden="true">${escapeHtml(meta.icon || "◻")}</span>
         <span class="jl-float-win__title">${escapeHtml(meta.title)}</span>
         <div class="jl-float-win__actions jl-float-win__traffic" aria-label="窗口控制">
@@ -676,11 +677,12 @@
     `;
 
     const header = winEl.querySelector(".jl-float-win__header");
+    const dragHandle = winEl.querySelector(".jl-float-win__drag") || header;
     const body = winEl.querySelector(".jl-float-win__body");
     const resize = winEl.querySelector(".jl-float-win__resize");
 
     winEl.addEventListener("pointerdown", () => bringToFront(winEl, route));
-    attachDrag(winEl, header, route);
+    attachDrag(winEl, dragHandle, route);
     attachResize(winEl, resize, route);
 
     const bindCtrl = (selector, handler) => {
