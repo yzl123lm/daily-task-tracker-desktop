@@ -1273,6 +1273,211 @@ body.jl-window-ai .jl-ai-session-list {
   margin-top: 2px;
 }
 
+/* 工作台浅色控件：覆盖 theme-nebula 全局深色 button/input */
+body.theme-nebula .wb-modal .wb-modal__close,
+body.jl-window-ai.theme-nebula .wb-modal .wb-modal__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #1d2129;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+  box-shadow: none;
+  transform: none;
+}
+
+body.theme-nebula .wb-modal .wb-modal__close:hover,
+body.jl-window-ai.theme-nebula .wb-modal .wb-modal__close:hover {
+  background: #eef2f7;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+body.theme-nebula .wb-modal button,
+body.jl-window-ai.theme-nebula .wb-modal button {
+  font-weight: 500;
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 8px 14px;
+  box-shadow: none;
+  transform: none;
+}
+
+body.theme-nebula .wb-modal button.secondary,
+body.jl-window-ai.theme-nebula .wb-modal button.secondary {
+  color: #1d2129;
+  background: #fff;
+  border: 1px solid #d8e0eb;
+}
+
+body.theme-nebula .wb-modal button.secondary:hover,
+body.jl-window-ai.theme-nebula .wb-modal button.secondary:hover {
+  color: #1d2129;
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+body.theme-nebula .wb-modal button.primary,
+body.jl-window-ai.theme-nebula .wb-modal button.primary {
+  color: #1d2129;
+  background: #e8f3ff;
+  border: 1px solid #91caff;
+}
+
+body.theme-nebula .wb-modal button.primary:hover,
+body.jl-window-ai.theme-nebula .wb-modal button.primary:hover {
+  color: #1d2129;
+  background: #d6e8ff;
+  border-color: #69b1ff;
+}
+
+body.theme-nebula .wb-modal input,
+body.theme-nebula .wb-modal textarea,
+body.theme-nebula .wb-modal select,
+body.jl-window-ai.theme-nebula .wb-modal input,
+body.jl-window-ai.theme-nebula .wb-modal textarea,
+body.jl-window-ai.theme-nebula .wb-modal select {
+  background: #fff;
+  color: #1d2129;
+  border: 1px solid #d8e0eb;
+}
+
+body.theme-nebula .wb-modal input::placeholder,
+body.theme-nebula .wb-modal textarea::placeholder,
+body.jl-window-ai.theme-nebula .wb-modal input::placeholder,
+body.jl-window-ai.theme-nebula .wb-modal textarea::placeholder {
+  color: #94a3b8;
+}
+
+body.theme-nebula button.wb-icon-btn,
+body.jl-window-ai.theme-nebula button.wb-icon-btn,
+body.theme-nebula .jl-workbench-nav button.wb-icon-btn,
+body.jl-window-ai.theme-nebula .jl-workbench-nav button.wb-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d2129;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  box-shadow: none;
+  transform: none;
+}
+
+body.theme-nebula button.wb-icon-btn:hover,
+body.jl-window-ai.theme-nebula button.wb-icon-btn:hover,
+body.theme-nebula .jl-workbench-nav button.wb-icon-btn:hover,
+body.jl-window-ai.theme-nebula .jl-workbench-nav button.wb-icon-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1d2129;
+}
+
+body.theme-nebula button.wb-icon-btn--danger:hover,
+body.jl-window-ai.theme-nebula button.wb-icon-btn--danger:hover {
+  background: #fef3f2;
+  border-color: #fecdca;
+  color: #b42318;
+}
+
+body.theme-nebula .wb-list-card__actions--overlay,
+body.jl-window-ai.theme-nebula .wb-list-card__actions--overlay {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #e8eef5;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+body.theme-nebula .wb-list-card--chat .wb-list-card__actions--overlay .wb-icon-btn,
+body.jl-window-ai.theme-nebula .wb-list-card--chat .wb-list-card__actions--overlay .wb-icon-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 10px;
+  border-radius: 6px;
+}
+
+body.theme-nebula .wb-project-workspace button,
+body.jl-window-ai.theme-nebula .wb-project-workspace button {
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  box-shadow: none;
+  transform: none;
+}
+
+body.theme-nebula .wb-project-workspace button.secondary,
+body.jl-window-ai.theme-nebula .wb-project-workspace button.secondary {
+  color: #1d2129;
+  background: #fff;
+  border: 1px solid #d8e0eb;
+}
+
+body.theme-nebula .wb-project-workspace button.secondary:hover,
+body.jl-window-ai.theme-nebula .wb-project-workspace button.secondary:hover {
+  color: #1d2129;
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+body.theme-nebula .wb-project-workspace button.primary,
+body.jl-window-ai.theme-nebula .wb-project-workspace button.primary {
+  color: #1d2129;
+  background: #e8f3ff;
+  border: 1px solid #91caff;
+}
+
+body.theme-nebula .wb-project-workspace button.primary:hover,
+body.jl-window-ai.theme-nebula .wb-project-workspace button.primary:hover {
+  color: #1d2129;
+  background: #d6e8ff;
+  border-color: #69b1ff;
+}
+
+body.theme-nebula .wb-project-workspace input,
+body.theme-nebula .wb-project-workspace textarea,
+body.theme-nebula .wb-project-workspace select,
+body.jl-window-ai.theme-nebula .wb-project-workspace input,
+body.jl-window-ai.theme-nebula .wb-project-workspace textarea,
+body.jl-window-ai.theme-nebula .wb-project-workspace select {
+  background: #fff;
+  color: #1d2129;
+  border: 1px solid #d8e0eb;
+}
+
+body.theme-nebula .wb-project-workspace textarea::placeholder,
+body.theme-nebula .wb-project-workspace input::placeholder,
+body.jl-window-ai.theme-nebula .wb-project-workspace textarea::placeholder,
+body.jl-window-ai.theme-nebula .wb-project-workspace input::placeholder {
+  color: #94a3b8;
+}
+
+body.theme-nebula .wb-project-workspace__agent textarea,
+body.jl-window-ai.theme-nebula .wb-project-workspace__agent textarea {
+  background: #fff;
+  color: #1d2129;
+}
+
+body.theme-nebula .jl-workbench-nav__zone--project button.wb-icon-btn,
+body.theme-nebula .jl-workbench-nav__zone--sessions button.wb-icon-btn,
+body.jl-window-ai.theme-nebula .jl-workbench-nav__zone--project button.wb-icon-btn,
+body.jl-window-ai.theme-nebula .jl-workbench-nav__zone--sessions button.wb-icon-btn {
+  background: #fff;
+  color: #1d2129;
+}
+
 @media (max-width: 900px) {
   .wb-plan-card__grid {
     grid-template-columns: 1fr;
