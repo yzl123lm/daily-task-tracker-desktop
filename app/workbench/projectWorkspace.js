@@ -254,34 +254,16 @@ function renderTasks(tasks, selectedTaskId) {
   }
 }
 
-async function loadProjectWorkspace(projectId) {
-  const api = wbApi();
-  const root = ensureWorkspaceRoot();
-  const aiMain = document.getElementById("aiPanelMain");
-  if (!root || typeof api.wbProjectGet !== "function") {
-    return;
-  }
-  const project = await api.wbProjectGet({ projectId });
-  const tasks = await api.wbProjectTasksList({ projectId });
-  window.__wbStore?.setTasks?.(tasks);
-  document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
-  document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${projectId}`;
-  const selectedId = tasks[0]?.id;
-  renderTasks(tasks, selectedId);
-  root.hidden = false;
-  syncProjectViewChrome(true);
-  if (aiMain) {
-    aiMain.hidden = true;
-  }
-  document.getElementById("wbPlanCard").hidden = true;
-  document.getElementById("wbAgentOutput").hidden = true;
-  document.getElementById("wbAgentOutput").textContent = "";
-  document.getElementById("wbTaskConfirmBtn").hidden = true;
-  if (selectedId) {
-    await loadTaskContext(projectId, selectedId);
-  }
-  window.__wbBindCodePanel?.();
-  await window.__wbRefreshCodePanel?.(projectId, selectedId);
+let projectWorkspaceLoadGen = 0;
+
+function isProjectViewActive(projectId, gen) {
+  const id = String(projectId || "").trim();
+  const store = window.__wbStore?.getState?.() || {};
+  return (
+    gen === projectWorkspaceLoadGen &&
+    store.mode === "project" &&
+    store.selectedProjectId === id
+  );
 }
 
 function syncProjectViewChrome(active) {
@@ -296,6 +278,57 @@ function syncProjectViewChrome(active) {
   }
   if (typeof window.syncJlPromptDock === "function") {
     window.syncJlPromptDock("ai");
+  }
+}
+
+function showProjectWorkspaceView() {
+  const root = document.getElementById("wbProjectWorkspace");
+  const aiMain = document.getElementById("aiPanelMain");
+  if (root) {
+    root.hidden = false;
+  }
+  syncProjectViewChrome(true);
+  if (aiMain) {
+    aiMain.hidden = true;
+  }
+}
+
+async function loadProjectWorkspace(projectId) {
+  const api = wbApi();
+  const root = ensureWorkspaceRoot();
+  const id = String(projectId || "").trim();
+  const gen = ++projectWorkspaceLoadGen;
+  if (!root || !id || typeof api.wbProjectGet !== "function") {
+    return;
+  }
+  const project = await api.wbProjectGet({ projectId: id });
+  if (!isProjectViewActive(id, gen)) {
+    return;
+  }
+  const tasks = await api.wbProjectTasksList({ projectId: id });
+  if (!isProjectViewActive(id, gen)) {
+    return;
+  }
+  window.__wbStore?.setTasks?.(tasks);
+  document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
+  document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
+  const selectedId = tasks[0]?.id;
+  renderTasks(tasks, selectedId);
+  showProjectWorkspaceView();
+  document.getElementById("wbPlanCard").hidden = true;
+  document.getElementById("wbAgentOutput").hidden = true;
+  document.getElementById("wbAgentOutput").textContent = "";
+  document.getElementById("wbTaskConfirmBtn").hidden = true;
+  if (selectedId) {
+    await loadTaskContext(id, selectedId);
+    if (!isProjectViewActive(id, gen)) {
+      return;
+    }
+  }
+  window.__wbBindCodePanel?.();
+  await window.__wbRefreshCodePanel?.(id, selectedId);
+  if (!isProjectViewActive(id, gen)) {
+    hideProjectWorkspace();
   }
 }
 
@@ -330,6 +363,7 @@ async function manualCompressProject() {
 }
 
 function hideProjectWorkspace() {
+  projectWorkspaceLoadGen += 1;
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
   if (root) {
@@ -523,11 +557,14 @@ function bindProjectWorkspace() {
   });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", (ev) => {
     const detail = ev.detail || {};
-    if (detail.mode !== "project" || !detail.selectedProjectId) {
-      hideProjectWorkspace();
+    if (detail.mode === "project" && detail.selectedProjectId) {
+      return;
     }
+    hideProjectWorkspace();
   });
 }
+
+window.__wbShowChatView = hideProjectWorkspace;
 
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;

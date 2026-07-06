@@ -183,11 +183,12 @@ async function switchChat(chatId) {
   if (prev && prev !== nextId) {
     persistActiveChatSnapshot();
   }
+  window.__wbHideProjectWorkspace?.();
   window.__wbStore?.selectChat?.(nextId);
   persistActiveChatId(nextId);
-  window.__wbHideProjectWorkspace?.();
   await loadChatIntoAi(nextId);
   window.__wbRenderChats?.();
+  window.__wbRenderProjects?.();
   if (typeof window.activateRoute === "function") {
     window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
   }
