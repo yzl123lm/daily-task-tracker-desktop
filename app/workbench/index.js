@@ -22,7 +22,7 @@ async function refreshChats() {
     return;
   }
   try {
-    const chats = await window.electronAPI.wbChatsList({});
+    const chats = await window.electronAPI.wbChatsList({ withSummary: true });
     window.__wbStore?.setChats?.(chats);
     window.__wbRenderChats?.();
   } catch {

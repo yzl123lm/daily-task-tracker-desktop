@@ -3,6 +3,8 @@ const projectService = require("./projectService.js");
 const chatService = require("./chatService.js");
 const contextMemoryService = require("./contextMemoryService.js");
 const agentOrchestrator = require("./agentOrchestrator.js");
+const agentRunService = require("./agentRunService.js");
+const chatSummaryService = require("./chatSummaryService.js");
 const compressionManager = require("./context-compression/contextCompressionManager.js");
 const contextStore = require("./context-compression/contextStore.js");
 const { parseNamespace, assertNoCrossScopeRead, NAMESPACE_FORBIDDEN } = require("./namespace.js");
@@ -46,6 +48,24 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
     return projectService.createTask(getUserDataPath, payload?.userId, projectId, payload || {});
   });
 
+  ipcMain.handle("wb-project-task-update", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    return projectService.updateTask(getUserDataPath, payload?.userId, projectId, taskId, payload || {});
+  });
+
+  ipcMain.handle("wb-project-agent-runs-list", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    return agentRunService.listAgentRunsForTask(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId,
+      { limit: payload?.limit }
+    );
+  });
+
   ipcMain.handle("wb-project-agent-run", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
@@ -58,6 +78,9 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
   });
 
   ipcMain.handle("wb-chats-list", (_event, payload) => {
+    if (payload?.withSummary) {
+      return chatSummaryService.listChatsEnriched(getUserDataPath, payload?.userId);
+    }
     return chatService.listChats(getUserDataPath, payload?.userId);
   });
 
@@ -95,10 +118,21 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath }) {
 
   ipcMain.handle("wb-chat-append-message", (_event, payload) => {
     const chatId = assertSafeId(payload?.chatId, "chatId");
-    return chatService.appendMessage(getUserDataPath, payload?.userId, chatId, {
+    const msg = chatService.appendMessage(getUserDataPath, payload?.userId, chatId, {
       role: payload?.role,
       content: payload?.content,
     });
+    const summaryResult = chatSummaryService.maybeUpdateChatSummary(
+      getUserDataPath,
+      payload?.userId,
+      chatId
+    );
+    return { message: msg, summaryUpdate: summaryResult };
+  });
+
+  ipcMain.handle("wb-chat-maybe-summarize", (_event, payload) => {
+    const chatId = assertSafeId(payload?.chatId, "chatId");
+    return chatSummaryService.maybeUpdateChatSummary(getUserDataPath, payload?.userId, chatId);
   });
 
   ipcMain.handle("wb-chat-agent-context", (_event, payload) => {

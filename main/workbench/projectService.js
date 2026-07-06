@@ -159,6 +159,34 @@ function getTask(getUserDataPath, userId, projectId, taskId) {
   return rowToTask(row);
 }
 
+function updateTask(getUserDataPath, userId, projectId, taskId, payload) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const pid = assertSafeId(projectId, "projectId");
+  const tid = assertSafeId(taskId, "taskId");
+  const existing = getTask(getUserDataPath, uid, pid, tid);
+  if (!existing) {
+    throw new Error("任务不存在");
+  }
+  const ts = nowIso();
+  db.prepare(
+    `UPDATE project_tasks SET
+      title = ?, description = ?, status = ?, priority = ?, current_step = ?, updated_at = ?
+     WHERE id = ? AND project_id = ? AND user_id = ?`
+  ).run(
+    typeof payload?.title === "string" && payload.title.trim() ? payload.title.trim() : existing.title,
+    typeof payload?.description === "string" ? payload.description.trim() : existing.description,
+    typeof payload?.status === "string" && payload.status.trim() ? payload.status.trim() : existing.status,
+    Number(payload?.priority) || existing.priority,
+    typeof payload?.currentStep === "string" ? payload.currentStep.trim() : existing.currentStep,
+    ts,
+    tid,
+    pid,
+    uid
+  );
+  return getTask(getUserDataPath, uid, pid, tid);
+}
+
 module.exports = {
   LOCAL_USER_ID,
   resolveUserId,
@@ -169,5 +197,6 @@ module.exports = {
   listTasks,
   createTask,
   getTask,
+  updateTask,
   buildProjectNamespace,
 };

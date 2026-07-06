@@ -176,7 +176,10 @@ async function persistChatMessage(role, content) {
     return;
   }
   try {
-    await api.wbChatAppendMessage({ chatId, role, content: body });
+    const result = await api.wbChatAppendMessage({ chatId, role, content: body });
+    if (result?.summaryUpdate?.updated && typeof window.__wbRefreshChats === "function") {
+      await window.__wbRefreshChats();
+    }
   } catch {
     /* ignore duplicate or validation errors during sync */
   }

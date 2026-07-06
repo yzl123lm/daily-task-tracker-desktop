@@ -81,7 +81,15 @@ function renderSnapshotHistory(container, snapshots) {
   snapshots.forEach((snap) => {
     const li = document.createElement("li");
     li.className = "wb-snapshot-history__item";
-    li.textContent = `rev ${snap.revision} · ${snap.validationStatus} · ${snap.tokensBefore || 0}→${snap.tokensAfter || 0} tokens`;
+    const ratio =
+      snap.tokensBefore > 0
+        ? `${Math.round((snap.tokensAfter / snap.tokensBefore) * 100)}%`
+        : "—";
+    li.innerHTML = `
+      <span class="wb-snapshot-history__rev">rev ${snap.revision}</span>
+      <span class="wb-snapshot-history__meta">${snap.validationStatus} · ${snap.riskLevel || "LOW"}</span>
+      <span class="wb-snapshot-history__tokens">${snap.tokensBefore || 0} → ${snap.tokensAfter || 0} tokens (${ratio})</span>
+    `;
     list.appendChild(li);
   });
   container.appendChild(list);

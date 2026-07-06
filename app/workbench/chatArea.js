@@ -24,7 +24,10 @@ function renderChatSessionList() {
     btn.className = "jl-ai-session-item";
     btn.dataset.chatId = chat.id;
     btn.setAttribute("role", "listitem");
-    btn.textContent = chat.title || "未命名对话";
+    btn.innerHTML = `
+      <span class="wb-chat-item__title">${escapeHtml(chat.title || "未命名对话")}</span>
+      ${chat.summary ? `<span class="wb-chat-item__summary">${escapeHtml(chat.summary)}</span>` : ""}
+    `;
     btn.classList.toggle("is-active", chat.id === store.selectedChatId);
     btn.addEventListener("click", () => {
       void window.__wbSwitchChat?.(chat.id);
