@@ -53,7 +53,7 @@ function ensureWorkspaceRoot() {
   root.innerHTML = `
     <header class="wb-project-workspace__head">
       <div>
-        <p class="wb-project-workspace__eyebrow">项目开发模式 · PLAN_ONLY</p>
+        <p class="wb-project-workspace__eyebrow">项目开发模式 · PLAN_ONLY / 受控写入</p>
         <h2 id="wbProjectWorkspaceTitle">项目工作区</h2>
         <p id="wbProjectWorkspaceNs" class="wb-project-workspace__ns"></p>
         <div id="wbProjectContextHealth" class="wb-project-workspace__health"></div>
@@ -130,6 +130,7 @@ function renderPlanCard(output) {
       <div><h5>测试计划</h5><ul>${testItems}</ul></div>
     </div>
   `;
+  window.__wbRenderPlanCodeExtras?.(output);
 }
 
 function renderTaskDetail(task) {
@@ -203,6 +204,7 @@ async function loadTaskContext(projectId, taskId) {
     }
   }
   await refreshProjectContextHealth(projectId, taskId);
+  await window.__wbRefreshCodePanel?.(projectId, taskId);
 }
 
 function renderTasks(tasks, selectedTaskId) {
@@ -277,6 +279,8 @@ async function loadProjectWorkspace(projectId) {
   if (selectedId) {
     await loadTaskContext(projectId, selectedId);
   }
+  window.__wbBindCodePanel?.();
+  await window.__wbRefreshCodePanel?.(projectId, selectedId);
 }
 
 async function refreshProjectContextHealth(projectId, taskId) {
@@ -464,8 +468,8 @@ async function confirmTaskPlan() {
   await api.wbProjectTaskUpdate({
     projectId,
     taskId,
-    status: "WAIT_CONFIRM",
-    currentStep: "用户已确认方案，待进入开发",
+    status: "DEVELOPING",
+    currentStep: "用户已确认方案，可受控写入",
   });
   document.getElementById("wbTaskConfirmBtn").hidden = true;
   const tasks = await api.wbProjectTasksList({ projectId });
@@ -511,3 +515,17 @@ function bindProjectWorkspace() {
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;
+window.__wbRefreshTaskList = async () => {
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  if (!projectId) {
+    return;
+  }
+  const api = wbApi();
+  const tasks = await api.wbProjectTasksList({ projectId });
+  window.__wbStore?.setTasks?.(tasks);
+  renderTasks(tasks, taskId);
+  if (taskId) {
+    await loadTaskContext(projectId, taskId);
+  }
+};

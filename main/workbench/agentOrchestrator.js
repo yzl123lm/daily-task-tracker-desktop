@@ -12,6 +12,19 @@ const { collectChatMessages } = require("./context-compression/contextMonitor.js
 const compressionManager = require("./context-compression/contextCompressionManager.js");
 const { buildPlanOnlyOutput } = require("./planOnlyOutput.js");
 const { maybeUpdateChatSummary } = require("./chatSummaryService.js");
+const { analyzeProjectCode } = require("./projectCodeService.js");
+const {
+  assertProjectAgentTool,
+  recordToolOperation,
+} = require("./toolPermissionService.js");
+
+let getDefaultProjectRootFn = null;
+
+function configureAgentOrchestrator(options = {}) {
+  if (typeof options.getDefaultProjectRoot === "function") {
+    getDefaultProjectRootFn = options.getDefaultProjectRoot;
+  }
+}
 
 function assertChatAgentTool(toolName) {
   if (isDevToolName(toolName)) {
@@ -98,6 +111,7 @@ function runProjectAgent(getUserDataPath, userId, { projectId, taskId, message, 
     namespace: taskNs,
     messages,
   });
+  const codeAnalysis = analyzeProjectCode(project, message, getDefaultProjectRootFn);
   const output = buildPlanOnlyOutput({
     message,
     project,
@@ -105,6 +119,7 @@ function runProjectAgent(getUserDataPath, userId, { projectId, taskId, message, 
     projectId,
     taskId,
     promptContext: prepared.promptContext,
+    codeAnalysis,
   });
   recordTaskMemories(getUserDataPath, uid, output);
   updateTask(getUserDataPath, uid, projectId, taskId, {
@@ -120,6 +135,42 @@ function runProjectAgent(getUserDataPath, userId, { projectId, taskId, message, 
     output,
     status: "COMPLETED",
   });
+  if (codeAnalysis?.codeRoot) {
+    assertProjectAgentTool("search_project_code");
+    recordToolOperation(getUserDataPath, uid, {
+      agentRunId,
+      projectId,
+      taskId,
+      toolName: "search_project_code",
+      args: { query: String(message || "").slice(0, 200) },
+      resultText: `命中 ${(codeAnalysis.searchHits || []).length} 处，读取 ${(codeAnalysis.relevantFiles || []).length} 个文件`,
+      riskLevel: "LOW",
+    });
+    for (const filePath of (codeAnalysis.relevantFiles || []).slice(0, 3)) {
+      assertProjectAgentTool("read_project_file");
+      recordToolOperation(getUserDataPath, uid, {
+        agentRunId,
+        projectId,
+        taskId,
+        toolName: "read_project_file",
+        args: { path: filePath },
+        resultText: `只读预览 ${filePath}`,
+        riskLevel: "LOW",
+      });
+    }
+    for (const preview of output.diffPreviews || []) {
+      assertProjectAgentTool("preview_diff");
+      recordToolOperation(getUserDataPath, uid, {
+        agentRunId,
+        projectId,
+        taskId,
+        toolName: "preview_diff",
+        args: { filePath: preview.filePath },
+        resultText: preview.summary,
+        riskLevel: "LOW",
+      });
+    }
+  }
   return {
     agentRunId,
     status: "COMPLETED",
@@ -189,6 +240,7 @@ function runChatAgent(getUserDataPath, userId, { chatId, message, toolName }) {
 
 module.exports = {
   assertChatAgentTool,
+  configureAgentOrchestrator,
   runProjectAgent,
   runChatAgent,
 };

@@ -38,6 +38,7 @@ function initWorkbenchDev() {
   window.__wbRefreshChats = refreshChats;
   window.__wbBindProjectArea?.();
   window.__wbBindProjectWorkspace?.();
+  window.__wbBindCodePanel?.();
   window.__wbBindChatArea?.();
   void (async () => {
     await window.__wbMigrateLegacyChats?.();

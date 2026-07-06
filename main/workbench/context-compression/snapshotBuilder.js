@@ -87,20 +87,33 @@ function buildSnapshot({ namespace, plan, runtimeState }) {
     userConstraints: extractConstraints(blocks),
     relevantFiles: scopeType === "chat"
       ? []
-      : blocks
-          .filter((b) => b.type === "code" && b.content)
-          .slice(-5)
-          .map((b, idx) => ({
-            path: `(inferred-${idx + 1})`,
-            summary: summarizeContent(b.content, 120),
-          })),
+      : (runtimeState?.relevantFiles?.length
+          ? runtimeState.relevantFiles
+          : blocks
+              .filter((b) => b.type === "code" && b.content)
+              .slice(-5)
+              .map((b, idx) => ({
+                path: `(inferred-${idx + 1})`,
+                summary: summarizeContent(b.content, 120),
+              }))),
     codeEntities: [],
     decisions: extractDecisions(blocks),
-    changesMade: [],
-    testsAndCommands: blocks
-      .filter((b) => b.type === "test_result")
-      .map((b, idx) => ({ id: `tc_${idx}`, summary: summarizeContent(b.content, 160) })),
-    currentErrors: extractErrors(blocks),
+    changesMade: runtimeState?.changesMade?.length ? runtimeState.changesMade : [],
+    testsAndCommands: runtimeState?.testsAndCommands?.length
+      ? runtimeState.testsAndCommands.map((item, idx) => ({
+          id: `tc_${idx}`,
+          summary: summarizeContent(
+            `${item.command || ""} ${item.summary || ""}`.trim(),
+            160
+          ),
+          success: item.success,
+        }))
+      : blocks
+          .filter((b) => b.type === "test_result")
+          .map((b, idx) => ({ id: `tc_${idx}`, summary: summarizeContent(b.content, 160) })),
+    currentErrors: runtimeState?.currentErrors?.length
+      ? runtimeState.currentErrors
+      : extractErrors(blocks),
     openQuestions: [],
     nextActions: extractNextActions(blocks, scopeType),
     compressedHistory,

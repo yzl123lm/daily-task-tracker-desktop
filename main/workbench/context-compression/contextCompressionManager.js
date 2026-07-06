@@ -60,7 +60,7 @@ function applyCompression(getUserDataPath, userId, payload) {
   const snapshot = buildSnapshot({
     namespace,
     plan,
-    runtimeState: { mode, reason },
+    runtimeState: { ...runtimeState, mode, reason },
   });
   const validation = validateSnapshot(snapshot, { scopeType: runtimeState.scopeType });
   const tokensBefore =

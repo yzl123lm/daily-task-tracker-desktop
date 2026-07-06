@@ -8,14 +8,13 @@ const {
 const { buildChatNamespace } = require("./namespace.js");
 const { resolveUserId } = require("./projectService.js");
 
-function listChats(getUserDataPath, userId) {
+function listChats(getUserDataPath, userId, { includeArchived = false } = {}) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
-  const rows = db
-    .prepare(
-      "SELECT * FROM chat_sessions WHERE user_id = ? AND status != 'DELETED' ORDER BY updated_at DESC"
-    )
-    .all(uid);
+  const sql = includeArchived
+    ? "SELECT * FROM chat_sessions WHERE user_id = ? AND status != 'DELETED' ORDER BY updated_at DESC"
+    : "SELECT * FROM chat_sessions WHERE user_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC";
+  const rows = db.prepare(sql).all(uid);
   return rows.map(rowToChat);
 }
 
@@ -88,7 +87,21 @@ function updateChat(getUserDataPath, userId, chatId, payload) {
     cid,
     uid
   );
+  if (status !== existing.status) {
+    db.prepare(
+      `INSERT INTO audit_logs (id, user_id, scope_type, scope_id, action, detail_json, created_at)
+       VALUES (?, ?, 'chat', ?, 'chat.status_change', ?, ?)`
+    ).run(newId("audit"), uid, cid, JSON.stringify({ from: existing.status, to: status }), ts);
+  }
   return getChat(getUserDataPath, uid, cid);
+}
+
+function archiveChat(getUserDataPath, userId, chatId) {
+  return updateChat(getUserDataPath, userId, chatId, { status: "ARCHIVED" });
+}
+
+function deleteChat(getUserDataPath, userId, chatId) {
+  return updateChat(getUserDataPath, userId, chatId, { status: "DELETED" });
 }
 
 function appendMessage(getUserDataPath, userId, chatId, { role, content }) {
@@ -128,6 +141,8 @@ module.exports = {
   getChat,
   createChat,
   updateChat,
+  archiveChat,
+  deleteChat,
   appendMessage,
   buildChatNamespace,
 };

@@ -7,6 +7,7 @@ const { registerAiSessionHandlers } = require("./aiSessionHandlers");
 const { registerEmbeddingHandlers } = require("./embeddingHandlers");
 const { registerModularSettingsHandlers } = require("../credentialSettings");
 const { registerOllamaVoiceHandlers } = require("../ollamaRuntime");
+const path = require("path");
 const { registerWorkbenchHandlers } = require("../workbench/registerHandlers.js");
 
 function registerExtractedIpcHandlers(ipcMain, { app }) {
@@ -19,7 +20,10 @@ function registerExtractedIpcHandlers(ipcMain, { app }) {
   registerEnvironmentHandlers(ipcMain, { app });
   registerTaskAttachmentHandlers(ipcMain, { app });
   registerTaskStoreHandlers(ipcMain, { app });
-  registerWorkbenchHandlers(ipcMain, { getUserDataPath: () => app.getPath("userData") });
+  registerWorkbenchHandlers(ipcMain, {
+    getUserDataPath: () => app.getPath("userData"),
+    getDefaultProjectRoot: () => path.resolve(__dirname, "..", ".."),
+  });
 }
 
 module.exports = { registerExtractedIpcHandlers };

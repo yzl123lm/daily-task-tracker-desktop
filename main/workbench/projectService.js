@@ -14,12 +14,13 @@ function resolveUserId(userId) {
   return String(userId || LOCAL_USER_ID).trim() || LOCAL_USER_ID;
 }
 
-function listProjects(getUserDataPath, userId) {
+function listProjects(getUserDataPath, userId, { includeArchived = false } = {}) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
-  const rows = db
-    .prepare("SELECT * FROM projects WHERE user_id = ? ORDER BY updated_at DESC")
-    .all(uid);
+  const sql = includeArchived
+    ? "SELECT * FROM projects WHERE user_id = ? AND status != 'DELETED' ORDER BY updated_at DESC"
+    : "SELECT * FROM projects WHERE user_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC";
+  const rows = db.prepare(sql).all(uid);
   return rows.map(rowToProject);
 }
 
@@ -101,7 +102,21 @@ function updateProject(getUserDataPath, userId, projectId, payload) {
     pid,
     uid
   );
+  if (typeof payload?.status === "string" && payload.status !== existing.status) {
+    db.prepare(
+      `INSERT INTO audit_logs (id, user_id, scope_type, scope_id, action, detail_json, created_at)
+       VALUES (?, ?, 'project', ?, 'project.status_change', ?, ?)`
+    ).run(newId("audit"), uid, pid, JSON.stringify({ from: existing.status, to: payload.status }), ts);
+  }
   return getProject(getUserDataPath, uid, pid);
+}
+
+function archiveProject(getUserDataPath, userId, projectId) {
+  return updateProject(getUserDataPath, userId, projectId, { status: "ARCHIVED" });
+}
+
+function deleteProject(getUserDataPath, userId, projectId) {
+  return updateProject(getUserDataPath, userId, projectId, { status: "DELETED" });
 }
 
 function listTasks(getUserDataPath, userId, projectId) {
@@ -194,6 +209,8 @@ module.exports = {
   getProject,
   createProject,
   updateProject,
+  archiveProject,
+  deleteProject,
   listTasks,
   createTask,
   getTask,

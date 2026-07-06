@@ -1,0 +1,80 @@
+---
+description: 鲸落AI Electron 桌面客户端 — 主进程 / preload / IPC 与安全约定
+globs: main.js,main/**/*.js,preload.js,*-preload.js,scripts/**/*.js,utils/ipcValidate.js,knowledgeBaseMain.js,searchPipeline.js
+alwaysApply: false
+---
+
+# 鲸落AI Electron 桌面约定
+
+适用于 **主进程、preload、IPC 处理器、打包脚本**。渲染层 UI/CSS 仍遵循 `ui-design-taste-skill.mdc`；客户端交付仍遵循 `client-ship-after-change.mdc`。
+
+## 架构分层（不可破坏）
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| 主进程 | `main.js`、`main/**/*.js` | 窗口、文件系统、网络、密钥、子进程 |
+| Preload | `preload.js`、`*-preload.js` | 经 `contextBridge` 暴露最小 API |
+| 渲染层 | `app.js`、`app/**/*.js`、`index.html` | 纯 UI；**禁止** `require("electron")` 或直接 `fs`/`child_process` |
+
+**窗口 webPreferences 必须保持：**
+
+- `contextIsolation: true`
+- `nodeIntegration: false`
+- 通过 `preload` 注入桥接脚本（见 `main/window.js`）
+
+新增能力时走 **preload 白名单 → ipcMain.handle → 主进程实现**，不要把 Node/Electron API 泄漏到渲染层。
+
+## IPC 通道命名与注册
+
+- 通道名：**kebab-case**，动词-资源-动作，与现有风格一致  
+  例：`ai-settings-get`、`wb-project-create`、`ollama-pull-progress`
+- 优先 **`ipcMain.handle` + `ipcRenderer.invoke`**（request/response）；单向推送用 `webContents.send` + preload 内 `ipcRenderer.on`，并返回 **unsubscribe** 清理函数（见 `preload.js` 中 `onOllamaPullProgress`）
+- 新 handler 注册到对应模块的 `register*Handlers(ipcMain, deps)`，由 `main/ipc/registerExtracted.js` 或同级入口聚合，**避免在 `main.js` 堆叠大段 handler**
+- preload 暴露面统一挂在 `window.electronAPI`（或窗口专用如 `splashAPI`），**一通道一函数**，不在 preload 写业务逻辑
+
+## 输入校验与路径安全
+
+主进程收到 renderer  payload 后，**先校验再执行**：
+
+- 复用 `utils/ipcValidate.js`：`assertHttpUrl`、`assertSafeId`、`assertUuid`、`assertAccessibleFilePath`、`assertMaxBase64Size` 等
+- 文件/目录访问必须 **绝对路径 + allowedRoots**（通常 `app.getPath("userData")`、用户选定项目根等），禁止 `..` 逃逸
+- Base64/大文件上传必须设上限（已有 `assertMaxBase64Size`）
+- 用户可控字符串写入磁盘前用 `assertSafeExportBaseName`
+
+校验失败应 **throw 带中文说明的 Error**，由 handler 统一捕获并返回 `{ ok: false, error: "..." }` 或等价结构，**禁止静默失败**。
+
+## 密钥与敏感数据
+
+- API Key、Token 等 **禁止** 硬编码进源码或提交到 Git
+- 持久化使用 `safeStorage`（见 `main/credentialSettings.js`、`main/aiSessionStore.js`）；写入前检查 `safeStorage.isEncryptionAvailable()`
+- **禁止** 在 `console.log`、IPC 返回值、错误堆栈中输出明文密钥、完整 session、解密后的 credential
+- 渲染层只接收「是否已配置」「掩码后的 key 后缀」等非敏感状态
+
+## 安全红线
+
+- **禁止** 在渲染层或 preload 使用 `eval`、`new Function`、动态 `require` 用户输入
+- **禁止** 把 `ipcRenderer` 整体暴露给 `window`；只暴露具名方法
+- **`exec` / `execFile` / `spawn`**：仅主进程、固定命令/参数；用户输入只能作为已校验的路径或受控 argv，禁止 shell 拼接
+- 外部 URL 用 `shell.openExternal` 前校验 `http:`/`https:`（可复用 `assertHttpUrl`）
+- 新增 npm 依赖前：说明用途、是否维护活跃、能否用 <30 行自实现；**20 行能写完的不加包**（与现有 `package.json` 精简策略一致）
+
+## 错误处理与异步
+
+- 主进程 async handler 用 `try/catch`；网络/文件/子进程错误带上下文记录（`console.error("[HandlerName]", err)`），不向 UI 泄漏内部路径或密钥
+- 长任务（模型拉取、ASR、导出）支持 **abort/cancel** 或进度事件，避免阻塞 `app.quit`
+- 独立 IO 用 `Promise.all` 并行；必须串行时在代码旁注释依赖原因
+
+## 代码风格（主进程 / preload）
+
+- **CommonJS**（`require` / `module.exports`），与 `main.js` 一致；不要引入 ESM-only 写法
+- **最小改动**：只改与任务相关的 handler/preload/注册模块，不顺手重构无关文件
+- 函数命名：`handle*` 用于事件回调；注册函数 `register*Handlers`
+- 注释只解释 **非 obvious 的业务规则**（厂商 API  quirks、Windows 路径、加密不可用降级），不写「这段代码在做什么」
+
+## 新增 IPC 功能检查清单
+
+1. [ ] preload 新增方法 + `ipcMain.handle` 成对出现  
+2. [ ] payload 经 `ipcValidate` 或同等校验  
+3. [ ] 涉密字段走 `safeStorage`，不出现在 renderer  
+4. [ ] handler 在合适 `main/**/register*.js` 注册，而非散落  
+5. [ ] 若改动 `main.js`、`preload.js` 或渲染层且面向用户：**交付前** bump 版本并执行 `npm run ship:latest-client`（见 `client-ship-after-change.mdc`）

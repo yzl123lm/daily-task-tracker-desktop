@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -152,6 +152,31 @@ function ensureSchema(db) {
       detail_json TEXT,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS tool_operations (
+      id TEXT PRIMARY KEY,
+      agent_run_id TEXT,
+      user_id TEXT NOT NULL,
+      project_id TEXT,
+      task_id TEXT,
+      tool_name TEXT NOT NULL,
+      args_json TEXT,
+      result_text TEXT,
+      risk_level TEXT NOT NULL DEFAULT 'LOW',
+      approved_by_user INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_tool_operations_task ON tool_operations(project_id, task_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS file_write_backups (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      task_id TEXT,
+      rel_path TEXT NOT NULL,
+      backup_path TEXT NOT NULL,
+      had_original INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_write_backups_task ON file_write_backups(project_id, task_id, created_at DESC);
   `);
   const row = db.prepare("SELECT value FROM wb_meta WHERE key = 'schema_version'").get();
   const current = Number(row?.value) || 0;

@@ -1,3 +1,5 @@
+const { suggestPatchFromDescription } = require("./diffPreviewService.js");
+
 const UI_KEYWORDS = [
   { re: /弹窗|modal|对话框/i, files: ["app/workbench/projectArea.js", "workbench-dev.css"] },
   { re: /任务|task/i, files: ["app/workbench/projectWorkspace.js", "main/workbench/projectService.js"] },
@@ -82,14 +84,32 @@ function inferTestPlan(message) {
   return uniqueFiles(plan);
 }
 
-function buildPlanOnlyOutput({ message, project, task, projectId, taskId, promptContext }) {
+function buildDiffPreviews(codeAnalysis, message) {
+  const previews = [];
+  const snippets = Array.isArray(codeAnalysis?.codeSnippets) ? codeAnalysis.codeSnippets : [];
+  for (const item of snippets.slice(0, 2)) {
+    try {
+      previews.push(
+        suggestPatchFromDescription(item.path, item.snippet, String(message || "").slice(0, 120))
+      );
+    } catch {
+      /* skip */
+    }
+  }
+  return previews;
+}
+
+function buildPlanOnlyOutput({ message, project, task, projectId, taskId, promptContext, codeAnalysis }) {
   const req = String(message || "").trim();
   const lines = req.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const headline = lines[0] || task?.title || "未指定需求";
   const taskNs = `task:${projectId}:${taskId}`;
   const summary = "已生成开发方案，尚未修改文件。";
   const plan = inferPlanSteps(req, task);
-  const affectedFiles = inferAffectedFiles(req, project);
+  const inferredFiles = inferAffectedFiles(req, project);
+  const codeFiles = Array.isArray(codeAnalysis?.relevantFiles) ? codeAnalysis.relevantFiles : [];
+  const affectedFiles = uniqueFiles([...codeFiles, ...inferredFiles]).slice(0, 12);
+  const diffPreviews = buildDiffPreviews(codeAnalysis, req);
   const memoryToRecord = [
     {
       namespace: taskNs,
@@ -117,12 +137,26 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
     needUserConfirm: true,
     mode: "PLAN_ONLY",
     memoryToRecord,
+    codeAnalysis: codeAnalysis
+      ? {
+          codeRoot: codeAnalysis.codeRoot,
+          relevantFiles: codeAnalysis.relevantFiles || [],
+          snippets: (codeAnalysis.codeSnippets || []).map((s) => ({
+            path: s.path,
+            line: s.line,
+            preview: String(s.snippet || "").slice(0, 400),
+          })),
+          searchHitCount: (codeAnalysis.searchHits || []).length,
+        }
+      : null,
+    diffPreviews,
     meta: {
       projectId,
       taskId,
       projectName: project?.name || "",
       taskTitle: task?.title || "",
       generatedAt: new Date().toISOString(),
+      codeRoot: codeAnalysis?.codeRoot || project?.localPath || null,
     },
     contextPreview: promptContext?.text ? promptContext.text.slice(0, 600) : "",
   };

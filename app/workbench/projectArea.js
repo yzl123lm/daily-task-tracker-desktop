@@ -10,6 +10,12 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+const PROJECT_STATUS_LABELS = {
+  ACTIVE: "进行中",
+  ARCHIVED: "已归档",
+  DELETED: "已删除",
+};
+
 function ensureNewProjectModal() {
   let modal = document.getElementById("wbNewProjectModal");
   if (modal) {
@@ -39,10 +45,71 @@ function ensureNewProjectModal() {
           <span>技术栈（逗号分隔）</span>
           <input id="wbProjectStackInput" type="text" placeholder="Electron, JavaScript" />
         </label>
+        <label class="wb-field">
+          <span>代码目录（可选）</span>
+          <div class="wb-field__row">
+            <input id="wbProjectPathInput" type="text" readonly placeholder="未选择则使用默认工作区" />
+            <button type="button" id="wbProjectPickPathBtn" class="secondary">选择目录</button>
+          </div>
+        </label>
         <p id="wbNewProjectError" class="wb-form-error" hidden></p>
         <footer class="wb-modal__foot">
           <button type="button" class="secondary" data-wb-close="1">取消</button>
           <button type="submit" class="primary">创建</button>
+        </footer>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener("click", (ev) => {
+    if (ev.target?.dataset?.wbClose === "1") {
+      modal.hidden = true;
+    }
+  });
+  return modal;
+}
+
+function ensureEditProjectModal() {
+  let modal = document.getElementById("wbEditProjectModal");
+  if (modal) {
+    return modal;
+  }
+  modal = document.createElement("div");
+  modal.id = "wbEditProjectModal";
+  modal.className = "wb-modal";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="wb-modal__backdrop" data-wb-close="1"></div>
+    <div class="wb-modal__panel" role="dialog" aria-labelledby="wbEditProjectTitle">
+      <header class="wb-modal__head">
+        <h2 id="wbEditProjectTitle">编辑项目</h2>
+        <button type="button" class="wb-modal__close" data-wb-close="1" aria-label="关闭">×</button>
+      </header>
+      <form id="wbEditProjectForm" class="wb-modal__body">
+        <input type="hidden" id="wbEditProjectId" value="" />
+        <label class="wb-field">
+          <span>项目名称</span>
+          <input id="wbEditProjectNameInput" type="text" maxlength="120" required />
+        </label>
+        <label class="wb-field">
+          <span>项目描述</span>
+          <textarea id="wbEditProjectDescInput" rows="3"></textarea>
+        </label>
+        <label class="wb-field">
+          <span>技术栈（逗号分隔）</span>
+          <input id="wbEditProjectStackInput" type="text" />
+        </label>
+        <label class="wb-field">
+          <span>代码目录</span>
+          <div class="wb-field__row">
+            <input id="wbEditProjectPathInput" type="text" readonly />
+            <button type="button" id="wbEditProjectPickPathBtn" class="secondary">选择</button>
+          </div>
+        </label>
+        <p id="wbEditProjectError" class="wb-form-error" hidden></p>
+        <footer class="wb-modal__foot">
+          <button type="button" class="secondary" data-wb-close="1">取消</button>
+          <button type="submit" class="primary">保存</button>
         </footer>
       </form>
     </div>
@@ -67,6 +134,22 @@ function openNewProjectModal() {
   document.getElementById("wbProjectNameInput")?.focus();
 }
 
+async function openEditProjectModal(project) {
+  const modal = ensureEditProjectModal();
+  const err = document.getElementById("wbEditProjectError");
+  if (err) {
+    err.hidden = true;
+    err.textContent = "";
+  }
+  document.getElementById("wbEditProjectId").value = project.id;
+  document.getElementById("wbEditProjectNameInput").value = project.name || "";
+  document.getElementById("wbEditProjectDescInput").value = project.description || "";
+  document.getElementById("wbEditProjectStackInput").value = (project.techStack || []).join(", ");
+  document.getElementById("wbEditProjectPathInput").value = project.localPath || "";
+  modal.hidden = false;
+  document.getElementById("wbEditProjectNameInput")?.focus();
+}
+
 async function submitNewProject(ev) {
   ev.preventDefault();
   const api = wbApi();
@@ -79,9 +162,10 @@ async function submitNewProject(ev) {
   const techStack = stackRaw
     ? stackRaw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
     : [];
+  const localPath = document.getElementById("wbProjectPathInput")?.value?.trim() || null;
   const errEl = document.getElementById("wbNewProjectError");
   try {
-    await api.wbProjectCreate({ name, description, techStack });
+    await api.wbProjectCreate({ name, description, techStack, localPath });
     document.getElementById("wbNewProjectModal").hidden = true;
     await window.__wbRefreshProjects?.();
   } catch (err) {
@@ -89,6 +173,90 @@ async function submitNewProject(ev) {
       errEl.hidden = false;
       errEl.textContent = err?.message || "创建失败";
     }
+  }
+}
+
+async function submitEditProject(ev) {
+  ev.preventDefault();
+  const api = wbApi();
+  const projectId = document.getElementById("wbEditProjectId")?.value?.trim();
+  const name = document.getElementById("wbEditProjectNameInput")?.value?.trim();
+  const description = document.getElementById("wbEditProjectDescInput")?.value?.trim() || "";
+  const stackRaw = document.getElementById("wbEditProjectStackInput")?.value?.trim() || "";
+  const techStack = stackRaw
+    ? stackRaw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
+    : [];
+  const localPath = document.getElementById("wbEditProjectPathInput")?.value?.trim() || null;
+  const errEl = document.getElementById("wbEditProjectError");
+  if (!projectId || !name) {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = "请填写项目名称";
+    }
+    return;
+  }
+  try {
+    await api.wbProjectUpdate({ projectId, name, description, techStack, localPath });
+    document.getElementById("wbEditProjectModal").hidden = true;
+    await window.__wbRefreshProjects?.();
+    if (window.__wbStore?.getState?.().selectedProjectId === projectId) {
+      await window.__wbShowProjectWorkspace?.(projectId);
+    }
+  } catch (err) {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = err?.message || "保存失败";
+    }
+  }
+}
+
+async function afterProjectRemoved(projectId) {
+  const store = window.__wbStore?.getState?.() || {};
+  if (store.selectedProjectId === projectId) {
+    window.__wbStore?.clearSelection?.();
+    window.__wbHideProjectWorkspace?.();
+    const aiMain = document.getElementById("aiPanelMain");
+    if (aiMain) {
+      aiMain.hidden = false;
+    }
+  }
+  await window.__wbRefreshProjects?.();
+}
+
+async function archiveProject(project) {
+  const api = wbApi();
+  if (!project?.id || typeof api.wbProjectArchive !== "function") {
+    return;
+  }
+  const ok = window.confirm(`归档项目「${project.name}」？\n\n归档后将从列表隐藏，数据仍保留。`);
+  if (!ok) {
+    return;
+  }
+  await api.wbProjectArchive({ projectId: project.id });
+  await afterProjectRemoved(project.id);
+}
+
+async function deleteProject(project) {
+  const api = wbApi();
+  if (!project?.id || typeof api.wbProjectDelete !== "function") {
+    return;
+  }
+  const ok = window.confirm(
+    `删除项目「${project.name}」？\n\n此为软删除，项目将从列表移除。关联任务与记忆仍保留在数据库中。`
+  );
+  if (!ok) {
+    return;
+  }
+  await api.wbProjectDelete({ projectId: project.id });
+  await afterProjectRemoved(project.id);
+}
+
+function selectProject(projectId) {
+  window.__wbPersistActiveChatSnapshot?.();
+  window.__wbStore?.selectProject?.(projectId);
+  window.__wbShowProjectWorkspace?.(projectId);
+  if (typeof window.activateRoute === "function") {
+    window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
   }
 }
 
@@ -100,34 +268,51 @@ function renderProjectList() {
   }
   const store = window.__wbStore?.getState?.() || {};
   const projects = store.projects || [];
-  list.querySelectorAll(".wb-project-card").forEach((el) => el.remove());
+  list.querySelectorAll(".wb-list-card").forEach((el) => el.remove());
   if (empty) {
     empty.hidden = projects.length > 0;
   }
   projects.forEach((project) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "wb-project-card jl-ai-session-item";
-    btn.dataset.projectId = project.id;
-    btn.setAttribute("role", "listitem");
-    btn.classList.toggle("is-active", project.id === store.selectedProjectId);
-    btn.innerHTML = `
-      <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
-      <span class="wb-project-card__meta">${escapeHtml(project.status || "ACTIVE")}</span>
+    const card = document.createElement("div");
+    card.className = "wb-list-card";
+    card.dataset.projectId = project.id;
+    const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
+    card.innerHTML = `
+      <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
+        <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
+        <span class="wb-project-card__meta">${escapeHtml(statusLabel)}</span>
+      </button>
+      <div class="wb-list-card__actions" role="group" aria-label="项目操作">
+        <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
+        <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
+        <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+      </div>
     `;
-    btn.addEventListener("click", () => {
-      window.__wbPersistActiveChatSnapshot?.();
-      window.__wbStore?.selectProject?.(project.id);
-      window.__wbShowProjectWorkspace?.(project.id);
-      if (typeof window.activateRoute === "function") {
-        window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
-      }
+    card.classList.toggle("is-active", project.id === store.selectedProjectId);
+    card.querySelector(".wb-list-card__body")?.addEventListener("click", () => {
+      list.querySelectorAll(".wb-list-card").forEach((el) => el.classList.remove("is-active"));
+      card.classList.add("is-active");
+      selectProject(project.id);
     });
-    list.appendChild(btn);
+    card.querySelector('[data-action="edit"]')?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      void openEditProjectModal(project);
+    });
+    card.querySelector('[data-action="archive"]')?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      void archiveProject(project);
+    });
+    card.querySelector('[data-action="delete"]')?.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      void deleteProject(project);
+    });
+    list.appendChild(card);
   });
 }
 
 function bindProjectArea() {
+  ensureNewProjectModal();
+  ensureEditProjectModal();
   const newBtn = document.getElementById("jlProjectNewBtn");
   if (newBtn && newBtn.dataset.wbBound !== "1") {
     newBtn.dataset.wbBound = "1";
@@ -138,6 +323,31 @@ function bindProjectArea() {
     form.dataset.wbBound = "1";
     form.addEventListener("submit", submitNewProject);
   }
+  const editForm = document.getElementById("wbEditProjectForm");
+  if (editForm && editForm.dataset.wbBound !== "1") {
+    editForm.dataset.wbBound = "1";
+    editForm.addEventListener("submit", submitEditProject);
+  }
+  document.getElementById("wbProjectPickPathBtn")?.addEventListener("click", async () => {
+    const api = wbApi();
+    if (typeof api.wbProjectChooseRoot !== "function") {
+      return;
+    }
+    const dir = await api.wbProjectChooseRoot();
+    if (dir) {
+      document.getElementById("wbProjectPathInput").value = dir;
+    }
+  });
+  document.getElementById("wbEditProjectPickPathBtn")?.addEventListener("click", async () => {
+    const api = wbApi();
+    if (typeof api.wbProjectChooseRoot !== "function") {
+      return;
+    }
+    const dir = await api.wbProjectChooseRoot();
+    if (dir) {
+      document.getElementById("wbEditProjectPathInput").value = dir;
+    }
+  });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", renderProjectList);
 }
 
