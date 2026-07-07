@@ -180,6 +180,9 @@ async function deleteChat(chat) {
   const snapshots = JSON.parse(localStorage.getItem("wb_chat_snapshots_v1") || "{}");
   delete snapshots[chat.id];
   localStorage.setItem("wb_chat_snapshots_v1", JSON.stringify(snapshots));
+  const ctxSnaps = JSON.parse(localStorage.getItem("wb_chat_context_snapshots_v1") || "{}");
+  delete ctxSnaps[chat.id];
+  localStorage.setItem("wb_chat_context_snapshots_v1", JSON.stringify(ctxSnaps));
   await afterChatRemoved(chat.id);
 }
 

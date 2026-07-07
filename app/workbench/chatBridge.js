@@ -1,15 +1,24 @@
 const WB_CHAT_SNAPSHOTS_KEY = "wb_chat_snapshots_v1";
+const WB_CHAT_CONTEXT_KEY = "wb_chat_context_snapshots_v1";
 const WB_ACTIVE_CHAT_KEY = "wb_active_chat_id_v1";
 const WB_CHAT_MIGRATED_KEY = "wb_chat_migrated_v1";
 const AI_THREADS_STORAGE_KEY = "daily_task_tracker_ai_threads_v1";
 const AI_THREAD_SNAPSHOTS_KEY = "daily_task_tracker_ai_thread_snapshots_v1";
 const AI_ACTIVE_THREAD_KEY = "daily_task_tracker_ai_active_thread_v1";
+const CONTEXT_SUMMARY_MAX = 2000;
 
 const DEV_REQUEST_RE =
   /改代码|写文件|运行命令|执行命令|git\s*(commit|push)|提交代码|修改项目|部署上线|shell/i;
 
+const sessionCache = new Map();
+let chatSwitchGen = 0;
+
 function wbApi() {
   return window.electronAPI || {};
+}
+
+function sessionModel() {
+  return window.__wbChatSessionModel || {};
 }
 
 function readJson(key, fallback) {
@@ -33,6 +42,14 @@ function writeChatSnapshots(map) {
   writeJson(WB_CHAT_SNAPSHOTS_KEY, map || {});
 }
 
+function readChatContextSnapshots() {
+  return readJson(WB_CHAT_CONTEXT_KEY, {});
+}
+
+function writeChatContextSnapshots(map) {
+  writeJson(WB_CHAT_CONTEXT_KEY, map || {});
+}
+
 function getActiveChatId() {
   return window.__wbStore?.getState?.().selectedChatId || null;
 }
@@ -49,6 +66,161 @@ function readStoredActiveChatId() {
     return String(localStorage.getItem(WB_ACTIVE_CHAT_KEY) || "").trim() || null;
   } catch {
     return null;
+  }
+}
+
+function getChatContextSnapshot(chatId) {
+  const id = String(chatId || "").trim();
+  if (!id) {
+    return "";
+  }
+  const cached = sessionCache.get(id);
+  if (cached?.contextSnapshot) {
+    return cached.contextSnapshot;
+  }
+  return String(readChatContextSnapshots()[id] || "").trim();
+}
+
+function updateChatContextSnapshot(chatId, userText, assistantText) {
+  const id = String(chatId || "").trim();
+  const u = String(userText || "").replace(/\s+/g, " ").trim().slice(0, 220);
+  const a = String(assistantText || "").replace(/\s+/g, " ").trim().slice(0, 360);
+  if (!id || (!u && !a)) {
+    return;
+  }
+  const prev = getChatContextSnapshot(id);
+  const line = `Q: ${u} → A: ${a}`;
+  let next = prev ? `${prev}\n${line}` : line;
+  if (next.length > CONTEXT_SUMMARY_MAX) {
+    next = next.slice(next.length - CONTEXT_SUMMARY_MAX);
+  }
+  const map = readChatContextSnapshots();
+  map[id] = next;
+  writeChatContextSnapshots(map);
+  const cached = sessionCache.get(id);
+  if (cached) {
+    cached.contextSnapshot = next;
+    sessionCache.set(id, cached);
+  }
+}
+
+function cacheSession(session) {
+  if (!session?.id) {
+    return session;
+  }
+  sessionCache.set(session.id, session);
+  return session;
+}
+
+function getCachedSession(chatId) {
+  return sessionCache.get(String(chatId || "").trim()) || null;
+}
+
+async function fetchChatSession(chatId, { force = false } = {}) {
+  const id = String(chatId || "").trim();
+  if (!id) {
+    return null;
+  }
+  if (!force) {
+    const cached = getCachedSession(id);
+    if (cached?.messages?.length) {
+      return cached;
+    }
+  }
+  const api = wbApi();
+  if (typeof api.wbChatGet !== "function") {
+    return null;
+  }
+  try {
+    const raw = await api.wbChatGet({ chatId: id, includeMessages: true });
+    const normalize = sessionModel().normalizeChatSession;
+    const session = normalize
+      ? normalize(raw, {
+          summary: raw?.summary || "",
+          contextSnapshot: getChatContextSnapshot(id),
+        })
+      : {
+          id,
+          title: raw?.title || "未命名对话",
+          createdAt: raw?.createdAt,
+          updatedAt: raw?.updatedAt,
+          messages: (raw?.messages || []).map((m) => ({
+            id: m.id,
+            sessionId: id,
+            role: m.role,
+            content: m.content,
+            createdAt: m.createdAt,
+          })),
+          summary: raw?.summary || "",
+          contextSnapshot: getChatContextSnapshot(id),
+        };
+    return cacheSession(session);
+  } catch {
+    return getCachedSession(id);
+  }
+}
+
+async function backfillMessagesFromTurns(chatId, turns) {
+  const id = String(chatId || "").trim();
+  const api = wbApi();
+  const list = Array.isArray(turns) ? turns : [];
+  if (!id || !list.length || typeof api.wbChatAppendMessage !== "function") {
+    return;
+  }
+  for (const turn of list) {
+    const role = turn?.role === "assistant" ? "assistant" : "user";
+    const content = String(turn?.content || "").trim();
+    if (!content) {
+      continue;
+    }
+    try {
+      await api.wbChatAppendMessage({ chatId: id, role, content });
+    } catch {
+      /* ignore duplicate */
+    }
+  }
+  sessionCache.delete(id);
+}
+
+function persistActiveChatSnapshot(html) {
+  const chatId = getActiveChatId();
+  if (!chatId) {
+    return;
+  }
+  const content =
+    typeof html === "string"
+      ? html
+      : typeof window.__aiGetChatLogHtml === "function"
+        ? window.__aiGetChatLogHtml()
+        : "";
+  const snapshots = readChatSnapshots();
+  snapshots[chatId] = content;
+  writeChatSnapshots(snapshots);
+}
+
+async function saveCurrentChatState(chatId) {
+  const id = String(chatId || "").trim();
+  if (!id) {
+    return;
+  }
+  persistActiveChatSnapshot();
+  if (typeof window.__aiGetBoundChatId === "function" && window.__aiGetBoundChatId() !== id) {
+    return;
+  }
+  const turns =
+    typeof window.__aiGetChatTurns === "function" ? window.__aiGetChatTurns() : [];
+  if (turns.length) {
+    const cached = getCachedSession(id) || { id, messages: [] };
+    const normalize = sessionModel().normalizeChatMessage;
+    cached.messages = turns.map((t, index) =>
+      normalize
+        ? normalize(
+            { id: `local-${id}-${index}`, role: t.role, content: t.content },
+            id
+          )
+        : { id: `local-${id}-${index}`, sessionId: id, role: t.role, content: t.content }
+    );
+    cacheSession(cached);
   }
 }
 
@@ -75,6 +247,11 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
   try {
     const chat = await api.wbChatCreate({ title: nextTitle });
     const chatId = chat.id;
+    cacheSession(
+      sessionModel().normalizeChatSession
+        ? sessionModel().normalizeChatSession(chat, { messages: [] })
+        : { ...chat, messages: [], contextSnapshot: "" }
+    );
     window.__wbStore?.selectChat?.(chatId);
     persistActiveChatId(chatId);
     window.__wbHideProjectWorkspace?.();
@@ -84,22 +261,6 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
   } catch {
     return null;
   }
-}
-
-function persistActiveChatSnapshot(html) {
-  const chatId = getActiveChatId();
-  if (!chatId) {
-    return;
-  }
-  const content =
-    typeof html === "string"
-      ? html
-      : typeof window.__aiGetChatLogHtml === "function"
-        ? window.__aiGetChatLogHtml()
-        : "";
-  const snapshots = readChatSnapshots();
-  snapshots[chatId] = content;
-  writeChatSnapshots(snapshots);
 }
 
 async function migrateLegacyChats() {
@@ -143,34 +304,46 @@ async function migrateLegacyChats() {
   }
 }
 
-async function loadChatIntoAi(chatId) {
-  const api = wbApi();
+async function loadChatIntoAi(chatId, { loadGen } = {}) {
   const id = String(chatId || "").trim();
   if (!id) {
     return;
   }
-  if (typeof api.wbChatGet === "function") {
-    try {
-      const chat = await api.wbChatGet({ chatId: id, includeMessages: true });
-      const turns = (chat.messages || []).map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-      if (typeof window.__aiLoadChatTurns === "function" && turns.length) {
-        window.__aiLoadChatTurns(turns);
-        return;
-      }
-    } catch {
-      /* fall through to snapshot */
-    }
+  const session = await fetchChatSession(id, { force: true });
+  if (loadGen != null && loadGen !== chatSwitchGen) {
+    return;
   }
-  const snapshots = readChatSnapshots();
-  if (snapshots[id] && typeof window.__aiSetChatLogHtml === "function") {
-    window.__aiSetChatLogHtml(snapshots[id]);
+  const turnsFromDb = sessionModel().turnsFromMessages
+    ? sessionModel().turnsFromMessages(session?.messages || [])
+    : (session?.messages || []).map((m) => ({ role: m.role, content: m.content }));
+
+  if (turnsFromDb.length) {
+    if (typeof window.__aiLoadChatTurns === "function") {
+      window.__aiLoadChatTurns(turnsFromDb, { sessionId: id });
+    }
+    return;
+  }
+
+  const snapHtml = readChatSnapshots()[id];
+  if (snapHtml && typeof window.__aiSetChatLogHtml === "function") {
+    window.__aiSetChatLogHtml(snapHtml, { sessionId: id });
+    if (loadGen != null && loadGen !== chatSwitchGen) {
+      return;
+    }
+    const extracted =
+      typeof window.__aiGetChatTurns === "function" ? window.__aiGetChatTurns() : [];
+    if (extracted.length) {
+      await backfillMessagesFromTurns(id, extracted);
+    }
+    return;
+  }
+
+  if (typeof window.__aiLoadChatTurns === "function") {
+    window.__aiLoadChatTurns([], { sessionId: id });
     return;
   }
   if (typeof window.__aiClearChatLog === "function") {
-    window.__aiClearChatLog();
+    window.__aiClearChatLog({ sessionId: id });
   }
 }
 
@@ -179,14 +352,21 @@ async function switchChat(chatId) {
   if (!nextId) {
     return;
   }
+  const loadGen = ++chatSwitchGen;
   const prev = getActiveChatId();
-  if (prev && prev !== nextId) {
-    persistActiveChatSnapshot();
+  if (typeof window.__aiAbortActiveCompose === "function") {
+    window.__aiAbortActiveCompose();
+  }
+  if (prev) {
+    await saveCurrentChatState(prev);
   }
   window.__wbHideProjectWorkspace?.();
   window.__wbStore?.selectChat?.(nextId);
   persistActiveChatId(nextId);
-  await loadChatIntoAi(nextId);
+  await loadChatIntoAi(nextId, { loadGen });
+  if (loadGen !== chatSwitchGen) {
+    return;
+  }
   window.__wbRenderChats?.();
   window.__wbRenderProjects?.();
   if (typeof window.activateRoute === "function") {
@@ -225,8 +405,16 @@ async function persistChatMessage(role, content) {
   if (!body) {
     return;
   }
+  if (
+    typeof window.__aiGetBoundChatId === "function" &&
+    window.__aiGetBoundChatId() &&
+    window.__aiGetBoundChatId() !== chatId
+  ) {
+    return;
+  }
   try {
     const result = await api.wbChatAppendMessage({ chatId, role, content: body });
+    sessionCache.delete(chatId);
     if (result?.summaryUpdate?.updated && typeof window.__wbRefreshChats === "function") {
       await window.__wbRefreshChats();
     }
@@ -248,7 +436,7 @@ async function fetchChatAgentContextBlock() {
       return "";
     }
     return (
-      "【会话区 ChatAgent 上下文（仅当前 chat namespace，无项目文件权限）】\n" +
+      "【当前会话上下文（仅本会话 chat namespace，与项目区域隔离）】\n" +
       "当用户要求修改项目代码、执行命令或 Git 操作时，提示其切换到左侧项目区域。\n\n" +
       text
     );
@@ -270,12 +458,18 @@ function devRequestReply() {
 
 window.__wbMigrateLegacyChats = migrateLegacyChats;
 window.__wbGetActiveChatId = getActiveChatId;
+window.__wbGetBoundChatSessionId = () =>
+  typeof window.__aiGetBoundChatId === "function" ? window.__aiGetBoundChatId() : null;
 window.__wbPersistActiveChatId = persistActiveChatId;
 window.__wbReadStoredActiveChatId = readStoredActiveChatId;
 window.__wbEnsureActiveChatSession = ensureActiveChatSession;
 window.__wbSwitchChat = switchChat;
+window.__wbFetchChatSession = fetchChatSession;
+window.__wbGetCachedChatSession = getCachedSession;
 window.__wbPersistActiveChatSnapshot = persistActiveChatSnapshot;
 window.__wbSaveChatSnapshot = persistActiveChatSnapshot;
+window.__wbGetChatContextSnapshot = getChatContextSnapshot;
+window.__wbUpdateChatContextSnapshot = updateChatContextSnapshot;
 window.__wbTouchChatTitle = touchChatTitle;
 window.__wbOnAiUserMessage = async (text) => {
   await ensureActiveChatSession({ titleSeed: text });

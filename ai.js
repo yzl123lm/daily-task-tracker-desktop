@@ -153,6 +153,17 @@ function buildLongMemoryBlock() {
 }
 
 function readSessionSummary() {
+  if (
+    typeof window.__wbIsWorkbenchChatMode === "function" &&
+    window.__wbIsWorkbenchChatMode() &&
+    typeof window.__wbGetChatContextSnapshot === "function" &&
+    typeof window.__wbGetActiveChatId === "function"
+  ) {
+    const chatId = window.__wbGetActiveChatId();
+    if (chatId) {
+      return String(window.__wbGetChatContextSnapshot(chatId) || "").trim();
+    }
+  }
   try {
     return String(localStorage.getItem(AI_SESSION_SUMMARY_KEY) || "").trim();
   } catch {
@@ -161,6 +172,18 @@ function readSessionSummary() {
 }
 
 function updateSessionSummary(userText, assistantText) {
+  if (
+    typeof window.__wbIsWorkbenchChatMode === "function" &&
+    window.__wbIsWorkbenchChatMode() &&
+    typeof window.__wbUpdateChatContextSnapshot === "function" &&
+    typeof window.__wbGetActiveChatId === "function"
+  ) {
+    const chatId = window.__wbGetActiveChatId();
+    if (chatId) {
+      window.__wbUpdateChatContextSnapshot(chatId, userText, assistantText);
+      return;
+    }
+  }
   const u = String(userText || "").replace(/\s+/g, " ").trim().slice(0, 220);
   const a = String(assistantText || "").replace(/\s+/g, " ").trim().slice(0, 360);
   if (!u && !a) {
@@ -1156,6 +1179,7 @@ function initAI() {
   }
 
   let chatTurns = [];
+  let boundChatId = null;
   let syncingSelect = false;
   let cachedState = { profiles: [], activeId: "", webSearch: false };
   let searchRuleDraft = null;
@@ -1756,6 +1780,50 @@ function initAI() {
     } else {
       closeModeMenu();
     }
+  }
+
+  function rebuildChatTurnsFromDom() {
+    chatTurns.length = 0;
+    if (!chatLog) {
+      return;
+    }
+    chatLog.querySelectorAll(".ai-msg").forEach((row) => {
+      if (row.classList.contains("ai-msg-error")) {
+        return;
+      }
+      const role = row.classList.contains("ai-msg-user")
+        ? "user"
+        : row.classList.contains("ai-msg-assistant")
+          ? "assistant"
+          : null;
+      if (!role) {
+        return;
+      }
+      const body = row.querySelector(".ai-msg-body");
+      const raw =
+        body?.dataset?.rawText ||
+        body?.querySelector(".ai-msg-core-text")?.textContent ||
+        body?.textContent ||
+        "";
+      const content = String(raw).trim();
+      if (!content) {
+        return;
+      }
+      chatTurns.push({ role, content });
+    });
+  }
+
+  function setBoundChatSession(sessionId) {
+    boundChatId = sessionId ? String(sessionId).trim() : null;
+  }
+
+  function assertBoundChatSession() {
+    const active =
+      typeof window.__wbGetActiveChatId === "function" ? window.__wbGetActiveChatId() : null;
+    if (!active || !boundChatId || active === boundChatId) {
+      return true;
+    }
+    return false;
   }
 
   function abortActiveAiChatCompose() {
@@ -4011,7 +4079,10 @@ function initAI() {
   async function buildMessagesForRequest(docEntries = null) {
     const ctx = buildTaskContext();
     const memoryBlock = buildLongMemoryBlock();
-    const sessionBlock = buildSessionSummaryBlock();
+    const sessionBlock =
+      typeof window.__wbIsWorkbenchChatMode === "function" && window.__wbIsWorkbenchChatMode()
+        ? ""
+        : buildSessionSummaryBlock();
     const docContextBlock = buildPendingDocContextBlock(Array.isArray(docEntries) ? docEntries : pendingDocEntries);
     let locationBlock = "";
     try {
@@ -4063,6 +4134,23 @@ function initAI() {
     }
     if (chatStatusEl?.classList.contains("is-busy")) {
       return false;
+    }
+    if (
+      typeof window.__wbIsWorkbenchChatMode === "function" &&
+      window.__wbIsWorkbenchChatMode() &&
+      typeof window.__wbGetActiveChatId === "function" &&
+      typeof window.__wbSwitchChat === "function"
+    ) {
+      const activeChatId = window.__wbGetActiveChatId();
+      if (activeChatId && boundChatId && activeChatId !== boundChatId) {
+        await window.__wbSwitchChat(activeChatId);
+      }
+    }
+    if (!assertBoundChatSession() && typeof window.__wbSwitchChat === "function") {
+      const activeChatId = window.__wbGetActiveChatId?.();
+      if (activeChatId) {
+        await window.__wbSwitchChat(activeChatId);
+      }
     }
     if (/^\/help\b/i.test(trimmed)) {
       appendBubble("user", trimmed);
@@ -4488,18 +4576,24 @@ function initAI() {
   };
 
   window.__aiGetChatLogHtml = () => chatLog?.innerHTML || "";
-  window.__aiSetChatLogHtml = (html) => {
+  window.__aiGetChatTurns = () => chatTurns.map((t) => ({ role: t.role, content: t.content }));
+  window.__aiGetBoundChatId = () => boundChatId;
+  window.__aiAbortActiveCompose = abortActiveAiChatCompose;
+  window.__aiSetChatLogHtml = (html, { sessionId } = {}) => {
     if (!chatLog) {
       return;
     }
+    setBoundChatSession(sessionId || window.__wbGetActiveChatId?.() || null);
     chatLog.innerHTML = html || "";
+    rebuildChatTurnsFromDom();
     syncChatEmptyState();
     scrollChatToBottom();
   };
-  window.__aiClearChatLog = () => {
+  window.__aiClearChatLog = ({ sessionId } = {}) => {
     if (!chatLog) {
       return;
     }
+    setBoundChatSession(sessionId || null);
     chatLog.innerHTML = "";
     chatTurns.length = 0;
     syncChatEmptyState();
@@ -4510,10 +4604,11 @@ function initAI() {
     }
   };
 
-  window.__aiLoadChatTurns = function __aiLoadChatTurns(turns) {
+  window.__aiLoadChatTurns = function __aiLoadChatTurns(turns, { sessionId } = {}) {
     if (!chatLog) {
       return;
     }
+    setBoundChatSession(sessionId || window.__wbGetActiveChatId?.() || null);
     chatLog.innerHTML = "";
     chatTurns.length = 0;
     const list = Array.isArray(turns) ? turns : [];
@@ -4528,7 +4623,7 @@ function initAI() {
     });
     syncChatEmptyState();
     scrollChatToBottom();
-    if (typeof window.__wbSaveChatSnapshot === "function" && window.__wbGetActiveChatId?.()) {
+    if (typeof window.__wbSaveChatSnapshot === "function" && boundChatId) {
       window.__wbSaveChatSnapshot(chatLog.innerHTML);
     }
   };
