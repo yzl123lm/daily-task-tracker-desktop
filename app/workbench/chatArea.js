@@ -259,6 +259,26 @@ async function createChatSession() {
 
 function bindChatArea() {
   ensureEditChatModal();
+  const list = document.getElementById("jlAiSessionList");
+  if (list && list.dataset.wbChatDelegate !== "1") {
+    list.dataset.wbChatDelegate = "1";
+    list.addEventListener("click", (ev) => {
+      const actionBtn = ev.target.closest(".wb-list-card__actions [data-action]");
+      if (actionBtn) {
+        return;
+      }
+      const card = ev.target.closest(".wb-list-card--chat");
+      const body = ev.target.closest(".wb-list-card__body");
+      if (!card || !body) {
+        return;
+      }
+      const chatId = card.dataset.chatId;
+      if (chatId) {
+        ev.preventDefault();
+        void window.__wbSwitchChat?.(chatId);
+      }
+    });
+  }
   const newBtn = document.getElementById("jlAiNewSessionBtn");
   if (newBtn && newBtn.dataset.wbBound !== "1") {
     newBtn.dataset.wbBound = "1";

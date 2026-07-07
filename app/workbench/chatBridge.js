@@ -360,12 +360,19 @@ async function switchChat(chatId) {
   if (prev) {
     await saveCurrentChatState(prev);
   }
-  window.__wbHideProjectWorkspace?.();
+  if (typeof window.__wbShowChatView === "function") {
+    window.__wbShowChatView();
+  } else {
+    window.__wbHideProjectWorkspace?.();
+  }
   window.__wbStore?.selectChat?.(nextId);
   persistActiveChatId(nextId);
   await loadChatIntoAi(nextId, { loadGen });
   if (loadGen !== chatSwitchGen) {
     return;
+  }
+  if (typeof window.__wbShowChatView === "function") {
+    window.__wbShowChatView();
   }
   window.__wbRenderChats?.();
   window.__wbRenderProjects?.();

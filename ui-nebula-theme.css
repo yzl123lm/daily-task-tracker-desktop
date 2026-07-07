@@ -4748,6 +4748,10 @@ body.jl-project-workspace-active .jl-prompt-dock {
   display: none !important;
 }
 
+body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai #wbProjectWorkspace {
+  display: none !important;
+}
+
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace {
   flex: 1 1 auto;
   min-height: 0;

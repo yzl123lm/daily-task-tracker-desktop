@@ -281,15 +281,36 @@ function syncProjectViewChrome(active) {
   }
 }
 
-function showProjectWorkspaceView() {
+function showProjectWorkspaceView(projectId, gen) {
+  if (projectId != null && gen != null && !isProjectViewActive(projectId, gen)) {
+    return;
+  }
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
   if (root) {
     root.hidden = false;
+    root.removeAttribute("hidden");
   }
   syncProjectViewChrome(true);
   if (aiMain) {
     aiMain.hidden = true;
+    aiMain.setAttribute("hidden", "");
+  }
+}
+
+function showChatView() {
+  projectWorkspaceLoadGen += 1;
+  const root = document.getElementById("wbProjectWorkspace");
+  const aiMain = document.getElementById("aiPanelMain");
+  document.body.classList.remove("jl-project-workspace-active");
+  if (root) {
+    root.hidden = true;
+    root.setAttribute("hidden", "");
+  }
+  syncProjectViewChrome(false);
+  if (aiMain) {
+    aiMain.hidden = false;
+    aiMain.removeAttribute("hidden");
   }
 }
 
@@ -314,7 +335,10 @@ async function loadProjectWorkspace(projectId) {
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
   const selectedId = tasks[0]?.id;
   renderTasks(tasks, selectedId);
-  showProjectWorkspaceView();
+  if (!isProjectViewActive(id, gen)) {
+    return;
+  }
+  showProjectWorkspaceView(id, gen);
   document.getElementById("wbPlanCard").hidden = true;
   document.getElementById("wbAgentOutput").hidden = true;
   document.getElementById("wbAgentOutput").textContent = "";
@@ -328,7 +352,7 @@ async function loadProjectWorkspace(projectId) {
   window.__wbBindCodePanel?.();
   await window.__wbRefreshCodePanel?.(id, selectedId);
   if (!isProjectViewActive(id, gen)) {
-    hideProjectWorkspace();
+    return;
   }
 }
 
@@ -363,16 +387,7 @@ async function manualCompressProject() {
 }
 
 function hideProjectWorkspace() {
-  projectWorkspaceLoadGen += 1;
-  const root = document.getElementById("wbProjectWorkspace");
-  const aiMain = document.getElementById("aiPanelMain");
-  if (root) {
-    root.hidden = true;
-  }
-  syncProjectViewChrome(false);
-  if (aiMain) {
-    aiMain.hidden = false;
-  }
+  showChatView();
 }
 
 async function createTaskForProject(projectId) {
@@ -564,8 +579,7 @@ function bindProjectWorkspace() {
   });
 }
 
-window.__wbShowChatView = hideProjectWorkspace;
-
+window.__wbShowChatView = showChatView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;
