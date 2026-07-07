@@ -230,6 +230,48 @@
   align-items: center;
 }
 
+.wb-list-card--project .wb-list-card__actions--overlay {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  flex-direction: row;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e8eef5;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.wb-list-card--project:hover .wb-list-card__actions--overlay,
+.wb-list-card--project:focus-within .wb-list-card__actions--overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.wb-project-card__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.wb-list-card--project .wb-project-card__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wb-list-card--project .wb-status-pill {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 .wb-list-card--chat .wb-list-card__actions--overlay {
   position: absolute;
   top: 6px;
@@ -494,10 +536,12 @@ body.jl-window-ai .wb-project-card.jl-ai-session-item {
   display: flex;
   flex-direction: row;
   align-items: center;
+  width: 100%;
+  min-width: 0;
   color: inherit;
   white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border: none;
   background: transparent;
   padding: 0;
@@ -1756,4 +1800,47 @@ body.jl-project-workspace-active .wb-pws-resize-handle:hover::after,
 body.jl-project-workspace-active .wb-pws-resize-handle.is-dragging::after {
   background: #3b82f6;
   opacity: 0.55;
+}
+
+/* AI 主界面：隐藏 Electron/API 大提示卡，侧栏分区独立滚动 */
+body.jl-window-ai .jl-workbench-sidepanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--project {
+  flex: 0 1 auto;
+  min-height: 72px;
+  max-height: 38%;
+  overflow: hidden;
+}
+
+body.jl-window-ai .jl-workbench-nav__zone--sessions {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+body.jl-window-ai .jl-project-list,
+body.jl-window-ai .jl-ai-session-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+body.jl-window-ai #aiWebFallback,
+body.jl-window-ai #panel-ai:has(#aiPanelMain:not([hidden])) #aiWebFallback {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  box-shadow: none !important;
 }

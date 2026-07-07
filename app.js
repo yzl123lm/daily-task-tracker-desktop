@@ -2179,6 +2179,9 @@ function syncWorkbenchNavRailActive(routeOrPanel) {
   });
 }
 
+window.__jlSyncWorkbenchSidePanelView = syncWorkbenchSidePanelView;
+window.__jlSyncWorkbenchNavRailActive = syncWorkbenchNavRailActive;
+
 function bindWorkbenchNavClicks() {
   const nav = document.getElementById("jlWorkbenchNav");
   if (!nav || nav.dataset.jlNavBound === "1") {
@@ -2325,7 +2328,7 @@ function createAiThread() {
   persistActiveAiThreadSnapshot();
   const threads = readAiThreads();
   const id = `t_${Date.now()}`;
-  threads.unshift({ id, title: `对话 ${threads.length + 1}`, updatedAt: Date.now() });
+  threads.unshift({ id, title: "新对话", updatedAt: Date.now() });
   writeAiThreads(threads);
   activeAiThreadId = id;
   localStorage.setItem(AI_ACTIVE_THREAD_KEY, id);
@@ -2336,7 +2339,10 @@ function createAiThread() {
 }
 
 function touchActiveAiThreadTitle(text) {
-  const title = String(text || "").trim().slice(0, 24);
+  const model = window.__wbChatSessionModel;
+  const title = model?.generateConversationTitle
+    ? model.generateConversationTitle([{ role: "user", content: String(text || "").trim() }])
+    : String(text || "").trim().slice(0, 18);
   if (!title) {
     return;
   }
@@ -2345,12 +2351,18 @@ function touchActiveAiThreadTitle(text) {
   if (idx < 0) {
     return;
   }
-  if (threads[idx].title === "当前对话" || /^对话 \d+$/.test(threads[idx].title || "")) {
-    threads[idx].title = title;
-    threads[idx].updatedAt = Date.now();
-    writeAiThreads(threads);
-    renderAiSessionList();
+  const curTitle = threads[idx].title || "";
+  const isDefault =
+    model?.isDefaultChatTitle?.(curTitle) ||
+    curTitle === "当前对话" ||
+    /^对话 \d+$/.test(curTitle);
+  if (!isDefault) {
+    return;
   }
+  threads[idx].title = title;
+  threads[idx].updatedAt = Date.now();
+  writeAiThreads(threads);
+  renderAiSessionList();
 }
 
 window.__aiSaveActiveThreadSnapshot = function __aiSaveActiveThreadSnapshot(html) {
@@ -2888,7 +2900,10 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, pro
     if (isAiWindow()) {
       syncWorkbenchNavRailActive(route === "project-dev" ? "project-dev" : route);
       if (route === "ai") {
-        syncWorkbenchSidePanelView("project");
+        const store = window.__wbStore?.getState?.() || {};
+        syncWorkbenchSidePanelView(
+          store.mode === "chat" && store.selectedChatId ? "sessions" : "project"
+        );
       }
     }
   }

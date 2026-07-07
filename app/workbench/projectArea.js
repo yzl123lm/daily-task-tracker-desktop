@@ -304,13 +304,15 @@ function buildProjectListCard(project, store) {
     <div class="wb-list-card__surface">
       <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
         <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
-        <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
-        <span class="wb-status-pill ${statusPillClass(project.status)}">
-          <span class="wb-status-pill__dot" aria-hidden="true"></span>
-          ${escapeHtml(statusLabel)}
+        <span class="wb-project-card__main">
+          <span class="wb-project-card__name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span>
+          <span class="wb-status-pill ${statusPillClass(project.status)}">
+            <span class="wb-status-pill__dot" aria-hidden="true"></span>
+            ${escapeHtml(statusLabel)}
+          </span>
         </span>
       </button>
-      <div class="wb-list-card__actions" role="group" aria-label="项目操作">
+      <div class="wb-list-card__actions wb-list-card__actions--overlay" role="group" aria-label="项目操作">
         <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
         <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
         <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>

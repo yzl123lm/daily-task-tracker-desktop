@@ -249,7 +249,7 @@ async function createChatSession() {
   if (typeof api.wbChatCreate !== "function") {
     return;
   }
-  const chat = await api.wbChatCreate({ title: `对话 ${Date.now().toString().slice(-4)}` });
+  const chat = await api.wbChatCreate({ title: "新对话" });
   await window.__wbRefreshChats?.();
   await window.__wbSwitchChat?.(chat.id);
 }

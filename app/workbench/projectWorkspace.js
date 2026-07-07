@@ -327,21 +327,40 @@ function isProjectViewActive(projectId, gen) {
 }
 
 function syncLegacyAiPanelVisibility(active) {
-  const ids = ["aiPanelMain", "aiWebFallback"];
-  ids.forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) {
-      return;
-    }
-    el.hidden = Boolean(active);
-    if (active) {
+  const hasElectron = Boolean(window.electronAPI);
+  const aiMain = document.getElementById("aiPanelMain");
+  const fallback = document.getElementById("aiWebFallback");
+  if (active) {
+    [aiMain, fallback].forEach((el) => {
+      if (!el) {
+        return;
+      }
+      el.hidden = true;
       el.setAttribute("hidden", "");
       el.setAttribute("aria-hidden", "true");
+    });
+    return;
+  }
+  if (aiMain) {
+    aiMain.hidden = !hasElectron;
+    if (hasElectron) {
+      aiMain.removeAttribute("hidden");
+      aiMain.setAttribute("aria-hidden", "false");
     } else {
-      el.removeAttribute("hidden");
-      el.setAttribute("aria-hidden", "false");
+      aiMain.setAttribute("hidden", "");
+      aiMain.setAttribute("aria-hidden", "true");
     }
-  });
+  }
+  if (fallback) {
+    fallback.hidden = hasElectron;
+    if (hasElectron) {
+      fallback.setAttribute("hidden", "");
+      fallback.setAttribute("aria-hidden", "true");
+    } else {
+      fallback.removeAttribute("hidden");
+      fallback.setAttribute("aria-hidden", "false");
+    }
+  }
 }
 
 function syncProjectViewChrome(active, projectName = "") {
@@ -397,8 +416,11 @@ function showChatView() {
   window.__wbClosePwsDrawers?.();
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
+  const fallback = document.getElementById("aiWebFallback");
   const panelAi = document.getElementById("panel-ai");
+  const hasElectron = Boolean(window.electronAPI);
   document.body.classList.remove("jl-project-workspace-active");
+  document.documentElement.classList.remove("jl-project-workspace-active");
   if (root) {
     root.hidden = true;
     root.setAttribute("hidden", "");
@@ -411,8 +433,20 @@ function showChatView() {
     panelAi.removeAttribute("hidden");
   }
   if (aiMain) {
-    aiMain.hidden = false;
-    aiMain.removeAttribute("hidden");
+    aiMain.hidden = !hasElectron;
+    if (hasElectron) {
+      aiMain.removeAttribute("hidden");
+    } else {
+      aiMain.setAttribute("hidden", "");
+    }
+  }
+  if (fallback) {
+    fallback.hidden = hasElectron;
+    if (hasElectron) {
+      fallback.setAttribute("hidden", "");
+    } else {
+      fallback.removeAttribute("hidden");
+    }
   }
 }
 

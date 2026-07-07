@@ -304,6 +304,31 @@ async function migrateLegacyChats() {
   }
 }
 
+async function ensureChatTitleFromMessages(session) {
+  if (!session?.id) {
+    return;
+  }
+  const model = sessionModel();
+  if (!model.isDefaultChatTitle?.(session.title)) {
+    return;
+  }
+  const title = model.generateConversationTitle?.(session.messages || []);
+  if (!title || title === session.title) {
+    return;
+  }
+  const api = wbApi();
+  if (typeof api.wbChatUpdate !== "function") {
+    return;
+  }
+  try {
+    await api.wbChatUpdate({ chatId: session.id, title });
+    sessionCache.delete(session.id);
+    await window.__wbRefreshChats?.();
+  } catch {
+    /* ignore */
+  }
+}
+
 async function loadChatIntoAi(chatId, { loadGen } = {}) {
   const id = String(chatId || "").trim();
   if (!id) {
@@ -313,6 +338,7 @@ async function loadChatIntoAi(chatId, { loadGen } = {}) {
   if (loadGen != null && loadGen !== chatSwitchGen) {
     return;
   }
+  await ensureChatTitleFromMessages(session);
   const turnsFromDb = sessionModel().turnsFromMessages
     ? sessionModel().turnsFromMessages(session?.messages || [])
     : (session?.messages || []).map((m) => ({ role: m.role, content: m.content }));
@@ -362,6 +388,7 @@ async function switchChat(chatId) {
   }
   window.__wbStore?.selectChat?.(nextId);
   persistActiveChatId(nextId);
+  window.__wbShowChatView?.();
   window.__wbApplyMainView?.();
   await loadChatIntoAi(nextId, { loadGen });
   if (loadGen !== chatSwitchGen) {
@@ -373,13 +400,14 @@ async function switchChat(chatId) {
   if (typeof window.activateRoute === "function") {
     window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
   }
+  window.__jlSyncWorkbenchSidePanelView?.("sessions");
+  window.__jlSyncWorkbenchNavRailActive?.("sessions");
   window.__wbApplyMainView?.();
 }
 
 async function touchChatTitle(text) {
   const chatId = getActiveChatId();
-  const title = String(text || "").trim().slice(0, 24);
-  if (!chatId || !title) {
+  if (!chatId) {
     return;
   }
   const api = wbApi();
@@ -388,11 +416,19 @@ async function touchChatTitle(text) {
   if (!cur) {
     return;
   }
-  if (cur.title !== "当前对话" && !/^对话 \d+$/.test(cur.title || "") && !/^新对话/.test(cur.title || "")) {
+  const model = sessionModel();
+  if (!model.isDefaultChatTitle?.(cur.title)) {
+    return;
+  }
+  const title = model.generateConversationTitle?.([
+    { role: "user", content: String(text || "").trim() },
+  ]);
+  if (!title || title === cur.title) {
     return;
   }
   if (typeof api.wbChatUpdate === "function") {
     await api.wbChatUpdate({ chatId, title });
+    sessionCache.delete(chatId);
     await window.__wbRefreshChats?.();
   }
 }

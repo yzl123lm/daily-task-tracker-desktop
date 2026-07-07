@@ -2718,10 +2718,18 @@ body.theme-nebula {
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) #aiWebFallback.card {
-  background: var(--workbench-bg);
-  border-color: var(--workbench-border);
-  color: var(--workbench-text);
-  margin: 16px 24px;
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.theme-nebula .main-column:has(#panel-ai:not([hidden])) #aiWebFallback.card:not([hidden]) {
+  display: none !important;
 }
 
 .theme-nebula .main-column:has(#panel-ai:not([hidden])) .topbar-env-btn {

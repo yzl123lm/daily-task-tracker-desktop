@@ -77,8 +77,40 @@ function turnsFromMessages(messages) {
   }));
 }
 
+const DEFAULT_CHAT_TITLE_RE =
+  /^(当前对话|新对话|未命名对话|对话\s*\d+)$/;
+
+function isDefaultChatTitle(title) {
+  const t = String(title || "").trim();
+  return !t || DEFAULT_CHAT_TITLE_RE.test(t);
+}
+
+function generateConversationTitle(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  const firstUserMessage = list.find(
+    (m) => m?.role === "user" && String(m?.content || "").trim()
+  );
+  if (!firstUserMessage) {
+    return "新对话";
+  }
+  let title = String(firstUserMessage.content || "")
+    .replace(/^请问/, "")
+    .replace(/^帮我/, "")
+    .replace(/^我想/, "")
+    .replace(/^我需要/, "")
+    .replace(/^你能不能/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (title.length > 18) {
+    title = `${title.slice(0, 18)}…`;
+  }
+  return title || "新对话";
+}
+
 window.__wbChatSessionModel = {
   normalizeChatMessage,
   normalizeChatSession,
   turnsFromMessages,
+  isDefaultChatTitle,
+  generateConversationTitle,
 };
