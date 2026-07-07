@@ -38,6 +38,9 @@ function statusChipClass(status) {
 }
 
 function ensureWorkspaceRoot() {
+  if (typeof window.__wbEnsureProjectWorkspaceLayout === "function") {
+    return window.__wbEnsureProjectWorkspaceLayout();
+  }
   let root = document.getElementById("wbProjectWorkspace");
   if (root) {
     return root;
@@ -50,51 +53,6 @@ function ensureWorkspaceRoot() {
   root.id = "wbProjectWorkspace";
   root.className = "wb-project-workspace";
   root.hidden = true;
-  root.innerHTML = `
-    <header class="wb-project-workspace__head">
-      <div>
-        <p class="wb-project-workspace__eyebrow">项目开发模式 · PLAN_ONLY / 受控写入</p>
-        <h2 id="wbProjectWorkspaceTitle">项目工作区</h2>
-        <p id="wbProjectWorkspaceNs" class="wb-project-workspace__ns"></p>
-        <div id="wbProjectContextHealth" class="wb-project-workspace__health"></div>
-      </div>
-      <div class="wb-project-workspace__head-actions">
-        <button type="button" id="wbCompressBtn" class="secondary">手动压缩</button>
-        <button type="button" id="wbNewTaskBtn" class="primary wb-project-workspace__new-task">新建任务</button>
-      </div>
-    </header>
-    <section class="wb-project-workspace__tasks">
-      <h3>项目任务</h3>
-      <div id="wbTaskList" class="wb-task-list"></div>
-    </section>
-    <section id="wbTaskDetail" class="wb-task-detail" hidden>
-      <h3>任务详情</h3>
-      <p id="wbTaskDetailDesc" class="wb-task-detail__desc"></p>
-      <p id="wbTaskDetailStep" class="wb-task-detail__step"></p>
-    </section>
-    <section class="wb-project-workspace__agent">
-      <h3>ProjectAgent（仅方案，不改文件）</h3>
-      <textarea id="wbAgentInput" rows="4" placeholder="描述开发需求，生成 PLAN_ONLY 方案…"></textarea>
-      <div class="wb-project-workspace__agent-actions">
-        <button type="button" id="wbAgentRunBtn" class="primary">生成开发方案</button>
-        <button type="button" id="wbTaskConfirmBtn" class="secondary" hidden>确认方案</button>
-      </div>
-      <div id="wbPlanCard" class="wb-plan-card" hidden></div>
-      <pre id="wbAgentOutput" class="wb-agent-output scroll-tech" hidden></pre>
-    </section>
-    <section class="wb-project-workspace__context">
-      <h3>任务上下文记忆</h3>
-      <ul id="wbTaskMemories" class="wb-task-memories"></ul>
-    </section>
-    <section class="wb-project-workspace__runs">
-      <h3>Agent 执行记录</h3>
-      <ul id="wbAgentRuns" class="wb-agent-runs"></ul>
-    </section>
-    <section class="wb-project-workspace__snapshots">
-      <h3>压缩快照历史</h3>
-      <div id="wbSnapshotHistory" class="wb-snapshot-history-panel"></div>
-    </section>
-  `;
   panelAi.prepend(root);
   return root;
 }
@@ -185,14 +143,21 @@ async function loadTaskContext(projectId, taskId) {
     if (!runs?.length) {
       runsList.innerHTML = '<li class="wb-agent-runs__empty">暂无 Agent 记录</li>';
     } else {
-      runs.forEach((run) => {
+      runs.forEach((run, index) => {
         const li = document.createElement("li");
-        li.className = "wb-agent-runs__item";
-        const summary = run.output?.summary || run.inputText?.slice(0, 60) || run.agentType;
+        li.className = "wb-pws-timeline__item";
+        const summary = run.output?.summary || run.inputText?.slice(0, 80) || run.agentType;
+        const status = run.status || "success";
         li.innerHTML = `
-          <span class="wb-agent-runs__type">${escapeHtml(run.agentType)}</span>
-          <span class="wb-agent-runs__summary">${escapeHtml(summary)}</span>
-          <time class="wb-agent-runs__time">${escapeHtml(run.createdAt || "")}</time>
+          <span class="wb-pws-timeline__dot" aria-hidden="true"></span>
+          <div class="wb-pws-timeline__body">
+            <div class="wb-pws-timeline__head">
+              <span class="wb-pws-timeline__type">${escapeHtml(run.agentType || "Agent")}</span>
+              <span class="wb-pws-timeline__status wb-pws-timeline__status--${escapeHtml(status)}">${escapeHtml(status)}</span>
+            </div>
+            <p class="wb-pws-timeline__summary">${escapeHtml(summary)}</p>
+            <time class="wb-pws-timeline__time">${escapeHtml(run.createdAt || "")}</time>
+          </div>
         `;
         li.addEventListener("click", () => {
           if (run.output?.plan) {
@@ -351,6 +316,10 @@ async function loadProjectWorkspace(projectId) {
   window.__wbStore?.setTasks?.(tasks);
   document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
+  const modePill = document.getElementById("wbPwsModePill");
+  if (modePill) {
+    modePill.textContent = "PLAN_ONLY / 受控写入";
+  }
   const selectedId = tasks[0]?.id;
   renderTasks(tasks, selectedId);
   if (!isProjectViewActive(id, gen)) {
@@ -359,6 +328,7 @@ async function loadProjectWorkspace(projectId) {
   root.dataset.wbReady = "1";
   root.dataset.wbProjectId = id;
   showProjectWorkspaceView(id, gen);
+  window.__wbBindTerminalDrawer?.();
   window.__wbApplyMainView?.();
   document.getElementById("wbPlanCard").hidden = true;
   document.getElementById("wbAgentOutput").hidden = true;
@@ -372,6 +342,7 @@ async function loadProjectWorkspace(projectId) {
   }
   window.__wbBindCodePanel?.();
   await window.__wbRefreshCodePanel?.(id, selectedId);
+  window.__wbSyncTerminalDrawer?.();
   if (!isProjectViewActive(id, gen)) {
     return;
   }
@@ -404,6 +375,7 @@ async function manualCompressProject() {
     document.getElementById("wbPlanCard").hidden = true;
     out.textContent = JSON.stringify(result, null, 2);
   }
+  window.__wbExpandTerminalDrawer?.("log");
   await refreshProjectContextHealth(projectId, taskId);
 }
 
@@ -525,6 +497,7 @@ async function runProjectAgent(projectId) {
     out.hidden = false;
     out.textContent = "生成中…";
   }
+  window.__wbExpandTerminalDrawer?.("log");
   document.getElementById("wbPlanCard").hidden = true;
   try {
     const result = await api.wbProjectAgentRun({
@@ -567,6 +540,7 @@ async function confirmTaskPlan() {
 
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
+  window.__wbBindTerminalDrawer?.();
   ensureNewTaskModal();
   const taskForm = document.getElementById("wbNewTaskForm");
   if (taskForm && taskForm.dataset.wbBound !== "1") {

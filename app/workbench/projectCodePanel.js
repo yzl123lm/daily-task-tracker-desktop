@@ -41,7 +41,8 @@ function ensureCodePanelMount() {
     return section;
   }
   const workspace = document.getElementById("wbProjectWorkspace");
-  if (!workspace) {
+  const mount = document.getElementById("wbPwsCodeMount") || workspace;
+  if (!mount) {
     return null;
   }
   section = document.createElement("section");
@@ -128,8 +129,10 @@ function ensureCodePanelMount() {
       <ul id="wbToolOpsList" class="wb-tool-ops-list scroll-tech"></ul>
     </div>
   `;
-  const agentSection = workspace.querySelector(".wb-project-workspace__agent");
-  if (agentSection?.nextSibling) {
+  const agentSection = workspace.querySelector(".wb-pws-agent-col");
+  if (mount.id === "wbPwsCodeMount") {
+    mount.appendChild(section);
+  } else if (agentSection?.nextSibling) {
     workspace.insertBefore(section, agentSection.nextSibling);
   } else {
     workspace.appendChild(section);
@@ -289,6 +292,7 @@ async function refreshToolOps() {
     `;
     list.appendChild(li);
   });
+  window.__wbSyncTerminalDrawer?.();
 }
 
 async function runCodeSearch() {
@@ -521,6 +525,8 @@ async function runTestWithFix() {
     }
   }
   await refreshToolOps();
+  window.__wbSyncTerminalDrawer?.();
+  window.__wbExpandTerminalDrawer?.("test");
 }
 
 async function gitCommitConfirmed() {
@@ -737,6 +743,8 @@ async function runControlledShell() {
       });
     }
     await refreshToolOps();
+    window.__wbSyncTerminalDrawer?.();
+    window.__wbExpandTerminalDrawer?.("shell");
     window.__wbRefreshTaskList?.();
   } catch (err) {
     if (out) {
