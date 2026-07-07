@@ -1064,6 +1064,152 @@ body.jl-project-workspace-active .wb-plan-card__grid {
   font-size: 11px;
 }
 
+/* === P0 垂直铺满：项目工作区必须占满主画布（修复下半屏/上半空白） === */
+html:has(body.jl-project-workspace-active),
+html.jl-project-workspace-active,
+body.jl-project-workspace-active {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .jl-app-shell {
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+}
+
+body.jl-project-workspace-active .jl-workbench-split {
+  flex: 0 0 auto;
+  width: auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .jl-main-workspace {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.jl-project-workspace-active .jl-workspace-body,
+body.jl-project-workspace-active .jl-workbench-stage,
+body.jl-project-workspace-active .jl-workspace-canvas,
+body.jl-project-workspace-active .main-column {
+  position: relative;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+}
+
+body.jl-project-workspace-active .tab-panels {
+  position: relative !important;
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: block !important;
+}
+
+body.jl-project-workspace-active #panel-ai {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  display: block !important;
+  background: transparent !important;
+}
+
+body.jl-project-workspace-active #panel-ai #wbProjectWorkspace:not([hidden]),
+body.jl-project-workspace-active #wbProjectWorkspace.wb-project-workspace--codex:not([hidden]) {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  display: block !important;
+}
+
+body.jl-project-workspace-active #wbProjectWorkspace.wb-project-workspace--codex:not([hidden]) .wb-pws-layout {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+body.jl-project-workspace-active #panel-ai > #aiWebFallback,
+body.jl-project-workspace-active #panel-ai > #aiPanelMain,
+body.jl-project-workspace-active #aiPanelMain,
+body.jl-project-workspace-active .ai-panel-main {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+body.jl-project-workspace-active .wb-pws-layout {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+}
+
+body.jl-project-workspace-active .wb-pws-project-col,
+body.jl-project-workspace-active .wb-pws-agent-col,
+body.jl-project-workspace-active .wb-pws-code-col,
+body.jl-project-workspace-active .wb-pws-terminal-drawer {
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 /* === Full-bleed project workspace (project-dev 无 jl-route-ai，须覆盖 760px 居中) === */
 body.jl-route-project-dev.jl-window-ai .jl-workbench-stage,
 body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage {
@@ -1074,7 +1220,7 @@ body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage {
   width: 100% !important;
   max-width: none !important;
   min-height: 0 !important;
-  height: auto !important;
+  height: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
   display: flex !important;

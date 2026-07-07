@@ -326,12 +326,31 @@ function isProjectViewActive(projectId, gen) {
   );
 }
 
+function syncLegacyAiPanelVisibility(active) {
+  const ids = ["aiPanelMain", "aiWebFallback"];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) {
+      return;
+    }
+    el.hidden = Boolean(active);
+    if (active) {
+      el.setAttribute("hidden", "");
+      el.setAttribute("aria-hidden", "true");
+    } else {
+      el.removeAttribute("hidden");
+      el.setAttribute("aria-hidden", "false");
+    }
+  });
+}
+
 function syncProjectViewChrome(active, projectName = "") {
   document.body.classList.toggle("jl-project-workspace-active", Boolean(active));
   document.documentElement.classList.toggle(
     "jl-project-workspace-active",
     Boolean(active)
   );
+  syncLegacyAiPanelVisibility(Boolean(active));
   window.__wbSyncPwsSidebarMount?.(Boolean(active));
   window.__wbSyncProjectTopChrome?.(Boolean(active), projectName);
   const dock = document.getElementById("jlPromptDock");
@@ -351,11 +370,17 @@ function showProjectWorkspaceView(projectId, gen) {
   if (projectId != null && gen != null && !isProjectViewActive(projectId, gen)) {
     return;
   }
+  const panelAi = document.getElementById("panel-ai");
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
   if (root) {
     root.hidden = false;
     root.removeAttribute("hidden");
+    if (panelAi && root.parentElement !== panelAi) {
+      panelAi.appendChild(root);
+    } else if (panelAi) {
+      panelAi.appendChild(root);
+    }
   }
   const projectName =
     document.getElementById("wbProjectWorkspaceTitle")?.textContent?.trim() || "";
@@ -791,6 +816,48 @@ window.__wbShowProjectView = showProjectView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;
+window.__wbAuditProjectLayout = function auditProjectLayout() {
+  const pick = (id) => {
+    const el = document.getElementById(id);
+    if (!el) {
+      return null;
+    }
+    const r = el.getBoundingClientRect();
+    return {
+      top: Math.round(r.top),
+      left: Math.round(r.left),
+      width: Math.round(r.width),
+      height: Math.round(r.height),
+    };
+  };
+  const panel = pick("panel-ai");
+  const root = pick("wbProjectWorkspace");
+  const layout = document.querySelector(".wb-pws-layout");
+  const layoutRect = layout
+    ? {
+        top: Math.round(layout.getBoundingClientRect().top),
+        left: Math.round(layout.getBoundingClientRect().left),
+        width: Math.round(layout.getBoundingClientRect().width),
+        height: Math.round(layout.getBoundingClientRect().height),
+      }
+    : null;
+  const report = {
+    panelAi: panel,
+    wbProjectWorkspace: root,
+    wbPwsLayout: layoutRect,
+    aligned:
+      panel &&
+      root &&
+      layoutRect &&
+      root.top === panel.top &&
+      Math.abs(root.height - panel.height) <= 2 &&
+      Math.abs(layoutRect.height - root.height) <= 2,
+    projectMode: document.body.classList.contains("jl-project-workspace-active"),
+  };
+  console.table([panel, root, layoutRect].filter(Boolean));
+  console.log("[wb layout audit]", report);
+  return report;
+};
 window.__wbRefreshTaskList = async () => {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;

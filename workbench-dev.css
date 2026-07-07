@@ -1596,13 +1596,14 @@ body.jl-window-ai.theme-nebula .jl-workbench-nav__zone--sessions button.wb-icon-
 }
 
 body.jl-project-workspace-active #panel-ai {
-  display: flex !important;
-  flex-direction: column !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  flex: none !important;
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  flex: 1 1 auto !important;
   padding: 0 !important;
   margin: 0 !important;
   overflow: hidden !important;
@@ -1610,9 +1611,10 @@ body.jl-project-workspace-active #panel-ai {
 
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace,
 body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
-  display: flex !important;
-  flex-direction: column !important;
-  flex: 1 1 auto !important;
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  flex: none !important;
   min-height: 0 !important;
   width: 100% !important;
   height: 100% !important;

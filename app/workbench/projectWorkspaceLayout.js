@@ -174,7 +174,7 @@ function ensureProjectWorkspaceLayout() {
   root.dataset.layoutVersion = WB_PWS_LAYOUT_VERSION;
   root.hidden = true;
   root.innerHTML = WB_PWS_LAYOUT_HTML;
-  panelAi.prepend(root);
+  panelAi.appendChild(root);
   ensureProjectColInSidebar();
   return root;
 }
