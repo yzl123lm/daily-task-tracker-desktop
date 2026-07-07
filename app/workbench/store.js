@@ -20,6 +20,7 @@ function emitChange() {
       },
     })
   );
+  window.__wbScheduleMainView?.();
 }
 
 function getState() {

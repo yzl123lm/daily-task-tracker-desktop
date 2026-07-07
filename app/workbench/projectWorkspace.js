@@ -302,16 +302,32 @@ function showChatView() {
   projectWorkspaceLoadGen += 1;
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
+  const panelAi = document.getElementById("panel-ai");
   document.body.classList.remove("jl-project-workspace-active");
   if (root) {
     root.hidden = true;
     root.setAttribute("hidden", "");
+    root.dataset.wbReady = "0";
+    delete root.dataset.wbProjectId;
   }
   syncProjectViewChrome(false);
+  if (panelAi) {
+    panelAi.hidden = false;
+    panelAi.removeAttribute("hidden");
+  }
   if (aiMain) {
     aiMain.hidden = false;
     aiMain.removeAttribute("hidden");
   }
+}
+
+function showProjectView(projectId) {
+  const id = String(projectId || "").trim();
+  const store = window.__wbStore?.getState?.() || {};
+  if (!id || store.mode !== "project" || store.selectedProjectId !== id) {
+    return;
+  }
+  showProjectWorkspaceView(id, projectWorkspaceLoadGen);
 }
 
 async function loadProjectWorkspace(projectId) {
@@ -322,6 +338,8 @@ async function loadProjectWorkspace(projectId) {
   if (!root || !id || typeof api.wbProjectGet !== "function") {
     return;
   }
+  root.dataset.wbReady = "0";
+  delete root.dataset.wbProjectId;
   const project = await api.wbProjectGet({ projectId: id });
   if (!isProjectViewActive(id, gen)) {
     return;
@@ -338,7 +356,10 @@ async function loadProjectWorkspace(projectId) {
   if (!isProjectViewActive(id, gen)) {
     return;
   }
+  root.dataset.wbReady = "1";
+  root.dataset.wbProjectId = id;
   showProjectWorkspaceView(id, gen);
+  window.__wbApplyMainView?.();
   document.getElementById("wbPlanCard").hidden = true;
   document.getElementById("wbAgentOutput").hidden = true;
   document.getElementById("wbAgentOutput").textContent = "";
@@ -570,16 +591,13 @@ function bindProjectWorkspace() {
   document.getElementById("wbTaskConfirmBtn")?.addEventListener("click", () => {
     void confirmTaskPlan();
   });
-  window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", (ev) => {
-    const detail = ev.detail || {};
-    if (detail.mode === "project" && detail.selectedProjectId) {
-      return;
-    }
-    hideProjectWorkspace();
+  window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
+    window.__wbScheduleMainView?.();
   });
 }
 
 window.__wbShowChatView = showChatView;
+window.__wbShowProjectView = showProjectView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;

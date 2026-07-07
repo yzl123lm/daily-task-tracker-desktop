@@ -357,28 +357,23 @@ async function switchChat(chatId) {
   if (typeof window.__aiAbortActiveCompose === "function") {
     window.__aiAbortActiveCompose();
   }
-  if (prev) {
+  if (prev && prev !== nextId) {
     await saveCurrentChatState(prev);
-  }
-  if (typeof window.__wbShowChatView === "function") {
-    window.__wbShowChatView();
-  } else {
-    window.__wbHideProjectWorkspace?.();
   }
   window.__wbStore?.selectChat?.(nextId);
   persistActiveChatId(nextId);
+  window.__wbApplyMainView?.();
   await loadChatIntoAi(nextId, { loadGen });
   if (loadGen !== chatSwitchGen) {
     return;
   }
-  if (typeof window.__wbShowChatView === "function") {
-    window.__wbShowChatView();
-  }
+  window.__wbApplyMainView?.();
   window.__wbRenderChats?.();
   window.__wbRenderProjects?.();
   if (typeof window.activateRoute === "function") {
     window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
   }
+  window.__wbApplyMainView?.();
 }
 
 async function touchChatTitle(text) {

@@ -555,10 +555,25 @@ body.jl-window-ai .wb-project-card.jl-ai-session-item.is-active {
 
 body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai #wbProjectWorkspace {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
-body.jl-window-ai #panel-ai .ai-panel-main[hidden],
-body.jl-project-workspace-active #panel-ai .ai-panel-main {
+body.jl-window-ai.jl-project-workspace-active #panel-ai .ai-panel-main {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai .ai-panel-main {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+body.jl-window-ai #panel-ai .ai-panel-main[hidden] {
   display: none !important;
 }
 

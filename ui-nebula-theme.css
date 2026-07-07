@@ -4750,6 +4750,16 @@ body.jl-project-workspace-active .jl-prompt-dock {
 
 body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai #wbProjectWorkspace {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai .ai-panel-main {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
 
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace {

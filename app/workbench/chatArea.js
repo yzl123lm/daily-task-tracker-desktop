@@ -228,9 +228,6 @@ function renderChatSessionList() {
       </div>
     `;
     card.classList.toggle("is-active", chat.id === store.selectedChatId);
-    card.querySelector(".wb-list-card__body")?.addEventListener("click", () => {
-      void window.__wbSwitchChat?.(chat.id);
-    });
     card.querySelector('[data-action="rename"]')?.addEventListener("click", (ev) => {
       ev.stopPropagation();
       openEditChatModal(chat);
@@ -262,22 +259,27 @@ function bindChatArea() {
   const list = document.getElementById("jlAiSessionList");
   if (list && list.dataset.wbChatDelegate !== "1") {
     list.dataset.wbChatDelegate = "1";
-    list.addEventListener("click", (ev) => {
-      const actionBtn = ev.target.closest(".wb-list-card__actions [data-action]");
-      if (actionBtn) {
-        return;
-      }
-      const card = ev.target.closest(".wb-list-card--chat");
-      const body = ev.target.closest(".wb-list-card__body");
-      if (!card || !body) {
-        return;
-      }
-      const chatId = card.dataset.chatId;
-      if (chatId) {
-        ev.preventDefault();
-        void window.__wbSwitchChat?.(chatId);
-      }
-    });
+    list.addEventListener(
+      "click",
+      (ev) => {
+        const actionBtn = ev.target.closest(".wb-list-card__actions [data-action]");
+        if (actionBtn) {
+          return;
+        }
+        const card = ev.target.closest(".wb-list-card--chat");
+        const body = ev.target.closest(".wb-list-card__body");
+        if (!card || !body) {
+          return;
+        }
+        const chatId = card.dataset.chatId;
+        if (chatId) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          void window.__wbSwitchChat?.(chatId);
+        }
+      },
+      true
+    );
   }
   const newBtn = document.getElementById("jlAiNewSessionBtn");
   if (newBtn && newBtn.dataset.wbBound !== "1") {

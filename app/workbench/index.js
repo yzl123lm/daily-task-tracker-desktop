@@ -44,6 +44,7 @@ function initWorkbenchDev() {
     await window.__wbMigrateLegacyChats?.();
     await refreshProjects();
     await refreshChats();
+    window.__wbApplyMainView?.();
     const chats = window.__wbStore?.getState?.().chats || [];
     const storedActive = window.__wbReadStoredActiveChatId?.();
     let chatId = window.__wbStore?.getState?.().selectedChatId;
