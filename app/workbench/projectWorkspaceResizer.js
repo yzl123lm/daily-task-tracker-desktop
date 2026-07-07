@@ -1,7 +1,7 @@
-const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v1";
+const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v2";
 
 const DEFAULT_PREFS = {
-  projectWidthPx: 300,
+  projectWidthPx: 260,
   agentWidthPx: 360,
   terminalHeightPx: 220,
   diffHeightPct: 42,
@@ -24,14 +24,7 @@ function loadPrefs() {
     if (!raw) {
       return { ...DEFAULT_PREFS };
     }
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_PREFS,
-      projectWidthPx: parsed.projectWidthPx ?? parsed.agentWidthPct ? Math.round((parsed.agentWidthPct / 100) * 360) : DEFAULT_PREFS.agentWidthPx,
-      agentWidthPx: parsed.agentWidthPx ?? (typeof parsed.agentWidthPct === "number" ? Math.round((parsed.agentWidthPct / 100) * 900) : DEFAULT_PREFS.agentWidthPx),
-      terminalHeightPx: parsed.terminalHeightPx ?? DEFAULT_PREFS.terminalHeightPx,
-      diffHeightPct: parsed.diffHeightPct ?? DEFAULT_PREFS.diffHeightPct,
-    };
+    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -58,118 +51,71 @@ function applyPrefs(prefs = loadPrefs()) {
   layout.style.setProperty("--wb-pws-agent-width", `${prefs.agentWidthPx}px`);
   layout.style.setProperty("--wb-pws-terminal-height", `${prefs.terminalHeightPx}px`);
   layout.style.setProperty("--wb-pws-diff-height", `${prefs.diffHeightPct}%`);
+  positionResizeHandles(prefs);
 }
 
 function clamp(n, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function ensureResizeEdge(col, side, className) {
-  if (!col) {
+function ensureOverlayHandle(id, className) {
+  const layout = getLayoutEl();
+  if (!layout) {
     return null;
   }
-  let edge = col.querySelector(className);
-  if (edge) {
-    return edge;
+  let handle = document.getElementById(id);
+  if (handle) {
+    return handle;
   }
-  edge = document.createElement("div");
-  edge.className = `wb-pws-col-resize-edge ${className}`;
-  edge.dataset.side = side;
-  col.style.position = "relative";
-  col.appendChild(edge);
-  return edge;
+  handle = document.createElement("div");
+  handle.id = id;
+  handle.className = `wb-pws-resize-handle ${className}`;
+  handle.setAttribute("role", "separator");
+  layout.appendChild(handle);
+  return handle;
 }
 
-function bindColumnResizer() {
+function positionResizeHandles(prefs = loadPrefs()) {
   const layout = getLayoutEl();
-  const projectCol = document.getElementById("wbPwsProjectCol");
-  const agentCol = document.getElementById("wbPwsAgentCol");
-  const prefs = loadPrefs();
-  if (!layout || !projectCol || !agentCol) {
+  const projectHandle = document.getElementById("wbPwsResizeProject");
+  const agentHandle = document.getElementById("wbPwsResizeAgent");
+  const terminalHandle = document.getElementById("wbPwsResizeTerminal");
+  if (!layout) {
     return;
   }
-
-  const projectEdge = ensureResizeEdge(projectCol, "project", "wb-pws-col-resize-edge--project");
-  const agentEdge = ensureResizeEdge(agentCol, "agent", "wb-pws-col-resize-edge--agent");
-
-  const bindEdge = (edge, onMove) => {
-    if (!edge || edge.dataset.bound === "1") {
-      return;
-    }
-    edge.dataset.bound = "1";
-    let dragging = false;
-    const stop = () => {
-      if (!dragging) {
-        return;
-      }
-      dragging = false;
-      document.body.classList.remove("wb-pws-resizing-col");
-      savePrefs(prefs);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", stop);
-    };
-    const onPointerMove = (ev) => {
-      if (!dragging) {
-        return;
-      }
-      onMove(ev.clientX);
-    };
-    edge.addEventListener("pointerdown", (ev) => {
-      dragging = true;
-      document.body.classList.add("wb-pws-resizing-col");
-      edge.setPointerCapture?.(ev.pointerId);
-      onMove(ev.clientX);
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointerup", stop);
-    });
-  };
-
-  bindEdge(projectEdge, (clientX) => {
-    const rect = layout.getBoundingClientRect();
-    prefs.projectWidthPx = clamp(clientX - rect.left, LIMITS.projectMinPx, LIMITS.projectMaxPx);
-    applyPrefs(prefs);
-  });
-
-  bindEdge(agentEdge, (clientX) => {
-    const projectRight = projectCol.getBoundingClientRect().right;
-    prefs.agentWidthPx = clamp(clientX - projectRight, LIMITS.agentMinPx, LIMITS.agentMaxPx);
-    applyPrefs(prefs);
-  });
+  const top = 48;
+  const terminalH =
+    layout.dataset.terminalCollapsed === "1" ? 42 : prefs.terminalHeightPx;
+  if (projectHandle) {
+    projectHandle.style.top = `${top}px`;
+    projectHandle.style.bottom = `${terminalH}px`;
+    projectHandle.style.left = `calc(${prefs.projectWidthPx}px - 4px)`;
+  }
+  if (agentHandle) {
+    agentHandle.style.top = `${top}px`;
+    agentHandle.style.bottom = `${terminalH}px`;
+    agentHandle.style.left = `calc(${prefs.projectWidthPx + prefs.agentWidthPx}px - 4px)`;
+  }
+  if (terminalHandle) {
+    terminalHandle.style.height = "8px";
+    terminalHandle.style.bottom = `calc(${terminalH}px - 4px)`;
+  }
 }
 
-function bindTerminalResizer() {
-  const drawer = document.getElementById("wbPwsTerminalDrawer");
-  if (!drawer) {
+function bindDragHandle(handle, onMove) {
+  if (!handle || handle.dataset.bound === "1") {
     return;
   }
-  let edge = drawer.querySelector(".wb-pws-terminal-resize-edge");
-  if (!edge) {
-    edge = document.createElement("div");
-    edge.className = "wb-pws-terminal-resize-edge";
-    edge.setAttribute("aria-label", "调整终端高度");
-    drawer.insertBefore(edge, drawer.firstChild);
-  }
-  if (edge.dataset.bound === "1") {
-    return;
-  }
-  edge.dataset.bound = "1";
+  handle.dataset.bound = "1";
   const prefs = loadPrefs();
   let dragging = false;
-
-  const onMove = (clientY) => {
-    const rect = drawer.getBoundingClientRect();
-    prefs.terminalHeightPx = clamp(rect.bottom - clientY, LIMITS.terminalMinPx, LIMITS.terminalMaxPx);
-    drawer.dataset.collapsed = "0";
-    drawer.classList.remove("is-collapsed");
-    applyPrefs(prefs);
-  };
 
   const stop = () => {
     if (!dragging) {
       return;
     }
     dragging = false;
-    document.body.classList.remove("wb-pws-resizing-terminal");
+    document.body.classList.remove("wb-pws-resizing");
     savePrefs(prefs);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", stop);
@@ -179,17 +125,102 @@ function bindTerminalResizer() {
     if (!dragging) {
       return;
     }
-    onMove(ev.clientY);
+    onMove(ev, prefs);
+    applyPrefs(prefs);
   };
 
-  edge.addEventListener("pointerdown", (ev) => {
+  handle.addEventListener("pointerdown", (ev) => {
     dragging = true;
-    document.body.classList.add("wb-pws-resizing-terminal");
-    edge.setPointerCapture?.(ev.pointerId);
-    onMove(ev.clientY);
+    document.body.classList.add("wb-pws-resizing");
+    handle.setPointerCapture?.(ev.pointerId);
+    onMove(ev, prefs);
+    applyPrefs(prefs);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", stop);
   });
+}
+
+function bindWorkspaceResizers() {
+  applyPrefs();
+  const layout = getLayoutEl();
+  if (!layout) {
+    return;
+  }
+
+  const projectHandle = ensureOverlayHandle(
+    "wbPwsResizeProject",
+    "wb-pws-resize-handle--project"
+  );
+  projectHandle?.setAttribute("aria-label", "调整项目栏宽度");
+  bindDragHandle(projectHandle, (ev, prefs) => {
+    const rect = layout.getBoundingClientRect();
+    prefs.projectWidthPx = clamp(
+      ev.clientX - rect.left,
+      LIMITS.projectMinPx,
+      LIMITS.projectMaxPx
+    );
+  });
+
+  const agentHandle = ensureOverlayHandle(
+    "wbPwsResizeAgent",
+    "wb-pws-resize-handle--col"
+  );
+  agentHandle?.setAttribute("aria-label", "调整 Agent 栏宽度");
+  bindDragHandle(agentHandle, (ev, prefs) => {
+    const rect = layout.getBoundingClientRect();
+    prefs.agentWidthPx = clamp(
+      ev.clientX - rect.left - prefs.projectWidthPx,
+      LIMITS.agentMinPx,
+      LIMITS.agentMaxPx
+    );
+  });
+
+  const terminalHandle = ensureOverlayHandle(
+    "wbPwsResizeTerminal",
+    "wb-pws-resize-handle--terminal"
+  );
+  terminalHandle?.setAttribute("aria-orientation", "horizontal");
+  terminalHandle?.setAttribute("aria-label", "调整终端高度");
+  if (terminalHandle && terminalHandle.dataset.bound !== "1") {
+    terminalHandle.dataset.bound = "1";
+    const prefs = loadPrefs();
+    let dragging = false;
+    const stop = () => {
+      dragging = false;
+      document.body.classList.remove("wb-pws-resizing-terminal");
+      savePrefs(prefs);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", stop);
+    };
+    const onMove = (ev) => {
+      if (!dragging) {
+        return;
+      }
+      const rect = layout.getBoundingClientRect();
+      prefs.terminalHeightPx = clamp(
+        rect.bottom - ev.clientY,
+        LIMITS.terminalMinPx,
+        LIMITS.terminalMaxPx
+      );
+      const drawer = document.getElementById("wbPwsTerminalDrawer");
+      if (drawer) {
+        drawer.dataset.collapsed = "0";
+        drawer.classList.remove("is-collapsed");
+        layout.dataset.terminalCollapsed = "0";
+      }
+      applyPrefs(prefs);
+    };
+    terminalHandle.addEventListener("pointerdown", (ev) => {
+      dragging = true;
+      document.body.classList.add("wb-pws-resizing-terminal");
+      terminalHandle.setPointerCapture?.(ev.pointerId);
+      onMove(ev);
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", stop);
+    });
+  }
+
+  bindDiffResizer();
 }
 
 function bindDiffResizer() {
@@ -210,48 +241,33 @@ function bindDiffResizer() {
   handle.dataset.bound = "1";
   const prefs = loadPrefs();
   let dragging = false;
-  const codeBody = document.getElementById("wbPwsCodeBody") || mount;
-
-  const onMove = (clientY) => {
-    const rect = codeBody.getBoundingClientRect();
-    const pct = ((clientY - rect.top) / rect.height) * 100;
-    prefs.diffHeightPct = clamp(pct, LIMITS.diffMinPct, LIMITS.diffMaxPct);
-    applyPrefs(prefs);
-  };
-
   const stop = () => {
-    if (!dragging) {
-      return;
-    }
     dragging = false;
     document.body.classList.remove("wb-pws-resizing-diff");
     savePrefs(prefs);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", stop);
   };
-
   const onPointerMove = (ev) => {
     if (!dragging) {
       return;
     }
-    onMove(ev.clientY);
+    const rect = mount.getBoundingClientRect();
+    prefs.diffHeightPct = clamp(
+      ((ev.clientY - rect.top) / rect.height) * 100,
+      LIMITS.diffMinPct,
+      LIMITS.diffMaxPct
+    );
+    applyPrefs(prefs);
   };
-
   handle.addEventListener("pointerdown", (ev) => {
     dragging = true;
     document.body.classList.add("wb-pws-resizing-diff");
     handle.setPointerCapture?.(ev.pointerId);
-    onMove(ev.clientY);
+    onPointerMove(ev);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", stop);
   });
-}
-
-function bindWorkspaceResizers() {
-  applyPrefs();
-  bindColumnResizer();
-  bindTerminalResizer();
-  bindDiffResizer();
 }
 
 function resetLayoutPrefs() {

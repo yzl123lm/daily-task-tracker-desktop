@@ -1,11 +1,11 @@
 const TABS = [
-  { id: "diff", label: "代码变更" },
-  { id: "code", label: "文件树" },
-  { id: "test", label: "测试状态" },
-  { id: "git", label: "运行记录" },
+  { id: "code", label: "代码" },
+  { id: "diff", label: "Diff 审阅" },
+  { id: "test", label: "测试" },
+  { id: "git", label: "Git 变更" },
 ];
 
-const TAB_STORAGE_KEY = "wb_pws_code_tab_v2";
+const TAB_STORAGE_KEY = "wb_pws_code_tab_v1";
 
 function getPanels() {
   return {
@@ -18,9 +18,9 @@ function getPanels() {
 
 function loadActiveTab() {
   try {
-    return localStorage.getItem(TAB_STORAGE_KEY) || "diff";
+    return localStorage.getItem(TAB_STORAGE_KEY) || "code";
   } catch {
-    return "diff";
+    return "code";
   }
 }
 
@@ -56,7 +56,7 @@ function ensureTabBar() {
 
 function switchTab(tabId, { persist = true } = {}) {
   const valid = TABS.some((t) => t.id === tabId);
-  const active = valid ? tabId : "diff";
+  const active = valid ? tabId : "code";
   const panels = getPanels();
   const bar = document.getElementById("wbPwsCodeTabs");
   bar?.querySelectorAll(".wb-pws-code-tab").forEach((btn) => {

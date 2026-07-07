@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.22.0",
+  "version": "1.22.1",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -91,6 +91,7 @@
       "utils/kbRerank.js",
       "utils/ollamaEmbedError.js",
       "app/**/*.js",
+      "app/**/*.css",
       "ai/aiDocVisual.js",
       "main/apiNormalize.js",
       "main/aiSessionStore.js",

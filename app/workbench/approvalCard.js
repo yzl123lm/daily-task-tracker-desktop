@@ -22,15 +22,7 @@ function ensureApprovalMount() {
   if (mount) {
     return mount;
   }
-  const anchor = document.getElementById("wbPwsAgentComposer") || document.querySelector(".wb-pws-agent-composer");
-  if (!anchor?.parentNode) {
-    return null;
-  }
-  mount = document.createElement("div");
-  mount.id = "wbPwsApprovalMount";
-  mount.className = "wb-pws-approval-mount";
-  mount.parentNode.insertBefore(mount, anchor);
-  return mount;
+  return null;
 }
 
 function renderApprovalCard(req) {

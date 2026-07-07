@@ -103,262 +103,91 @@ function renderPlanCard(output) {
   }
 }
 
-let taskFilterMode = "all";
-
-function formatTaskTime(iso) {
-  if (!iso) {
-    return "";
-  }
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      return String(iso);
-    }
-    const now = new Date();
-    const diffMs = now - d;
-    const mins = Math.floor(diffMs / 60000);
-    if (mins < 1) {
-      return "刚刚";
-    }
-    if (mins < 60) {
-      return `${mins} 分钟前`;
-    }
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-      return `${hours} 小时前`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 7) {
-      return `${days} 天前`;
-    }
-    return d.toLocaleDateString("zh-CN");
-  } catch {
-    return String(iso);
-  }
-}
-
-function syncModeLabel(text) {
-  const label = text || "PLAN_ONLY / 受控写入";
-  const modePill = document.getElementById("wbPwsModePill");
-  const codeLabel = document.getElementById("wbPwsCodeModeLabel");
-  if (modePill) {
-    modePill.textContent = label;
-  }
-  if (codeLabel) {
-    codeLabel.textContent = label;
-  }
-}
-
-function updateTaskFilterCounts(tasks) {
-  const list = Array.isArray(tasks) ? tasks : [];
-  const counts = {
-    active: list.filter((t) =>
-      ["DRAFT", "REQUIREMENT", "PLANNING", "WAIT_CONFIRM", "DEVELOPING", "TESTING", "REVIEWING", "PAUSED"].includes(
-        t.status
-      )
-    ).length,
-    waiting: list.filter((t) => ["WAIT_CONFIRM", "REVIEWING"].includes(t.status)).length,
-    done: list.filter((t) => ["DONE", "ARCHIVED", "FAILED"].includes(t.status)).length,
-  };
-  document.querySelectorAll("[data-count-for]").forEach((el) => {
-    const key = el.dataset.countFor;
-    if (counts[key] != null) {
-      el.textContent = String(counts[key]);
-    }
-  });
-}
-
-function renderChatHistory() {
-  const listEl = document.getElementById("wbPwsChatHistoryList");
-  if (!listEl) {
-    return;
-  }
-  const chats = (window.__wbStore?.getState?.().chats || []).slice(0, 5);
-  listEl.replaceChildren();
-  if (!chats.length) {
-    const li = document.createElement("li");
-    li.className = "wb-pws-chat-history__item";
-    li.innerHTML = '<span class="wb-pws-chat-history__title" style="color:#94a3b8">暂无会话记录</span>';
-    listEl.appendChild(li);
-    return;
-  }
-  chats.forEach((chat) => {
-    const li = document.createElement("li");
-    li.className = "wb-pws-chat-history__item";
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "wb-pws-chat-history__btn";
-    btn.innerHTML = `
-      <span class="wb-pws-chat-history__title">${escapeHtml(chat.title || chat.id || "未命名会话")}</span>
-      <span class="wb-pws-chat-history__time">${escapeHtml(formatTaskTime(chat.updatedAt || chat.createdAt))}</span>
-    `;
-    btn.addEventListener("click", () => {
-      if (typeof window.__wbSwitchChat === "function" && chat.id) {
-        void window.__wbSwitchChat(chat.id);
-      } else {
-        window.__wbShowChatView?.();
-      }
-    });
-    li.appendChild(btn);
-    listEl.appendChild(li);
-  });
-}
-
-const AGENT_CHECKLIST_STEPS = [
-  { id: "understand", label: "理解需求" },
-  { id: "locate", label: "定位相关文件" },
-  { id: "plan", label: "生成开发方案" },
-  { id: "implement", label: "实现代码变更" },
-  { id: "test", label: "运行测试验证" },
-];
-
-function checklistProgressForTask(task, hasRuns) {
-  const status = task?.status || "DRAFT";
-  if (!hasRuns && status === "DRAFT") {
-    return 0;
-  }
-  const map = {
-    DRAFT: 1,
-    REQUIREMENT: 1,
-    PLANNING: 2,
-    WAIT_CONFIRM: 3,
-    DEVELOPING: 3,
-    TESTING: 4,
-    REVIEWING: 4,
-    DONE: 5,
-    FAILED: 4,
-    PAUSED: 2,
-    ARCHIVED: 5,
-  };
-  return map[status] ?? (hasRuns ? 2 : 0);
-}
-
-function renderAgentChecklist(task, hasRuns, running = false) {
-  const wrap = document.getElementById("wbPwsAgentChecklist");
-  const list = document.getElementById("wbPwsAgentChecklistList");
-  if (!wrap || !list) {
-    return;
-  }
-  const progress = checklistProgressForTask(task, hasRuns);
-  const show = running || progress > 0 || ["PLANNING", "DEVELOPING", "TESTING", "WAIT_CONFIRM"].includes(task?.status);
-  wrap.hidden = !show;
-  if (!show) {
-    return;
-  }
-  list.replaceChildren();
-  AGENT_CHECKLIST_STEPS.forEach((step, index) => {
-    const li = document.createElement("li");
-    let icon = "○";
-    let cls = "wb-pws-agent-checklist__item";
-    if (index < progress) {
-      icon = "✓";
-      cls += " wb-pws-agent-checklist__item--done";
-    } else if (running && index === progress) {
-      icon = "◎";
-      cls += " wb-pws-agent-checklist__item--active";
-    } else if (!running && index === progress && progress < AGENT_CHECKLIST_STEPS.length) {
-      icon = "◎";
-      cls += " wb-pws-agent-checklist__item--active";
-    }
-    li.className = cls;
-    li.innerHTML = `<span class="wb-pws-agent-checklist__icon" aria-hidden="true">${icon}</span><span>${escapeHtml(step.label)}</span>`;
-    list.appendChild(li);
-  });
-}
-
-function renderUserBubble(text) {
-  const bubble = document.getElementById("wbPwsUserBubble");
-  const textEl = document.getElementById("wbPwsUserBubbleText");
-  if (!bubble || !textEl) {
-    return;
-  }
-  const msg = String(text || "").trim();
-  if (!msg) {
-    bubble.hidden = true;
-    return;
-  }
-  bubble.hidden = false;
-  textEl.textContent = msg;
-}
-
-function filterTasksByMode(tasks) {
-  const list = Array.isArray(tasks) ? tasks : [];
-  if (taskFilterMode === "active") {
-    return list.filter((t) =>
-      ["DRAFT", "REQUIREMENT", "PLANNING", "WAIT_CONFIRM", "DEVELOPING", "TESTING", "REVIEWING", "PAUSED"].includes(
-        t.status
-      )
-    );
-  }
-  if (taskFilterMode === "waiting") {
-    return list.filter((t) => ["WAIT_CONFIRM", "REVIEWING"].includes(t.status));
-  }
-  if (taskFilterMode === "done") {
-    return list.filter((t) => ["DONE", "ARCHIVED", "FAILED"].includes(t.status));
-  }
-  return list;
-}
-
-function renderProjectSideCol(project) {
-  const title = document.getElementById("wbPwsProjectCardTitle");
-  const meta = document.getElementById("wbPwsProjectCardMeta");
-  const pill = document.getElementById("wbPwsProjectCardPill");
-  if (!project) {
-    return;
-  }
-  if (title) {
-    title.textContent = project.name || "当前项目";
-  }
-  if (meta) {
-    const stack = Array.isArray(project.techStack) ? project.techStack.join(" · ") : "技术栈未填写";
-    meta.textContent = `${project.namespace || project.id || ""} · ${stack}`;
-  }
-  if (pill) {
-    pill.textContent = "进行中";
-  }
-}
-
 function renderTaskDetail(task) {
-  const titleEl = document.getElementById("wbPwsAgentTaskTitle");
+  const panel = document.getElementById("wbTaskDetail");
+  const empty = document.getElementById("wbPwsAgentEmpty");
   const desc = document.getElementById("wbTaskDetailDesc");
   const step = document.getElementById("wbTaskDetailStep");
-  const statusPill = document.getElementById("wbPwsAgentStatusPill");
-  if (!task) {
-    if (titleEl) {
-      titleEl.textContent = "选择任务";
-    }
-    if (desc) {
-      desc.textContent = "选择左侧任务开始 Agent 执行";
-    }
-    if (step) {
-      step.textContent = "";
-    }
-    if (statusPill) {
-      statusPill.textContent = "待开始";
-    }
-    renderAgentChecklist(null, false);
-    renderUserBubble("");
+  if (!panel) {
     return;
   }
-  if (titleEl) {
-    titleEl.textContent = task.title || "当前任务";
+  if (!task) {
+    panel.hidden = true;
+    if (empty) {
+      empty.hidden = false;
+    }
+    return;
+  }
+  panel.hidden = false;
+  if (empty) {
+    empty.hidden = true;
   }
   if (desc) {
     desc.textContent = task.description || "（无任务描述）";
   }
-  if (statusPill) {
-    statusPill.textContent = TASK_STATUS_LABELS[task.status] || task.status;
-  }
   if (step) {
-    const parts = [];
-    if (task.updatedAt) {
-      parts.push(`更新于 ${formatTaskTime(task.updatedAt)}`);
-    }
-    if (task.currentStep) {
-      parts.push(task.currentStep);
-    }
-    step.textContent = parts.join(" · ");
+    const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
+    step.textContent = `状态：${statusLabel}${task.currentStep ? ` · 当前步骤：${task.currentStep}` : ""}`;
   }
+}
+
+function renderProjectColCard(project) {
+  const card = document.getElementById("wbPwsProjectCard");
+  if (!card) {
+    return;
+  }
+  if (!project) {
+    card.innerHTML =
+      '<p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>';
+    return;
+  }
+  const path = project.localPath || project.local_path || "未配置代码目录";
+  card.innerHTML = `
+    <h4>${escapeHtml(project.name)}</h4>
+    <p class="wb-pws-project-card__ns">${escapeHtml(project.namespace || `project:${project.id}`)}</p>
+    <p class="wb-pws-project-card__meta">状态 ${escapeHtml(project.status || "active")} · ${escapeHtml(String(path).slice(-56))}</p>
+  `;
+}
+
+let taskFilterMode = "all";
+
+function taskMatchesFilter(task) {
+  const step = String(task.currentStep || "");
+  switch (taskFilterMode) {
+    case "active":
+      return ["DRAFT", "DEVELOPING", "RUNNING"].includes(task.status);
+    case "waiting":
+      return (
+        task.status === "WAITING_APPROVAL" ||
+        step.includes("审批") ||
+        step.includes("等待")
+      );
+    case "done":
+      return ["DONE", "COMPLETED", "ARCHIVED"].includes(task.status);
+    default:
+      return true;
+  }
+}
+
+function bindTaskFilters() {
+  const bar = document.getElementById("wbPwsTaskFilters");
+  if (!bar || bar.dataset.bound === "1") {
+    return;
+  }
+  bar.dataset.bound = "1";
+  bar.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".wb-pws-task-filter");
+    if (!btn?.dataset?.filter) {
+      return;
+    }
+    taskFilterMode = btn.dataset.filter;
+    bar.querySelectorAll(".wb-pws-task-filter").forEach((el) => {
+      el.classList.toggle("is-active", el === btn);
+    });
+    const tasks = window.__wbStore?.getState?.().tasks || [];
+    const selectedId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+    renderTasks(tasks, selectedId);
+  });
 }
 
 async function loadTaskContext(projectId, taskId) {
@@ -393,23 +222,9 @@ async function loadTaskContext(projectId, taskId) {
   if (typeof api.wbProjectAgentRunsList === "function" && runsList) {
     const runs = await api.wbProjectAgentRunsList({ projectId, taskId, limit: 8 });
     runsList.replaceChildren();
-    const hasRuns = Boolean(runs?.length);
-    renderAgentChecklist(task, hasRuns);
-    const lastInput = runs?.[0]?.inputText || document.getElementById("wbAgentInput")?.value?.trim();
-    if (lastInput) {
-      renderUserBubble(lastInput);
-    }
     if (!runs?.length) {
       runsList.innerHTML = '<li class="wb-agent-runs__empty">暂无 Agent 记录</li>';
-      const emptyHint = document.getElementById("wbPwsAgentEmpty");
-      if (emptyHint) {
-        emptyHint.hidden = false;
-      }
     } else {
-      const emptyHint = document.getElementById("wbPwsAgentEmpty");
-      if (emptyHint) {
-        emptyHint.hidden = true;
-      }
       runs.forEach((run, index) => {
         const li = document.createElement("li");
         li.className = "wb-pws-timeline__item";
@@ -444,8 +259,7 @@ function renderTasks(tasks, selectedTaskId) {
   if (!list) {
     return;
   }
-  updateTaskFilterCounts(tasks);
-  const filtered = filterTasksByMode(tasks);
+  const filtered = (tasks || []).filter(taskMatchesFilter);
   list.replaceChildren();
   if (!filtered.length) {
     const empty = document.createElement("p");
@@ -453,7 +267,7 @@ function renderTasks(tasks, selectedTaskId) {
     empty.textContent =
       tasks?.length && taskFilterMode !== "all"
         ? "当前筛选下暂无任务。"
-        : "暂无任务，点击顶栏「新建任务」开始。";
+        : "暂无任务，点击「新建任务」开始。";
     list.appendChild(empty);
     renderTaskDetail(null);
     return;
@@ -465,12 +279,10 @@ function renderTasks(tasks, selectedTaskId) {
     item.dataset.taskId = task.id;
     item.classList.toggle("is-active", task.id === selectedTaskId);
     const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
-    const pathHint = task.currentStep || task.description?.slice(0, 64) || "";
     item.innerHTML = `
       <div class="wb-task-item__main">
         <span class="wb-task-item__title">${escapeHtml(task.title)}</span>
-        ${pathHint ? `<span class="wb-task-item__path">${escapeHtml(pathHint)}</span>` : ""}
-        ${task.updatedAt ? `<span class="wb-task-item__time">${escapeHtml(formatTaskTime(task.updatedAt))}</span>` : ""}
+        ${task.description ? `<span class="wb-task-item__desc">${escapeHtml(task.description.slice(0, 48))}</span>` : ""}
       </div>
       <div class="wb-task-item__meta">
         <span class="wb-task-status ${statusChipClass(task.status)}">${escapeHtml(statusLabel)}</span>
@@ -488,16 +300,15 @@ function renderTasks(tasks, selectedTaskId) {
     });
     list.appendChild(item);
   });
-  if (!selectedTaskId && filtered[0]) {
-    list.dataset.selectedTaskId = filtered[0].id;
-    list.querySelector(".wb-task-item")?.classList.add("is-active");
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    if (projectId) {
-      renderTaskDetail(filtered[0]);
+  if (!selectedTaskId || !filtered.some((t) => t.id === selectedTaskId)) {
+    const first = filtered[0];
+    if (first) {
+      list.dataset.selectedTaskId = first.id;
+      list.querySelector(`[data-task-id="${first.id}"]`)?.classList.add("is-active");
+      renderTaskDetail(first);
     }
-  } else if (selectedTaskId) {
-    const active = filtered.find((t) => t.id === selectedTaskId);
-    renderTaskDetail(active || null);
+  } else {
+    renderTaskDetail(filtered.find((t) => t.id === selectedTaskId) || null);
   }
 }
 
@@ -515,6 +326,10 @@ function isProjectViewActive(projectId, gen) {
 
 function syncProjectViewChrome(active) {
   document.body.classList.toggle("jl-project-workspace-active", Boolean(active));
+  document.documentElement.classList.toggle(
+    "jl-project-workspace-active",
+    Boolean(active)
+  );
   const dock = document.getElementById("jlPromptDock");
   if (active) {
     if (dock) {
@@ -598,14 +413,13 @@ async function loadProjectWorkspace(projectId) {
     return;
   }
   window.__wbStore?.setTasks?.(tasks);
-  renderProjectSideCol(project);
-  const titleEl = document.getElementById("wbProjectWorkspaceTitle");
-  if (titleEl) {
-    titleEl.textContent = `项目工作区 - ${project.name || id}`;
-  }
+  renderProjectColCard(project);
+  document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
-  syncModeLabel("PLAN_ONLY / 受控写入");
-  renderChatHistory();
+  const modePill = document.getElementById("wbPwsModePill");
+  if (modePill) {
+    modePill.textContent = "PLAN_ONLY / 受控写入";
+  }
   const selectedId = tasks[0]?.id;
   renderTasks(tasks, selectedId);
   if (!isProjectViewActive(id, gen)) {
@@ -630,7 +444,6 @@ async function loadProjectWorkspace(projectId) {
   }
   window.__wbBindCodePanel?.();
   await window.__wbRefreshCodePanel?.(id, selectedId);
-  window.__wbSwitchCodeTab?.("diff");
   window.__wbSyncTerminalDrawer?.();
   if (!isProjectViewActive(id, gen)) {
     return;
@@ -806,10 +619,6 @@ async function runProjectAgent(projectId) {
     out.hidden = false;
     out.textContent = "生成中…";
   }
-  renderUserBubble(message);
-  const tasksNow = window.__wbStore?.getState?.().tasks || [];
-  const taskNow = tasksNow.find((t) => t.id === taskId);
-  renderAgentChecklist(taskNow, true, true);
   window.__wbExpandTerminalDrawer?.("log");
   document.getElementById("wbPlanCard").hidden = true;
   try {
@@ -844,7 +653,10 @@ async function confirmTaskPlan() {
     status: "DEVELOPING",
     currentStep: "用户已确认方案，可受控写入",
   });
-  syncModeLabel("受控写入");
+  const modePill = document.getElementById("wbPwsModePill");
+  if (modePill) {
+    modePill.textContent = "受控写入";
+  }
   document.getElementById("wbTaskConfirmBtn").hidden = true;
   const tasks = await api.wbProjectTasksList({ projectId });
   window.__wbStore?.setTasks?.(tasks);
@@ -862,6 +674,17 @@ function bindProjectWorkspace() {
   window.__wbBindCodeWorkspaceTabs?.();
   window.__wbBindTestResultPanel?.();
   window.__wbBindGitChangePanel?.();
+  bindTaskFilters();
+  document.getElementById("wbPwsBackToChat")?.addEventListener("click", () => {
+    const chats = window.__wbStore?.getState?.().chats || [];
+    const chatId = chats[0]?.id;
+    if (chatId && window.__wbStore?.selectChat) {
+      window.__wbStore.selectChat(chatId);
+      void window.__wbSwitchChat?.(chatId);
+    } else {
+      hideProjectWorkspace();
+    }
+  });
   ensureNewTaskModal();
   const taskForm = document.getElementById("wbNewTaskForm");
   if (taskForm && taskForm.dataset.wbBound !== "1") {
@@ -877,18 +700,6 @@ function bindProjectWorkspace() {
       void createTaskForProject(projectId);
     }
   });
-  document.getElementById("wbPwsSideNewTaskBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    if (projectId) {
-      void createTaskForProject(projectId);
-    }
-  });
-  document.getElementById("wbPwsCodeNewTaskBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    if (projectId) {
-      void createTaskForProject(projectId);
-    }
-  });
   document.getElementById("wbAgentRunBtn")?.addEventListener("click", () => {
     const projectId = window.__wbStore?.getState?.().selectedProjectId;
     if (projectId) {
@@ -897,29 +708,6 @@ function bindProjectWorkspace() {
   });
   document.getElementById("wbTaskConfirmBtn")?.addEventListener("click", () => {
     void confirmTaskPlan();
-  });
-  document.getElementById("wbPwsViewAllChatsBtn")?.addEventListener("click", () => {
-    const chats = window.__wbStore?.getState?.().chats || [];
-    const chatId = window.__wbStore?.getState?.().selectedChatId || chats[0]?.id;
-    if (chatId && typeof window.__wbSwitchChat === "function") {
-      void window.__wbSwitchChat(chatId);
-      return;
-    }
-    window.__wbShowChatView?.();
-  });
-  document.getElementById("wbPwsTaskFilters")?.addEventListener("click", (ev) => {
-    const btn = ev.target.closest(".wb-pws-task-filter");
-    if (!btn?.dataset?.filter) {
-      return;
-    }
-    taskFilterMode = btn.dataset.filter;
-    document.querySelectorAll(".wb-pws-task-filter").forEach((el) => {
-      el.classList.toggle("is-active", el === btn);
-    });
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    const tasks = window.__wbStore?.getState?.().tasks || [];
-    const selectedId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
-    renderTasks(tasks, selectedId);
   });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
     window.__wbScheduleMainView?.();

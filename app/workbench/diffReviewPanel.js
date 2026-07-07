@@ -119,8 +119,6 @@ function renderDiffReviewPanel() {
     (c) => c.reviewStatus === "pending" || c.reviewStatus === "revision"
   ).length;
   const acceptedCount = state.changes.filter((c) => c.reviewStatus === "accepted").length;
-  const totalAdd = state.changes.reduce((n, c) => n + (c.additions || 0), 0);
-  const totalDel = state.changes.reduce((n, c) => n + (c.deletions || 0), 0);
   const fileRows = state.changes
     .map((c) => {
       const active = c.id === selected?.id ? " is-active" : "";
@@ -141,24 +139,17 @@ function renderDiffReviewPanel() {
     })
     .join("");
   panel.innerHTML = `
-    <div class="wb-diff-review__overview">
-      <h4>变更概览</h4>
-      <p class="wb-diff-review__overview-stats">
-        ${state.changes.length} 个文件 ·
-        <strong>+${totalAdd}</strong>
-        <span class="wb-stat-del">-${totalDel}</span>
-        · 待审 ${pendingCount} · 已接受 ${acceptedCount}
-      </p>
-    </div>
     <header class="wb-diff-review__head">
+      <div>
+        <h3>Diff 审阅</h3>
+        <p class="wb-diff-review__meta">${state.changes.length} 个文件 · 待审 ${pendingCount} · 已接受 ${acceptedCount}</p>
+      </div>
       <div class="wb-diff-review__toolbar">
         <div class="wb-diff-review__view-toggle" role="group" aria-label="Diff 视图">
           <button type="button" class="wb-diff-view-btn ${state.viewMode === "unified" ? "is-active" : ""}" data-view="unified">统一视图</button>
           <button type="button" class="wb-diff-view-btn ${state.viewMode === "split" ? "is-active" : ""}" data-view="split">并排视图</button>
-          <button type="button" class="wb-diff-view-btn wb-diff-changes-only" data-changes-only="1">仅显示变更</button>
         </div>
         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-all">全部接受</button>
-        <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-seq">逐个接受</button>
         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-all">全部拒绝</button>
         <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch" ${acceptedCount ? "" : "disabled"}>写入已接受 (${acceptedCount})</button>
       </div>
@@ -170,23 +161,6 @@ function renderDiffReviewPanel() {
         <div class="wb-diff-review__diff scroll-tech">${selected ? renderDiffLines(selected.diff, state.viewMode) : ""}</div>
       </div>
     </div>
-    <div class="wb-diff-review__desc-panel">
-      <div class="wb-diff-review__desc-tabs" role="tablist">
-        <button type="button" class="wb-diff-review__desc-tab is-active" data-desc-tab="summary">变更说明</button>
-        <button type="button" class="wb-diff-review__desc-tab" data-desc-tab="ai">AI 评估</button>
-      </div>
-      <div class="wb-diff-review__desc-content" data-desc-pane="summary">
-        ${selected?.summary ? `<ul><li>${escapeHtml(selected.summary)}</li></ul>` : "<p>暂无变更说明。</p>"}
-      </div>
-      <div class="wb-diff-review__desc-content" data-desc-pane="ai" hidden>
-        <p>${selected ? `建议审阅 <code>${escapeHtml(selected.path)}</code>，变更类型：${escapeHtml(changeTypeLabel(selected.changeType))}。` : "暂无 AI 评估。"}</p>
-      </div>
-    </div>
-    <footer class="wb-diff-review__footer">
-      <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-footer-reject">拒绝</button>
-      <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-footer-comment">评论</button>
-      <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-footer-accept">接受变更</button>
-    </footer>
   `;
   panel.querySelectorAll(".wb-diff-review__file-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -218,41 +192,6 @@ function renderDiffReviewPanel() {
   panel.querySelectorAll(".wb-diff-view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       reviewStore.setViewMode(projectId, taskId, btn.dataset.view);
-    });
-  });
-  panel.querySelector(".wb-diff-accept-seq")?.addEventListener("click", () => {
-    const pending = state.changes.find(
-      (c) => c.reviewStatus === "pending" || c.reviewStatus === "revision"
-    );
-    if (pending) {
-      reviewStore.setReviewStatus(projectId, taskId, pending.id, reviewStore.REVIEW_STATUS.ACCEPTED);
-      reviewStore.setSelectedChange(projectId, taskId, pending.id);
-    }
-  });
-  panel.querySelector(".wb-diff-footer-reject")?.addEventListener("click", () => {
-    if (selected?.id) {
-      reviewStore.setReviewStatus(projectId, taskId, selected.id, reviewStore.REVIEW_STATUS.REJECTED);
-    }
-  });
-  panel.querySelector(".wb-diff-footer-comment")?.addEventListener("click", () => {
-    if (selected?.id) {
-      reviewStore.setReviewStatus(projectId, taskId, selected.id, reviewStore.REVIEW_STATUS.REVISION);
-    }
-  });
-  panel.querySelector(".wb-diff-footer-accept")?.addEventListener("click", () => {
-    if (selected?.id) {
-      reviewStore.setReviewStatus(projectId, taskId, selected.id, reviewStore.REVIEW_STATUS.ACCEPTED);
-    }
-  });
-  panel.querySelectorAll(".wb-diff-review__desc-tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      const name = tab.dataset.descTab;
-      panel.querySelectorAll(".wb-diff-review__desc-tab").forEach((t) => {
-        t.classList.toggle("is-active", t === tab);
-      });
-      panel.querySelectorAll("[data-desc-pane]").forEach((pane) => {
-        pane.hidden = pane.dataset.descPane !== name;
-      });
     });
   });
   panel.querySelector(".wb-diff-apply-batch")?.addEventListener("click", () => {

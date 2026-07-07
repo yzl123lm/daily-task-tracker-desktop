@@ -1,22 +1,41 @@
-/* Codex skeleton fix — full-bleed grid layout (整改文档 §5–§8) */
+/* Codex skeleton fix — fullscreen grid, no centered card (整改文档 P0) */
 
-html,
-body,
-.jl-app-shell,
-.jl-main-workspace,
-body.jl-project-workspace-active #panel-ai,
-body.jl-project-workspace-active #wbProjectWorkspace,
-.wb-pws-layout {
+html.jl-project-workspace-active,
+body.jl-project-workspace-active {
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .jl-app-shell,
+body.jl-project-workspace-active .jl-main-workspace {
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .jl-workbench-stage,
+body.jl-project-workspace-active .jl-workspace-canvas,
+body.jl-project-workspace-active .main-column,
+body.jl-project-workspace-active .tab-panels {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  align-items: stretch !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box;
 }
 
 body.jl-project-workspace-active #panel-ai {
   display: block !important;
   width: 100% !important;
   height: 100% !important;
-  flex: 1 1 auto;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
   padding: 0 !important;
+  margin: 0 !important;
   overflow: hidden !important;
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%) !important;
 }
@@ -32,17 +51,17 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   box-shadow: none !important;
   overflow: hidden !important;
   background: transparent !important;
-  display: block !important;
-  position: relative;
 }
 
 .wb-project-workspace--codex {
-  flex: none;
-  gap: 0;
+  max-width: none !important;
+  margin: 0 !important;
 }
 
+/* Grid skeleton: topbar + project + agent + code + terminal */
 .wb-pws-layout {
-  display: grid;
+  position: relative;
+  display: grid !important;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -50,8 +69,11 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   overflow: hidden;
   gap: 0;
   padding: 0;
-  grid-template-columns: var(--wb-pws-project-width, 300px) var(--wb-pws-agent-width, 360px) minmax(0, 1fr);
-  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height, 220px);
+  --wb-pws-project-width: 260px;
+  --wb-pws-agent-width: min(380px, 34%);
+  --wb-pws-terminal-height: 220px;
+  grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(320px, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar topbar"
     "project agent code"
@@ -59,15 +81,19 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%);
 }
 
+.wb-pws-layout[data-terminal-collapsed="1"] {
+  grid-template-rows: 48px minmax(0, 1fr) 42px;
+}
+
 .wb-pws-topbar,
 .wb-pws-status-bar {
   grid-area: topbar;
   border-radius: 0;
-  border: none;
-  border-bottom: 1px solid #dcebfa;
-  box-shadow: none;
+  border-left: none;
+  border-right: none;
+  border-top: none;
   min-height: 48px;
-  padding: 8px 14px;
+  box-shadow: none;
 }
 
 .wb-pws-project-col {
@@ -79,19 +105,20 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   flex-direction: column;
   border-right: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(12px);
 }
 
 .wb-pws-agent-col {
   grid-area: agent;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  overflow: hidden !important;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.82);
-  gap: 0;
+  max-width: none !important;
+  flex: none !important;
 }
 
 .wb-pws-code-col {
@@ -106,36 +133,14 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-terminal-drawer {
   grid-area: terminal;
-  position: relative;
   min-width: 0;
   min-height: 0;
-  height: var(--wb-pws-terminal-height, 220px);
-  border-radius: 0;
-  border: none;
-  border-top: 1px solid #dcebfa;
-  box-shadow: none;
   overflow: hidden;
-}
-
-.wb-pws-terminal-resize-edge {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  cursor: row-resize;
-  z-index: 3;
-  touch-action: none;
-}
-
-body.wb-pws-resizing-terminal .wb-pws-terminal-resize-edge,
-.wb-pws-terminal-resize-edge:hover {
-  background: rgba(47, 125, 246, 0.2);
-}
-
-.wb-pws-terminal-drawer.is-collapsed,
-.wb-pws-terminal-drawer[data-collapsed="1"] {
-  height: 42px;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  height: auto;
 }
 
 .wb-pws-terminal-drawer.is-collapsed .wb-pws-terminal-drawer__body,
@@ -150,41 +155,68 @@ body.wb-pws-resizing-terminal .wb-pws-terminal-resize-edge,
   overflow: auto;
 }
 
-.wb-pws-project-card {
+.wb-pws-project-col__head,
+.wb-pws-project-col__foot {
   flex-shrink: 0;
-  padding: 12px 14px;
-  border-bottom: 1px solid #e8f1fc;
+  padding: 10px 12px;
 }
 
-.wb-pws-project-card__title {
+.wb-pws-project-col__head h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.wb-pws-project-card {
+  flex-shrink: 0;
+  margin: 0 10px 8px;
+  padding: 10px 12px;
+  border: 1px solid #ddebff;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.wb-pws-project-card h4 {
   margin: 0 0 4px;
   font-size: 14px;
   font-weight: 700;
   color: #1f2d3d;
 }
 
-.wb-pws-project-card__meta {
+.wb-pws-project-card__ns {
   margin: 0;
   font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color: #6b7a90;
-  line-height: 1.45;
   word-break: break-all;
+}
+
+.wb-pws-project-card__meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #6b7a90;
+}
+
+.wb-pws-project-card__placeholder {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7a90;
 }
 
 .wb-pws-task-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  padding: 8px 10px;
-  border-bottom: 1px solid #e8f1fc;
+  padding: 0 10px 8px;
   flex-shrink: 0;
 }
 
 .wb-pws-task-filter {
   padding: 4px 8px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
+  border: 1px solid #dcebfa;
+  border-radius: 999px;
+  background: #fff;
   font-size: 11px;
   color: #6b7a90;
   cursor: pointer;
@@ -197,24 +229,15 @@ body.wb-pws-resizing-terminal .wb-pws-terminal-resize-edge,
   font-weight: 600;
 }
 
-.wb-pws-task-list {
+.wb-pws-project-list-wrap {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 10px;
-  max-height: none;
+  padding: 0 8px 8px;
 }
 
-.wb-pws-chat-entry {
-  flex-shrink: 0;
-  margin: 8px 10px 10px;
-  padding: 8px 10px;
-  border: 1px solid #dcebfa;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 12px;
-  color: #1e6bff;
-  cursor: pointer;
+.wb-pws-project-col .wb-pws-task-list {
+  max-height: none;
 }
 
 .wb-pws-agent-header {
@@ -225,17 +248,17 @@ body.wb-pws-resizing-terminal .wb-pws-terminal-resize-edge,
   background: rgba(255, 255, 255, 0.92);
 }
 
-.wb-pws-agent-header__card {
-  border: none;
-  background: transparent;
-  padding: 0;
+.wb-pws-agent-empty {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7a90;
 }
 
 .wb-pws-agent-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -256,118 +279,64 @@ body.wb-pws-resizing-terminal .wb-pws-terminal-resize-edge,
   flex-direction: column;
 }
 
-.wb-pws-code-mount {
+.wb-pws-code-body > .wb-pws-code-tabs {
+  flex-shrink: 0;
+}
+
+.wb-pws-code-body > .wb-diff-review-panel,
+.wb-pws-code-body > .wb-test-result-panel,
+.wb-pws-code-body > .wb-git-change-panel,
+.wb-pws-code-body > .wb-code-panel {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
-.wb-pws-code-empty {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  color: #6b7a90;
-  font-size: 13px;
-  text-align: center;
+.wb-pws-agent-scroll .wb-pws-timeline {
+  max-height: none;
 }
 
-.wb-pws-code-empty[hidden] {
+.wb-pws-agent-scroll .wb-pws-panel {
+  flex-shrink: 0;
+}
+
+/* Hide shell/backup clutter from code flow — terminal drawer handles logs */
+body.jl-project-workspace-active .wb-code-panel .wb-shell-panel,
+body.jl-project-workspace-active .wb-code-panel .wb-tool-ops-panel {
   display: none !important;
 }
 
-.wb-pws-empty-hint {
-  margin: 0;
-  padding: 8px 0;
-  font-size: 12px;
-  color: #6b7a90;
-  text-align: center;
-}
-
-.wb-pws-hidden-panels {
-  display: none !important;
-}
-
-.wb-pws-shell-mount .wb-shell-panel {
-  margin: 0 0 8px;
-  padding: 0;
+body.jl-project-workspace-active .wb-code-panel {
+  margin-top: 0;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
   background: transparent;
 }
 
-.wb-pws-shell-mount .wb-shell-panel h4 {
-  margin: 0 0 6px;
-  font-size: 12px;
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel,
+body.jl-project-workspace-active .wb-pws-code-col .wb-test-result-panel,
+body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.wb-pws-terminal-shell-output {
-  margin: 0;
-  padding: 8px;
-  min-height: 80px;
-  border-radius: 8px;
-  background: #f7fbff;
-  border: 1px solid #e8f1fc;
-  font-size: 12px;
-  white-space: pre-wrap;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-}
-
-.wb-pws-col-resize-edge {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  cursor: col-resize;
-  z-index: 5;
-  touch-action: none;
-}
-
-.wb-pws-col-resize-edge--project {
-  right: -3px;
-}
-
-.wb-pws-col-resize-edge--agent {
-  right: -3px;
-}
-
-.wb-pws-col-resize-edge:hover,
-body.wb-pws-resizing-col .wb-pws-col-resize-edge {
-  background: rgba(47, 125, 246, 0.25);
-}
-
-.wb-pws-resize-handle--terminal {
-  grid-area: terminal;
-  justify-self: stretch;
-  align-self: start;
-  height: 8px;
-  margin-top: -4px;
-  z-index: 4;
-  cursor: row-resize;
-  position: relative;
-}
-
-/* legacy flex rules overridden by grid */
-.wb-pws-main {
-  display: contents;
-}
-
-.wb-pws-agent-col .wb-pws-timeline {
-  max-height: none;
+/* Legacy workbench rules must not affect codex */
+.wb-project-workspace:not(.wb-project-workspace--codex) {
+  /* legacy scoped in workbench-dev.css */
 }
 
 @media (min-width: 1280px) {
   .wb-pws-layout {
-    grid-template-columns: var(--wb-pws-project-width, 300px) var(--wb-pws-agent-width, 360px) minmax(0, 1fr);
-    grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height, 220px);
+    grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(0, 1fr);
+    grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   }
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
   .wb-pws-layout {
-    grid-template-columns: 280px 340px minmax(420px, 1fr);
+    --wb-pws-project-width: 280px;
+    --wb-pws-agent-width: 340px;
     grid-template-rows: 48px minmax(0, 1fr) 210px;
   }
 }
@@ -383,10 +352,7 @@ body.wb-pws-resizing-col .wb-pws-col-resize-edge {
   }
 
   .wb-pws-project-col,
-  .wb-pws-code-col {
-    display: none;
-  }
-
+  .wb-pws-code-col,
   .wb-pws-resize-handle {
     display: none !important;
   }

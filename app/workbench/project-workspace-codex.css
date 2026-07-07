@@ -10,20 +10,26 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-project-workspace--codex {
-  flex: none;
-  gap: 0;
-  padding: 0;
-  margin: 0;
-  max-width: none;
+  flex: 1;
+  min-height: 0;
+  display: block;
   width: 100%;
   height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
   background: transparent;
   color: #1f2d3d;
   overflow: hidden;
 }
 
+/* display:grid + areas defined in project-workspace-skeleton.css (loaded after this file) */
 .wb-pws-layout {
-  display: grid;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+}
 
 .wb-pws-status-bar {
   display: flex;
@@ -135,11 +141,6 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-btn--ghost:hover {
   background: #f7fbff;
-}
-
-.wb-pws-agent-col {
-  gap: 0;
-  overflow: hidden;
 }
 
 .wb-pws-code-col {
@@ -418,8 +419,18 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: 8px;
   flex: 1;
   min-height: 0;
+  min-width: 0;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head h3 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-file-preview,
@@ -431,23 +442,8 @@ body.jl-project-workspace-active .wb-pws-code-col #wbShellOutput {
   border-color: #e8f1fc;
 }
 
-@media (max-width: 1023px) {
-  .wb-pws-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: 48px minmax(0, 1fr) 180px;
-    grid-template-areas:
-      "topbar"
-      "agent"
-      "terminal";
-  }
-
-  .wb-pws-project-col,
+@media (max-width: 1024px) {
   .wb-pws-code-col {
-    display: none;
-  }
-
-  .wb-pws-col-resize-edge,
-  .wb-pws-resize-handle {
-    display: none !important;
+    min-height: 360px;
   }
 }

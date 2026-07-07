@@ -1,26 +1,25 @@
 /* P2 — resizable layout handles + scene template selector */
 
-.wb-pws-layout {
-  --wb-pws-project-width: 300px;
-  --wb-pws-agent-width: 360px;
-  --wb-pws-terminal-height: 220px;
-  --wb-pws-diff-height: 42%;
-}
-
 .wb-pws-resize-handle {
-  flex-shrink: 0;
-  background: transparent;
+  position: absolute;
+  z-index: 6;
   touch-action: none;
-  z-index: 2;
+  background: transparent;
 }
 
+.wb-pws-resize-handle--project,
 .wb-pws-resize-handle--col {
   width: 8px;
-  margin: 0 -4px;
   cursor: col-resize;
-  position: relative;
 }
 
+.wb-pws-resize-handle--terminal {
+  left: 0;
+  right: 0;
+  cursor: row-resize;
+}
+
+.wb-pws-resize-handle--project::after,
 .wb-pws-resize-handle--col::after {
   content: "";
   position: absolute;
@@ -30,19 +29,6 @@
   width: 2px;
   border-radius: 2px;
   background: #cfe2f8;
-  transition: background 0.15s ease;
-}
-
-.wb-pws-resize-handle--col:hover::after,
-body.wb-pws-resizing-col .wb-pws-resize-handle--col::after {
-  background: #2f7df6;
-}
-
-.wb-pws-resize-handle--terminal {
-  height: 8px;
-  margin: -2px 0;
-  cursor: row-resize;
-  position: relative;
 }
 
 .wb-pws-resize-handle--terminal::after {
@@ -56,41 +42,24 @@ body.wb-pws-resizing-col .wb-pws-resize-handle--col::after {
   background: #cfe2f8;
 }
 
-.wb-pws-resize-handle--terminal:hover::after,
-body.wb-pws-resizing-terminal .wb-pws-resize-handle--terminal::after {
-  background: #2f7df6;
-}
-
-.wb-pws-resize-handle--diff {
-  height: 6px;
-  cursor: row-resize;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.wb-pws-resize-handle--diff::after {
-  content: "";
-  display: block;
-  width: 48px;
-  height: 3px;
-  margin: 1px auto 0;
-  border-radius: 3px;
-  background: #cfe2f8;
-}
-
-body.wb-pws-resizing-col,
-body.wb-pws-resizing-terminal,
-body.wb-pws-resizing-diff {
+body.wb-pws-resizing,
+body.wb-pws-resizing-terminal {
   user-select: none;
-  cursor: inherit;
 }
 
-.wb-pws-terminal-drawer:not([data-collapsed="1"]) .wb-pws-terminal-drawer__body {
-  height: var(--wb-pws-terminal-height);
-  max-height: var(--wb-pws-terminal-height);
+@media (max-width: 1023px) {
+  .wb-pws-resize-handle {
+    display: none !important;
+  }
 }
 
-.wb-pws-template-select {
+.wb-pws-layout {
+  --wb-pws-diff-height: 42%;
+}
+
+.wb-diff-review-panel {
+  max-height: var(--wb-pws-diff-height) !important;
+}
   min-width: 140px;
   max-width: 180px;
   padding: 4px 8px;
