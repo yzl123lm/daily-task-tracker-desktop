@@ -2107,17 +2107,103 @@ function bindWorkbenchHubClicks() {
   });
 }
 
+function ensureWorkbenchSidePanel() {
+  if (!isAiWindow()) {
+    return null;
+  }
+  const split = document.getElementById("jlWorkbenchSplit");
+  const nav = document.getElementById("jlWorkbenchNav");
+  if (!split || !nav) {
+    return null;
+  }
+  let panel = document.getElementById("jlWorkbenchSidePanel");
+  if (!panel) {
+    panel = document.createElement("aside");
+    panel.id = "jlWorkbenchSidePanel";
+    panel.className = "jl-workbench-sidepanel";
+    panel.setAttribute("aria-label", "侧栏内容");
+    split.appendChild(panel);
+  }
+  const projectZone = nav.querySelector(".jl-workbench-nav__zone--project");
+  const sessionsZone = nav.querySelector(".jl-workbench-nav__zone--sessions");
+  if (projectZone && projectZone.parentElement !== panel) {
+    panel.appendChild(projectZone);
+  }
+  if (sessionsZone && sessionsZone.parentElement !== panel) {
+    panel.appendChild(sessionsZone);
+  }
+  return panel;
+}
+
+function syncWorkbenchSidePanelView(view = "project") {
+  const panel = document.getElementById("jlWorkbenchSidePanel");
+  if (!panel) {
+    return;
+  }
+  const projectZone = panel.querySelector(".jl-workbench-nav__zone--project");
+  const sessionsZone = panel.querySelector(".jl-workbench-nav__zone--sessions");
+  panel.dataset.sidepanelView = view;
+  if (projectZone) {
+    projectZone.hidden = view !== "project";
+    projectZone.setAttribute("aria-hidden", view === "project" ? "false" : "true");
+  }
+  if (sessionsZone) {
+    sessionsZone.hidden = view !== "sessions";
+    sessionsZone.setAttribute("aria-hidden", view === "sessions" ? "false" : "true");
+  }
+}
+
+function syncWorkbenchNavRailActive(routeOrPanel) {
+  const nav = document.getElementById("jlWorkbenchNav");
+  if (!nav) {
+    return;
+  }
+  nav.querySelectorAll(".jl-workbench-nav__item").forEach((btn) => {
+    const panel = btn.dataset.wbSidepanel;
+    const route = btn.dataset.wbRoute;
+    const module = btn.dataset.wbModule;
+    let active = false;
+    if (routeOrPanel === "project-dev" || routeOrPanel === "project") {
+      active = module === "project" || panel === "project";
+    } else if (routeOrPanel === "sessions" || routeOrPanel === "chat") {
+      active = module === "chat" || panel === "sessions";
+    } else if (routeOrPanel === "ai" || routeOrPanel === "workbench") {
+      active = module === "workbench";
+    } else if (routeOrPanel === "knowledge-base") {
+      active = module === "knowledge-base";
+    }
+    btn.classList.toggle("is-active", active);
+  });
+}
+
 function bindWorkbenchNavClicks() {
   const nav = document.getElementById("jlWorkbenchNav");
   if (!nav || nav.dataset.jlNavBound === "1") {
     return;
   }
   nav.dataset.jlNavBound = "1";
-  nav.querySelectorAll("[data-wb-route], [data-wb-cap]").forEach((btn) => {
+  nav.querySelectorAll("[data-wb-route], [data-wb-cap], [data-wb-sidepanel]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const route = btn.dataset.wbRoute;
       const module = btn.dataset.wbModule;
       const cap = btn.dataset.wbCap;
+      const sidepanel = btn.dataset.wbSidepanel;
+      if (sidepanel && isAiWindow()) {
+        syncWorkbenchSidePanelView(sidepanel);
+        syncWorkbenchNavRailActive(sidepanel);
+        if (module === "project") {
+          const selectedId = window.__wbStore?.getState?.().selectedProjectId;
+          if (selectedId) {
+            activateRoute("project-dev", { projectId: selectedId, skipProjectLoad: true });
+          } else {
+            activateRoute("ai");
+          }
+        }
+        if (module === "chat") {
+          activateRoute("ai");
+        }
+        return;
+      }
       if (module === "record" || route === "record") {
         activateWorkbenchTarget("record");
         return;
@@ -2483,6 +2569,8 @@ function initShell() {
   }
   if (workbenchNav) {
     workbenchNav.hidden = false;
+    ensureWorkbenchSidePanel();
+    syncWorkbenchSidePanelView("project");
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
   }
@@ -2794,6 +2882,12 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, pro
   syncDailyWorkExpandedByRoute(route);
   if (isWorkbenchWindow() || isAiWindow()) {
     syncWorkbenchNavActive(route);
+    if (isAiWindow()) {
+      syncWorkbenchNavRailActive(route === "project-dev" ? "project-dev" : route);
+      if (route === "ai") {
+        syncWorkbenchSidePanelView("project");
+      }
+    }
   }
   if (isWorkbenchWindow()) {
     closeWorkbenchCapInline();

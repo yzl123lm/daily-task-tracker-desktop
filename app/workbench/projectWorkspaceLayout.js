@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "5";
+const WB_PWS_LAYOUT_VERSION = "6";
 
 const WB_PWS_LAYOUT_HTML = `
   <div class="wb-pws-layout" data-terminal-collapsed="1">
@@ -264,7 +264,73 @@ function expandTerminalDrawer(tab = "log") {
   tabBtn?.click();
 }
 
+function syncPwsSidebarMount(active) {
+  const col = document.getElementById("wbPwsProjectCol");
+  const split = document.getElementById("jlWorkbenchSplit");
+  const layout = document.querySelector(".wb-pws-layout");
+  const chatPanel = document.getElementById("jlWorkbenchSidePanel");
+  if (!col || !split) {
+    return;
+  }
+  document.body.classList.toggle("wb-pws-sidebar-mounted", Boolean(active));
+  if (active) {
+    if (col.parentElement !== split) {
+      split.appendChild(col);
+    }
+    col.hidden = false;
+    col.removeAttribute("hidden");
+    if (chatPanel) {
+      chatPanel.hidden = true;
+      chatPanel.setAttribute("hidden", "");
+      chatPanel.setAttribute("aria-hidden", "true");
+    }
+    return;
+  }
+  if (layout && col.parentElement !== layout) {
+    const topbar = document.getElementById("wbPwsTopbar");
+    if (topbar?.nextElementSibling) {
+      layout.insertBefore(col, topbar.nextElementSibling);
+    } else {
+      layout.prepend(col);
+    }
+  }
+  col.hidden = true;
+  col.setAttribute("hidden", "");
+  if (chatPanel) {
+    chatPanel.hidden = false;
+    chatPanel.removeAttribute("hidden");
+    chatPanel.setAttribute("aria-hidden", "false");
+  }
+}
+
+function syncProjectTopChrome(active, projectName = "") {
+  const chrome = document.getElementById("jlPwsGlobalChrome");
+  const label = document.getElementById("jlPwsGlobalWorkspaceLabel");
+  const topStatus = document.getElementById("jlTopStatus");
+  const trailing = document.getElementById("jlTitlebarTrailing");
+  document.body.classList.toggle("jl-pws-top-chrome-active", Boolean(active));
+  if (chrome) {
+    chrome.hidden = !active;
+    chrome.setAttribute("aria-hidden", active ? "false" : "true");
+  }
+  if (label) {
+    const name = String(projectName || "").trim();
+    label.textContent = name ? `项目工作区 - ${name}` : "项目工作区";
+  }
+  if (topStatus && active) {
+    topStatus.hidden = false;
+    topStatus.removeAttribute("hidden");
+    topStatus.setAttribute("aria-hidden", "false");
+  }
+  if (trailing && active) {
+    trailing.hidden = false;
+    trailing.removeAttribute("hidden");
+  }
+}
+
 window.__wbEnsureProjectWorkspaceLayout = ensureProjectWorkspaceLayout;
+window.__wbSyncPwsSidebarMount = syncPwsSidebarMount;
+window.__wbSyncProjectTopChrome = syncProjectTopChrome;
 window.__wbBindTerminalDrawer = bindTerminalDrawer;
 window.__wbBindPwsDrawers = bindPwsDrawers;
 window.__wbSyncTerminalDrawer = syncTerminalDrawerFromPanels;

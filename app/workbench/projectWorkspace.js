@@ -326,12 +326,14 @@ function isProjectViewActive(projectId, gen) {
   );
 }
 
-function syncProjectViewChrome(active) {
+function syncProjectViewChrome(active, projectName = "") {
   document.body.classList.toggle("jl-project-workspace-active", Boolean(active));
   document.documentElement.classList.toggle(
     "jl-project-workspace-active",
     Boolean(active)
   );
+  window.__wbSyncPwsSidebarMount?.(Boolean(active));
+  window.__wbSyncProjectTopChrome?.(Boolean(active), projectName);
   const dock = document.getElementById("jlPromptDock");
   if (active) {
     if (dock) {
@@ -355,7 +357,9 @@ function showProjectWorkspaceView(projectId, gen) {
     root.hidden = false;
     root.removeAttribute("hidden");
   }
-  syncProjectViewChrome(true);
+  const projectName =
+    document.getElementById("wbProjectWorkspaceTitle")?.textContent?.trim() || "";
+  syncProjectViewChrome(true, projectName);
   if (aiMain) {
     aiMain.hidden = true;
     aiMain.setAttribute("hidden", "");
@@ -419,6 +423,7 @@ async function loadProjectWorkspace(projectId) {
   renderProjectColCard(project);
   window.__wbRenderProjectList?.();
   document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
+  window.__wbSyncProjectTopChrome?.(true, project.name);
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
   const modePill = document.getElementById("wbPwsModePill");
   if (modePill) {

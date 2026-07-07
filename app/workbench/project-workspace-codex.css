@@ -40,9 +40,9 @@ body.jl-project-workspace-active #panel-ai {
   min-height: 44px;
   padding: 8px 12px;
   border: 1px solid #dcebfa;
-  border-radius: 10px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
+  box-shadow: none;
 }
 
 .wb-pws-status-bar__left {
