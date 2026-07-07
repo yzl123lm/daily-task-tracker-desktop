@@ -1,7 +1,7 @@
-const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v2";
+const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v3";
 
 const DEFAULT_PREFS = {
-  projectWidthPx: 260,
+  projectWidthPx: 300,
   agentWidthPx: 360,
   terminalHeightPx: 220,
   diffHeightPct: 42,

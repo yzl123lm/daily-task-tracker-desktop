@@ -1,9 +1,10 @@
-const WB_PWS_LAYOUT_VERSION = "4";
+const WB_PWS_LAYOUT_VERSION = "5";
 
 const WB_PWS_LAYOUT_HTML = `
   <div class="wb-pws-layout" data-terminal-collapsed="1">
     <header class="wb-pws-topbar wb-pws-status-bar" id="wbPwsTopbar">
       <div class="wb-pws-status-bar__left">
+        <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only" title="项目与任务">项目</button>
         <span class="wb-pws-status-bar__badge">项目开发</span>
         <h2 id="wbProjectWorkspaceTitle" class="wb-pws-status-bar__title">项目工作区</h2>
         <span id="wbPwsModePill" class="wb-pws-status-bar__mode">PLAN_ONLY</span>
@@ -23,6 +24,10 @@ const WB_PWS_LAYOUT_HTML = `
     <aside class="wb-pws-project-col" id="wbPwsProjectCol" aria-label="项目与任务">
       <div class="wb-pws-project-col__head">
         <h3>项目与任务</h3>
+        <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
+      </div>
+      <div class="wb-pws-project-switcher">
+        <div id="wbPwsProjectList" class="wb-pws-project-list scroll-tech" role="list" aria-label="项目列表"></div>
       </div>
       <div id="wbPwsProjectCard" class="wb-pws-project-card">
         <p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>
@@ -32,12 +37,21 @@ const WB_PWS_LAYOUT_HTML = `
         <button type="button" class="wb-pws-task-filter" data-filter="active">进行中</button>
         <button type="button" class="wb-pws-task-filter" data-filter="waiting">等待审批</button>
         <button type="button" class="wb-pws-task-filter" data-filter="done">已完成</button>
+        <button type="button" class="wb-pws-task-filter" data-filter="failed">失败</button>
       </div>
       <div class="wb-pws-project-list-wrap">
         <div id="wbTaskList" class="wb-task-list wb-pws-task-list" role="list"></div>
       </div>
+      <section class="wb-pws-project-col__sessions" aria-label="会话记录">
+        <header class="wb-pws-project-col__sessions-head">
+          <h4>会话记录</h4>
+          <button type="button" id="wbPwsSessionNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建对话" aria-label="新建对话">+</button>
+        </header>
+        <div id="wbPwsSessionList" class="wb-pws-session-list scroll-tech" role="list"></div>
+      </section>
       <div class="wb-pws-project-col__foot">
         <button type="button" id="wbPwsBackToChat" class="wb-pws-btn wb-pws-btn--ghost">返回会话区</button>
+        <button type="button" id="wbPwsOpenProjectDir" class="wb-pws-btn wb-pws-btn--ghost" hidden>打开目录</button>
       </div>
     </aside>
     <section class="wb-pws-agent-col" id="wbPwsAgentCol" aria-label="Agent 执行区">
@@ -75,12 +89,18 @@ const WB_PWS_LAYOUT_HTML = `
         <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
         <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述开发需求，生成 PLAN_ONLY 方案…"></textarea>
         <div class="wb-pws-composer__actions">
+          <button type="button" id="wbPwsOpenCodeDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only">查看代码变更</button>
           <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">生成开发方案</button>
           <button type="button" id="wbTaskConfirmBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>确认方案</button>
         </div>
       </div>
     </section>
+    <div id="wbPwsDrawerBackdrop" class="wb-pws-drawer-backdrop" hidden aria-hidden="true"></div>
     <section class="wb-pws-code-col" id="wbPwsCodeCol" aria-label="代码审查区">
+      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
+        <h3>代码变更</h3>
+        <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
+      </header>
       <div class="wb-pws-code-body" id="wbPwsCodeMount"></div>
     </section>
     <footer class="wb-pws-terminal-drawer" id="wbPwsTerminalDrawer" data-collapsed="1">
@@ -124,6 +144,46 @@ function ensureProjectWorkspaceLayout() {
   root.innerHTML = WB_PWS_LAYOUT_HTML;
   panelAi.prepend(root);
   return root;
+}
+
+function setDrawerState(kind, open) {
+  const cls =
+    kind === "project" ? "wb-project-drawer-open" : "wb-code-drawer-open";
+  document.body.classList.toggle(cls, Boolean(open));
+  const backdrop = document.getElementById("wbPwsDrawerBackdrop");
+  if (backdrop) {
+    backdrop.hidden = !open;
+    backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+  }
+}
+
+function bindPwsDrawers() {
+  const openCode = document.getElementById("wbPwsOpenCodeDrawer");
+  const closeCode = document.getElementById("wbPwsCodeDrawerClose");
+  const openProject = document.getElementById("wbPwsOpenProjectDrawer");
+  const backdrop = document.getElementById("wbPwsDrawerBackdrop");
+  if (openCode && openCode.dataset.bound !== "1") {
+    openCode.dataset.bound = "1";
+    openCode.addEventListener("click", () => {
+      setDrawerState("code", true);
+      window.__wbSwitchCodeTab?.("diff");
+    });
+  }
+  if (closeCode && closeCode.dataset.bound !== "1") {
+    closeCode.dataset.bound = "1";
+    closeCode.addEventListener("click", () => setDrawerState("code", false));
+  }
+  if (openProject && openProject.dataset.bound !== "1") {
+    openProject.dataset.bound = "1";
+    openProject.addEventListener("click", () => setDrawerState("project", true));
+  }
+  if (backdrop && backdrop.dataset.bound !== "1") {
+    backdrop.dataset.bound = "1";
+    backdrop.addEventListener("click", () => {
+      setDrawerState("project", false);
+      setDrawerState("code", false);
+    });
+  }
 }
 
 function bindTerminalDrawer() {
@@ -206,5 +266,10 @@ function expandTerminalDrawer(tab = "log") {
 
 window.__wbEnsureProjectWorkspaceLayout = ensureProjectWorkspaceLayout;
 window.__wbBindTerminalDrawer = bindTerminalDrawer;
+window.__wbBindPwsDrawers = bindPwsDrawers;
 window.__wbSyncTerminalDrawer = syncTerminalDrawerFromPanels;
 window.__wbExpandTerminalDrawer = expandTerminalDrawer;
+window.__wbClosePwsDrawers = () => {
+  setDrawerState("project", false);
+  setDrawerState("code", false);
+};

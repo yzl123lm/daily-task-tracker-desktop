@@ -164,6 +164,8 @@ function taskMatchesFilter(task) {
       );
     case "done":
       return ["DONE", "COMPLETED", "ARCHIVED"].includes(task.status);
+    case "failed":
+      return task.status === "FAILED" || task.status === "PAUSED";
     default:
       return true;
   }
@@ -363,6 +365,7 @@ function showProjectWorkspaceView(projectId, gen) {
 function showChatView() {
   projectWorkspaceLoadGen += 1;
   window.__wbApprovalStore?.clearPending?.();
+  window.__wbClosePwsDrawers?.();
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
   const panelAi = document.getElementById("panel-ai");
@@ -414,11 +417,18 @@ async function loadProjectWorkspace(projectId) {
   }
   window.__wbStore?.setTasks?.(tasks);
   renderProjectColCard(project);
+  window.__wbRenderProjectList?.();
   document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
   const modePill = document.getElementById("wbPwsModePill");
   if (modePill) {
     modePill.textContent = "PLAN_ONLY / 受控写入";
+  }
+  const openDirBtn = document.getElementById("wbPwsOpenProjectDir");
+  const projectPath = project.localPath || project.local_path;
+  if (openDirBtn) {
+    openDirBtn.hidden = !projectPath;
+    openDirBtn.dataset.path = projectPath || "";
   }
   const selectedId = tasks[0]?.id;
   renderTasks(tasks, selectedId);
@@ -429,9 +439,11 @@ async function loadProjectWorkspace(projectId) {
   root.dataset.wbProjectId = id;
   showProjectWorkspaceView(id, gen);
   window.__wbBindTerminalDrawer?.();
+  window.__wbBindPwsDrawers?.();
   window.__wbBindWorkspaceResizers?.();
   window.__wbApplyPwsLayoutPrefs?.();
   window.__wbApplyMainView?.();
+  renderProjectColSessions();
   document.getElementById("wbPlanCard").hidden = true;
   document.getElementById("wbAgentOutput").hidden = true;
   document.getElementById("wbAgentOutput").textContent = "";
@@ -664,9 +676,47 @@ async function confirmTaskPlan() {
   await loadTaskContext(projectId, taskId);
 }
 
+function renderProjectColSessions() {
+  const list = document.getElementById("wbPwsSessionList");
+  if (!list) {
+    return;
+  }
+  const store = window.__wbStore?.getState?.() || {};
+  const chats = store.chats || [];
+  list.replaceChildren();
+  if (!chats.length) {
+    const empty = document.createElement("p");
+    empty.className = "wb-pws-session-empty";
+    empty.textContent = "暂无会话";
+    list.appendChild(empty);
+    return;
+  }
+  chats.slice(0, 8).forEach((chat) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "wb-pws-session-item";
+    btn.dataset.chatId = chat.id;
+    const time =
+      typeof window.__wbFormatChatListTime === "function"
+        ? window.__wbFormatChatListTime(chat.updatedAt)
+        : "";
+    btn.innerHTML = `
+      <span class="wb-pws-session-item__title">${escapeHtml(chat.title || "未命名对话")}</span>
+      <span class="wb-pws-session-item__time">${escapeHtml(time)}</span>
+    `;
+    btn.addEventListener("click", () => {
+      window.__wbStore?.selectChat?.(chat.id);
+      hideProjectWorkspace();
+      void window.__wbSwitchChat?.(chat.id);
+    });
+    list.appendChild(btn);
+  });
+}
+
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
   window.__wbBindTerminalDrawer?.();
+  window.__wbBindPwsDrawers?.();
   window.__wbBindWorkspaceResizers?.();
   window.__wbBindSceneTemplates?.();
   window.__wbBindApprovalCard?.();
@@ -678,11 +728,26 @@ function bindProjectWorkspace() {
   document.getElementById("wbPwsBackToChat")?.addEventListener("click", () => {
     const chats = window.__wbStore?.getState?.().chats || [];
     const chatId = chats[0]?.id;
+    hideProjectWorkspace();
+    if (typeof window.activateRoute === "function") {
+      window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+    }
     if (chatId && window.__wbStore?.selectChat) {
       window.__wbStore.selectChat(chatId);
       void window.__wbSwitchChat?.(chatId);
-    } else {
-      hideProjectWorkspace();
+    }
+  });
+  document.getElementById("wbPwsProjectNewBtn")?.addEventListener("click", () => {
+    window.__wbOpenNewProjectModal?.();
+  });
+  document.getElementById("wbPwsSessionNewBtn")?.addEventListener("click", () => {
+    document.getElementById("jlAiNewSessionBtn")?.click();
+  });
+  document.getElementById("wbPwsOpenProjectDir")?.addEventListener("click", (ev) => {
+    const btn = ev.currentTarget;
+    const p = btn?.dataset?.path;
+    if (p && window.electronAPI?.shellOpenPath) {
+      void window.electronAPI.shellOpenPath(p);
     }
   });
   ensureNewTaskModal();
@@ -711,9 +776,11 @@ function bindProjectWorkspace() {
   });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
     window.__wbScheduleMainView?.();
+    renderProjectColSessions();
   });
 }
 
+window.__wbRenderProjectColSessions = renderProjectColSessions;
 window.__wbShowChatView = showChatView;
 window.__wbShowProjectView = showProjectView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;

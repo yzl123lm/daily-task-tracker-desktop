@@ -284,66 +284,99 @@ function selectProject(projectId) {
     window.__wbPersistActiveChatId?.(prevChat);
   }
   window.__wbStore?.selectProject?.(projectId);
-  window.__wbShowProjectWorkspace?.(projectId);
+  void window.__wbShowProjectWorkspace?.(projectId);
   if (typeof window.activateRoute === "function") {
-    window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+    window.activateRoute("project-dev", {
+      syncHash: true,
+      projectId,
+      skipWorkbenchGuard: true,
+      skipProjectLoad: true,
+    });
   }
+}
+
+function buildProjectListCard(project, store) {
+  const card = document.createElement("div");
+  card.className = "wb-list-card wb-list-card--project";
+  card.dataset.projectId = project.id;
+  const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
+  card.innerHTML = `
+    <div class="wb-list-card__surface">
+      <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
+        <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
+        <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
+        <span class="wb-status-pill ${statusPillClass(project.status)}">
+          <span class="wb-status-pill__dot" aria-hidden="true"></span>
+          ${escapeHtml(statusLabel)}
+        </span>
+      </button>
+      <div class="wb-list-card__actions" role="group" aria-label="项目操作">
+        <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
+        <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
+        <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+      </div>
+    </div>
+  `;
+  card.classList.toggle("is-active", project.id === store.selectedProjectId);
+  return card;
+}
+
+function mountProjectListCard(card, list) {
+  const projectId = card.dataset.projectId;
+  card.querySelector(".wb-list-card__body")?.addEventListener("click", () => {
+    list.querySelectorAll(".wb-list-card").forEach((el) => el.classList.remove("is-active"));
+    card.classList.add("is-active");
+    selectProject(projectId);
+  });
+  const project = (window.__wbStore?.getState?.().projects || []).find((p) => p.id === projectId);
+  card.querySelector('[data-action="edit"]')?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (project) {
+      void openEditProjectModal(project);
+    }
+  });
+  card.querySelector('[data-action="archive"]')?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (project) {
+      void archiveProject(project);
+    }
+  });
+  card.querySelector('[data-action="delete"]')?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (project) {
+      void deleteProject(project);
+    }
+  });
+  list.appendChild(card);
+}
+
+function renderProjectListToContainer(listEl, emptyEl, compact = false) {
+  if (!listEl) {
+    return;
+  }
+  const store = window.__wbStore?.getState?.() || {};
+  const projects = store.projects || [];
+  listEl.querySelectorAll(".wb-list-card").forEach((el) => el.remove());
+  if (emptyEl) {
+    emptyEl.hidden = projects.length > 0;
+  }
+  projects.forEach((project) => {
+    const card = buildProjectListCard(project, store);
+    if (compact) {
+      card.classList.add("wb-list-card--compact");
+    }
+    mountProjectListCard(card, listEl);
+  });
 }
 
 function renderProjectList() {
   const list = document.getElementById("jlProjectList");
   const empty = document.getElementById("jlProjectListEmpty");
-  if (!list) {
-    return;
+  renderProjectListToContainer(list, empty, false);
+  const colList = document.getElementById("wbPwsProjectList");
+  if (colList) {
+    renderProjectListToContainer(colList, null, true);
   }
-  const store = window.__wbStore?.getState?.() || {};
-  const projects = store.projects || [];
-  list.querySelectorAll(".wb-list-card").forEach((el) => el.remove());
-  if (empty) {
-    empty.hidden = projects.length > 0;
-  }
-  projects.forEach((project) => {
-    const card = document.createElement("div");
-    card.className = "wb-list-card wb-list-card--project";
-    card.dataset.projectId = project.id;
-    const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
-    card.innerHTML = `
-      <div class="wb-list-card__surface">
-        <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
-          <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
-          <span class="wb-project-card__name">${escapeHtml(project.name)}</span>
-          <span class="wb-status-pill ${statusPillClass(project.status)}">
-            <span class="wb-status-pill__dot" aria-hidden="true"></span>
-            ${escapeHtml(statusLabel)}
-          </span>
-        </button>
-        <div class="wb-list-card__actions" role="group" aria-label="项目操作">
-          <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
-          <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
-          <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
-        </div>
-      </div>
-    `;
-    card.classList.toggle("is-active", project.id === store.selectedProjectId);
-    card.querySelector(".wb-list-card__body")?.addEventListener("click", () => {
-      list.querySelectorAll(".wb-list-card").forEach((el) => el.classList.remove("is-active"));
-      card.classList.add("is-active");
-      selectProject(project.id);
-    });
-    card.querySelector('[data-action="edit"]')?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      void openEditProjectModal(project);
-    });
-    card.querySelector('[data-action="archive"]')?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      void archiveProject(project);
-    });
-    card.querySelector('[data-action="delete"]')?.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      void deleteProject(project);
-    });
-    list.appendChild(card);
-  });
 }
 
 function bindProjectArea() {
@@ -388,4 +421,6 @@ function bindProjectArea() {
 }
 
 window.__wbRenderProjects = renderProjectList;
+window.__wbRenderProjectList = renderProjectList;
+window.__wbOpenNewProjectModal = openNewProjectModal;
 window.__wbBindProjectArea = bindProjectArea;

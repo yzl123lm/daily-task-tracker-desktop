@@ -12,6 +12,7 @@ const ROUTES = {
   dashboard: { panelId: "panel-dashboard", title: "数据看板", breadcrumb: "工作台 / 每日工作跟进 / 数据看板" },
   list: { panelId: "panel-list", title: "任务列表", breadcrumb: "工作台 / 每日工作跟进 / 任务列表" },
   ai: { panelId: "panel-ai", title: "AI助手", breadcrumb: "工作台 / AI助手" },
+  "project-dev": { panelId: "panel-ai", title: "项目开发", breadcrumb: "工作台 / 项目开发" },
   record: { panelId: "panel-record", title: "会议记录", breadcrumb: "工作台 / 会议记录" },
   "knowledge-base": {
     panelId: "panel-knowledge-base",
@@ -1791,15 +1792,24 @@ reminderOkBtn.addEventListener("click", () => {
   reminderDialog.close();
 });
 
-function setHashRoute(route) {
-  const next = `#/${route}`;
+function setHashRoute(route, projectId = null) {
+  const next =
+    route === "project-dev" && projectId
+      ? `#/project/${encodeURIComponent(String(projectId))}`
+      : `#/${route}`;
   if (window.location.hash !== next) {
     window.history.replaceState(null, "", next);
   }
 }
 
 function parseHashRoute() {
-  const h = (window.location.hash || "").replace(/^#\/?/, "").split("/")[0];
+  const raw = (window.location.hash || "").replace(/^#\/?/, "");
+  const parts = raw.split("/").filter(Boolean);
+  const h = parts[0] || "";
+  if (h === "project" && parts[1]) {
+    window.__wbPendingProjectRouteId = decodeURIComponent(parts[1]);
+    return "project-dev";
+  }
   if (h === "local-models") {
     if (isWorkbenchWindow()) {
       return "local-models";
@@ -2691,8 +2701,8 @@ function hideAllPanels() {
   });
 }
 
-function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = {}) {
-  if (isAiWindow() && route !== "ai" && !skipWorkbenchGuard) {
+function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, projectId = null, skipProjectLoad = false } = {}) {
+  if (isAiWindow() && route !== "ai" && route !== "project-dev" && !skipWorkbenchGuard) {
     void openWorkbenchModule(route);
     return;
   }
@@ -2734,6 +2744,11 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   if (!ROUTES[route]) {
     route = isWorkbenchWindow() ? "workbench" : "ai";
   }
+
+  const resolvedProjectId =
+    projectId ||
+    window.__wbPendingProjectRouteId ||
+    (route === "project-dev" ? window.__wbStore?.getState?.().selectedProjectId : null);
 
   if (window.FloatDesktop?.isActive()) {
     activeRoute = route;
@@ -2785,7 +2800,7 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   }
   renderTabsStrip();
   if (syncHash) {
-    setHashRoute(route);
+    setHashRoute(route, resolvedProjectId);
   }
   if (route === "list") {
     if (typeof window.onTaskListPanelVisible === "function") {
@@ -2799,6 +2814,13 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false } = 
   }
   if (route === "ai" && typeof window.onAIPanelVisible === "function") {
     window.onAIPanelVisible();
+  }
+  if (route === "project-dev" && resolvedProjectId && !skipProjectLoad) {
+    window.__wbStore?.selectProject?.(resolvedProjectId);
+    if (typeof window.__wbShowProjectWorkspace === "function") {
+      void window.__wbShowProjectWorkspace(resolvedProjectId);
+    }
+    delete window.__wbPendingProjectRouteId;
   }
   if (route === "knowledge-base" && typeof window.onKnowledgeBasePanelVisible === "function") {
     void window.onKnowledgeBasePanelVisible({ route: "kb-main" });

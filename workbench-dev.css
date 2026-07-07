@@ -1626,9 +1626,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   overflow: hidden;
   gap: 0;
   padding: 0;
-  --wb-pws-project-width: 260px;
-  --wb-pws-agent-width: min(380px, 34%);
-  --wb-pws-terminal-height: 220px;
+  --wb-pws-project-width: 300px;
+  --wb-pws-agent-width: 360px;
   grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(320px, 1fr);
   grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:

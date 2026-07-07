@@ -300,4 +300,5 @@ function bindChatArea() {
 }
 
 window.__wbRenderChats = renderChatSessionList;
+window.__wbFormatChatListTime = formatChatListTime;
 window.__wbBindChatArea = bindChatArea;
