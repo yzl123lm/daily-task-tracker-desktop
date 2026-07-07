@@ -35,14 +35,14 @@ body.jl-project-workspace-active #panel-ai {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
-  min-height: 52px;
-  padding: 10px 14px;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1px solid #dcebfa;
-  border-radius: 14px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 8px 24px rgba(45, 90, 150, 0.08);
+  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
 }
 
 .wb-pws-status-bar__left {
@@ -54,9 +54,9 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-status-bar__badge {
   flex-shrink: 0;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #1e6bff;
   background: #eaf4ff;
@@ -65,7 +65,7 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-status-bar__title {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   color: #1f2d3d;
   white-space: nowrap;
@@ -113,14 +113,14 @@ body.jl-project-workspace-active #panel-ai {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .wb-pws-btn--primary {
@@ -134,13 +134,15 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-pws-btn--ghost {
-  color: #243447;
-  background: #fff;
-  border-color: #dcebfa;
+  color: #1e6bff;
+  background: #f7fbff;
+  border-color: #cfe2f8;
 }
 
 .wb-pws-btn--ghost:hover {
-  background: #f7fbff;
+  color: #1a5ce6;
+  background: #eaf4ff;
+  border-color: #b9d6fb;
 }
 
 .wb-pws-code-col {
@@ -167,10 +169,10 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-panel {
   border: 1px solid #dcebfa;
-  border-radius: 12px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
-  padding: 10px 12px;
+  box-shadow: 0 2px 10px rgba(45, 90, 150, 0.05);
+  padding: 8px 10px;
 }
 
 .wb-pws-panel__head {
@@ -184,7 +186,7 @@ body.jl-project-workspace-active #panel-ai {
 .wb-pws-panel__head h3,
 .wb-pws-panel__head h4 {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #1f2d3d;
 }
@@ -207,15 +209,15 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-pws-user-card__title {
-  margin: 0 0 6px;
-  font-size: 13px;
+  margin: 0 0 4px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .wb-pws-user-card__desc,
 .wb-pws-user-card__step {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7a90;
   line-height: 1.5;
 }
@@ -233,8 +235,8 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-timeline__item {
   display: flex;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 6px 8px;
   border: 1px solid #e8f1fc;
   border-radius: 10px;
   background: #fff;
@@ -303,7 +305,7 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-timeline__summary {
   margin: 0;
-  font-size: 12px;
+  font-size: 11px;
   color: #243447;
   line-height: 1.45;
 }
@@ -319,10 +321,10 @@ body.jl-project-workspace-active #panel-ai {
   width: 100%;
   box-sizing: border-box;
   border: 1px solid #dcebfa;
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 8px;
+  padding: 8px 10px;
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   resize: vertical;
   background: #fff;
   color: #1f2d3d;
@@ -376,11 +378,11 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-pws-terminal-tab {
-  padding: 4px 10px;
+  padding: 3px 8px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 12px;
+  font-size: 11px;
   color: #6b7a90;
   cursor: pointer;
 }

@@ -1501,8 +1501,8 @@ body.jl-window-ai.theme-nebula .wb-list-card--chat .wb-list-card__actions--overl
   border-radius: 6px;
 }
 
-body.theme-nebula .wb-project-workspace button,
-body.jl-window-ai.theme-nebula .wb-project-workspace button {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button {
   padding: 8px 14px;
   font-size: 14px;
   font-weight: 500;
@@ -1511,49 +1511,49 @@ body.jl-window-ai.theme-nebula .wb-project-workspace button {
   transform: none;
 }
 
-body.theme-nebula .wb-project-workspace button.secondary,
-body.jl-window-ai.theme-nebula .wb-project-workspace button.secondary {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.secondary,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.secondary {
   color: #1d2129;
   background: #fff;
   border: 1px solid #d8e0eb;
 }
 
-body.theme-nebula .wb-project-workspace button.secondary:hover,
-body.jl-window-ai.theme-nebula .wb-project-workspace button.secondary:hover {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.secondary:hover,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.secondary:hover {
   color: #1d2129;
   background: #f8fafc;
   border-color: #94a3b8;
 }
 
-body.theme-nebula .wb-project-workspace button.primary,
-body.jl-window-ai.theme-nebula .wb-project-workspace button.primary {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.primary,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.primary {
   color: #1d2129;
   background: #e8f3ff;
   border: 1px solid #91caff;
 }
 
-body.theme-nebula .wb-project-workspace button.primary:hover,
-body.jl-window-ai.theme-nebula .wb-project-workspace button.primary:hover {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.primary:hover,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) button.primary:hover {
   color: #1d2129;
   background: #d6e8ff;
   border-color: #69b1ff;
 }
 
-body.theme-nebula .wb-project-workspace input,
-body.theme-nebula .wb-project-workspace textarea,
-body.theme-nebula .wb-project-workspace select,
-body.jl-window-ai.theme-nebula .wb-project-workspace input,
-body.jl-window-ai.theme-nebula .wb-project-workspace textarea,
-body.jl-window-ai.theme-nebula .wb-project-workspace select {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) input,
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) textarea,
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) select,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) input,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) textarea,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) select {
   background: #fff;
   color: #1d2129;
   border: 1px solid #d8e0eb;
 }
 
-body.theme-nebula .wb-project-workspace textarea::placeholder,
-body.theme-nebula .wb-project-workspace input::placeholder,
-body.jl-window-ai.theme-nebula .wb-project-workspace textarea::placeholder,
-body.jl-window-ai.theme-nebula .wb-project-workspace input::placeholder {
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) textarea::placeholder,
+body.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) input::placeholder,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) textarea::placeholder,
+body.jl-window-ai.theme-nebula .wb-project-workspace:not(.wb-project-workspace--codex) input::placeholder {
   color: #94a3b8;
 }
 
@@ -1630,7 +1630,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   --wb-pws-agent-width: min(380px, 34%);
   --wb-pws-terminal-height: 220px;
   grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(320px, 1fr);
-  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
+  grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar topbar"
     "project agent code"
@@ -1639,7 +1639,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 }
 
 .wb-pws-layout[data-terminal-collapsed="1"] {
-  grid-template-rows: 48px minmax(0, 1fr) 42px;
+  grid-template-rows: 44px minmax(0, 1fr) 38px;
 }
 
 .wb-pws-topbar,

@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.22.1",
+  "version": "1.22.2",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",

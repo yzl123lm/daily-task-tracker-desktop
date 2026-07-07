@@ -83,7 +83,7 @@ function positionResizeHandles(prefs = loadPrefs()) {
   if (!layout) {
     return;
   }
-  const top = 48;
+  const top = 44;
   const terminalH =
     layout.dataset.terminalCollapsed === "1" ? 42 : prefs.terminalHeightPx;
   if (projectHandle) {

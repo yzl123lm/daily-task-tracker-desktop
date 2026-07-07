@@ -13,11 +13,11 @@
 
 .wb-pws-code-tab {
   flex: 1;
-  min-height: 34px;
+  min-height: 30px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #6b7a90;
   cursor: pointer;
@@ -63,7 +63,7 @@
 .wb-test-result-panel__head h3,
 .wb-git-change-panel__head h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: #1f2d3d;
 }

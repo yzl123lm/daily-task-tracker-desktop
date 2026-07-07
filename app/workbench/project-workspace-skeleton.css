@@ -73,7 +73,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   --wb-pws-agent-width: min(380px, 34%);
   --wb-pws-terminal-height: 220px;
   grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(320px, 1fr);
-  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
+  grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar topbar"
     "project agent code"
@@ -82,7 +82,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 }
 
 .wb-pws-layout[data-terminal-collapsed="1"] {
-  grid-template-rows: 48px minmax(0, 1fr) 42px;
+  grid-template-rows: 44px minmax(0, 1fr) 38px;
 }
 
 .wb-pws-topbar,
@@ -92,7 +92,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   border-left: none;
   border-right: none;
   border-top: none;
-  min-height: 48px;
+  min-height: 44px;
   box-shadow: none;
 }
 
@@ -163,7 +163,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-project-col__head h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #1f2d3d;
 }
@@ -179,7 +179,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-project-card h4 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: #1f2d3d;
 }
@@ -242,8 +242,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-agent-header {
   flex: 0 0 auto;
-  min-height: 52px;
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 8px 10px;
   border-bottom: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.92);
 }
@@ -258,15 +258,15 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 10px 12px;
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .wb-pws-agent-composer {
   flex: 0 0 auto;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-top: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.92);
 }
@@ -329,7 +329,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 @media (min-width: 1280px) {
   .wb-pws-layout {
     grid-template-columns: var(--wb-pws-project-width) var(--wb-pws-agent-width) minmax(0, 1fr);
-    grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
+    grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   }
 }
 
@@ -337,14 +337,14 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-layout {
     --wb-pws-project-width: 280px;
     --wb-pws-agent-width: 340px;
-    grid-template-rows: 48px minmax(0, 1fr) 210px;
+    grid-template-rows: 44px minmax(0, 1fr) 210px;
   }
 }
 
 @media (max-width: 1023px) {
   .wb-pws-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 48px minmax(0, 1fr) 180px;
+    grid-template-rows: 44px minmax(0, 1fr) 180px;
     grid-template-areas:
       "topbar"
       "agent"
@@ -356,4 +356,123 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-resize-handle {
     display: none !important;
   }
+}
+
+/* --- Typography + button polish (match Codex sample density) --- */
+body.jl-project-workspace-active .wb-project-workspace--codex {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.jl-project-workspace-active .wb-project-workspace--codex button,
+body.jl-project-workspace-active .wb-project-workspace--codex .wb-pws-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+body.jl-project-workspace-active .wb-project-workspace--codex button.secondary,
+body.jl-project-workspace-active .wb-project-workspace--codex .secondary {
+  color: #1e6bff !important;
+  background: #f7fbff !important;
+  border: 1px solid #cfe2f8 !important;
+}
+
+body.jl-project-workspace-active .wb-project-workspace--codex button.secondary:hover,
+body.jl-project-workspace-active .wb-project-workspace--codex .secondary:hover {
+  color: #1a5ce6 !important;
+  background: #eaf4ff !important;
+  border-color: #b9d6fb !important;
+}
+
+body.jl-project-workspace-active .wb-project-workspace--codex button.primary {
+  color: #fff !important;
+  background: #2f7df6 !important;
+  border: 1px solid #1e6bff !important;
+}
+
+body.jl-project-workspace-active .wb-project-workspace--codex button.primary:hover {
+  background: #1e6bff !important;
+}
+
+body.jl-project-workspace-active .wb-task-item {
+  padding: 7px 9px;
+  border-color: #dcebfa;
+  background: #f7fbff;
+}
+
+body.jl-project-workspace-active .wb-task-item.is-active {
+  border-color: #2f7df6;
+  background: #eaf4ff;
+}
+
+body.jl-project-workspace-active .wb-task-item__title {
+  font-size: 12px;
+}
+
+body.jl-project-workspace-active .wb-task-item__status {
+  font-size: 10px;
+  color: #6b7a90;
+}
+
+body.jl-project-workspace-active .wb-task-empty {
+  font-size: 11px;
+  padding: 8px;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel {
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head {
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head h3 {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+body.jl-project-workspace-active .wb-list-card__surface {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border-color: #dcebfa;
+}
+
+body.jl-project-workspace-active .wb-project-card__name {
+  font-size: 12px;
+}
+
+body.jl-project-workspace-active .wb-status-pill {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+body.jl-project-workspace-active .wb-icon-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  border-color: #cfe2f8;
+  color: #1e6bff;
+  background: #f7fbff;
+}
+
+body.jl-project-workspace-active .wb-icon-btn:hover {
+  background: #eaf4ff;
+  border-color: #b9d6fb;
+  color: #1a5ce6;
+}
+
+body.jl-project-workspace-active .wb-plan-card__head h4 {
+  font-size: 13px;
+}
+
+body.jl-project-workspace-active .wb-plan-card__req,
+body.jl-project-workspace-active .wb-plan-card__grid {
+  font-size: 11px;
 }
