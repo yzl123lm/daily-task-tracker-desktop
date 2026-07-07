@@ -440,10 +440,19 @@ async function applyControlledPatch() {
     alert("请先选择任务和文件。");
     return;
   }
-  const ok = window.confirm(
-    `确认写入 ${relPath}？\n\n将创建文件备份${createGitBranch ? "并尝试创建 Git 分支" : ""}。此操作不可静默撤销。`
-  );
-  if (!ok) {
+  const approved = await window.__wbRequestApproval?.({
+    taskId,
+    projectId,
+    actionType: "write_file",
+    title: `写入文件：${relPath}`,
+    summary: "受控写入将创建备份，可在备份面板还原。",
+    scope: [
+      relPath,
+      createGitBranch ? "写入前尝试创建 Git 分支" : "不创建 Git 分支",
+    ],
+    riskLevel: "MEDIUM",
+  });
+  if (!approved) {
     return;
   }
   try {
@@ -483,6 +492,18 @@ async function runTestWithFix() {
   const out = document.getElementById("wbTestOutput");
   const fixList = document.getElementById("wbFixSuggestions");
   if (!projectId || !command || typeof api.wbProjectRunTestFix !== "function") {
+    return;
+  }
+  const approved = await window.__wbRequestApproval?.({
+    taskId,
+    projectId,
+    actionType: "run_test",
+    title: "运行测试并分析",
+    summary: "将在项目目录执行白名单测试命令。",
+    scope: [command],
+    riskLevel: "MEDIUM",
+  });
+  if (!approved) {
     return;
   }
   if (out) {
@@ -537,8 +558,17 @@ async function gitCommitConfirmed() {
   if (!projectId || typeof api.wbProjectGitCommit !== "function") {
     return;
   }
-  const ok = window.confirm("确认执行 git commit？将提交当前仓库所有已跟踪变更。");
-  if (!ok) {
+  const approved = await window.__wbRequestApproval?.({
+    taskId,
+    projectId,
+    actionType: "git_commit",
+    title: "Git Commit",
+    summary: "将提交当前仓库所有已跟踪变更。",
+    scope: [message || "wb: controlled dev", "提交所有已跟踪变更"],
+    riskLevel: "HIGH",
+    rollbackHint: "提交后可通过 Git 历史或备份面板处理；请确认变更范围。",
+  });
+  if (!approved) {
     return;
   }
   try {
@@ -563,6 +593,19 @@ async function gitCommitConfirmed() {
 async function applyPlanPatch(diffPreview) {
   if (!diffPreview?.filePath) {
     return;
+  }
+  const projectId = panelState.projectId;
+  const taskId = getTaskId();
+  const changes = window.__wbCodeReviewStore?.getChanges?.(projectId, taskId) || [];
+  const match = changes.find((c) => c.path === diffPreview.filePath);
+  if (match) {
+    window.__wbCodeReviewStore?.setSelectedChange?.(projectId, taskId, match.id);
+    window.__wbCodeReviewStore?.setReviewStatus?.(
+      projectId,
+      taskId,
+      match.id,
+      window.__wbCodeReviewStore.REVIEW_STATUS.ACCEPTED
+    );
   }
   await loadFilePreview(diffPreview.filePath);
   const patchContent = document.getElementById("wbPatchContent");
@@ -702,10 +745,17 @@ async function runControlledShell() {
     alert("请输入受控 shell 命令。");
     return;
   }
-  const ok = window.confirm(
-    `确认在项目目录运行以下命令？\n\n${command}\n\n命令将受白名单与注入检测约束。`
-  );
-  if (!ok) {
+  const approved = await window.__wbRequestApproval?.({
+    taskId,
+    projectId,
+    actionType: "shell",
+    title: "受控 Shell 执行",
+    summary: "命令将受白名单与注入检测约束。",
+    scope: [command],
+    riskLevel: "HIGH",
+    rollbackHint: "Shell 输出将记入工具记录；高风险命令需人工确认。",
+  });
+  if (!approved) {
     return;
   }
   if (out) {
@@ -858,34 +908,75 @@ function renderPlanCodeExtras(output) {
         `<li><code>${escapeHtml(s.path)}</code><pre class="wb-plan-card__snippet">${escapeHtml(s.preview || "")}</pre></li>`
     )
     .join("");
-  const diffHtml = diffs
-    .map(
-      (d, idx) =>
-        `<li class="wb-plan-card__diff-item">
-          <code>${escapeHtml(d.filePath)}</code>
-          <span>${escapeHtml(d.summary || "")}</span>
-          <button type="button" class="secondary wb-plan-apply-btn" data-diff-idx="${idx}">载入并准备写入</button>
-          <pre class="wb-plan-card__diff">${escapeHtml(d.unifiedDiff || "")}</pre>
-        </li>`
-    )
-    .join("");
   extra.innerHTML = `
     ${snippets.length ? `<h5>代码分析</h5><ul>${snippetHtml}</ul>` : ""}
-    ${diffs.length ? `<h5>Diff 预览 → 确认后可写入</h5><ul class="wb-plan-card__diff-list">${diffHtml}</ul>` : ""}
+    ${diffs.length ? `<p class="wb-plan-card__diff-hint">右侧 <strong>Diff 审阅</strong> 面板已加载 ${diffs.length} 个文件变更，可逐文件接受/拒绝后批量写入。</p>` : ""}
   `;
   window.__wbLastPlanDiffs = diffs;
-  extra.querySelectorAll(".wb-plan-apply-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.dataset.diffIdx);
-      const item = window.__wbLastPlanDiffs?.[idx];
-      if (item) {
-        void applyPlanPatch(item);
-      }
-    });
+}
+
+async function applyAcceptedDiffs() {
+  const api = wbApi();
+  const projectId = panelState.projectId;
+  const taskId = getTaskId();
+  const reviewStore = window.__wbCodeReviewStore;
+  if (!projectId || !taskId || !reviewStore) {
+    return;
+  }
+  const accepted = reviewStore.getAcceptedChanges(projectId, taskId);
+  if (!accepted.length) {
+    alert("请先在 Diff 审阅面板中「接受」至少一个文件。");
+    return;
+  }
+  const createGitBranch = document.getElementById("wbCreateGitBranch")?.checked;
+  const approved = await window.__wbRequestApproval?.({
+    taskId,
+    projectId,
+    actionType: "write_batch",
+    title: `批量写入 ${accepted.length} 个文件`,
+    summary: "将应用 Diff 审阅中已接受的变更。",
+    scope: accepted.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
+    riskLevel: "MEDIUM",
   });
+  if (!approved) {
+    return;
+  }
+  const postDiff = document.getElementById("wbPostWriteDiff");
+  const results = [];
+  try {
+    for (const change of accepted) {
+      const result = await api.wbProjectApplyPatch({
+        projectId,
+        taskId,
+        path: change.path,
+        content: change.proposedContent,
+        userApproved: true,
+        createGitBranch: Boolean(createGitBranch),
+      });
+      results.push({ path: change.path, ok: true, result });
+    }
+    if (postDiff && results.length) {
+      const last = results[results.length - 1];
+      postDiff.hidden = false;
+      postDiff.textContent =
+        last.result?.writeResult?.patch?.unifiedDiff ||
+        `已写入 ${results.length} 个文件`;
+    }
+    reviewStore.clearChanges(projectId, taskId);
+    window.__wbExpandTerminalDrawer?.("log");
+    await refreshGitStatus(projectId);
+    await refreshFileTree(projectId);
+    await refreshBackupList();
+    await refreshToolOps();
+    window.__wbRefreshTaskList?.();
+    window.__wbRenderDiffReviewPanel?.();
+  } catch (err) {
+    alert(err?.message || "批量写入失败");
+  }
 }
 
 window.__wbRefreshCodePanel = refreshCodePanel;
 window.__wbRenderPlanCodeExtras = renderPlanCodeExtras;
 window.__wbBindCodePanel = ensureCodePanelMount;
 window.__wbApplyPlanPatch = applyPlanPatch;
+window.__wbApplyAcceptedDiffs = applyAcceptedDiffs;

@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "2";
+const WB_PWS_LAYOUT_VERSION = "3";
 
 const WB_PWS_LAYOUT_HTML = `
   <div class="wb-pws-layout">
@@ -13,6 +13,9 @@ const WB_PWS_LAYOUT_HTML = `
         <div id="wbProjectContextHealth" class="wb-pws-status-bar__health"></div>
       </div>
       <div class="wb-pws-status-bar__actions">
+        <div class="wb-pws-status-bar__layout-actions">
+          <button type="button" id="wbPwsLayoutResetBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-layout-reset" title="恢复默认栏宽与终端高度">重置布局</button>
+        </div>
         <button type="button" id="wbCompressBtn" class="wb-pws-btn wb-pws-btn--ghost">手动压缩</button>
         <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
       </div>
@@ -39,8 +42,9 @@ const WB_PWS_LAYOUT_HTML = `
         <div class="wb-pws-panel wb-pws-panel--composer">
           <header class="wb-pws-panel__head">
             <h3>任务描述 / 追问</h3>
-            <span class="wb-pws-panel__hint">默认 PLAN_ONLY，写入需审批</span>
+            <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板"></select>
           </header>
+          <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
           <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述开发需求，生成 PLAN_ONLY 方案…"></textarea>
           <div class="wb-pws-composer__actions">
             <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">生成开发方案</button>

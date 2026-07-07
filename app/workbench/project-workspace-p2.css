@@ -1,0 +1,140 @@
+/* P2 — resizable layout handles + scene template selector */
+
+.wb-pws-layout {
+  --wb-pws-agent-width: 36%;
+  --wb-pws-terminal-height: 220px;
+  --wb-pws-diff-height: 42%;
+}
+
+.wb-pws-agent-col {
+  flex: 0 0 var(--wb-pws-agent-width) !important;
+  max-width: none;
+}
+
+.wb-pws-resize-handle {
+  flex-shrink: 0;
+  background: transparent;
+  touch-action: none;
+  z-index: 2;
+}
+
+.wb-pws-resize-handle--col {
+  width: 8px;
+  margin: 0 -4px;
+  cursor: col-resize;
+  position: relative;
+}
+
+.wb-pws-resize-handle--col::after {
+  content: "";
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  left: 3px;
+  width: 2px;
+  border-radius: 2px;
+  background: #cfe2f8;
+  transition: background 0.15s ease;
+}
+
+.wb-pws-resize-handle--col:hover::after,
+body.wb-pws-resizing-col .wb-pws-resize-handle--col::after {
+  background: #2f7df6;
+}
+
+.wb-pws-resize-handle--terminal {
+  height: 8px;
+  margin: -2px 0;
+  cursor: row-resize;
+  position: relative;
+}
+
+.wb-pws-resize-handle--terminal::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  top: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: #cfe2f8;
+}
+
+.wb-pws-resize-handle--terminal:hover::after,
+body.wb-pws-resizing-terminal .wb-pws-resize-handle--terminal::after {
+  background: #2f7df6;
+}
+
+.wb-pws-resize-handle--diff {
+  height: 6px;
+  cursor: row-resize;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.wb-pws-resize-handle--diff::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 3px;
+  margin: 1px auto 0;
+  border-radius: 3px;
+  background: #cfe2f8;
+}
+
+body.wb-pws-resizing-col,
+body.wb-pws-resizing-terminal,
+body.wb-pws-resizing-diff {
+  user-select: none;
+  cursor: inherit;
+}
+
+.wb-pws-terminal-drawer:not([data-collapsed="1"]) .wb-pws-terminal-drawer__body {
+  height: var(--wb-pws-terminal-height);
+  max-height: var(--wb-pws-terminal-height);
+}
+
+.wb-pws-template-select {
+  min-width: 140px;
+  max-width: 180px;
+  padding: 4px 8px;
+  border: 1px solid #dcebfa;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #243447;
+  background: #fff;
+}
+
+.wb-pws-status-bar__layout-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wb-pws-layout-reset {
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+}
+
+.wb-pws-template-hint {
+  margin: 0 0 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #1e6bff;
+  background: #eaf4ff;
+  border: 1px solid #cfe2f8;
+}
+
+.wb-diff-review-panel {
+  max-height: var(--wb-pws-diff-height) !important;
+}
+
+@media (max-width: 1024px) {
+  .wb-pws-resize-handle--col,
+  .wb-pws-resize-handle--terminal,
+  .wb-pws-resize-handle--diff {
+    display: none;
+  }
+}

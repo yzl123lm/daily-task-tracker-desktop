@@ -89,6 +89,17 @@ function renderPlanCard(output) {
     </div>
   `;
   window.__wbRenderPlanCodeExtras?.(output);
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  if (output.diffPreviews?.length && projectId && taskId) {
+    window.__wbCodeReviewStore?.setFromDiffPreviews?.(
+      projectId,
+      taskId,
+      output.diffPreviews,
+      "plan"
+    );
+    window.__wbRenderDiffReviewPanel?.();
+  }
 }
 
 function renderTaskDetail(task) {
@@ -265,6 +276,7 @@ function showProjectWorkspaceView(projectId, gen) {
 
 function showChatView() {
   projectWorkspaceLoadGen += 1;
+  window.__wbApprovalStore?.clearPending?.();
   const root = document.getElementById("wbProjectWorkspace");
   const aiMain = document.getElementById("aiPanelMain");
   const panelAi = document.getElementById("panel-ai");
@@ -305,6 +317,7 @@ async function loadProjectWorkspace(projectId) {
   }
   root.dataset.wbReady = "0";
   delete root.dataset.wbProjectId;
+  window.__wbApprovalStore?.clearPending?.();
   const project = await api.wbProjectGet({ projectId: id });
   if (!isProjectViewActive(id, gen)) {
     return;
@@ -329,6 +342,8 @@ async function loadProjectWorkspace(projectId) {
   root.dataset.wbProjectId = id;
   showProjectWorkspaceView(id, gen);
   window.__wbBindTerminalDrawer?.();
+  window.__wbBindWorkspaceResizers?.();
+  window.__wbApplyPwsLayoutPrefs?.();
   window.__wbApplyMainView?.();
   document.getElementById("wbPlanCard").hidden = true;
   document.getElementById("wbAgentOutput").hidden = true;
@@ -406,6 +421,10 @@ function ensureNewTaskModal() {
       <form id="wbNewTaskForm" class="wb-modal__body">
         <input type="hidden" id="wbNewTaskProjectId" value="" />
         <label class="wb-field">
+          <span>场景模板（P2）</span>
+          <select id="wbNewTaskTemplate" class="wb-pws-template-select" aria-label="新建任务场景模板"></select>
+        </label>
+        <label class="wb-field">
           <span>任务标题</span>
           <input id="wbTaskTitleInput" type="text" maxlength="160" required placeholder="例如：实现项目卡片列表" />
         </label>
@@ -443,6 +462,13 @@ function openNewTaskModal(projectId) {
     err.textContent = "";
   }
   modal.hidden = false;
+  const activeTpl = window.__wbSceneTemplates?.getActiveTemplate?.();
+  if (activeTpl?.id) {
+    window.__wbSceneTemplates?.applyTemplate?.(activeTpl.id, {
+      fillComposer: false,
+      fillNewTask: true,
+    });
+  }
   document.getElementById("wbTaskTitleInput")?.focus();
 }
 
@@ -462,7 +488,14 @@ async function submitNewTask(ev) {
     return;
   }
   try {
-    await api.wbProjectTaskCreate({ projectId, title, description, priority });
+    const extras = window.__wbSceneTemplates?.getTaskCreateExtras?.() || {};
+    await api.wbProjectTaskCreate({
+      projectId,
+      title,
+      description,
+      priority,
+      currentStep: extras.currentStep || "",
+    });
     document.getElementById("wbNewTaskModal").hidden = true;
     await loadProjectWorkspace(projectId);
   } catch (err) {
@@ -477,7 +510,9 @@ async function runProjectAgent(projectId) {
   const api = wbApi();
   const list = document.getElementById("wbTaskList");
   const taskId = list?.dataset?.selectedTaskId;
-  const message = document.getElementById("wbAgentInput")?.value?.trim();
+  const message = window.__wbSceneTemplates?.enrichAgentMessage?.(
+    document.getElementById("wbAgentInput")?.value?.trim()
+  );
   const out = document.getElementById("wbAgentOutput");
   if (!taskId) {
     if (out) {
@@ -531,6 +566,10 @@ async function confirmTaskPlan() {
     status: "DEVELOPING",
     currentStep: "用户已确认方案，可受控写入",
   });
+  const modePill = document.getElementById("wbPwsModePill");
+  if (modePill) {
+    modePill.textContent = "受控写入";
+  }
   document.getElementById("wbTaskConfirmBtn").hidden = true;
   const tasks = await api.wbProjectTasksList({ projectId });
   window.__wbStore?.setTasks?.(tasks);
@@ -541,6 +580,10 @@ async function confirmTaskPlan() {
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
   window.__wbBindTerminalDrawer?.();
+  window.__wbBindWorkspaceResizers?.();
+  window.__wbBindSceneTemplates?.();
+  window.__wbBindApprovalCard?.();
+  window.__wbBindDiffReviewPanel?.();
   ensureNewTaskModal();
   const taskForm = document.getElementById("wbNewTaskForm");
   if (taskForm && taskForm.dataset.wbBound !== "1") {

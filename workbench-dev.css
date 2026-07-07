@@ -1234,7 +1234,15 @@ body.jl-window-ai .jl-ai-session-list {
   min-width: 0;
 }
 
-.wb-plan-card__diff-list .wb-plan-apply-btn {
+.wb-plan-card__diff-hint {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #1e6bff;
+  background: #eaf4ff;
+  border: 1px solid #cfe2f8;
+}
   margin: 6px 0;
   font-size: 11px;
 }
