@@ -99,6 +99,7 @@ function renderPlanCard(output) {
       "plan"
     );
     window.__wbRenderDiffReviewPanel?.();
+    window.__wbSwitchCodeTab?.("diff");
   }
 }
 
@@ -584,6 +585,9 @@ function bindProjectWorkspace() {
   window.__wbBindSceneTemplates?.();
   window.__wbBindApprovalCard?.();
   window.__wbBindDiffReviewPanel?.();
+  window.__wbBindCodeWorkspaceTabs?.();
+  window.__wbBindTestResultPanel?.();
+  window.__wbBindGitChangePanel?.();
   ensureNewTaskModal();
   const taskForm = document.getElementById("wbNewTaskForm");
   if (taskForm && taskForm.dataset.wbBound !== "1") {

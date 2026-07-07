@@ -91,16 +91,6 @@ function ensureCodePanelMount() {
         <pre id="wbPostWriteDiff" class="wb-diff-preview wb-diff-preview--applied scroll-tech" hidden></pre>
       </div>
     </div>
-    <div class="wb-test-panel">
-      <h4>白名单测试与修复建议</h4>
-      <div class="wb-test-panel__row">
-        <select id="wbTestCommand"></select>
-        <button type="button" id="wbRunTestBtn" class="secondary">运行</button>
-        <button type="button" id="wbRunTestFixBtn" class="primary">运行并分析</button>
-      </div>
-      <pre id="wbTestOutput" class="wb-test-output scroll-tech">选择命令后运行，失败时将生成修复建议。</pre>
-      <ul id="wbFixSuggestions" class="wb-fix-suggestions" hidden></ul>
-    </div>
     <div class="wb-shell-panel" id="wbShellPanel">
       <h4>受控 Shell（需确认）</h4>
       <p class="wb-shell-panel__hint">仅允许白名单命令（npm run / node scripts / git status 等），禁止链式与危险操作。</p>
@@ -111,13 +101,6 @@ function ensureCodePanelMount() {
       </div>
       <pre id="wbShellOutput" class="wb-test-output scroll-tech">选择或输入命令后运行，将记入 tool_operations。</pre>
       <ul id="wbShellFixSuggestions" class="wb-fix-suggestions" hidden></ul>
-    </div>
-    <div class="wb-git-panel">
-      <h4>Git（可选）</h4>
-      <div class="wb-git-panel__row">
-        <input id="wbGitCommitMsg" type="text" placeholder="commit 说明（需确认）" />
-        <button type="button" id="wbGitCommitBtn" class="secondary">确认 Commit</button>
-      </div>
     </div>
     <div class="wb-backup-panel" id="wbBackupPanel">
       <h4>写入备份与还原</h4>
@@ -411,21 +394,7 @@ async function restoreBackup(backup) {
 }
 
 async function refreshGitStatus(projectId) {
-  const api = wbApi();
-  const label = document.getElementById("wbGitStatusLabel");
-  if (!label || typeof api.wbProjectGitStatus !== "function") {
-    return;
-  }
-  try {
-    const status = await api.wbProjectGitStatus({ projectId });
-    if (!status.isRepo) {
-      label.textContent = "Git：非仓库（写入前分支选项将跳过）";
-      return;
-    }
-    label.textContent = `Git：${status.branch || "detached"} · ${status.clean ? "干净" : `变更 ${status.lines.length} 项`}`;
-  } catch {
-    label.textContent = "Git：状态未知";
-  }
+  await window.__wbRefreshGitChangePanel?.(projectId);
 }
 
 async function applyControlledPatch() {
@@ -539,6 +508,8 @@ async function runTestWithFix() {
         fixList.appendChild(li);
       });
     }
+    recordTestRun(projectId, taskId, command, result, suggestions.length);
+    window.__wbSwitchCodeTab?.("test");
     window.__wbRefreshTaskList?.();
   } catch (err) {
     if (out) {
@@ -585,6 +556,7 @@ async function gitCommitConfirmed() {
     );
     await refreshGitStatus(projectId);
     await refreshToolOps();
+    window.__wbSwitchCodeTab?.("git");
   } catch (err) {
     alert(err?.message || "Git commit 失败");
   }
@@ -616,6 +588,20 @@ async function applyPlanPatch(diffPreview) {
   document.getElementById("wbCodePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function recordTestRun(projectId, taskId, command, result, fixCount = 0) {
+  window.__wbTestResultStore?.recordRun?.(projectId, taskId, {
+    command,
+    success: result.success,
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    fixCount,
+  });
+  window.__wbRenderTestResultPanel?.();
+  window.__wbSyncTerminalDrawer?.();
+  window.__wbExpandTerminalDrawer?.("test");
+}
+
 async function runWhitelistedTest() {
   const api = wbApi();
   const projectId = panelState.projectId;
@@ -643,6 +629,8 @@ async function runWhitelistedTest() {
         result.stderr || "",
       ].join("\n");
     }
+    recordTestRun(projectId, getTaskId(), command, result);
+    window.__wbSwitchCodeTab?.("test");
   } catch (err) {
     if (out) {
       out.textContent = err?.message || "运行失败";
@@ -669,8 +657,8 @@ function ensureShellPanel() {
   if (document.getElementById("wbShellPanel")) {
     return;
   }
-  const gitPanel = document.querySelector(".wb-git-panel");
-  if (!gitPanel?.parentNode) {
+  const anchor = document.querySelector(".wb-code-panel__layout")?.parentElement;
+  if (!anchor) {
     return;
   }
   const panel = document.createElement("div");
@@ -687,7 +675,12 @@ function ensureShellPanel() {
     <pre id="wbShellOutput" class="wb-test-output scroll-tech">选择或输入命令后运行，将记入 tool_operations。</pre>
     <ul id="wbShellFixSuggestions" class="wb-fix-suggestions" hidden></ul>
   `;
-  gitPanel.parentNode.insertBefore(panel, gitPanel);
+  const backup = document.getElementById("wbBackupPanel");
+  if (backup) {
+    anchor.insertBefore(panel, backup);
+  } else {
+    anchor.appendChild(panel);
+  }
 }
 
 async function refreshShellPresets() {
@@ -841,17 +834,8 @@ function bindCodePanelEvents() {
   document.getElementById("wbDiffPreviewBtn")?.addEventListener("click", () => {
     void runDiffPreview();
   });
-  document.getElementById("wbRunTestBtn")?.addEventListener("click", () => {
-    void runWhitelistedTest();
-  });
-  document.getElementById("wbRunTestFixBtn")?.addEventListener("click", () => {
-    void runTestWithFix();
-  });
   document.getElementById("wbApplyPatchBtn")?.addEventListener("click", () => {
     void applyControlledPatch();
-  });
-  document.getElementById("wbGitCommitBtn")?.addEventListener("click", () => {
-    void gitCommitConfirmed();
   });
   document.getElementById("wbPatchContent")?.addEventListener("input", (ev) => {
     if (ev.target) {
@@ -872,6 +856,8 @@ function bindCodePanelEvents() {
 }
 
 async function refreshCodePanel(projectId, taskId) {
+  window.__wbEnsureTestResultPanel?.();
+  window.__wbEnsureGitChangePanel?.();
   ensureCodePanelMount();
   ensureBackupPanel();
   ensureShellPanel();
@@ -884,6 +870,7 @@ async function refreshCodePanel(projectId, taskId) {
   await refreshShellPresets();
   await refreshBackupList();
   await refreshToolOps();
+  window.__wbRenderTestResultPanel?.();
 }
 
 function renderPlanCodeExtras(output) {
@@ -980,3 +967,7 @@ window.__wbRenderPlanCodeExtras = renderPlanCodeExtras;
 window.__wbBindCodePanel = ensureCodePanelMount;
 window.__wbApplyPlanPatch = applyPlanPatch;
 window.__wbApplyAcceptedDiffs = applyAcceptedDiffs;
+window.__wbRunWhitelistedTest = runWhitelistedTest;
+window.__wbRunTestWithFix = runTestWithFix;
+window.__wbGitCommitConfirmed = gitCommitConfirmed;
+window.__wbLoadFilePreview = loadFilePreview;

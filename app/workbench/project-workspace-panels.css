@@ -1,0 +1,392 @@
+/* Independent TestResultPanel + GitChangePanel + code workspace tabs */
+
+.wb-pws-code-tabs {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 4px;
+  border: 1px solid #dcebfa;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
+}
+
+.wb-pws-code-tab {
+  flex: 1;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7a90;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.wb-pws-code-tab.is-active {
+  color: #1e6bff;
+  background: #eaf4ff;
+  border-color: #cfe2f8;
+}
+
+.wb-test-result-panel,
+.wb-git-change-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcebfa;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(45, 90, 150, 0.08);
+  overflow: hidden;
+}
+
+.wb-test-result-panel[hidden],
+.wb-git-change-panel[hidden] {
+  display: none !important;
+}
+
+.wb-test-result-panel__head,
+.wb-git-change-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e8f1fc;
+  background: #f7fbff;
+  flex-shrink: 0;
+}
+
+.wb-test-result-panel__head h3,
+.wb-git-change-panel__head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.wb-test-result-panel__meta,
+.wb-git-change-panel__meta {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #6b7a90;
+}
+
+.wb-test-result-panel__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.wb-test-stat {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #f7fbff;
+  color: #6b7a90;
+  border: 1px solid #e8f1fc;
+}
+
+.wb-test-stat--pass {
+  color: #15803d;
+  background: #ecfdf5;
+  border-color: #86efac;
+}
+
+.wb-test-stat--fail {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.wb-test-stat--idle {
+  color: #6b7a90;
+}
+
+.wb-test-result-panel__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8f1fc;
+  flex-shrink: 0;
+}
+
+.wb-test-result-panel__select {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 10px;
+  border: 1px solid #dcebfa;
+  border-radius: 8px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.wb-test-result-panel__output {
+  flex-shrink: 0;
+  max-height: 200px;
+  margin: 0;
+  padding: 10px 14px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #f7fbff;
+  border-bottom: 1px solid #e8f1fc;
+  color: #243447;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.wb-test-result-panel__fixes {
+  margin: 0;
+  padding: 8px 14px 0 28px;
+  font-size: 12px;
+  color: #374151;
+}
+
+.wb-test-result-panel__history {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wb-test-result-panel__history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+
+.wb-test-result-panel__history-head h4 {
+  margin: 0;
+  font-size: 13px;
+  color: #1f2d3d;
+}
+
+.wb-test-result-panel__count {
+  font-size: 11px;
+  color: #6b7a90;
+}
+
+.wb-test-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 10px;
+  overflow: auto;
+  flex: 1;
+}
+
+.wb-test-history-list__empty {
+  padding: 12px;
+  font-size: 12px;
+  color: #6b7a90;
+  text-align: center;
+}
+
+.wb-test-history-list__item {
+  margin-bottom: 6px;
+  padding: 8px 10px;
+  border: 1px solid #e8f1fc;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.wb-test-history-list__item:hover {
+  border-color: #b9d6fb;
+}
+
+.wb-test-history-list__item--pass {
+  border-left: 3px solid #22c55e;
+}
+
+.wb-test-history-list__item--fail {
+  border-left: 3px solid #ef4444;
+}
+
+.wb-test-history-list__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wb-test-history-list__head code {
+  font-size: 11px;
+  color: #1e6bff;
+  word-break: break-all;
+}
+
+.wb-test-history-list__badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 999px;
+}
+
+.wb-test-history-list__item--pass .wb-test-history-list__badge {
+  color: #15803d;
+  background: #ecfdf5;
+}
+
+.wb-test-history-list__item--fail .wb-test-history-list__badge {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.wb-test-history-list__meta {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: #6b7a90;
+}
+
+.wb-git-summary {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8f1fc;
+  flex-shrink: 0;
+}
+
+.wb-git-summary__empty,
+.wb-git-summary__clean {
+  margin: 0;
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.wb-git-summary__clean {
+  color: #15803d;
+}
+
+.wb-git-summary__counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.wb-git-summary__staged {
+  color: #1e6bff;
+}
+
+.wb-git-summary__unstaged {
+  color: #b45309;
+}
+
+.wb-git-change-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.wb-git-change-list__empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.wb-git-change-list__item {
+  margin-bottom: 6px;
+  border: 1px solid #e8f1fc;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.wb-git-change-list__btn {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-git-change-list__btn:hover {
+  background: #f7fbff;
+}
+
+.wb-git-change-list__path {
+  display: block;
+  font-size: 11px;
+  color: #1e6bff;
+  word-break: break-all;
+}
+
+.wb-git-change-list__type {
+  display: inline-block;
+  margin-top: 4px;
+  margin-right: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7a90;
+}
+
+.wb-git-change-list__flags {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.wb-git-change-list__item--untracked .wb-git-change-list__type {
+  color: #7c3aed;
+}
+
+.wb-git-change-list__item--deleted .wb-git-change-list__type {
+  color: #b91c1c;
+}
+
+.wb-git-change-panel__commit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-top: 1px solid #e8f1fc;
+  background: #f7fbff;
+  flex-shrink: 0;
+}
+
+.wb-git-change-panel__commit .wb-field {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+}
+
+.wb-git-change-panel__commit input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #dcebfa;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.wb-diff-review__empty {
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7a90;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col #wbCodePanel[hidden] {
+  display: none !important;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] {
+  display: none !important;
+}

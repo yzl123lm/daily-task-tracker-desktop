@@ -103,7 +103,13 @@ function renderDiffReviewPanel() {
   const reviewStore = window.__wbCodeReviewStore;
   const state = reviewStore.getState(projectId, taskId);
   if (!state.changes.length) {
-    panel.hidden = true;
+    panel.hidden = false;
+    panel.innerHTML = `
+      <header class="wb-diff-review__head">
+        <div><h3>Diff 审阅</h3><p class="wb-diff-review__meta">暂无待审阅变更</p></div>
+      </header>
+      <p class="wb-diff-review__empty">生成开发方案后，AI 建议的 Diff 将在此显示。</p>
+    `;
     return;
   }
   panel.hidden = false;
