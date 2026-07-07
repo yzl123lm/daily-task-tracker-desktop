@@ -1862,10 +1862,13 @@ function syncJlPromptDock(route) {
       dock.setAttribute("aria-hidden", "true");
     }
     document.body.classList.remove("jl-route-ai");
+    document.body.classList.remove("jl-route-project-dev");
     return;
   }
   const show = route === "ai";
+  const projectDev = route === "project-dev";
   document.body.classList.toggle("jl-route-ai", show);
+  document.body.classList.toggle("jl-route-project-dev", projectDev);
   document.body.classList.remove("jl-ai-module-workspace", "jl-ai-module-knowledge", "jl-ai-module-recorder");
   document.body.setAttribute("data-jl-ai-module", show ? "ai" : "ai");
   const dock = document.getElementById("jlPromptDock");

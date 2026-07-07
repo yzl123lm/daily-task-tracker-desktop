@@ -448,10 +448,22 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
 }
 
 #jlWorkbenchSplit > .wb-pws-project-col {
-  display: flex;
+  display: none !important;
+}
+
+body.wb-pws-sidebar-mounted #jlWorkbenchSplit > .wb-pws-project-col:not([hidden]) {
+  display: flex !important;
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+}
+
+body.jl-window-ai:not(.wb-pws-sidebar-mounted) .jl-workbench-sidepanel {
+  display: flex !important;
+}
+
+body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
+  display: none !important;
 }
 
 .wb-pws-agent-col {
@@ -1050,4 +1062,64 @@ body.jl-project-workspace-active .wb-plan-card__head h4 {
 body.jl-project-workspace-active .wb-plan-card__req,
 body.jl-project-workspace-active .wb-plan-card__grid {
   font-size: 11px;
+}
+
+/* === Full-bleed project workspace (project-dev 无 jl-route-ai，须覆盖 760px 居中) === */
+body.jl-route-project-dev.jl-window-ai .jl-workbench-stage,
+body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage {
+  flex: 1 1 auto !important;
+  align-items: stretch !important;
+  align-self: stretch !important;
+  justify-content: flex-start !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+body.jl-route-project-dev.jl-window-ai .jl-workspace-canvas,
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+}
+
+body.jl-route-project-dev.jl-window-ai .main-column,
+body.jl-route-project-dev.jl-window-ai .tab-panels,
+body.jl-route-project-dev.jl-window-ai #panel-ai,
+body.jl-project-workspace-active.jl-window-ai .main-column,
+body.jl-project-workspace-active.jl-window-ai .tab-panels,
+body.jl-project-workspace-active.jl-window-ai #panel-ai {
+  flex: 1 1 auto !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  align-items: stretch !important;
+  align-self: stretch !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body.jl-project-workspace-active.jl-window-ai .tab-panels,
+body.jl-route-project-dev.jl-window-ai .tab-panels {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+body.jl-route-project-dev .wb-pws-layout,
+body.jl-project-workspace-active .wb-pws-layout {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  flex: 1 1 auto !important;
 }

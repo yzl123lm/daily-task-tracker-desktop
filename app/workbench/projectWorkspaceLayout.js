@@ -143,6 +143,10 @@ function ensureProjectColInSidebar() {
   } else if (col.parentElement !== split) {
     split.appendChild(col);
   }
+  if (col && !document.body.classList.contains("wb-pws-sidebar-mounted")) {
+    col.hidden = true;
+    col.setAttribute("hidden", "");
+  }
   return col;
 }
 

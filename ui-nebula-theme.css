@@ -5386,16 +5386,20 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
 }
 
 /* 项目开发工作区须占满主区（project-dev 路由无 jl-route-ai） */
-body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage {
+body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage,
+body.jl-route-project-dev.jl-window-ai .jl-workbench-stage {
   align-items: stretch;
   padding: 0;
   flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   max-width: none;
+  display: flex;
+  flex-direction: column;
 }
 
-body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas {
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas,
+body.jl-route-project-dev.jl-window-ai .jl-workspace-canvas {
   width: 100%;
   max-width: none;
   flex: 1 1 auto;
@@ -5432,6 +5436,9 @@ body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage .tabs-strip {
   display: none !important;
 }
 
+body.jl-route-project-dev.jl-window-ai .main-column,
+body.jl-route-project-dev.jl-window-ai .tab-panels,
+body.jl-route-project-dev.jl-window-ai #panel-ai,
 body.jl-window-ai.jl-route-ai .main-column,
 body.jl-window-ai.jl-route-ai .tab-panels,
 body.jl-window-ai.jl-route-ai #panel-ai {
