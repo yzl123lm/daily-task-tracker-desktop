@@ -5385,7 +5385,23 @@ body.jl-window-ai.jl-route-ai .jl-workbench-stage {
   box-sizing: border-box;
 }
 
-/* 项目开发工作区须占满主区，不能沿用会话区 760px 居中限宽 */
+/* 项目开发工作区须占满主区（project-dev 路由无 jl-route-ai） */
+body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage {
+  align-items: stretch;
+  padding: 0;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+}
+
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas {
+  width: 100%;
+  max-width: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 body.jl-project-workspace-active.jl-window-ai.jl-route-ai .jl-workbench-stage {
   align-items: stretch;
   padding: 0;
@@ -5403,6 +5419,11 @@ body.jl-window-ai.jl-route-ai .jl-workspace-canvas {
 }
 
 body.jl-project-workspace-active.jl-window-ai.jl-route-ai .jl-workspace-canvas {
+  width: 100%;
+  max-width: none;
+}
+
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas {
   width: 100%;
   max-width: none;
 }

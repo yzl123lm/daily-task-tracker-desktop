@@ -1,27 +1,7 @@
-const WB_PWS_LAYOUT_VERSION = "6";
+const WB_PWS_LAYOUT_VERSION = "7";
 
-const WB_PWS_LAYOUT_HTML = `
-  <div class="wb-pws-layout" data-terminal-collapsed="1">
-    <header class="wb-pws-topbar wb-pws-status-bar" id="wbPwsTopbar">
-      <div class="wb-pws-status-bar__left">
-        <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only" title="项目与任务">项目</button>
-        <span class="wb-pws-status-bar__badge">项目开发</span>
-        <h2 id="wbProjectWorkspaceTitle" class="wb-pws-status-bar__title">项目工作区</h2>
-        <span id="wbPwsModePill" class="wb-pws-status-bar__mode">PLAN_ONLY</span>
-      </div>
-      <div class="wb-pws-status-bar__meta">
-        <span id="wbProjectWorkspaceNs" class="wb-pws-status-bar__ns"></span>
-        <div id="wbProjectContextHealth" class="wb-pws-status-bar__health"></div>
-      </div>
-      <div class="wb-pws-status-bar__actions">
-        <div class="wb-pws-status-bar__layout-actions">
-          <button type="button" id="wbPwsLayoutResetBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-layout-reset" title="恢复默认栏宽与终端高度">重置布局</button>
-        </div>
-        <button type="button" id="wbCompressBtn" class="wb-pws-btn wb-pws-btn--ghost">手动压缩</button>
-        <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
-      </div>
-    </header>
-    <aside class="wb-pws-project-col" id="wbPwsProjectCol" aria-label="项目与任务">
+const WB_PWS_PROJECT_COL_HTML = `
+    <aside class="wb-pws-project-col" id="wbPwsProjectCol" aria-label="项目与任务" hidden>
       <div class="wb-pws-project-col__head">
         <h3>项目与任务</h3>
         <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
@@ -54,6 +34,29 @@ const WB_PWS_LAYOUT_HTML = `
         <button type="button" id="wbPwsOpenProjectDir" class="wb-pws-btn wb-pws-btn--ghost" hidden>打开目录</button>
       </div>
     </aside>
+`;
+
+const WB_PWS_LAYOUT_HTML = `
+  <div class="wb-pws-layout" data-terminal-collapsed="1">
+    <header class="wb-pws-topbar wb-pws-status-bar" id="wbPwsTopbar">
+      <div class="wb-pws-status-bar__left">
+        <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only" title="项目与任务">项目</button>
+        <span class="wb-pws-status-bar__badge">项目开发</span>
+        <h2 id="wbProjectWorkspaceTitle" class="wb-pws-status-bar__title">项目工作区</h2>
+        <span id="wbPwsModePill" class="wb-pws-status-bar__mode">PLAN_ONLY</span>
+      </div>
+      <div class="wb-pws-status-bar__meta">
+        <span id="wbProjectWorkspaceNs" class="wb-pws-status-bar__ns"></span>
+        <div id="wbProjectContextHealth" class="wb-pws-status-bar__health"></div>
+      </div>
+      <div class="wb-pws-status-bar__actions">
+        <div class="wb-pws-status-bar__layout-actions">
+          <button type="button" id="wbPwsLayoutResetBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-layout-reset" title="恢复默认栏宽与终端高度">重置布局</button>
+        </div>
+        <button type="button" id="wbCompressBtn" class="wb-pws-btn wb-pws-btn--ghost">手动压缩</button>
+        <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
+      </div>
+    </header>
     <section class="wb-pws-agent-col" id="wbPwsAgentCol" aria-label="Agent 执行区">
       <header class="wb-pws-agent-header">
         <div id="wbTaskDetail" class="wb-pws-agent-header__task" hidden>
@@ -123,6 +126,26 @@ const WB_PWS_LAYOUT_HTML = `
   </div>
 `;
 
+function ensureProjectColInSidebar() {
+  const split = document.getElementById("jlWorkbenchSplit");
+  if (!split) {
+    return null;
+  }
+  let col = document.getElementById("wbPwsProjectCol");
+  if (!col) {
+    const holder = document.createElement("div");
+    holder.innerHTML = WB_PWS_PROJECT_COL_HTML.trim();
+    col = holder.firstElementChild;
+    if (!col) {
+      return null;
+    }
+    split.appendChild(col);
+  } else if (col.parentElement !== split) {
+    split.appendChild(col);
+  }
+  return col;
+}
+
 function ensureProjectWorkspaceLayout() {
   const panelAi = document.getElementById("panel-ai");
   if (!panelAi) {
@@ -130,10 +153,15 @@ function ensureProjectWorkspaceLayout() {
   }
   let root = document.getElementById("wbProjectWorkspace");
   if (root && root.dataset.layoutVersion !== WB_PWS_LAYOUT_VERSION) {
+    const existingCol = document.getElementById("wbPwsProjectCol");
     root.remove();
     root = null;
+    if (existingCol) {
+      existingCol.remove();
+    }
   }
   if (root) {
+    ensureProjectColInSidebar();
     return root;
   }
   root = document.createElement("div");
@@ -143,6 +171,7 @@ function ensureProjectWorkspaceLayout() {
   root.hidden = true;
   root.innerHTML = WB_PWS_LAYOUT_HTML;
   panelAi.prepend(root);
+  ensureProjectColInSidebar();
   return root;
 }
 
@@ -265,18 +294,13 @@ function expandTerminalDrawer(tab = "log") {
 }
 
 function syncPwsSidebarMount(active) {
-  const col = document.getElementById("wbPwsProjectCol");
-  const split = document.getElementById("jlWorkbenchSplit");
-  const layout = document.querySelector(".wb-pws-layout");
+  const col = ensureProjectColInSidebar();
   const chatPanel = document.getElementById("jlWorkbenchSidePanel");
-  if (!col || !split) {
+  if (!col) {
     return;
   }
   document.body.classList.toggle("wb-pws-sidebar-mounted", Boolean(active));
   if (active) {
-    if (col.parentElement !== split) {
-      split.appendChild(col);
-    }
     col.hidden = false;
     col.removeAttribute("hidden");
     if (chatPanel) {
@@ -285,14 +309,6 @@ function syncPwsSidebarMount(active) {
       chatPanel.setAttribute("aria-hidden", "true");
     }
     return;
-  }
-  if (layout && col.parentElement !== layout) {
-    const topbar = document.getElementById("wbPwsTopbar");
-    if (topbar?.nextElementSibling) {
-      layout.insertBefore(col, topbar.nextElementSibling);
-    } else {
-      layout.prepend(col);
-    }
   }
   col.hidden = true;
   col.setAttribute("hidden", "");

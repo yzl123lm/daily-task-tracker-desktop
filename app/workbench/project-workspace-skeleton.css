@@ -139,6 +139,45 @@ body.jl-window-ai .jl-workbench-sidepanel .jl-workbench-nav__zone-head {
   display: flex !important;
 }
 
+body.jl-project-workspace-active .jl-workbench-split,
+body.jl-window-ai .jl-workbench-split {
+  align-self: stretch;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active.jl-window-ai .jl-main-workspace,
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-body,
+body.jl-project-workspace-active.jl-window-ai .jl-workbench-stage,
+body.jl-project-workspace-active.jl-window-ai .jl-workspace-canvas,
+body.jl-project-workspace-active.jl-window-ai .main-column,
+body.jl-project-workspace-active.jl-window-ai .tab-panels,
+body.jl-project-workspace-active.jl-window-ai #panel-ai {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  align-self: stretch !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+
+body.jl-project-workspace-active.jl-window-ai .wb-project-workspace--codex {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
 body.jl-project-workspace-active .jl-workbench-split {
   --wb-sidepanel-width: 300px;
 }
@@ -349,7 +388,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   align-items: stretch;
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
-  grid-template-columns: var(--wb-pws-agent-width) minmax(320px, 1fr);
+  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
   grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar"
@@ -359,7 +398,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 }
 
 body.wb-pws-sidebar-mounted .wb-pws-layout {
-  grid-template-columns: var(--wb-pws-agent-width) minmax(320px, 1fr);
+  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
   grid-template-areas:
     "topbar topbar"
     "agent code"
@@ -394,11 +433,12 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
 }
 
 .wb-pws-project-col {
-  grid-area: project;
-  height: 100%;
-  align-self: stretch;
+  flex: 1 1 auto;
+  width: var(--wb-sidepanel-width);
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  align-self: stretch;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -407,8 +447,11 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
   backdrop-filter: blur(12px);
 }
 
-body.wb-pws-sidebar-mounted .wb-pws-project-col {
-  grid-area: unset;
+#jlWorkbenchSplit > .wb-pws-project-col {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .wb-pws-agent-col {

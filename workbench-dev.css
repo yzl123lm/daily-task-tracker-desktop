@@ -1585,7 +1585,8 @@ body.jl-window-ai.theme-nebula .jl-workbench-nav__zone--sessions button.wb-icon-
 .wb-project-workspace--codex {
   flex: 1;
   min-height: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   max-width: none !important;
@@ -1595,7 +1596,8 @@ body.jl-window-ai.theme-nebula .jl-workbench-nav__zone--sessions button.wb-icon-
 }
 
 body.jl-project-workspace-active #panel-ai {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column !important;
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
@@ -1608,6 +1610,10 @@ body.jl-project-workspace-active #panel-ai {
 
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace,
 body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
@@ -1619,6 +1625,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 .wb-pws-layout {
   position: relative;
   display: grid !important;
+  flex: 1 1 auto !important;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -1626,9 +1633,11 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   overflow: hidden;
   gap: 0;
   padding: 0;
-  --wb-pws-project-width: 300px;
+  align-content: stretch;
+  align-items: stretch;
   --wb-pws-agent-width: 360px;
-  grid-template-columns: var(--wb-pws-agent-width) minmax(320px, 1fr);
+  --wb-pws-terminal-height: 220px;
+  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
   grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar"
@@ -1647,7 +1656,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 }
 
 .wb-pws-project-col {
-  grid-area: project;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;

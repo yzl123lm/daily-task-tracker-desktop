@@ -12,7 +12,8 @@ body.jl-project-workspace-active #panel-ai {
 .wb-project-workspace--codex {
   flex: 1;
   min-height: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   max-width: none;
