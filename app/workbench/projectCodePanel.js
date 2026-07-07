@@ -217,6 +217,15 @@ async function refreshCodeRoot(projectId) {
   }
   const info = await api.wbProjectCodeRoot({ projectId });
   panelState.codeRoot = info.codeRoot;
+  const empty = document.getElementById("wbPwsCodeEmpty");
+  const mount = document.getElementById("wbPwsCodeMount");
+  const hasRoot = Boolean(info.codeRoot);
+  if (empty) {
+    empty.hidden = hasRoot;
+  }
+  if (mount) {
+    mount.hidden = !hasRoot;
+  }
   if (label) {
     const rootText = info.codeRoot || "未配置";
     const suffix = info.isFallback ? "（默认工作区）" : info.localPath ? "" : "";
@@ -657,8 +666,8 @@ function ensureShellPanel() {
   if (document.getElementById("wbShellPanel")) {
     return;
   }
-  const anchor = document.querySelector(".wb-code-panel__layout")?.parentElement;
-  if (!anchor) {
+  const mount = document.getElementById("wbPwsShellMount") || document.getElementById("wbPwsHiddenPanels");
+  if (!mount) {
     return;
   }
   const panel = document.createElement("div");
@@ -675,12 +684,7 @@ function ensureShellPanel() {
     <pre id="wbShellOutput" class="wb-test-output scroll-tech">选择或输入命令后运行，将记入 tool_operations。</pre>
     <ul id="wbShellFixSuggestions" class="wb-fix-suggestions" hidden></ul>
   `;
-  const backup = document.getElementById("wbBackupPanel");
-  if (backup) {
-    anchor.insertBefore(panel, backup);
-  } else {
-    anchor.appendChild(panel);
-  }
+  mount.appendChild(panel);
 }
 
 async function refreshShellPresets() {

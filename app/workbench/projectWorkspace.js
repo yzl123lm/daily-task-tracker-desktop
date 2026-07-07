@@ -103,14 +103,60 @@ function renderPlanCard(output) {
   }
 }
 
-function renderTaskDetail(task) {
-  const panel = document.getElementById("wbTaskDetail");
-  const desc = document.getElementById("wbTaskDetailDesc");
-  const step = document.getElementById("wbTaskDetailStep");
-  if (!panel || !task) {
+let taskFilterMode = "all";
+
+function filterTasksByMode(tasks) {
+  const list = Array.isArray(tasks) ? tasks : [];
+  if (taskFilterMode === "active") {
+    return list.filter((t) =>
+      ["DRAFT", "REQUIREMENT", "PLANNING", "WAIT_CONFIRM", "DEVELOPING", "TESTING", "REVIEWING", "PAUSED"].includes(
+        t.status
+      )
+    );
+  }
+  if (taskFilterMode === "waiting") {
+    return list.filter((t) => ["WAIT_CONFIRM", "REVIEWING"].includes(t.status));
+  }
+  if (taskFilterMode === "done") {
+    return list.filter((t) => ["DONE", "ARCHIVED", "FAILED"].includes(t.status));
+  }
+  return list;
+}
+
+function renderProjectSideCol(project) {
+  const title = document.getElementById("wbPwsProjectCardTitle");
+  const meta = document.getElementById("wbPwsProjectCardMeta");
+  if (!project) {
     return;
   }
-  panel.hidden = false;
+  if (title) {
+    title.textContent = project.name || "当前项目";
+  }
+  if (meta) {
+    const stack = Array.isArray(project.techStack) ? project.techStack.join(" · ") : "技术栈未填写";
+    meta.textContent = `${project.namespace || project.id || ""}\n${stack}`;
+  }
+}
+
+function renderTaskDetail(task) {
+  const titleEl = document.getElementById("wbPwsAgentTaskTitle");
+  const desc = document.getElementById("wbTaskDetailDesc");
+  const step = document.getElementById("wbTaskDetailStep");
+  if (!task) {
+    if (titleEl) {
+      titleEl.textContent = "当前任务";
+    }
+    if (desc) {
+      desc.textContent = "选择左侧任务开始 Agent 执行";
+    }
+    if (step) {
+      step.textContent = "";
+    }
+    return;
+  }
+  if (titleEl) {
+    titleEl.textContent = task.title || "当前任务";
+  }
   if (desc) {
     desc.textContent = task.description || "（无任务描述）";
   }
@@ -154,7 +200,15 @@ async function loadTaskContext(projectId, taskId) {
     runsList.replaceChildren();
     if (!runs?.length) {
       runsList.innerHTML = '<li class="wb-agent-runs__empty">暂无 Agent 记录</li>';
+      const emptyHint = document.getElementById("wbPwsAgentEmpty");
+      if (emptyHint) {
+        emptyHint.hidden = false;
+      }
     } else {
+      const emptyHint = document.getElementById("wbPwsAgentEmpty");
+      if (emptyHint) {
+        emptyHint.hidden = true;
+      }
       runs.forEach((run, index) => {
         const li = document.createElement("li");
         li.className = "wb-pws-timeline__item";
@@ -189,15 +243,20 @@ function renderTasks(tasks, selectedTaskId) {
   if (!list) {
     return;
   }
+  const filtered = filterTasksByMode(tasks);
   list.replaceChildren();
-  if (!tasks.length) {
+  if (!filtered.length) {
     const empty = document.createElement("p");
     empty.className = "wb-task-empty";
-    empty.textContent = "暂无任务，点击「新建任务」开始。";
+    empty.textContent =
+      tasks?.length && taskFilterMode !== "all"
+        ? "当前筛选下暂无任务。"
+        : "暂无任务，点击顶栏「新建任务」开始。";
     list.appendChild(empty);
+    renderTaskDetail(null);
     return;
   }
-  tasks.forEach((task) => {
+  filtered.forEach((task) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "wb-task-item";
@@ -225,9 +284,16 @@ function renderTasks(tasks, selectedTaskId) {
     });
     list.appendChild(item);
   });
-  if (!selectedTaskId && tasks[0]) {
-    list.dataset.selectedTaskId = tasks[0].id;
+  if (!selectedTaskId && filtered[0]) {
+    list.dataset.selectedTaskId = filtered[0].id;
     list.querySelector(".wb-task-item")?.classList.add("is-active");
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    if (projectId) {
+      renderTaskDetail(filtered[0]);
+    }
+  } else if (selectedTaskId) {
+    const active = filtered.find((t) => t.id === selectedTaskId);
+    renderTaskDetail(active || null);
   }
 }
 
@@ -328,6 +394,7 @@ async function loadProjectWorkspace(projectId) {
     return;
   }
   window.__wbStore?.setTasks?.(tasks);
+  renderProjectSideCol(project);
   document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
   document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
   const modePill = document.getElementById("wbPwsModePill");
@@ -611,6 +678,29 @@ function bindProjectWorkspace() {
   });
   document.getElementById("wbTaskConfirmBtn")?.addEventListener("click", () => {
     void confirmTaskPlan();
+  });
+  document.getElementById("wbPwsBackToChatBtn")?.addEventListener("click", () => {
+    const chats = window.__wbStore?.getState?.().chats || [];
+    const chatId = window.__wbStore?.getState?.().selectedChatId || chats[0]?.id;
+    if (chatId && typeof window.__wbSwitchChat === "function") {
+      void window.__wbSwitchChat(chatId);
+      return;
+    }
+    window.__wbShowChatView?.();
+  });
+  document.getElementById("wbPwsTaskFilters")?.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".wb-pws-task-filter");
+    if (!btn?.dataset?.filter) {
+      return;
+    }
+    taskFilterMode = btn.dataset.filter;
+    document.querySelectorAll(".wb-pws-task-filter").forEach((el) => {
+      el.classList.toggle("is-active", el === btn);
+    });
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    const tasks = window.__wbStore?.getState?.().tasks || [];
+    const selectedId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+    renderTasks(tasks, selectedId);
   });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
     window.__wbScheduleMainView?.();

@@ -10,29 +10,20 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-project-workspace--codex {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  flex: none;
   gap: 0;
   padding: 0;
-  margin: 0 auto;
-  max-width: min(1400px, calc(100% - 16px));
+  margin: 0;
+  max-width: none;
   width: 100%;
+  height: 100%;
   background: transparent;
   color: #1f2d3d;
   overflow: hidden;
 }
 
 .wb-pws-layout {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  gap: 10px;
-  padding: 10px 12px 12px;
-}
+  display: grid;
 
 .wb-pws-status-bar {
   display: flex;
@@ -146,23 +137,9 @@ body.jl-project-workspace-active #panel-ai {
   background: #f7fbff;
 }
 
-.wb-pws-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  gap: 10px;
-  overflow: hidden;
-}
-
 .wb-pws-agent-col {
-  flex: 0 0 36%;
-  min-width: 280px;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  overflow: auto;
+  gap: 0;
+  overflow: hidden;
 }
 
 .wb-pws-code-col {
@@ -454,19 +431,23 @@ body.jl-project-workspace-active .wb-pws-code-col #wbShellOutput {
   border-color: #e8f1fc;
 }
 
-@media (max-width: 1024px) {
-  .wb-pws-main {
-    flex-direction: column;
-    overflow: auto;
+@media (max-width: 1023px) {
+  .wb-pws-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: 48px minmax(0, 1fr) 180px;
+    grid-template-areas:
+      "topbar"
+      "agent"
+      "terminal";
   }
 
-  .wb-pws-agent-col {
-    flex: none;
-    max-width: none;
-    width: 100%;
-  }
-
+  .wb-pws-project-col,
   .wb-pws-code-col {
-    min-height: 360px;
+    display: none;
+  }
+
+  .wb-pws-col-resize-edge,
+  .wb-pws-resize-handle {
+    display: none !important;
   }
 }

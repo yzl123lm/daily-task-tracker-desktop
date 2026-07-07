@@ -1,14 +1,10 @@
 /* P2 — resizable layout handles + scene template selector */
 
 .wb-pws-layout {
-  --wb-pws-agent-width: 36%;
+  --wb-pws-project-width: 300px;
+  --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
   --wb-pws-diff-height: 42%;
-}
-
-.wb-pws-agent-col {
-  flex: 0 0 var(--wb-pws-agent-width) !important;
-  max-width: none;
 }
 
 .wb-pws-resize-handle {

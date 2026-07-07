@@ -4765,11 +4765,14 @@ body.jl-window-ai:not(.jl-project-workspace-active) #panel-ai .ai-panel-main {
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace {
   flex: 1 1 auto;
   min-height: 0;
-  width: 100%;
-  border-radius: 16px;
-  margin: 0 auto;
-  max-width: min(960px, calc(100% - 24px));
-  box-shadow: 0 4px 20px rgba(148, 163, 184, 0.1);
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
 }
 
 body.jl-window-ai #panel-ai .ai-panel-main {

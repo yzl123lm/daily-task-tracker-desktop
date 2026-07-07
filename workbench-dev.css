@@ -537,7 +537,7 @@ body.jl-window-ai .wb-project-card.jl-ai-session-item.is-active {
   opacity: 0.7;
 }
 
-.wb-project-workspace {
+.wb-project-workspace:not(.wb-project-workspace--codex) {
   flex: 1;
   min-height: 0;
   display: flex;

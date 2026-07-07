@@ -22,14 +22,14 @@ function ensureApprovalMount() {
   if (mount) {
     return mount;
   }
-  const anchor = document.getElementById("wbPlanCard") || document.querySelector(".wb-pws-panel--composer");
+  const anchor = document.getElementById("wbPwsAgentComposer") || document.querySelector(".wb-pws-agent-composer");
   if (!anchor?.parentNode) {
     return null;
   }
   mount = document.createElement("div");
   mount.id = "wbPwsApprovalMount";
   mount.className = "wb-pws-approval-mount";
-  anchor.parentNode.insertBefore(mount, anchor);
+  mount.parentNode.insertBefore(mount, anchor);
   return mount;
 }
 
