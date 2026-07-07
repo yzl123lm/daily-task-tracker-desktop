@@ -60,6 +60,8 @@ body.wb-pws-resizing-terminal {
 .wb-diff-review-panel {
   max-height: var(--wb-pws-diff-height) !important;
 }
+
+.wb-pws-template-select {
   min-width: 140px;
   max-width: 180px;
   padding: 4px 8px;

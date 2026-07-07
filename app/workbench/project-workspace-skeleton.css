@@ -100,13 +100,34 @@ body.jl-project-workspace-active .jl-workbench-nav__icon {
   font-size: 18px;
 }
 
+body.jl-project-workspace-active .jl-app-shell,
+body.jl-project-workspace-active .jl-main-workspace,
+body.jl-project-workspace-active .jl-workspace-body,
+body.jl-project-workspace-active .jl-workbench-stage,
+body.jl-project-workspace-active .jl-workspace-canvas,
+body.jl-project-workspace-active .main-column,
+body.jl-project-workspace-active .tab-panels {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .jl-top-status {
+  display: none !important;
+}
+
 body.jl-project-workspace-active #panel-ai {
-  display: block !important;
+  display: flex !important;
+  flex-direction: column;
+  flex: 1 1 auto;
   width: 100% !important;
   height: 100% !important;
   min-width: 0 !important;
   min-height: 0 !important;
-  flex: 1 1 auto !important;
   padding: 0 !important;
   margin: 0 !important;
   overflow: hidden !important;
@@ -115,6 +136,8 @@ body.jl-project-workspace-active #panel-ai {
 
 body.jl-project-workspace-active #panel-ai #wbProjectWorkspace,
 body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100% !important;
   height: 100% !important;
   max-width: none !important;
@@ -124,6 +147,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   box-shadow: none !important;
   overflow: hidden !important;
   background: transparent !important;
+  display: flex;
+  flex-direction: column;
 }
 
 .wb-project-workspace--codex {
@@ -135,6 +160,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 .wb-pws-layout {
   position: relative;
   display: grid !important;
+  flex: 1 1 auto;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -142,6 +168,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   overflow: hidden;
   gap: 0;
   padding: 0;
+  align-content: stretch;
+  align-items: stretch;
   --wb-pws-project-width: 300px;
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
@@ -171,6 +199,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-project-col {
   grid-area: project;
+  height: 100%;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -183,6 +213,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-agent-col {
   grid-area: agent;
+  height: 100%;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   overflow: hidden !important;
@@ -191,11 +223,12 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   border-right: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.82);
   max-width: none !important;
-  flex: none !important;
 }
 
 .wb-pws-code-col {
   grid-area: code;
+  height: 100%;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -206,14 +239,19 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 .wb-pws-terminal-drawer {
   grid-area: terminal;
+  height: 100%;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   border-radius: 0;
   border-left: none;
   border-right: none;
   border-bottom: none;
-  height: auto;
+  border-top: 1px solid var(--wb-pws-border, #dcebfa);
+  background: rgba(255, 255, 255, 0.94);
 }
 
 .wb-pws-terminal-drawer.is-collapsed .wb-pws-terminal-drawer__body,
@@ -222,10 +260,19 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 }
 
 .wb-pws-terminal-drawer__body {
-  height: calc(100% - 40px);
+  flex: 1 1 auto;
   min-height: 0;
   max-height: none;
   overflow: auto;
+}
+
+.wb-pws-code-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .wb-pws-project-col__head,
@@ -483,14 +530,6 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   background: rgba(255, 255, 255, 0.92);
 }
 
-.wb-pws-code-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
 .wb-pws-code-body > .wb-pws-code-tabs {
   flex-shrink: 0;
 }
@@ -610,6 +649,27 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-resize-handle {
     display: none !important;
   }
+}
+
+body.jl-project-workspace-active .wb-pws-btn--ghost,
+body.jl-project-workspace-active .wb-project-workspace--codex button.secondary {
+  color: #1e6bff !important;
+  background: #f7fbff !important;
+  border: 1px solid #cfe2f8 !important;
+  box-shadow: none !important;
+}
+
+body.jl-project-workspace-active .wb-pws-btn--ghost:hover,
+body.jl-project-workspace-active .wb-project-workspace--codex button.secondary:hover {
+  color: #1a5ce6 !important;
+  background: #eaf4ff !important;
+  border-color: #b9d6fb !important;
+}
+
+body.jl-project-workspace-active .wb-pws-btn--primary {
+  color: #fff !important;
+  background: #2f7df6 !important;
+  border: 1px solid #1e6bff !important;
 }
 
 /* --- Typography + button polish (match Codex sample density) --- */

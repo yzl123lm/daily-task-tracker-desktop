@@ -350,11 +350,15 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-terminal-drawer {
   flex-shrink: 0;
-  border: 1px solid #dcebfa;
-  border-radius: 12px;
+  border: none;
+  border-top: 1px solid #dcebfa;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 -4px 20px rgba(45, 90, 150, 0.06);
+  box-shadow: none;
   overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .wb-pws-terminal-drawer[data-collapsed="1"] .wb-pws-terminal-drawer__body {
@@ -362,6 +366,7 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-pws-terminal-drawer__head {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -369,6 +374,14 @@ body.jl-project-workspace-active #panel-ai {
   padding: 6px 10px;
   border-bottom: 1px solid #e8f1fc;
   background: #f7fbff;
+}
+
+.wb-pws-terminal-drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  padding: 8px 10px;
 }
 
 .wb-pws-terminal-drawer__tabs {
@@ -392,12 +405,6 @@ body.jl-project-workspace-active #panel-ai {
   background: #eaf4ff;
   border-color: #cfe2f8;
   font-weight: 600;
-}
-
-.wb-pws-terminal-drawer__body {
-  max-height: 220px;
-  overflow: auto;
-  padding: 8px 10px;
 }
 
 .wb-pws-terminal-pane {
