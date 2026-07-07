@@ -9,7 +9,7 @@
 
 .wb-pws-resize-handle--project,
 .wb-pws-resize-handle--col {
-  width: 8px;
+  width: 6px;
   cursor: col-resize;
 }
 
@@ -23,12 +23,13 @@
 .wb-pws-resize-handle--col::after {
   content: "";
   position: absolute;
-  top: 12%;
-  bottom: 12%;
-  left: 3px;
+  top: 12px;
+  bottom: 12px;
+  left: 2px;
   width: 2px;
-  border-radius: 2px;
-  background: #cfe2f8;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.12s ease, opacity 0.12s ease;
 }
 
 .wb-pws-resize-handle--terminal::after {
@@ -38,27 +39,40 @@
   right: 20%;
   top: 3px;
   height: 2px;
-  border-radius: 2px;
-  background: #cfe2f8;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.12s ease, opacity 0.12s ease;
+}
+
+.wb-pws-resize-handle--project:hover::after,
+.wb-pws-resize-handle--col:hover::after,
+.wb-pws-resize-handle--project.is-dragging::after,
+.wb-pws-resize-handle--col.is-dragging::after {
+  background: #3b82f6;
+  opacity: 0.55;
+}
+
+.wb-pws-resize-handle--terminal:hover::after,
+.wb-pws-resize-handle--terminal.is-dragging::after {
+  background: #3b82f6;
+  opacity: 0.55;
 }
 
 body.wb-pws-resizing,
-body.wb-pws-resizing-terminal {
+body.wb-pws-resizing-terminal,
+body.wb-pws-resizing-diff {
   user-select: none;
-}
-
-@media (max-width: 1023px) {
-  .wb-pws-resize-handle {
-    display: none !important;
-  }
 }
 
 .wb-pws-layout {
   --wb-pws-diff-height: 42%;
 }
 
-.wb-diff-review-panel {
-  max-height: var(--wb-pws-diff-height) !important;
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow: hidden;
 }
 
 .wb-pws-template-select {
@@ -94,14 +108,16 @@ body.wb-pws-resizing-terminal {
   border: 1px solid #cfe2f8;
 }
 
-.wb-diff-review-panel {
-  max-height: var(--wb-pws-diff-height) !important;
-}
-
 @media (max-width: 1024px) {
   .wb-pws-resize-handle--col,
   .wb-pws-resize-handle--terminal,
   .wb-pws-resize-handle--diff {
     display: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .wb-pws-resize-handle {
+    display: none !important;
   }
 }

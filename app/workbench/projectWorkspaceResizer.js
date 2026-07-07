@@ -75,6 +75,13 @@ function ensureOverlayHandle(id, className) {
   return handle;
 }
 
+function isProjectColInSidebar() {
+  return (
+    document.body.classList.contains("wb-pws-sidebar-mounted") ||
+    Boolean(document.getElementById("jlWorkbenchSplit")?.querySelector(".wb-pws-project-col"))
+  );
+}
+
 function positionResizeHandles(prefs = loadPrefs()) {
   const layout = getLayoutEl();
   const projectHandle = document.getElementById("wbPwsResizeProject");
@@ -83,18 +90,31 @@ function positionResizeHandles(prefs = loadPrefs()) {
   if (!layout) {
     return;
   }
-  const top = 44;
+  const top = 48;
   const terminalH =
-    layout.dataset.terminalCollapsed === "1" ? 42 : prefs.terminalHeightPx;
+    layout.dataset.terminalCollapsed === "1" ? 40 : prefs.terminalHeightPx;
+  const sidebarProject = isProjectColInSidebar();
   if (projectHandle) {
-    projectHandle.style.top = `${top}px`;
-    projectHandle.style.bottom = `${terminalH}px`;
-    projectHandle.style.left = `calc(${prefs.projectWidthPx}px - 4px)`;
+    if (sidebarProject) {
+      projectHandle.hidden = true;
+      projectHandle.style.display = "none";
+    } else {
+      projectHandle.hidden = false;
+      projectHandle.style.display = "";
+      projectHandle.style.top = `${top}px`;
+      projectHandle.style.bottom = `${terminalH}px`;
+      projectHandle.style.left = `calc(${prefs.projectWidthPx}px - 3px)`;
+    }
   }
   if (agentHandle) {
+    agentHandle.hidden = false;
+    agentHandle.style.display = "";
     agentHandle.style.top = `${top}px`;
     agentHandle.style.bottom = `${terminalH}px`;
-    agentHandle.style.left = `calc(${prefs.projectWidthPx + prefs.agentWidthPx}px - 4px)`;
+    const agentEdge = sidebarProject
+      ? prefs.agentWidthPx
+      : prefs.projectWidthPx + prefs.agentWidthPx;
+    agentHandle.style.left = `calc(${agentEdge}px - 3px)`;
   }
   if (terminalHandle) {
     terminalHandle.style.height = "8px";
@@ -115,6 +135,7 @@ function bindDragHandle(handle, onMove) {
       return;
     }
     dragging = false;
+    handle.classList.remove("is-dragging");
     document.body.classList.remove("wb-pws-resizing");
     savePrefs(prefs);
     window.removeEventListener("pointermove", onPointerMove);
@@ -131,6 +152,7 @@ function bindDragHandle(handle, onMove) {
 
   handle.addEventListener("pointerdown", (ev) => {
     dragging = true;
+    handle.classList.add("is-dragging");
     document.body.classList.add("wb-pws-resizing");
     handle.setPointerCapture?.(ev.pointerId);
     onMove(ev, prefs);
@@ -187,6 +209,7 @@ function bindWorkspaceResizers() {
     let dragging = false;
     const stop = () => {
       dragging = false;
+      terminalHandle.classList.remove("is-dragging");
       document.body.classList.remove("wb-pws-resizing-terminal");
       savePrefs(prefs);
       window.removeEventListener("pointermove", onMove);
@@ -212,6 +235,7 @@ function bindWorkspaceResizers() {
     };
     terminalHandle.addEventListener("pointerdown", (ev) => {
       dragging = true;
+      terminalHandle.classList.add("is-dragging");
       document.body.classList.add("wb-pws-resizing-terminal");
       terminalHandle.setPointerCapture?.(ev.pointerId);
       onMove(ev);
@@ -243,6 +267,7 @@ function bindDiffResizer() {
   let dragging = false;
   const stop = () => {
     dragging = false;
+    handle.classList.remove("is-dragging");
     document.body.classList.remove("wb-pws-resizing-diff");
     savePrefs(prefs);
     window.removeEventListener("pointermove", onPointerMove);
@@ -262,6 +287,7 @@ function bindDiffResizer() {
   };
   handle.addEventListener("pointerdown", (ev) => {
     dragging = true;
+    handle.classList.add("is-dragging");
     document.body.classList.add("wb-pws-resizing-diff");
     handle.setPointerCapture?.(ev.pointerId);
     onPointerMove(ev);

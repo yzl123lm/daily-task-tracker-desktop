@@ -817,8 +817,7 @@ window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;
 window.__wbAuditProjectLayout = function auditProjectLayout() {
-  const pick = (id) => {
-    const el = document.getElementById(id);
+  const pickRect = (el) => {
     if (!el) {
       return null;
     }
@@ -828,33 +827,64 @@ window.__wbAuditProjectLayout = function auditProjectLayout() {
       left: Math.round(r.left),
       width: Math.round(r.width),
       height: Math.round(r.height),
+      bottom: Math.round(r.bottom),
     };
   };
+  const pick = (id) => pickRect(document.getElementById(id));
   const panel = pick("panel-ai");
   const root = pick("wbProjectWorkspace");
   const layout = document.querySelector(".wb-pws-layout");
-  const layoutRect = layout
-    ? {
-        top: Math.round(layout.getBoundingClientRect().top),
-        left: Math.round(layout.getBoundingClientRect().left),
-        width: Math.round(layout.getBoundingClientRect().width),
-        height: Math.round(layout.getBoundingClientRect().height),
-      }
-    : null;
+  const layoutRect = pickRect(layout);
+  const agentCol = pickRect(document.getElementById("wbPwsAgentCol"));
+  const codeCol = pickRect(document.getElementById("wbPwsCodeCol"));
+  const terminal = pickRect(document.getElementById("wbPwsTerminalDrawer"));
+  const composer = pickRect(document.querySelector(".wb-pws-agent-composer"));
+  const codeBody = pickRect(document.getElementById("wbPwsCodeMount"));
+  const pwsLayoutInner = pickRect(document.querySelector(".wb-pws-layout > .wb-pws-agent-col"));
+  const resizeHandles = [...document.querySelectorAll(".wb-pws-resize-handle")].map((el) => ({
+    id: el.id,
+    visible: el.offsetParent !== null && getComputedStyle(el).display !== "none",
+    left: Math.round(el.getBoundingClientRect().left),
+    hasDragging: el.classList.contains("is-dragging"),
+  }));
+  const midAligned =
+    agentCol &&
+    codeCol &&
+    agentCol.top === codeCol.top &&
+    Math.abs(agentCol.height - codeCol.height) <= 2;
+  const terminalAligned =
+    agentCol && terminal && Math.abs(terminal.top - agentCol.bottom) <= 3;
+  const composerInsideAgent =
+    agentCol && composer && composer.bottom <= agentCol.bottom + 2;
+  const codeBodyInsideCol =
+    codeCol && codeBody && codeBody.bottom <= codeCol.bottom + 2;
   const report = {
     panelAi: panel,
     wbProjectWorkspace: root,
     wbPwsLayout: layoutRect,
-    aligned:
-      panel &&
-      root &&
-      layoutRect &&
-      root.top === panel.top &&
-      Math.abs(root.height - panel.height) <= 2 &&
-      Math.abs(layoutRect.height - root.height) <= 2,
+    wbPwsAgentCol: agentCol,
+    wbPwsCodeCol: codeCol,
+    wbPwsTerminalDrawer: terminal,
+    wbPwsAgentComposer: composer,
+    wbPwsCodeBody: codeBody,
+    resizeHandles,
+    checks: {
+      fullBleed:
+        panel &&
+        root &&
+        layoutRect &&
+        root.top === panel.top &&
+        Math.abs(root.height - panel.height) <= 2,
+      midColumnsAligned: midAligned,
+      terminalBelowMid: terminalAligned,
+      composerInsideAgent,
+      codeBodyInsideCol,
+    },
     projectMode: document.body.classList.contains("jl-project-workspace-active"),
   };
-  console.table([panel, root, layoutRect].filter(Boolean));
+  console.table(
+    [panel, root, layoutRect, agentCol, codeCol, terminal, composer, codeBody].filter(Boolean)
+  );
   console.log("[wb layout audit]", report);
   return report;
 };

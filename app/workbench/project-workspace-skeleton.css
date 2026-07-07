@@ -389,7 +389,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
   grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
-  grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
+  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar"
     "agent code"
@@ -418,7 +418,7 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
 }
 
 .wb-pws-layout[data-terminal-collapsed="1"] {
-  grid-template-rows: 44px minmax(0, 1fr) 38px;
+  grid-template-rows: 48px minmax(0, 1fr) 40px;
 }
 
 .wb-pws-topbar,
@@ -428,7 +428,7 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
   border-left: none;
   border-right: none;
   border-top: none;
-  min-height: 44px;
+  min-height: 48px;
   box-shadow: none;
 }
 
@@ -772,7 +772,7 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -780,9 +780,11 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
 
 .wb-pws-agent-composer {
   flex: 0 0 auto;
-  padding: 8px 10px;
+  position: relative;
+  z-index: 2;
+  padding: 12px;
   border-top: 1px solid #dcebfa;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 .wb-pws-code-body > .wb-pws-code-tabs {
@@ -835,14 +837,14 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 @media (min-width: 1280px) {
   .wb-pws-layout {
     grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
-    grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
+    grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   }
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
   .wb-pws-layout {
     --wb-pws-agent-width: 340px;
-    grid-template-rows: 44px minmax(0, 1fr) 210px;
+    grid-template-rows: 48px minmax(0, 1fr) 210px;
   }
 }
 
@@ -864,7 +866,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 
   .wb-pws-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 44px minmax(0, 1fr) 180px;
+    grid-template-rows: 48px minmax(0, 1fr) 180px;
     grid-template-areas:
       "topbar"
       "agent"
@@ -1011,8 +1013,18 @@ body.jl-project-workspace-active .wb-task-empty {
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel {
-  border-radius: 10px;
-  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex !important;
+  flex-direction: column;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head {
@@ -1269,3 +1281,104 @@ body.jl-project-workspace-active .wb-pws-layout {
   min-height: 0 !important;
   flex: 1 1 auto !important;
 }
+
+/* === P1 内部面板：Grid 子项高度链 + 代码区适配 + 终端行 === */
+body.jl-project-workspace-active .wb-pws-terminal-drawer {
+  z-index: 3;
+}
+
+body.jl-project-workspace-active .wb-pws-terminal-drawer__head {
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+body.jl-project-workspace-active .wb-pws-terminal-drawer__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: none;
+  overflow: auto;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e8f1fc;
+  background: #f7fbff;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__body,
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree,
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-search-hits {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none !important;
+  overflow-y: auto;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-preview,
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-preview {
+  flex: 1 1 auto;
+  min-height: 72px;
+  max-height: none !important;
+  overflow: auto;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__patch-label,
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__actions {
+  flex-shrink: 0;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__main {
+  overflow-y: auto;
+}
+
+body.jl-project-workspace-active .wb-code-panel .wb-backup-panel {
+  flex-shrink: 0;
+  max-height: 96px;
+  overflow: auto;
+  margin-top: 0;
+  padding: 6px 10px;
+  border-top: 1px solid #e8f1fc;
+}
+
+body.jl-project-workspace-active .wb-pws-code-body > .wb-diff-review-panel:not([hidden]),
+body.jl-project-workspace-active .wb-pws-code-body > .wb-test-result-panel:not([hidden]),
+body.jl-project-workspace-active .wb-pws-code-body > .wb-git-change-panel:not([hidden]),
+body.jl-project-workspace-active .wb-pws-code-body > .wb-code-panel:not([hidden]) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-empty,
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree__empty {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: #6b7a90;
+}
+

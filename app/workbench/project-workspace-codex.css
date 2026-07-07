@@ -161,10 +161,11 @@ body.jl-project-workspace-active #panel-ai {
   display: flex;
   flex-direction: column;
   margin: 0;
-  border: 1px solid #dcebfa;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 24px rgba(45, 90, 150, 0.08);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -367,14 +368,17 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-pws-terminal-drawer__head {
-  flex-shrink: 0;
+  flex: 0 0 40px;
+  height: 40px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 0 10px;
   border-bottom: 1px solid #e8f1fc;
   background: #f7fbff;
+  box-sizing: border-box;
 }
 
 .wb-pws-terminal-drawer__body {

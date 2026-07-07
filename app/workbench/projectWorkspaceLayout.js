@@ -304,6 +304,7 @@ function syncPwsSidebarMount(active) {
     return;
   }
   document.body.classList.toggle("wb-pws-sidebar-mounted", Boolean(active));
+  window.__wbApplyPwsLayoutPrefs?.();
   if (active) {
     col.hidden = false;
     col.removeAttribute("hidden");

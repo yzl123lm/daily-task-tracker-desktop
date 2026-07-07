@@ -1,33 +1,42 @@
 /* Independent TestResultPanel + GitChangePanel + code workspace tabs */
 
 .wb-pws-code-tabs {
+  flex: 0 0 44px;
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
-  padding: 4px;
-  border: 1px solid #dcebfa;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 4px 16px rgba(45, 90, 150, 0.06);
+  padding: 6px 10px;
+  border-bottom: 1px solid #dcebfa;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: none;
 }
 
 .wb-pws-code-tab {
-  flex: 1;
-  min-height: 30px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #dcebfa;
+  background: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   font-weight: 600;
-  color: #6b7a90;
+  color: #64748b;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .wb-pws-code-tab.is-active {
-  color: #1e6bff;
-  background: #eaf4ff;
-  border-color: #cfe2f8;
+  background: #eaf3ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+.wb-pws-code-tab:not(.is-active):hover {
+  background: #f8fbff;
+  color: #2563eb;
 }
 
 .wb-test-result-panel,
@@ -37,9 +46,9 @@
   display: flex;
   flex-direction: column;
   border: 1px solid #dcebfa;
-  border-radius: 14px;
+  border-radius: 0;
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 8px 24px rgba(45, 90, 150, 0.08);
+  box-shadow: none;
   overflow: hidden;
 }
 

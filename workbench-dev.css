@@ -1719,3 +1719,41 @@ body.jl-project-workspace-active .tab-panels {
   padding-left: 0 !important;
   padding-right: 0 !important;
 }
+
+/* Codex 项目模式：旧 workbench-dev 代码面板规则不得撑破 Grid */
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0 !important;
+  padding: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree,
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-search-hits,
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-preview,
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-preview {
+  max-height: none !important;
+}
+
+body.jl-project-workspace-active .wb-pws-resize-handle::after {
+  background: transparent;
+}
+
+body.jl-project-workspace-active .wb-pws-resize-handle:hover::after,
+body.jl-project-workspace-active .wb-pws-resize-handle.is-dragging::after {
+  background: #3b82f6;
+  opacity: 0.55;
+}
