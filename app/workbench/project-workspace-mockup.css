@@ -1,0 +1,468 @@
+/* Mockup-aligned Codex project workspace polish */
+
+.wb-pws-topbar {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(12px);
+}
+
+.wb-pws-status-bar__env {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #15803d;
+  background: #ecfdf5;
+  border: 1px solid #86efac;
+}
+
+.wb-pws-status-bar__env-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.wb-pws-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  flex-shrink: 0;
+}
+
+.wb-pws-col-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.wb-pws-col-head__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.wb-pws-icon-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #dcebfa;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e6bff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.wb-pws-project-card {
+  margin: 0 12px 8px;
+  padding: 12px 14px;
+  border: 1px solid #dcebfa;
+  border-left: 3px solid #2f7df6;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(45, 90, 150, 0.06);
+}
+
+.wb-pws-project-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wb-pws-project-card__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wb-pws-project-card__pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #15803d;
+  background: #ecfdf5;
+}
+
+.wb-pws-project-card__meta {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: #6b7a90;
+  line-height: 1.45;
+}
+
+.wb-pws-task-filter {
+  position: relative;
+}
+
+.wb-pws-task-filter__count {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  background: #eaf4ff;
+  color: #1e6bff;
+}
+
+.wb-pws-task-list .wb-task-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e8f1fc;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wb-pws-task-list .wb-task-item.is-active {
+  border-color: #2f7df6;
+  box-shadow: 0 0 0 2px #eaf4ff;
+}
+
+.wb-pws-task-list .wb-task-item__path {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7a90;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.wb-pws-task-list .wb-task-item__time {
+  display: block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.wb-pws-chat-history {
+  flex-shrink: 0;
+  border-top: 1px solid #e8f1fc;
+  padding: 10px 12px 12px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.wb-pws-chat-history__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.wb-pws-chat-history__head h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.wb-pws-chat-history__link {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: #1e6bff;
+  cursor: pointer;
+}
+
+.wb-pws-chat-history__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.wb-pws-chat-history__item {
+  margin-bottom: 6px;
+}
+
+.wb-pws-chat-history__btn {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #e8f1fc;
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wb-pws-chat-history__title {
+  display: block;
+  font-size: 12px;
+  color: #243447;
+}
+
+.wb-pws-chat-history__time {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.wb-pws-agent-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.wb-pws-agent-header__top h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wb-pws-agent-status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e6bff;
+  background: #eaf4ff;
+}
+
+.wb-pws-agent-header__times {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.wb-pws-user-bubble {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px 12px 12px 4px;
+  background: #eaf4ff;
+  border: 1px solid #cfe2f8;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #243447;
+}
+
+.wb-pws-user-bubble__label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e6bff;
+}
+
+.wb-pws-agent-checklist {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e8f1fc;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.wb-pws-agent-checklist__title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2d3d;
+}
+
+.wb-pws-agent-checklist__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wb-pws-agent-checklist__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: #374151;
+}
+
+.wb-pws-agent-checklist__icon {
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+}
+
+.wb-pws-agent-checklist__item--done {
+  color: #15803d;
+}
+
+.wb-pws-agent-checklist__item--active {
+  color: #1e6bff;
+  font-weight: 600;
+}
+
+.wb-pws-composer__chips {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.wb-pws-composer__chip {
+  padding: 4px 10px;
+  border: 1px solid #dcebfa;
+  border-radius: 999px;
+  background: #f7fbff;
+  font-size: 11px;
+  color: #6b7a90;
+}
+
+.wb-pws-code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8f1fc;
+  background: rgba(255, 255, 255, 0.92);
+  flex-shrink: 0;
+}
+
+.wb-pws-code-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.wb-pws-code-toolbar__mode {
+  padding: 4px 10px;
+  border: 1px solid #dcebfa;
+  border-radius: 8px;
+  background: #f7fbff;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e6bff;
+}
+
+.wb-pws-code-tabs {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid #e8f1fc;
+  box-shadow: none;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.wb-pws-code-tab {
+  border-radius: 8px 8px 0 0;
+  min-height: 36px;
+}
+
+.wb-diff-review-panel {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  max-height: none !important;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wb-diff-review__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wb-diff-review__overview {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e8f1fc;
+  background: #f7fbff;
+  flex-shrink: 0;
+}
+
+.wb-diff-review__overview h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wb-diff-review__overview-stats {
+  font-size: 12px;
+  color: #6b7a90;
+}
+
+.wb-diff-review__overview-stats strong {
+  color: #15803d;
+}
+
+.wb-diff-review__overview-stats .wb-stat-del {
+  color: #ef4444;
+}
+
+.wb-diff-review__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #e8f1fc;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.wb-diff-review__desc-panel {
+  border-top: 1px solid #e8f1fc;
+  padding: 10px 14px;
+  flex-shrink: 0;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.wb-diff-review__desc-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wb-diff-review__desc-tab {
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 11px;
+  color: #6b7a90;
+  cursor: pointer;
+}
+
+.wb-diff-review__desc-tab.is-active {
+  color: #1e6bff;
+  background: #eaf4ff;
+  border-color: #cfe2f8;
+}
+
+.wb-pws-terminal-drawer__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2d3d;
+  margin-right: 12px;
+}
+
+.wb-pws-panel--timeline {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  padding: 0;
+}
+
+.wb-pws-plan-card {
+  border: 1px solid #cfe2f8;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #f7fbff 0%, #fff 100%);
+}
+
+.wb-approval-card {
+  animation: none;
+  border-width: 1px;
+  border-color: #f59e0b;
+}
