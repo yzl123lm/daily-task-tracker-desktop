@@ -1,0 +1,580 @@
+
+AI 编程上下文能力优化升级方案
+基于《AI 编程错误沉淀与上下文压缩排查报告》的分析与落地设计
+生成日期：2026-07-08    ·    适用范围：Workbench / ProjectAgent / Context Compression / Error Lesson
+一句话结论
+当前系统已经具备“错误被动记录”和“上下文自动压缩”的基础能力，但缺少把错误转化为可复用经验的闭环。建议以 Error Lesson Pipeline 为主线，把错误事件统一采集、结构化、指纹化、双写存储、相似召回、Prompt 注入与验证回写串成闭环，将能力从 L2~L3 提升到 L4+，并为 L5 主动规避打基础。
+本方案输出三类内容：第一，针对原报告的能力分析与结构优化建议；第二，面向研发落地的升级架构、数据模型、关键算法与模块清单；第三，P0/P1/P2 实施路线、验收标准、指标体系和风险控制。
+目录
+1. 核心分析结论
+2. 现状能力成熟度评估
+3. 主要缺口与根因诊断
+4. 升级目标与设计原则
+5. 目标架构：从错误日志到可复用经验闭环
+6. P0 方案：Error Lesson Pipeline
+7. P1 方案：历史经验召回与上下文注入
+8. P1 方案：上下文压缩与恢复体验升级
+9. P2 方案：可观测性、运营与人工审阅
+10. 数据模型与 Markdown 规范
+11. 错误指纹、相似检索与主动规避策略
+12. 实施路线图与验收标准
+13. 风险控制与治理机制
+14. 附录：可直接落地的代码骨架与清单
+
+1. 核心分析结论
+原报告的判断整体清晰：当前系统在 SQLite 工具日志、任务记忆、Agent 运行会话和上下文快照层面已有基础设施；上下文自动压缩链路相对完整；但错误经验没有形成结构化知识库，也没有被稳定召回、去重和主动注入。
+维度
+当前判断
+问题本质
+升级方向
+错误记录
+部分具备
+tool_operations、context_memories、agent_run_sessions 有记录，但 stderr、根因、验证结果等信号不完整。
+统一错误事件模型 + 原始片段保留 + 结构化归因。
+Markdown 沉淀
+缺失
+没有自动写入 lessons/errors.md 或项目知识库，开发者无法人工审阅和维护。
+DB + Markdown 双写，并提供项目级 index。
+经验规则
+薄弱
+fixSuggestionService 是静态启发式建议，不等价于经过验证的 lesson/rule。
+LLM/规则结合生成 rule_text、prevention_prompt、fix_steps。
+历史召回
+不稳定
+searchMemories 依赖子串，缺少 fingerprint、相似检索、类别检索和质量排序。
+Exact match + category + file/module + semantic ranking。
+上下文压缩
+较完整
+已有 health、snapshot、compression_events、runtime injection。
+重点补 restore UI、lesson 引用保留和压缩后的可追踪性。
+自我学习
+L2~L3
+能保存部分失败文本并在上下文中被动出现，但不会形成可执行规避策略。
+P0 达到 L4，P1/P2 向 L5 演进。
+最关键的产品判断
+不要把“记录了错误”误认为“系统会学习”。真正的学习闭环至少需要：结构化沉淀、唯一指纹、验证状态、可召回索引、注入策略、规避动作、效果评估。当前缺的是中间这条知识工程链路。
+2. 现状能力成熟度评估
+建议把 AI 编程上下文能力拆成 10 个维度评分。这样比单纯列文件和函数更利于排优先级，也方便后续复盘。
+能力维度
+当前分
+目标分
+说明
+错误采集覆盖
+3
+4.5
+测试、Shell、Agent 错误有部分覆盖；UI/IPС/Git/patch 的知识化不足。
+结构化归因
+1.5
+4
+parsed issues 未沉淀，根因、修复步骤、验证命令缺字段。
+知识沉淀
+1.5
+4.5
+缺 Markdown lessons 和 error_lessons 表，memory 粗粒度。
+指纹与去重
+1
+4.5
+仅 build issues 有局部去重，memory 没有 fingerprint。
+相似召回
+1.5
+4
+子串检索容易漏召回/误召回，缺排序。
+Prompt 注入
+2.5
+4.5
+已有 contextPack/snapshot 注入，但缺 lesson section 与强约束模板。
+验证闭环
+2
+4.5
+verify 结果没有回写 lesson 状态，无法区分有效经验和噪声。
+上下文压缩
+4
+4.5
+链路完整，需强化 lesson 引用与 restore UI。
+可观测性
+2
+4
+compression_events 有记录，但缺 lesson 命中率、避免率、复发率看板。
+安全隔离
+3.5
+4.5
+namespace 隔离较好，但 lessons 双写后需要密钥脱敏和跨项目防串扰。
+知识沉淀：当前 ███░░░░░░░ 1.5/5 → 目标 █████████░ 4.5/5
+相似召回：当前 ███░░░░░░░ 1.5/5 → 目标 ████████░░ 4.0/5
+上下文压缩：当前 ████████░░ 4.0/5 → 目标 █████████░ 4.5/5
+主动规避：当前 ██░░░░░░░░ 1.0/5 → 目标 ████████░░ 4.0/5
+3. 主要缺口与根因诊断
+缺口
+表现
+影响
+改造建议
+优先级
+错误信号分散
+工具日志、memory、agent_run_sessions、localStorage 各自存储。
+同一错误无法聚合成一个知识对象。
+建立 ErrorEvent → ErrorLesson 统一写入入口。
+P0
+经验不可验证
+suggestions 与失败输出拼成文本，没有 verified/status。
+Agent 可能重复采纳无效建议。
+verify 成功/失败回写 lesson lifecycle。
+P0
+经验不可召回
+没有 fingerprint、标签、向量或类别索引。
+同类错误再次出现时不能稳定命中。
+指纹匹配 + 类别/文件/语义检索 + Top-K 排序。
+P0/P1
+经验不可注入
+contextPack 没有独立历史经验 section。
+Agent 不知道哪些历史规则必须遵守。
+增加“历史错误经验/规避规则”Prompt 区块。
+P1
+压缩与经验脱节
+snapshot.currentErrors 是摘要，不引用 lesson id。
+压缩后错误细节和经验链路可能丢失。
+snapshot 保存 lesson_refs，并对 verified lessons 加权保留。
+P1
+人工审阅缺失
+无 Markdown 和 UI 入口。
+团队无法沉淀项目经验，也无法清理错误规则。
+项目级 lessons/index.md + Review Panel。
+P1/P2
+指标不可度量
+缺命中率、规避率、复发率。
+无法证明 AI 编程能力升级是否有效。
+新增 lesson telemetry 与质量指标。
+P2
+4. 升级目标与设计原则
+建议把目标从“自动记录错误”升级为“错误经验闭环系统”。目标不是多存日志，而是在未来类似场景中让 Agent 明确知道：以前错在哪里、应该避开什么、验证方式是什么。
+目标 1：从 L2~L3 升级到 L4+。系统能自动生成结构化经验规则，并在新任务上下文中稳定注入。
+目标 2：为 L5 主动规避打基础。同类错误出现前，Agent 能基于 fingerprint/文件/类别主动提示风险并调整方案。
+目标 3：上下文压缩不丢“关键经验”。压缩快照保留 lesson_refs、用户约束、当前错误和已验证决策。
+目标 4：让知识可审阅、可回滚、可度量。DB 负责机器检索，Markdown 负责人工审阅，UI 负责治理与恢复。
+设计原则
+说明
+单一事实入口
+所有测试、Shell、构建、Patch、Git、Agent、IPC 错误先归一为 ErrorEvent，再进入 Lesson 流水线。
+双层存储
+SQLite 用于检索、排序、状态与指标；Markdown 用于人工审阅、协作和长期知识资产。
+验证优先
+未验证建议只能作为 candidate；通过 verify 的 lesson 才能成为强提示或规避规则。
+预算可控
+Prompt 注入按重要度、相关度、验证状态和 token budget 排序，避免上下文污染。
+隔离与脱敏
+namespace、project_id、task_id 必须贯穿 DB、Markdown 和 Snapshot，写入前执行密钥脱敏。
+5. 目标架构：从错误日志到可复用经验闭环
+推荐架构是一条闭环流水线：捕获 → 解析 → 归因 → 指纹 → 沉淀 → 检索 → 注入 → 执行 → 验证 → 回写。
+步骤
+模块
+输出
+1 捕获
+controlledDevService / verificationService / patchProposalService / gitService / agentOrchestrator / IPC
+ErrorEvent
+2 解析
+parseBuildError + test parser + shell parser + diff parser + stack parser
+ParsedError
+3 归因
+规则 + LLM 摘要，生成 rootCause、fixSteps、relatedFiles、riskTags
+CandidateLesson
+4 指纹
+normalize + classify + hash，支持 exact/near match
+fingerprint
+5 沉淀
+error_lessons 表 + context_memories(error_lesson) + Markdown
+LessonRecord
+6 检索
+fingerprint、category、file、semantic、recency、verified score
+Top-K Lessons
+7 注入
+contextPackBuilder 增加历史经验区块，并压缩为规则化语言
+Prompt Context
+8 执行
+ProjectAgent 在 plan/patch/test 前引用经验
+Action Plan
+9 验证
+test/build/verify/fixLoop 结果回写 lesson status
+verified / failed
+10 运营
+UI 审阅、禁用、合并、恢复快照、指标看板
+Governed Knowledge
+错误经验闭环（建议实现）Error Source → ErrorEventCollector → ErrorParser → LessonGenerator           → FingerprintService → LessonStore(DB + Markdown)           → LessonRetriever → ContextPackBuilder → ProjectAgent Prompt           → Tool Execution / Verify → LessonStatusUpdater → Metrics/UI
+6. P0 方案：Error Lesson Pipeline
+P0 的目标是先打通最小闭环：错误发生后，系统能自动生成结构化 lesson，写入 DB 和 Markdown，并能在下一次 Agent 调用时被读取。
+6.1 新增核心模块
+模块
+职责
+说明
+errorEventCollector.js
+统一入口
+把测试、Shell、构建、Patch、Git、Agent、IPC 错误标准化为 ErrorEvent。
+errorParserService.js
+解析层
+调用 parseBuildError、test parser、shell parser，把 stderr/stdout/raw result 转成 ParsedError。
+errorFingerprintService.js
+去重层
+生成稳定 fingerprint，识别同类错误并更新 recurrence_count。
+errorLessonService.js
+知识层
+创建/更新 lesson，写 context_memories(error_lesson)，并触发 MarkdownWriter。
+lessonMarkdownWriter.js
+人工审阅层
+生成项目级 index.md、单错误 lesson.md 和任务级 error-lessons.md。
+lessonStatusUpdater.js
+验证层
+在 verify/test/build 成功或失败后回写 verified/status。
+6.2 事件标准化：ErrorEvent
+建议所有错误捕获点都不要直接写 memory，而是调用统一的 recordErrorEvent。这样才能减少重复逻辑，并保证字段完整。
+type ErrorEvent = {  projectId: string;  taskId?: string;  namespace: string;              // task:{projectId}:{taskId} / project:{projectId}  source: 'test' | 'shell' | 'build' | 'patch' | 'git' | 'agent' | 'ipc' | 'ui';  command?: string;  toolName?: string;  exitCode?: number;  rawStdout?: string;  rawStderr?: string;  rawMessage: string;  relatedFiles?: string[];  agentRunId?: string;  createdAt: string;};
+6.3 推荐接入点
+接入点
+错误类型
+改造说明
+controlledDevService.runTestWithFixSuggestions
+test_failure
+当前已有 memory；改为 recordErrorEvent + 自动 lesson。
+controlledDevService.runControlledShell
+shell_failure
+保留完整 stderr 摘要，写入 command、exitCode。
+verificationService.runVerification
+build_failure / verify_failure
+把 parseBuildError 结果持久化，不只传给 VERIFY_FIX Agent。
+patchProposalService.applyControlledPatch
+patch_failure
+记录 diff 多处匹配、上下文过期、冲突等高价值经验。
+projectWriteService
+write_failure
+记录路径拒绝、大小限制、敏感路径等可规避错误。
+gitService
+git_error
+记录 non-repo、merge/commit 失败、权限错误。
+agentOrchestrator / projectAgentLLM
+agent_error
+Agent 异常、fallback、cancel 均进入 lesson pipeline。
+registerHandlers / renderer error boundary
+ipc_error / ui_error
+至少写入 crash-safe event，不阻塞主流程。
+7. P1 方案：历史经验召回与上下文注入
+错误经验写入后，如果没有被稳定召回，仍然不构成自我学习。P1 的关键是让 contextPackBuilder 在每次 Agent 运行前主动检索相关 lesson，并以可执行规则注入。
+7.1 检索策略
+召回通道
+触发条件
+优先级
+处理方式
+Exact fingerprint
+同一 normalized error hash 命中
+最高
+直接注入 verified 经验；candidate 仅作参考。
+Category + parser code
+同类 SyntaxError、AssertionError、diff_context_mismatch 等
+高
+适合测试/构建/patch 类错误。
+File/module match
+当前修改文件、依赖模块、组件路径与 lesson related_files 重合
+中高
+适合项目特定经验。
+Semantic query
+任务描述、错误摘要、当前文件摘要与 lesson 向量/文本相似
+中
+弥补指纹变化后的召回。
+Recency + recurrence
+最近发生、重复出现、已验证
+中
+用于排序，不建议单独作为命中依据。
+7.2 Context Pack 新增区块
+建议在 promptContext.sections 中新增 historicalErrorLessons，并区分“强约束”和“参考经验”。
+# 历史错误经验（必须优先遵守）- [verified][fingerprint: ab12cd34] 错误类型：patch_context_mismatch  触发条件：同一文件中出现重复代码块，apply patch 可能命中错误位置。  规避规则：修改前先读取目标函数上下文，并使用唯一上下文锚点；必要时拆分小 patch。  验证方式：运行 npm test -- &lt;target&gt;，并检查 diff 只影响预期函数。# 历史错误经验（参考）- [candidate] AssertionError 类失败：先确认测试期望是否已随需求更新，再修改实现。
+7.3 注入预算建议
+区块
+建议预算
+说明
+用户约束与当前目标
+1,000~1,500 tokens
+永远保留，压缩时高优先级。
+当前错误 currentErrors
+800~1,500 tokens
+保留最近且未解决错误。
+历史经验 lessons
+1,500~3,000 tokens
+Top-K，优先 verified/exact/file match。
+相关文件与变更摘要
+2,000~4,000 tokens
+保留当前任务相关文件。
+工具日志摘要
+500~1,000 tokens
+只保留关键命令、结果和失败原因。
+8. P1 方案：上下文压缩与恢复体验升级
+原报告显示 context-compression 链路较完整，优化重点不是重写压缩，而是让压缩结果对错误经验更友好、对用户更可控。
+升级点
+做法
+收益
+snapshot.currentErrors 增强
+从纯摘要升级为 lesson_refs + unresolved_errors + last_verify_result。
+压缩后仍能追踪错误来源。
+verified lesson 加权保留
+压缩时把 verified + high recurrence 的 lesson 标为 keep，不进入普通摘要池。
+避免“越长任务越忘经验”。
+restore UI
+渲染层增加快照列表、风险等级、tokens_before/after、恢复按钮和差异预览。
+已有 IPC 能力可以复用。
+压缩验证规则
+validation 增加 lesson_refs 不丢失、namespace 不串扰、current objective 保留。
+减少压缩导致任务偏移。
+压缩事件时间线
+展示 compression_events 与 Agent run 关联。
+便于定位长任务质量下降。
+9. P2 方案：可观测性、运营与人工审阅
+当 lesson 开始自动生成后，必须同时建设治理机制，避免错误经验污染 Agent。
+能力
+建议
+Lesson Review Panel
+按项目/任务/类别/状态展示 lesson；支持合并、禁用、标记 verified/deprecated。
+错误复发看板
+统计 fingerprint recurrence_count、首次/最近出现、是否已规避成功。
+命中率与采纳率
+统计被注入的 lesson 是否被 Agent 明确引用，后续验证是否通过。
+Markdown 审阅入口
+打开 lessons/{projectId}/index.md 和单条 lesson.md，便于团队手动维护。
+清理策略
+长时间未命中、低置信、验证失败的 candidate 自动降权或归档。
+10. 数据模型与 Markdown 规范
+10.1 SQLite 表建议
+建议新增 error_lessons 和 error_lesson_events 两张表。前者是可复用知识对象，后者是事件流水，用于审计、回放和指标。
+字段
+类型
+说明
+error_lessons.lesson_id
+TEXT PK
+lesson 唯一 ID。
+project_id / task_id / namespace
+TEXT
+项目、任务、上下文隔离。
+fingerprint / fingerprint_version
+TEXT / INT
+同类错误去重与版本演进。
+category / source / severity
+TEXT
+错误分类、来源和严重度。
+error_signature
+TEXT
+归一化后的错误摘要，用于展示和检索。
+raw_excerpt
+TEXT
+脱敏后的 stdout/stderr 关键片段，建议限长。
+parsed_issues_json
+TEXT JSON
+file、line、column、message、ruleCode 等。
+related_files_json / tags_json
+TEXT JSON
+相关文件和标签。
+root_cause / fix_summary
+TEXT
+根因和修复摘要。
+fix_steps_json
+TEXT JSON
+结构化修复步骤。
+rule_text / prevention_prompt
+TEXT
+可注入 Agent 的经验规则。
+status
+TEXT
+candidate / verified / rejected / deprecated / ignored。
+verified_by / verify_command
+TEXT
+验证来源和命令。
+recurrence_count / confidence
+INT / REAL
+复发次数和置信度。
+first_seen_at / last_seen_at / updated_at
+TEXT
+生命周期时间。
+10.2 Markdown 存储规范
+Markdown 不应替代 DB；它的价值是可读、可审阅、可长期沉淀。建议采用项目级索引 + 单 lesson 文件。
+{userData}/workbench/lessons/  {projectId}/    index.md    errors/      {fingerprint}.md    tasks/      {taskId}-error-lessons.md
+# Error Lesson: patch_context_mismatch- Lesson ID: lesson_01H...- Fingerprint: ab12cd34ef56- Project: &lt;projectId&gt;- Task: &lt;taskId&gt;- Source: patch- Status: verified- Severity: medium- First Seen: 2026-07-08T...- Last Seen: 2026-07-08T...- Tags: diff, patch, context, duplicate-block## 错误摘要applyControlledPatch 在重复代码块场景下可能命中错误位置。## 根因Patch 上下文锚点不唯一，目标函数附近存在相似片段。## 修复步骤1. 先读取目标文件相关函数上下文。2. 使用唯一锚点或拆分小 patch。3. 应用后检查 diff 是否只影响预期区域。## 经验规则修改重复结构代码前，必须先建立唯一上下文锚点，禁止直接应用大块模糊 patch。## 验证- Command: npm test -- &lt;target&gt;- Result: passed
+11. 错误指纹、相似检索与主动规避策略
+11.1 指纹生成建议
+指纹需要足够稳定，避免路径、临时时间、随机 ID、绝对行号变化导致重复 lesson；同时又要保留类别、文件类型、错误类型等区分度。
+清洗 raw stderr/stdout：脱敏 token、绝对路径归一化、移除时间戳、随机 ID、机器路径。
+提取 error_type：SyntaxError、AssertionError、TypeError、BuildError、PatchContextMismatch 等。
+提取 parser_code：例如 ESLint rule、TypeScript code、pytest assertion pattern、patch failure code。
+提取 top_frame 或 primary_issue：优先 file extension + normalized message + nearest function。
+拼接 source/category/error_type/parser_code/normalized_message/related_file_ext。
+使用 SHA-256 生成 hash，截断为 12~16 位用于展示，完整 hash 用于 DB。
+fingerprint_input = [  source,  category,  normalized_error_type,  parser_code || '',  normalizeMessage(primary_message),  normalizeFileKind(primary_file),  top_stack_symbol || ''].join('|')fingerprint = sha256(fingerprint_input).slice(0, 16)
+11.2 排序公式建议
+Lesson 检索排序不要只看相似度。已验证、复发多、当前文件相关、最近发生的经验应更靠前。
+score =  1.00 * exactFingerprintMatch +  0.65 * categoryMatch +  0.55 * fileOverlap +  0.45 * semanticSimilarity +  0.30 * verifiedBoost +  0.20 * log1p(recurrenceCount) +  0.10 * recencyBoost -  0.50 * deprecatedPenalty -  0.30 * failedVerificationPenalty
+11.3 主动规避策略
+阶段
+动作
+收益
+规划前规避
+Agent plan 阶段注入“本任务可能触发的历史错误”。
+避免一开始选错方案。
+Patch 前规避
+读取文件上下文后匹配 patch/diff 类 lesson。
+减少 diff 命中错误位置。
+测试前规避
+根据历史 test_failure 提醒先更新 fixture/断言/环境。
+减少重复测试失败。
+Verify 失败后规避
+失败后立即召回同类 lesson，并要求 Agent 解释是否适用。
+缩短修复循环。
+压缩前规避
+高价值 lesson_refs 标为 keep，避免被摘要吞掉。
+长任务保持稳定。
+12. 实施路线图与验收标准
+12.1 路线图
+阶段
+主题
+交付内容
+完成标准
+P0-A
+统一错误事件入口
+ErrorEvent schema、recordErrorEvent、接入测试/Shell/verify/patch。
+所有关键错误能落入 error_lesson_events。
+P0-B
+结构化 lesson 存储
+error_lessons 表、fingerprint、status、writeMemory(error_lesson)。
+重复错误更新 recurrence_count，不产生垃圾记录。
+P0-C
+Markdown 双写
+lessonMarkdownWriter、项目 index、单条 lesson.md。
+运行失败后自动生成/更新 Markdown。
+P0-D
+验证回写
+verify/test 成功后更新 status=verified。
+Prompt 只把 verified 作为强规则。
+P1-A
+Context 注入
+contextPackBuilder 增加 historicalErrorLessons section。
+同类错误再次出现时 Agent prompt 可看到经验。
+P1-B
+快照增强与恢复 UI
+snapshot lesson_refs、restore panel、差异预览。
+压缩后能恢复并保留关键经验。
+P2-A
+指标与治理
+命中率、复发率、规避成功率、Review Panel。
+可量化能力升级效果。
+12.2 验收标准
+验收项
+测试方式
+通过标准
+错误沉淀
+故意制造 npm run build 失败。
+tool_operations、error_lesson_events、error_lessons 均有记录，Markdown 单条文件生成。
+去重
+重复触发同一 SyntaxError。
+fingerprint 相同，recurrence_count 增加，不创建重复 lesson。
+验证回写
+修复后 verify 通过。
+lesson.status=verified，verify_command 和 last_seen_at 更新。
+上下文注入
+新任务修改同一模块并触发同类风险。
+promptContext.sections.historicalErrorLessons 包含命中的 verified lesson。
+主动规避
+在重复代码块中应用 patch。
+Agent 计划中明确提到唯一上下文锚点和小 patch 策略。
+压缩保持
+长任务触发 compression。
+snapshot.currentErrors 与 lesson_refs 保留，compression_events 正常记录。
+隔离
+切换到另一个 project。
+默认不读取前项目 lesson，除非显式开启全局共享。
+脱敏
+stderr 中包含 token 或本地绝对路径。
+DB raw_excerpt 和 Markdown 已脱敏。
+12.3 指标体系
+指标
+计算方式
+用途
+Lesson 创建率
+error_lessons_created / error_events_total
+太低说明采集或解析不足；太高说明去重不足。
+重复错误复发率
+same_fingerprint_recurrence_after_verified
+核心北极星指标，应持续下降。
+Lesson 命中率
+lessons_injected / agent_runs
+评估召回是否发挥作用。
+命中后验证通过率
+verified_success_after_lesson_hit / lesson_hits
+评估 lesson 质量。
+Prompt 占用率
+lesson_tokens / prompt_tokens
+控制上下文污染。
+压缩保真率
+snapshots_with_required_lesson_refs / compressed_runs
+评估压缩是否保留关键经验。
+人工审阅通过率
+review_approved / reviewed_lessons
+评估自动生成质量。
+13. 风险控制与治理机制
+风险
+表现
+控制机制
+错误经验污染 Prompt
+未验证或错误归因的 lesson 被强注入。
+只有 verified lesson 进入“必须遵守”；candidate 降权并标明不确定。
+上下文膨胀
+Lesson 注入过多挤占代码上下文。
+Top-K + token budget + 摘要压缩 + recurring/verified 优先。
+隐私泄露
+stderr/路径/环境变量写入 Markdown。
+统一 redactSecrets；敏感字段只存 hash 或截断摘要。
+跨项目串扰
+项目 A 的经验影响项目 B。
+默认 project namespace；全局 lessons 需用户显式提升。
+重复 lesson 增长
+同一错误产生大量相似 Markdown。
+fingerprint + near-duplicate merge + recurrence_count。
+误规避导致过度保守
+Agent 因历史错误拒绝合理修改。
+Prompt 要求说明适用性，不适用时可忽略并记录原因。
+Markdown 与 DB 不一致
+双写失败或人工修改后状态分叉。
+DB 为事实源；Markdown 带 frontmatter，定期 reconcile。
+14. 附录：可直接落地的代码骨架与清单
+14.1 errorLessonService 伪代码
+async function recordErrorLesson(event) {  const parsed = await errorParserService.parse(event);  const fingerprint = fingerprintService.create(parsed, event);  const existing = await lessonStore.findByFingerprint({    projectId: event.projectId,    namespace: event.namespace,    fingerprint  });  const lesson = existing    ? await lessonStore.bumpRecurrence(existing.lessonId, parsed)    : await lessonGenerator.createCandidate({ event, parsed, fingerprint });  await contextMemoryService.writeMemory({    namespace: event.namespace,    memoryType: 'error_lesson',    content: lesson.preventionPrompt,    importance: lesson.status === 'verified' ? 5 : 3,    source: event.source  });  await lessonMarkdownWriter.upsert(lesson);  await metrics.emit('error_lesson.recorded', { lessonId: lesson.lessonId });  return lesson;}
+14.2 contextPackBuilder 接入伪代码
+async function buildHistoricalErrorLessonsSection(input) {  const lessons = await lessonRetriever.search({    projectId: input.projectId,    namespace: input.namespace,    taskText: input.taskText,    currentFiles: input.currentFiles,    currentErrors: input.currentErrors,    tokenBudget: 2500,    includeCandidate: true  });  return lessons.map(toPromptBullet).join('');}promptContext.sections.push({  key: 'historicalErrorLessons',  title: '历史错误经验与规避规则',  priority: 'high',  content: await buildHistoricalErrorLessonsSection(input)});
+14.3 开发任务清单
+任务
+说明
+数据库迁移
+新增 error_lessons、error_lesson_events、索引 fingerprint/project_id/status。
+事件入口
+实现 recordErrorEvent，并替换测试、Shell、verify、patch 失败路径的直接 writeMemory。
+解析器
+扩展 build/test/shell/patch/git/agent 分类和字段标准化。
+指纹服务
+实现 normalize、hash、near duplicate 合并策略。
+Markdown Writer
+生成 index.md、errors/{fingerprint}.md、tasks/{taskId}.md。
+召回服务
+实现 exact/category/file/semantic/recency 排序。
+Prompt 注入
+contextPackBuilder 增加 historicalErrorLessons 区块。
+验证回写
+verify/test/build 成功后更新 lesson status 和 confidence。
+压缩增强
+snapshot 保存 lesson_refs，validation 检查高价值 lesson 不丢失。
+UI
+Lesson Review Panel、Snapshot Restore、Compression Timeline。
+指标
+创建率、复发率、命中率、验证通过率、token 占用率。
+安全
+脱敏、namespace 隔离、Markdown 写入路径白名单。
+14.4 对原排查文档的结构优化建议
+原文档已经覆盖了实现文件、触发时机、存储位置和缺口。为了让它更适合作为研发推进文档，建议补充以下结构：
+一页式总览。用“现状—缺口—目标—P0 交付—验收指标”压缩到第一页，便于决策。
+能力成熟度评分。把 L2~L3 结论拆成多个可评分维度，形成可跟踪 baseline。
+端到端闭环图。从错误发生到经验注入再到验证回写，标出每个模块、数据表和 UI。
+数据模型先行。新增 error_lessons 表和 Markdown frontmatter 规范，减少后续实现歧义。
+验收标准可执行。每条 P0/P1/P2 改造都绑定命令、预期 DB 记录、预期 Prompt 和 UI 行为。
+指标与风险章节。让“自我学习能力提升”可量化，也能防止 Prompt 污染和跨项目串扰。
+最终建议
+优先不要大改 context-compression；它已经能支撑长任务。真正需要先补的是 Error Lesson Pipeline。只要 P0 打通“错误 → lesson → Markdown/DB → ContextPack”的最小闭环，系统就能从“日志型记忆”升级为“经验型记忆”。随后再做检索排序、主动规避、UI 治理和指标看板。
+— 完 —

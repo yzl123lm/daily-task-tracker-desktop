@@ -62,6 +62,51 @@ function ensureGitChangePanel() {
   return panel;
 }
 
+function renderSidebarGitSummary(snap) {
+  const mount = document.getElementById("wbPwsSidebarGitMount");
+  if (!mount) {
+    return;
+  }
+  if (!snap?.isRepo) {
+    mount.innerHTML = `
+      <p class="wb-pws-sidebar-git__status">非 Git 仓库</p>
+      <p class="wb-pws-sidebar-git__hint">可在主工作区设置代码目录后查看 Git 状态。</p>
+    `;
+    return;
+  }
+  const changes = snap.changes || [];
+  const changeItems = changes.length
+    ? changes
+        .slice(0, 40)
+        .map(
+          (chg) =>
+            `<li class="wb-pws-sidebar-git__item"><code>${escapeHtml(chg.path)}</code><span>${escapeHtml(changeTypeLabel(chg.changeType))}</span></li>`
+        )
+        .join("")
+    : '<li class="wb-pws-sidebar-git__empty">工作区干净</li>';
+  mount.innerHTML = `
+    <div class="wb-pws-sidebar-git__head">
+      <p class="wb-pws-sidebar-git__branch">分支 <strong>${escapeHtml(snap.branch || "detached")}</strong></p>
+      <p class="wb-pws-sidebar-git__status">${snap.clean ? "无待提交变更" : `${snap.changeCount} 项变更`}</p>
+      <button type="button" id="wbSidebarGitOpenBtn" class="wb-pws-btn wb-pws-btn--ghost">在主区查看</button>
+    </div>
+    <ul class="wb-pws-sidebar-git__list scroll-tech">${changeItems}</ul>
+  `;
+  mount.querySelector("#wbSidebarGitOpenBtn")?.addEventListener("click", () => {
+    window.__wbSwitchCodeTab?.("git");
+  });
+  mount.querySelectorAll(".wb-pws-sidebar-git__item code").forEach((codeEl) => {
+    codeEl.addEventListener("click", () => {
+      const path = codeEl.textContent?.trim();
+      if (path) {
+        window.__wbSwitchSidebarTab?.("files", { persist: false });
+        window.__wbSwitchCodeTab?.("code");
+        void window.__wbLoadFilePreview?.(path);
+      }
+    });
+  });
+}
+
 function renderGitChangePanel(status) {
   ensureGitChangePanel();
   const { projectId } = getContext();
@@ -131,6 +176,7 @@ function renderGitChangePanel(status) {
       list.appendChild(li);
     });
   }
+  renderSidebarGitSummary(snap);
 }
 
 async function refreshGitChangePanel(projectId) {

@@ -1683,11 +1683,11 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   align-items: stretch;
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
-  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
   grid-template-rows: 44px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar"
-    "agent code"
+    "main assistant"
     "terminal terminal";
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%);
 }
@@ -1710,8 +1710,9 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   flex-direction: column;
 }
 
-.wb-pws-agent-col {
-  grid-area: agent;
+.wb-pws-agent-col,
+.wb-pws-assistant-col {
+  grid-area: assistant;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1719,8 +1720,9 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   flex-direction: column;
 }
 
-.wb-pws-code-col {
-  grid-area: code;
+.wb-pws-code-col,
+.wb-pws-main-col {
+  grid-area: main;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -1779,10 +1781,13 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel {
   border: none;
 }
 
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout,
+body.jl-project-workspace-active .wb-pws-main-col .wb-code-panel__layout {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree,

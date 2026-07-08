@@ -399,3 +399,199 @@ body.jl-project-workspace-active .wb-pws-code-col #wbCodePanel[hidden] {
 body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] {
   display: none !important;
 }
+
+/* === Sidebar context panel (任务 / 文件 / 搜索 / Git) === */
+.wb-pws-sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wb-pws-project-summary {
+  flex: 0 0 auto;
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid #dcebfa;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.wb-pws-sidebar-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 6px;
+  border-bottom: 1px solid #dcebfa;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.wb-pws-sidebar-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid #dcebfa;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.wb-pws-sidebar-tab.is-active {
+  background: #eaf3ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.wb-pws-sidebar-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.wb-pws-sidebar-pane {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.wb-pws-sidebar-pane.is-active {
+  display: flex;
+}
+
+.wb-pws-sidebar-pane[data-pane="tasks"] {
+  overflow-y: auto;
+}
+
+.wb-pws-sidebar-pane[data-pane="tasks"] .wb-pws-project-col__head {
+  padding-top: 4px;
+}
+
+.wb-pws-file-tree-mount,
+.wb-pws-search-mount,
+.wb-pws-sidebar-git-mount {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+  gap: 8px;
+}
+
+.wb-pws-file-tree-toolbar,
+.wb-pws-search-form {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wb-pws-file-tree-toolbar input,
+.wb-pws-search-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dcebfa;
+  border-radius: 10px;
+  background: #f7fbff;
+  color: #1e293b;
+  font-size: 12px;
+}
+
+.wb-pws-selected-file {
+  margin: 0;
+  flex-shrink: 0;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f7fbff;
+  border: 1px solid #dcebfa;
+  font-size: 11px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wb-file-tree__item.is-selected {
+  background: #eaf3ff;
+  border-color: #93c5fd;
+  color: #2563eb;
+}
+
+.wb-pws-sidebar-git__head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.wb-pws-sidebar-git__branch,
+.wb-pws-sidebar-git__status,
+.wb-pws-sidebar-git__hint {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.wb-pws-sidebar-git__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-pws-sidebar-git__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 11px;
+}
+
+.wb-pws-sidebar-git__item:hover {
+  background: #f7fbff;
+  border-color: #dcebfa;
+}
+
+.wb-pws-sidebar-git__item code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  color: #2563eb;
+}
+
+.main-workspace,
+.main-editor-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.wb-code-panel__head.main-tabs {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+
+.wb-code-panel__breadcrumb {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}

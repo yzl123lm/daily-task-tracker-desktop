@@ -433,12 +433,13 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
-  display: grid;
-  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
   flex: 1;
   min-height: 0;
   min-width: 0;
+  grid-template-columns: none !important;
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head h3 {

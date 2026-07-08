@@ -30,7 +30,8 @@ body.jl-project-workspace-active .tab-panels {
 /* Phase 2 — App Shell LeftRail 64px + side panel */
 :root {
   --wb-left-rail-width: 64px;
-  --wb-sidepanel-width: 260px;
+  --wb-sidepanel-width: 300px;
+  --wb-sidebar-width: 300px;
   --wb-pws-border: #dcebfa;
   --wb-pws-bg: #eef6ff;
   --wb-pws-card: rgba(255, 255, 255, 0.82);
@@ -183,7 +184,7 @@ body.jl-project-workspace-active.jl-window-ai .wb-project-workspace--codex {
 }
 
 body.jl-project-workspace-active .jl-workbench-split {
-  --wb-sidepanel-width: 300px;
+  --wb-sidepanel-width: var(--wb-sidebar-width, 300px);
 }
 
 body.jl-project-workspace-active .jl-workbench-sidepanel {
@@ -376,8 +377,9 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   margin: 0 !important;
 }
 
-/* Grid skeleton: topbar + agent + code + terminal（项目列在左侧边栏） */
-.wb-pws-layout {
+/* Grid skeleton: topbar + main + assistant + terminal（文件树在左侧 sidebar） */
+.wb-pws-layout,
+.wb-ai-workbench-layout {
   position: relative;
   display: grid !important;
   flex: 1 1 auto;
@@ -392,28 +394,29 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   align-items: stretch;
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
-  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
   grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "topbar topbar"
-    "agent code"
+    "main assistant"
     "terminal terminal";
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%);
 }
 
-body.wb-pws-sidebar-mounted .wb-pws-layout {
-  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+body.wb-pws-sidebar-mounted .wb-pws-layout,
+body.wb-pws-sidebar-mounted .wb-ai-workbench-layout {
+  grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
   grid-template-areas:
     "topbar topbar"
-    "agent code"
+    "main assistant"
     "terminal terminal";
 }
 
 body.wb-pws-sidebar-mounted .wb-pws-project-col {
   flex: 1 1 auto;
-  width: var(--wb-sidepanel-width);
-  min-width: 0;
-  max-width: none;
+  width: var(--wb-sidebar-width, var(--wb-sidepanel-width));
+  min-width: 260px;
+  max-width: 380px;
   height: 100%;
   display: flex !important;
   flex-direction: column;
@@ -470,8 +473,9 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   display: none !important;
 }
 
-.wb-pws-agent-col {
-  grid-area: agent;
+.wb-pws-agent-col,
+.wb-pws-assistant-col {
+  grid-area: assistant;
   height: 100%;
   align-self: stretch;
   min-width: 0;
@@ -479,13 +483,15 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   overflow: hidden !important;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #dcebfa;
+  border-left: 1px solid #dcebfa;
+  border-right: none;
   background: rgba(255, 255, 255, 0.82);
   max-width: none !important;
 }
 
-.wb-pws-code-col {
-  grid-area: code;
+.wb-pws-code-col,
+.wb-pws-main-col {
+  grid-area: main;
   height: 100%;
   align-self: stretch;
   min-width: 0;
@@ -839,16 +845,23 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 }
 
 @media (min-width: 1280px) {
-  .wb-pws-layout {
-    grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+  .wb-pws-layout,
+  .wb-ai-workbench-layout {
+    grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
     grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
   }
 }
 
 @media (min-width: 1024px) and (max-width: 1279px) {
-  .wb-pws-layout {
+  .wb-pws-layout,
+  .wb-ai-workbench-layout {
     --wb-pws-agent-width: 340px;
     grid-template-rows: 48px minmax(0, 1fr) 210px;
+  }
+
+  body.jl-project-workspace-active {
+    --wb-sidepanel-width: 280px;
+    --wb-sidebar-width: 280px;
   }
 }
 
@@ -868,13 +881,27 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
     display: inline-flex;
   }
 
-  .wb-pws-layout {
+  .wb-pws-layout,
+  .wb-ai-workbench-layout {
     grid-template-columns: 1fr;
     grid-template-rows: 48px minmax(0, 1fr) 180px;
     grid-template-areas:
       "topbar"
-      "agent"
+      "main"
       "terminal";
+  }
+
+  body.wb-pws-assistant-collapsed .wb-pws-layout,
+  body.wb-pws-assistant-collapsed .wb-ai-workbench-layout {
+    grid-template-areas:
+      "topbar"
+      "main"
+      "terminal";
+  }
+
+  .wb-pws-agent-col,
+  .wb-pws-assistant-col {
+    display: none !important;
   }
 
   body.wb-pws-sidebar-mounted .wb-pws-project-col {
@@ -1314,33 +1341,47 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__head {
   background: #f7fbff;
 }
 
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__body,
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout {
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__layout,
+body.jl-project-workspace-active .wb-pws-main-col .wb-code-panel__layout {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+  grid-template-columns: none !important;
 }
 
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__sidebar {
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__sidebar,
+body.jl-project-workspace-active .wb-pws-main-col .wb-code-panel__sidebar {
+  display: none !important;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__main,
+body.jl-project-workspace-active .wb-pws-main-col .wb-code-panel__main {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  flex: 1 1 auto;
 }
 
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-panel__main {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-}
-
-body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree,
-body.jl-project-workspace-active .wb-pws-code-col .wb-code-search-hits {
+body.jl-project-workspace-active .wb-pws-sidebar .wb-file-tree,
+body.jl-project-workspace-active .wb-pws-file-tree-mount .wb-file-tree {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none !important;
   overflow-y: auto;
+}
+
+body.jl-project-workspace-active .wb-pws-search-mount .wb-code-search-hits {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-file-tree,
+body.jl-project-workspace-active .wb-pws-code-col .wb-code-search-hits {
+  display: none !important;
 }
 
 body.jl-project-workspace-active .wb-pws-code-col .wb-file-preview,

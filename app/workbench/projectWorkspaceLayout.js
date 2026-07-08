@@ -1,34 +1,55 @@
-const WB_PWS_LAYOUT_VERSION = "7";
+const WB_PWS_LAYOUT_VERSION = "8";
 
 const WB_PWS_PROJECT_COL_HTML = `
-    <aside class="wb-pws-project-col" id="wbPwsProjectCol" aria-label="项目与任务" hidden>
-      <div class="wb-pws-project-col__head">
-        <h3>项目与任务</h3>
-        <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
+    <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
+      <div class="wb-pws-project-summary" id="wbPwsProjectSummary">
+        <div id="wbPwsProjectCard" class="wb-pws-project-card">
+          <p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>
+        </div>
       </div>
-      <div class="wb-pws-project-switcher">
-        <div id="wbPwsProjectList" class="wb-pws-project-list scroll-tech" role="list" aria-label="项目列表"></div>
+      <nav class="wb-pws-sidebar-tabs" id="wbPwsSidebarTabs" role="tablist" aria-label="侧栏模块">
+        <button type="button" class="wb-pws-sidebar-tab is-active" data-tab="tasks" role="tab" aria-selected="true">任务</button>
+        <button type="button" class="wb-pws-sidebar-tab" data-tab="files" role="tab" aria-selected="false">文件</button>
+        <button type="button" class="wb-pws-sidebar-tab" data-tab="search" role="tab" aria-selected="false">搜索</button>
+        <button type="button" class="wb-pws-sidebar-tab" data-tab="git" role="tab" aria-selected="false">Git</button>
+      </nav>
+      <div class="wb-pws-sidebar-body" id="wbPwsSidebarBody">
+        <div class="wb-pws-sidebar-pane is-active" data-pane="tasks" role="tabpanel">
+          <div class="wb-pws-project-col__head">
+            <h3>项目与任务</h3>
+            <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
+          </div>
+          <div class="wb-pws-project-switcher">
+            <div id="wbPwsProjectList" class="wb-pws-project-list scroll-tech" role="list" aria-label="项目列表"></div>
+          </div>
+          <div class="wb-pws-task-filters" id="wbPwsTaskFilters" role="tablist" aria-label="任务筛选">
+            <button type="button" class="wb-pws-task-filter is-active" data-filter="all">全部</button>
+            <button type="button" class="wb-pws-task-filter" data-filter="active">进行中</button>
+            <button type="button" class="wb-pws-task-filter" data-filter="waiting">等待审批</button>
+            <button type="button" class="wb-pws-task-filter" data-filter="done">已完成</button>
+            <button type="button" class="wb-pws-task-filter" data-filter="failed">失败</button>
+          </div>
+          <div class="wb-pws-project-list-wrap">
+            <div id="wbTaskList" class="wb-task-list wb-pws-task-list" role="list"></div>
+          </div>
+          <section class="wb-pws-project-col__sessions" aria-label="会话记录">
+            <header class="wb-pws-project-col__sessions-head">
+              <h4>会话记录</h4>
+              <button type="button" id="wbPwsSessionNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建对话" aria-label="新建对话">+</button>
+            </header>
+            <div id="wbPwsSessionList" class="wb-pws-session-list scroll-tech" role="list"></div>
+          </section>
+        </div>
+        <div class="wb-pws-sidebar-pane" data-pane="files" role="tabpanel" hidden>
+          <div id="wbPwsFileTreeMount" class="wb-pws-file-tree-mount"></div>
+        </div>
+        <div class="wb-pws-sidebar-pane" data-pane="search" role="tabpanel" hidden>
+          <div id="wbPwsSearchMount" class="wb-pws-search-mount"></div>
+        </div>
+        <div class="wb-pws-sidebar-pane" data-pane="git" role="tabpanel" hidden>
+          <div id="wbPwsSidebarGitMount" class="wb-pws-sidebar-git-mount"></div>
+        </div>
       </div>
-      <div id="wbPwsProjectCard" class="wb-pws-project-card">
-        <p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>
-      </div>
-      <div class="wb-pws-task-filters" id="wbPwsTaskFilters" role="tablist" aria-label="任务筛选">
-        <button type="button" class="wb-pws-task-filter is-active" data-filter="all">全部</button>
-        <button type="button" class="wb-pws-task-filter" data-filter="active">进行中</button>
-        <button type="button" class="wb-pws-task-filter" data-filter="waiting">等待审批</button>
-        <button type="button" class="wb-pws-task-filter" data-filter="done">已完成</button>
-        <button type="button" class="wb-pws-task-filter" data-filter="failed">失败</button>
-      </div>
-      <div class="wb-pws-project-list-wrap">
-        <div id="wbTaskList" class="wb-task-list wb-pws-task-list" role="list"></div>
-      </div>
-      <section class="wb-pws-project-col__sessions" aria-label="会话记录">
-        <header class="wb-pws-project-col__sessions-head">
-          <h4>会话记录</h4>
-          <button type="button" id="wbPwsSessionNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建对话" aria-label="新建对话">+</button>
-        </header>
-        <div id="wbPwsSessionList" class="wb-pws-session-list scroll-tech" role="list"></div>
-      </section>
       <div class="wb-pws-project-col__foot">
         <button type="button" id="wbPwsBackToChat" class="wb-pws-btn wb-pws-btn--ghost">返回会话区</button>
         <button type="button" id="wbPwsOpenProjectDir" class="wb-pws-btn wb-pws-btn--ghost" hidden>打开目录</button>
@@ -37,7 +58,7 @@ const WB_PWS_PROJECT_COL_HTML = `
 `;
 
 const WB_PWS_LAYOUT_HTML = `
-  <div class="wb-pws-layout" data-terminal-collapsed="1">
+  <div class="wb-pws-layout wb-ai-workbench-layout" data-terminal-collapsed="1">
     <header class="wb-pws-topbar wb-pws-status-bar" id="wbPwsTopbar">
       <div class="wb-pws-status-bar__left">
         <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only" title="项目与任务">项目</button>
@@ -57,7 +78,14 @@ const WB_PWS_LAYOUT_HTML = `
         <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
       </div>
     </header>
-    <section class="wb-pws-agent-col" id="wbPwsAgentCol" aria-label="Agent 执行区">
+    <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="主工作区">
+      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
+        <h3>代码变更</h3>
+        <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
+      </header>
+      <div class="wb-pws-code-body main-editor-body" id="wbPwsCodeMount"></div>
+    </section>
+    <section class="wb-pws-agent-col wb-pws-assistant-col" id="wbPwsAgentCol" aria-label="AI 助手">
       <header class="wb-pws-agent-header">
         <div id="wbTaskDetail" class="wb-pws-agent-header__task" hidden>
           <h4 class="wb-pws-user-card__title">当前任务</h4>
@@ -104,13 +132,6 @@ const WB_PWS_LAYOUT_HTML = `
       </div>
     </section>
     <div id="wbPwsDrawerBackdrop" class="wb-pws-drawer-backdrop" hidden aria-hidden="true"></div>
-    <section class="wb-pws-code-col" id="wbPwsCodeCol" aria-label="代码审查区">
-      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
-        <h3>代码变更</h3>
-        <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
-      </header>
-      <div class="wb-pws-code-body" id="wbPwsCodeMount"></div>
-    </section>
     <footer class="wb-pws-terminal-drawer" id="wbPwsTerminalDrawer" data-collapsed="1">
       <header class="wb-pws-terminal-drawer__head">
         <div class="wb-pws-terminal-drawer__tabs" role="tablist">
@@ -130,6 +151,78 @@ const WB_PWS_LAYOUT_HTML = `
     </footer>
   </div>
 `;
+
+const WB_SIDEBAR_TAB_KEY = "wb_pws_sidebar_tab_v1";
+
+function loadSidebarTab() {
+  try {
+    const saved = localStorage.getItem(WB_SIDEBAR_TAB_KEY);
+    if (saved === "tasks" || saved === "files" || saved === "search" || saved === "git") {
+      return saved;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "tasks";
+}
+
+function saveSidebarTab(tabId) {
+  try {
+    localStorage.setItem(WB_SIDEBAR_TAB_KEY, tabId);
+  } catch {
+    /* ignore */
+  }
+}
+
+function switchSidebarTab(tabId, { persist = true } = {}) {
+  const tabs = document.getElementById("wbPwsSidebarTabs");
+  const body = document.getElementById("wbPwsSidebarBody");
+  if (!tabs || !body) {
+    return;
+  }
+  const valid = ["tasks", "files", "search", "git"];
+  const active = valid.includes(tabId) ? tabId : "tasks";
+  tabs.querySelectorAll(".wb-pws-sidebar-tab").forEach((btn) => {
+    const on = btn.dataset.tab === active;
+    btn.classList.toggle("is-active", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  body.querySelectorAll(".wb-pws-sidebar-pane").forEach((pane) => {
+    const on = pane.dataset.pane === active;
+    pane.classList.toggle("is-active", on);
+    pane.hidden = !on;
+    pane.setAttribute("aria-hidden", on ? "false" : "true");
+  });
+  if (persist) {
+    saveSidebarTab(active);
+  }
+  if (active === "files") {
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    if (projectId) {
+      void window.__wbRefreshFileTree?.(projectId);
+    }
+  }
+  if (active === "git") {
+    void window.__wbRefreshGitChangePanel?.();
+  }
+}
+
+function bindSidebarTabs() {
+  const tabs = document.getElementById("wbPwsSidebarTabs");
+  if (!tabs || tabs.dataset.bound === "1") {
+    switchSidebarTab(loadSidebarTab(), { persist: false });
+    return;
+  }
+  tabs.dataset.bound = "1";
+  tabs.addEventListener("click", (ev) => {
+    const btn = ev.target.closest(".wb-pws-sidebar-tab");
+    if (!btn?.dataset?.tab) {
+      return;
+    }
+    switchSidebarTab(btn.dataset.tab);
+  });
+  switchSidebarTab(loadSidebarTab(), { persist: false });
+}
 
 function ensureProjectColInSidebar() {
   const split = document.getElementById("jlWorkbenchSplit");
@@ -171,6 +264,7 @@ function ensureProjectWorkspaceLayout() {
   }
   if (root) {
     ensureProjectColInSidebar();
+    bindSidebarTabs();
     return root;
   }
   root = document.createElement("div");
@@ -181,6 +275,7 @@ function ensureProjectWorkspaceLayout() {
   root.innerHTML = WB_PWS_LAYOUT_HTML;
   panelAi.appendChild(root);
   ensureProjectColInSidebar();
+  bindSidebarTabs();
   return root;
 }
 
@@ -361,6 +456,7 @@ window.__wbBindTerminalDrawer = bindTerminalDrawer;
 window.__wbBindPwsDrawers = bindPwsDrawers;
 window.__wbSyncTerminalDrawer = syncTerminalDrawerFromPanels;
 window.__wbExpandTerminalDrawer = expandTerminalDrawer;
+window.__wbSwitchSidebarTab = switchSidebarTab;
 window.__wbClosePwsDrawers = () => {
   setDrawerState("project", false);
   setDrawerState("code", false);

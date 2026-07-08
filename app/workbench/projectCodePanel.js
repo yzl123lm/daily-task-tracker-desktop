@@ -35,9 +35,50 @@ function getTaskId() {
   );
 }
 
+function ensureSidebarMounts() {
+  const fileMount = document.getElementById("wbPwsFileTreeMount");
+  const searchMount = document.getElementById("wbPwsSearchMount");
+  if (fileMount && !fileMount.querySelector("#wbFileTree")) {
+    fileMount.innerHTML = `
+      <div class="wb-pws-file-tree-toolbar">
+        <input id="wbFileTreeFilter" type="search" placeholder="筛选文件…" autocomplete="off" aria-label="筛选文件" />
+        <button type="button" id="wbFileTreeRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost" title="刷新文件树" aria-label="刷新文件树">↻</button>
+      </div>
+      <p id="wbPwsSidebarSelectedFile" class="wb-pws-selected-file">未选择文件</p>
+      <ul id="wbFileTree" class="wb-file-tree scroll-tech" role="tree"></ul>
+    `;
+  }
+  if (searchMount && !searchMount.querySelector("#wbCodeSearchInput")) {
+    searchMount.innerHTML = `
+      <div class="wb-code-panel__search wb-pws-search-form">
+        <input id="wbCodeSearchInput" type="search" placeholder="搜索代码…" autocomplete="off" aria-label="搜索代码" />
+        <button type="button" id="wbCodeSearchBtn" class="wb-pws-btn wb-pws-btn--ghost">搜索</button>
+      </div>
+      <ul id="wbCodeSearchHits" class="wb-code-search-hits scroll-tech" hidden></ul>
+    `;
+  }
+  return { fileMount, searchMount };
+}
+
+function highlightFileTreeSelection(relPath) {
+  const tree = document.getElementById("wbFileTree");
+  if (!tree) {
+    return;
+  }
+  tree.querySelectorAll(".wb-file-tree__item").forEach((item) => {
+    item.classList.toggle("is-selected", item.dataset.path === relPath);
+  });
+  const sidebarPath = document.getElementById("wbPwsSidebarSelectedFile");
+  if (sidebarPath) {
+    sidebarPath.textContent = relPath || "未选择文件";
+  }
+}
+
 function ensureCodePanelMount() {
+  ensureSidebarMounts();
   let section = document.getElementById("wbCodePanel");
   if (section) {
+    migrateLegacyCodeSidebar(section);
     return section;
   }
   const workspace = document.getElementById("wbProjectWorkspace");
@@ -49,27 +90,18 @@ function ensureCodePanelMount() {
   section.id = "wbCodePanel";
   section.className = "wb-code-panel";
   section.innerHTML = `
-    <header class="wb-code-panel__head">
-      <div>
-        <h3>项目代码 · 受控开发</h3>
+    <header class="wb-code-panel__head main-tabs">
+      <div class="wb-code-panel__head-main">
+        <nav class="wb-code-panel__breadcrumb" aria-label="文件路径">
+          <span id="wbFilePreviewPath" class="wb-code-panel__file-path">选择文件预览</span>
+        </nav>
         <p id="wbCodeRootLabel" class="wb-code-panel__root">未加载代码目录</p>
         <p id="wbGitStatusLabel" class="wb-code-panel__git"></p>
       </div>
-      <button type="button" id="wbSetCodeRootBtn" class="secondary">设置代码目录</button>
+      <button type="button" id="wbSetCodeRootBtn" class="wb-pws-btn wb-pws-btn--ghost">设置代码目录</button>
     </header>
-    <div class="wb-code-panel__layout">
-      <div class="wb-code-panel__sidebar">
-        <div class="wb-code-panel__search">
-          <input id="wbCodeSearchInput" type="search" placeholder="搜索代码…" />
-          <button type="button" id="wbCodeSearchBtn" class="secondary">搜索</button>
-        </div>
-        <ul id="wbFileTree" class="wb-file-tree scroll-tech"></ul>
-        <ul id="wbCodeSearchHits" class="wb-code-search-hits scroll-tech" hidden></ul>
-      </div>
-      <div class="wb-code-panel__main">
-        <div class="wb-code-panel__file-head">
-          <span id="wbFilePreviewPath" class="wb-code-panel__file-path">选择文件预览</span>
-        </div>
+    <div class="wb-code-panel__layout main-workspace">
+      <div class="wb-code-panel__main main-editor-body">
         <pre id="wbFilePreview" class="wb-file-preview scroll-tech">选择文件后可编辑下方「拟写入内容」</pre>
         <label class="wb-field wb-code-panel__patch-label">
           <span>拟写入内容（Phase 5 受控写入）</span>
@@ -84,8 +116,8 @@ function ensureCodePanelMount() {
             <input type="checkbox" id="wbCreateGitBranch" checked />
             写入前创建 Git 分支
           </label>
-          <button type="button" id="wbDiffPreviewBtn" class="secondary">预览 Diff</button>
-          <button type="button" id="wbApplyPatchBtn" class="primary">确认并写入</button>
+          <button type="button" id="wbDiffPreviewBtn" class="wb-pws-btn wb-pws-btn--ghost">预览 Diff</button>
+          <button type="button" id="wbApplyPatchBtn" class="wb-pws-btn wb-pws-btn--primary">确认并写入</button>
         </div>
         <pre id="wbDiffPreview" class="wb-diff-preview scroll-tech" hidden></pre>
         <pre id="wbPostWriteDiff" class="wb-diff-preview wb-diff-preview--applied scroll-tech" hidden></pre>
@@ -112,16 +144,39 @@ function ensureCodePanelMount() {
       <ul id="wbToolOpsList" class="wb-tool-ops-list scroll-tech"></ul>
     </div>
   `;
-  const agentSection = workspace.querySelector(".wb-pws-agent-col");
-  if (mount.id === "wbPwsCodeMount") {
-    mount.appendChild(section);
-  } else if (agentSection?.nextSibling) {
-    workspace.insertBefore(section, agentSection.nextSibling);
-  } else {
-    workspace.appendChild(section);
-  }
+  mount.appendChild(section);
   bindCodePanelEvents();
   return section;
+}
+
+function migrateLegacyCodeSidebar(section) {
+  const legacySidebar = section.querySelector(".wb-code-panel__sidebar");
+  if (!legacySidebar) {
+    return;
+  }
+  ensureSidebarMounts();
+  const fileMount = document.getElementById("wbPwsFileTreeMount");
+  const searchMount = document.getElementById("wbPwsSearchMount");
+  const tree = legacySidebar.querySelector("#wbFileTree");
+  const hits = legacySidebar.querySelector("#wbCodeSearchHits");
+  const searchInput = legacySidebar.querySelector("#wbCodeSearchInput");
+  const searchBtn = legacySidebar.querySelector("#wbCodeSearchBtn");
+  if (tree && fileMount && !fileMount.querySelector("#wbFileTree")) {
+    fileMount.appendChild(tree);
+  }
+  if (searchInput && searchMount) {
+    const form = searchMount.querySelector(".wb-pws-search-form");
+    if (form && !searchMount.querySelector("#wbCodeSearchInput")) {
+      form.prepend(searchInput);
+      if (searchBtn && !form.querySelector("#wbCodeSearchBtn")) {
+        form.appendChild(searchBtn);
+      }
+    }
+  }
+  if (hits && searchMount && !searchMount.querySelector("#wbCodeSearchHits")) {
+    searchMount.appendChild(hits);
+  }
+  legacySidebar.remove();
 }
 
 function renderFileTree(entries) {
@@ -146,6 +201,8 @@ function renderFileTree(entries) {
     li.textContent = entry.type === "dir" ? `📁 ${entry.path}` : entry.path;
     if (entry.type === "file") {
       li.addEventListener("click", () => {
+        window.__wbSwitchSidebarTab?.("files", { persist: false });
+        window.__wbSwitchCodeTab?.("code");
         void loadFilePreview(entry.path);
       });
     }
@@ -178,6 +235,8 @@ function renderSearchHits(hits) {
       <pre class="wb-code-search-hits__snippet">${escapeHtml(hit.snippet)}</pre>
     `;
     li.querySelector("button")?.addEventListener("click", () => {
+      window.__wbSwitchSidebarTab?.("search", { persist: false });
+      window.__wbSwitchCodeTab?.("code");
       void loadFilePreview(hit.path);
     });
     list.appendChild(li);
@@ -199,6 +258,7 @@ async function loadFilePreview(relPath) {
   if (pathEl) {
     pathEl.textContent = `${relPath} · ${file.lines || 0} 行`;
   }
+  highlightFileTreeSelection(relPath);
   if (preview) {
     preview.textContent = file.content || "";
   }
@@ -235,6 +295,8 @@ async function refreshFileTree(projectId) {
   });
   renderFileTree(entries);
 }
+
+window.__wbRefreshFileTree = refreshFileTree;
 
 async function refreshTestCommands() {
   const select = document.getElementById("wbTestCommand");
@@ -866,6 +928,23 @@ function bindCodePanelEvents() {
   });
   document.getElementById("wbSetCodeRootBtn")?.addEventListener("click", () => {
     void chooseProjectRoot();
+  });
+  document.getElementById("wbFileTreeRefreshBtn")?.addEventListener("click", () => {
+    const projectId = panelState.projectId;
+    if (projectId) {
+      void refreshFileTree(projectId);
+    }
+  });
+  document.getElementById("wbFileTreeFilter")?.addEventListener("input", (ev) => {
+    const query = String(ev.target?.value || "").trim().toLowerCase();
+    const tree = document.getElementById("wbFileTree");
+    if (!tree) {
+      return;
+    }
+    tree.querySelectorAll(".wb-file-tree__item").forEach((item) => {
+      const path = String(item.dataset.path || "").toLowerCase();
+      item.hidden = Boolean(query) && !path.includes(query);
+    });
   });
 }
 

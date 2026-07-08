@@ -8,10 +8,10 @@ const DEFAULT_PREFS = {
 };
 
 const LIMITS = {
-  projectMinPx: 240,
+  projectMinPx: 260,
   projectMaxPx: 380,
-  agentMinPx: 280,
-  agentMaxPx: 480,
+  agentMinPx: 320,
+  agentMaxPx: 420,
   terminalMinPx: 120,
   terminalMaxPx: 480,
   diffMinPct: 20,
@@ -47,10 +47,11 @@ function applyPrefs(prefs = loadPrefs()) {
   if (!layout) {
     return;
   }
-  layout.style.setProperty("--wb-pws-project-width", `${prefs.projectWidthPx}px`);
   layout.style.setProperty("--wb-pws-agent-width", `${prefs.agentWidthPx}px`);
   layout.style.setProperty("--wb-pws-terminal-height", `${prefs.terminalHeightPx}px`);
   layout.style.setProperty("--wb-pws-diff-height", `${prefs.diffHeightPct}%`);
+  document.documentElement.style.setProperty("--wb-sidepanel-width", `${prefs.projectWidthPx}px`);
+  document.documentElement.style.setProperty("--wb-sidebar-width", `${prefs.projectWidthPx}px`);
   positionResizeHandles(prefs);
 }
 
@@ -94,16 +95,18 @@ function positionResizeHandles(prefs = loadPrefs()) {
   const terminalH =
     layout.dataset.terminalCollapsed === "1" ? 40 : prefs.terminalHeightPx;
   const sidebarProject = isProjectColInSidebar();
+  const railWidth = 64;
   if (projectHandle) {
     if (sidebarProject) {
-      projectHandle.hidden = true;
-      projectHandle.style.display = "none";
-    } else {
       projectHandle.hidden = false;
       projectHandle.style.display = "";
       projectHandle.style.top = `${top}px`;
       projectHandle.style.bottom = `${terminalH}px`;
-      projectHandle.style.left = `calc(${prefs.projectWidthPx}px - 3px)`;
+      projectHandle.style.left = `calc(${railWidth}px + ${prefs.projectWidthPx}px - 3px)`;
+      projectHandle.style.right = "auto";
+    } else {
+      projectHandle.hidden = true;
+      projectHandle.style.display = "none";
     }
   }
   if (agentHandle) {
@@ -111,10 +114,8 @@ function positionResizeHandles(prefs = loadPrefs()) {
     agentHandle.style.display = "";
     agentHandle.style.top = `${top}px`;
     agentHandle.style.bottom = `${terminalH}px`;
-    const agentEdge = sidebarProject
-      ? prefs.agentWidthPx
-      : prefs.projectWidthPx + prefs.agentWidthPx;
-    agentHandle.style.left = `calc(${agentEdge}px - 3px)`;
+    agentHandle.style.left = "auto";
+    agentHandle.style.right = `calc(${prefs.agentWidthPx}px - 3px)`;
   }
   if (terminalHandle) {
     terminalHandle.style.height = "8px";
@@ -175,9 +176,10 @@ function bindWorkspaceResizers() {
   );
   projectHandle?.setAttribute("aria-label", "调整项目栏宽度");
   bindDragHandle(projectHandle, (ev, prefs) => {
-    const rect = layout.getBoundingClientRect();
+    const split = document.getElementById("jlWorkbenchSplit");
+    const rect = split?.getBoundingClientRect() || layout.getBoundingClientRect();
     prefs.projectWidthPx = clamp(
-      ev.clientX - rect.left,
+      ev.clientX - rect.left - 64,
       LIMITS.projectMinPx,
       LIMITS.projectMaxPx
     );
@@ -191,7 +193,7 @@ function bindWorkspaceResizers() {
   bindDragHandle(agentHandle, (ev, prefs) => {
     const rect = layout.getBoundingClientRect();
     prefs.agentWidthPx = clamp(
-      ev.clientX - rect.left - prefs.projectWidthPx,
+      rect.right - ev.clientX,
       LIMITS.agentMinPx,
       LIMITS.agentMaxPx
     );
