@@ -216,6 +216,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   kbRebuildEmbeddings: (payload) => ipcRenderer.invoke("kb-rebuild-embeddings", payload),
   kbRebuildFtsIndex: (payload) => ipcRenderer.invoke("kb-rebuild-fts-index", payload),
   kbIndexHealth: (payload) => ipcRenderer.invoke("kb-index-health", payload),
+  kbIndexHealthRepair: (payload) => ipcRenderer.invoke("kb-index-health-repair", payload),
+  kbDeleteJobsList: (payload) => ipcRenderer.invoke("kb-delete-jobs-list", payload),
+  kbDeleteDocumentForce: (payload) => ipcRenderer.invoke("kb-delete-document-force", payload),
 
   kbModelHealthCheck: (payload) => ipcRenderer.invoke("kb-model-health-check", payload),
 

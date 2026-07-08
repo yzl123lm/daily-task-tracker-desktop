@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const STORE_SCHEMA_VERSION = 2;
+const STORE_SCHEMA_VERSION = 3;
 const dbCache = new Map();
 
 const DOCUMENT_COLUMNS = [
@@ -25,6 +25,14 @@ const DOCUMENT_COLUMNS = [
   "last_writeback_at",
   "last_writeback_summary",
   "encryption_status",
+  "delete_status",
+  "deleted_at",
+  "archived_path",
+  "archive_md5",
+  "archive_status",
+  "archive_policy",
+  "source_missing_at",
+  "relink_path",
 ];
 
 function sqliteDbPath(libraryDirPath) {
@@ -145,10 +153,44 @@ function ensureSchema(db) {
   `);
   ensureColumn(db, "kb_documents", "auto_learn_meta_json", "TEXT");
   ensureColumn(db, "kb_documents", "encryption_status", "TEXT");
+  ensureColumn(db, "kb_documents", "delete_status", "TEXT");
+  ensureColumn(db, "kb_documents", "deleted_at", "TEXT");
+  ensureColumn(db, "kb_documents", "archived_path", "TEXT");
+  ensureColumn(db, "kb_documents", "archive_md5", "TEXT");
+  ensureColumn(db, "kb_documents", "archive_status", "TEXT");
+  ensureColumn(db, "kb_documents", "archive_policy", "TEXT");
+  ensureColumn(db, "kb_documents", "source_missing_at", "TEXT");
+  ensureColumn(db, "kb_documents", "relink_path", "TEXT");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS kb_delete_jobs (
+      job_id TEXT PRIMARY KEY,
+      doc_id TEXT NOT NULL,
+      library_id TEXT NOT NULL,
+      stage TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempts INTEGER DEFAULT 0,
+      max_attempts INTEGER DEFAULT 5,
+      next_retry_at TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_delete_jobs_status ON kb_delete_jobs(status, next_retry_at);
+    CREATE INDEX IF NOT EXISTS idx_delete_jobs_doc ON kb_delete_jobs(doc_id, library_id);
+  `);
   db.prepare("INSERT OR IGNORE INTO kb_meta(key, value) VALUES(?, ?)").run(
     "schema_version",
     String(STORE_SCHEMA_VERSION)
   );
+  const curVer = Number(
+    db.prepare("SELECT value FROM kb_meta WHERE key = ?").get("schema_version")?.value || 0
+  );
+  if (curVer < STORE_SCHEMA_VERSION) {
+    db.prepare("UPDATE kb_meta SET value = ? WHERE key = ?").run(
+      String(STORE_SCHEMA_VERSION),
+      "schema_version"
+    );
+  }
 }
 
 function openLibraryDb(libraryDirPath) {
@@ -226,6 +268,14 @@ function documentToRow(doc) {
     last_writeback_summary: String(d.lastWritebackSummary || ""),
     auto_learn_meta_json: JSON.stringify(d.autoLearnMeta || null),
     encryption_status: String(d.encryptionStatus || ""),
+    delete_status: String(d.deleteStatus || ""),
+    deleted_at: String(d.deletedAt || ""),
+    archived_path: String(d.archivedPath || ""),
+    archive_md5: String(d.archiveMd5 || ""),
+    archive_status: String(d.archiveStatus || ""),
+    archive_policy: String(d.archivePolicy || ""),
+    source_missing_at: String(d.sourceMissingAt || ""),
+    relink_path: String(d.relinkPath || ""),
   };
 }
 
@@ -273,6 +323,30 @@ function rowToDocument(row) {
   const autoLearnMeta = parseJson(row.auto_learn_meta_json, null);
   if (autoLearnMeta && typeof autoLearnMeta === "object") {
     doc.autoLearnMeta = autoLearnMeta;
+  }
+  if (row.delete_status) {
+    doc.deleteStatus = row.delete_status;
+  }
+  if (row.deleted_at) {
+    doc.deletedAt = row.deleted_at;
+  }
+  if (row.archived_path) {
+    doc.archivedPath = row.archived_path;
+  }
+  if (row.archive_md5) {
+    doc.archiveMd5 = row.archive_md5;
+  }
+  if (row.archive_status) {
+    doc.archiveStatus = row.archive_status;
+  }
+  if (row.archive_policy) {
+    doc.archivePolicy = row.archive_policy;
+  }
+  if (row.source_missing_at) {
+    doc.sourceMissingAt = row.source_missing_at;
+  }
+  if (row.relink_path) {
+    doc.relinkPath = row.relink_path;
   }
   return doc;
 }
@@ -457,12 +531,14 @@ function saveStoreToSqlite(libraryDirPath, store) {
         id, name, source_path, file_md5, file_size, file_mtime, normalized_path, chunk_count, created_at,
         conversion_json, verification_json, auto_learn, auto_learn_key, question_preview,
         moved_at, moved_from_library_id, last_writeback_at, last_writeback_summary, auto_learn_meta_json,
-        encryption_status
+        encryption_status, delete_status, deleted_at, archived_path, archive_md5, archive_status,
+        archive_policy, source_missing_at, relink_path
       ) VALUES (
         @id, @name, @source_path, @file_md5, @file_size, @file_mtime, @normalized_path, @chunk_count, @created_at,
         @conversion_json, @verification_json, @auto_learn, @auto_learn_key, @question_preview,
         @moved_at, @moved_from_library_id, @last_writeback_at, @last_writeback_summary, @auto_learn_meta_json,
-        @encryption_status
+        @encryption_status, @delete_status, @deleted_at, @archived_path, @archive_md5, @archive_status,
+        @archive_policy, @source_missing_at, @relink_path
       )
       ON CONFLICT(id) DO UPDATE SET
         name=excluded.name,
@@ -483,7 +559,15 @@ function saveStoreToSqlite(libraryDirPath, store) {
         last_writeback_at=excluded.last_writeback_at,
         last_writeback_summary=excluded.last_writeback_summary,
         auto_learn_meta_json=excluded.auto_learn_meta_json,
-        encryption_status=excluded.encryption_status
+        encryption_status=excluded.encryption_status,
+        delete_status=excluded.delete_status,
+        deleted_at=excluded.deleted_at,
+        archived_path=excluded.archived_path,
+        archive_md5=excluded.archive_md5,
+        archive_status=excluded.archive_status,
+        archive_policy=excluded.archive_policy,
+        source_missing_at=excluded.source_missing_at,
+        relink_path=excluded.relink_path
     `);
     documents.forEach((doc) => {
       if (doc?.id) {
@@ -614,6 +698,22 @@ function checkIndexHealth(libraryDirPath, external = {}) {
       code: "orphan_chunks",
       severity: "P0",
       message: "存在分片但无文档记录",
+    });
+  }
+  const staleDeleting = Number(external.staleDeletingCount ?? 0);
+  if (staleDeleting > 0) {
+    issues.push({
+      code: "stale_deleting",
+      severity: "P0",
+      message: `有 ${staleDeleting} 个文档处于 deleting 状态未完成清理`,
+    });
+  }
+  const pendingDeleteJobs = Number(external.pendingDeleteJobs ?? 0);
+  if (pendingDeleteJobs > 0) {
+    issues.push({
+      code: "pending_delete_jobs",
+      severity: "P0",
+      message: `有 ${pendingDeleteJobs} 个删除补偿任务待处理`,
     });
   }
   return {
@@ -776,6 +876,74 @@ function countAutoLearnQueue(libraryDirPath, status = "pending") {
   );
 }
 
+function upsertDeleteJob(libraryDirPath, job) {
+  const db = openLibraryDb(libraryDirPath);
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO kb_delete_jobs(
+      job_id, doc_id, library_id, stage, status, attempts, max_attempts,
+      next_retry_at, last_error, created_at, updated_at
+    ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(job_id) DO UPDATE SET
+      stage=excluded.stage,
+      status=excluded.status,
+      attempts=excluded.attempts,
+      max_attempts=excluded.max_attempts,
+      next_retry_at=excluded.next_retry_at,
+      last_error=excluded.last_error,
+      updated_at=excluded.updated_at
+  `).run(
+    String(job.jobId || job.id || ""),
+    String(job.docId || ""),
+    String(job.libraryId || ""),
+    String(job.stage || "lance"),
+    String(job.status || "pending"),
+    Number(job.attempts || 0),
+    Number(job.maxAttempts || 5),
+    String(job.nextRetryAt || ""),
+    String(job.lastError || ""),
+    String(job.createdAt || now),
+    String(job.updatedAt || now)
+  );
+}
+
+function listDeleteJobs(libraryDirPath, options = {}) {
+  const db = openLibraryDb(libraryDirPath);
+  const limit = Math.max(1, Math.min(200, Number(options.limit) || 50));
+  const status = String(options.status || "").trim();
+  if (status) {
+    return db
+      .prepare(
+        `SELECT * FROM kb_delete_jobs WHERE status = ? ORDER BY datetime(updated_at) DESC LIMIT ?`
+      )
+      .all(status, limit);
+  }
+  return db
+    .prepare(`SELECT * FROM kb_delete_jobs ORDER BY datetime(updated_at) DESC LIMIT ?`)
+    .all(limit);
+}
+
+function countDeleteJobs(libraryDirPath, status = "pending") {
+  const db = openLibraryDb(libraryDirPath);
+  return Number(
+    db.prepare("SELECT COUNT(*) AS n FROM kb_delete_jobs WHERE status = ?").get(String(status || "pending"))?.n || 0
+  );
+}
+
+function getDeleteJob(libraryDirPath, jobId) {
+  const db = openLibraryDb(libraryDirPath);
+  return db.prepare("SELECT * FROM kb_delete_jobs WHERE job_id = ?").get(String(jobId || ""));
+}
+
+function countDocumentsByDeleteStatus(libraryDirPath, deleteStatus = "deleting") {
+  const db = openLibraryDb(libraryDirPath);
+  return Number(
+    db
+      .prepare("SELECT COUNT(*) AS n FROM kb_documents WHERE delete_status = ?")
+      .get(String(deleteStatus || "deleting"))?.n || 0
+  );
+}
+
 module.exports = {
   STORE_SCHEMA_VERSION,
   sqliteDbPath,
@@ -804,5 +972,10 @@ module.exports = {
   listSearchLogs,
   listIngestJobs,
   countAutoLearnQueue,
+  upsertDeleteJob,
+  listDeleteJobs,
+  countDeleteJobs,
+  getDeleteJob,
+  countDocumentsByDeleteStatus,
   DOCUMENT_COLUMNS,
 };

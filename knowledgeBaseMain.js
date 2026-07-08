@@ -80,8 +80,20 @@ const {
   listSearchLogs,
   listIngestJobs,
   countAutoLearnQueue,
+  upsertDeleteJob,
+  listDeleteJobs,
+  countDeleteJobs,
+  countDocumentsByDeleteStatus,
   sqliteDbPath,
 } = require("./utils/kbSqliteStore.js");
+const { isKbDeleteRepairEnabled, isKbSourceArchiveEnabled } = require("./utils/kbFeatureGates.js");
+const { repairDocumentDelete, repairLibraryIndex, nextRetryAt } = require("./utils/kbDeleteRepair.js");
+const {
+  archiveSourceFile,
+  resolveReadableDocumentPath,
+  shouldArchiveOnIngest,
+  normalizeArchivePolicy,
+} = require("./utils/kbArchive.js");
 const {
   CREDIBILITY,
   SOURCE_TYPES,
@@ -97,6 +109,7 @@ const {
   rebuildFtsIndex,
   upsertChunkInIndex,
   removeDocFromFtsIndex,
+  removeChunkFromIndex,
   searchFtsIndex,
 } = require("./utils/kbFtsIndex.js");
 const { createKbWatchService } = require("./main/kbWatchDir.js");
@@ -1074,6 +1087,19 @@ async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, ex
     allowFullDiskScan = true,
     scanDrives = null,
   } = options;
+
+  const readable = resolveReadableDocumentPath(doc);
+  if (readable.path) {
+    return {
+      path: readable.path,
+      relocated: false,
+      previousPath: "",
+      fullDiskScan: false,
+      scanSkipped: true,
+      openedFrom: readable.kind,
+    };
+  }
+
   const candidates = [
     String(doc?.sourcePath || "").trim(),
     ...(extraCandidates || []).map((x) => String(x || "").trim()).filter(Boolean),
@@ -2820,29 +2846,149 @@ async function parseFileToText(filePath, options = {}) {
 async function removeChunksByIds(userDataPath, libraryId, chunkIds) {
   const ids = (chunkIds || []).map((x) => String(x || "")).filter(Boolean);
   if (!ids.length) {
-    return;
+    return { ok: true, deletedCounts: { lance: 0, fts: 0 }, stages: [] };
   }
   const libDir = libraryDir(userDataPath, libraryId);
   const fts = loadFtsIndex(libDir);
+  const stages = [];
+  let lanceDeleted = 0;
   for (const id of ids) {
-    await lanceDeleteByChunkId(userDataPath, libraryId, id).catch(() => {});
+    try {
+      await lanceDeleteByChunkId(userDataPath, libraryId, id);
+      lanceDeleted += 1;
+    } catch (err) {
+      stages.push({ stage: "lance", chunkId: id, ok: false, error: err?.message || String(err) });
+      if (isKbDeleteRepairEnabled()) {
+        return {
+          ok: false,
+          status: "partial",
+          failedStage: "lance",
+          lastError: err?.message || String(err),
+          deletedCounts: { lance: lanceDeleted, fts: 0 },
+          stages,
+        };
+      }
+      throw err;
+    }
     removeChunkFromIndex(fts, id);
   }
   saveFtsIndex(libDir, fts);
+  stages.push({ stage: "lance", ok: true, count: lanceDeleted });
+  stages.push({ stage: "fts", ok: true, count: ids.length });
+  return { ok: true, deletedCounts: { lance: lanceDeleted, fts: ids.length }, stages };
 }
 
 async function removeDocumentFromLibrary(userDataPath, libraryId, docId) {
   const st = loadStore(userDataPath, libraryId);
-  const before = st.chunks.length;
-  st.documents = st.documents.filter((d) => d.id !== docId);
-  st.chunks = st.chunks.filter((c) => c.docId !== docId);
-  ensureGraphSnapshot(st, true);
-  await lanceDeleteByDocId(userDataPath, libraryId, docId).catch(() => {});
   const libDir = libraryDir(userDataPath, libraryId);
-  const fts = removeDocFromFtsIndex(loadFtsIndex(libDir), docId);
-  saveFtsIndex(libDir, fts);
+  const normDocId = String(docId || "");
+  const doc = (st.documents || []).find((d) => String(d.id) === normDocId);
+  const chunkCount = (st.chunks || []).filter((c) => String(c.docId) === normDocId).length;
+  const deletedCounts = { sqlite: 0, lance: 0, fts: 0 };
+  const stages = [];
+  const useRepair = isKbDeleteRepairEnabled();
+
+  if (!doc && chunkCount === 0) {
+    try {
+      await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
+      const ftsClean = removeDocFromFtsIndex(loadFtsIndex(libDir), normDocId);
+      saveFtsIndex(libDir, ftsClean);
+    } catch {
+      /* idempotent orphan cleanup */
+    }
+    return {
+      ok: true,
+      status: "already_deleted",
+      deletedCounts,
+      stages,
+      removedChunks: 0,
+    };
+  }
+
+  if (useRepair && doc) {
+    doc.deleteStatus = "deleting";
+    doc.deletedAt = doc.deletedAt || new Date().toISOString();
+    saveStore(userDataPath, libraryId, st);
+  }
+
+  try {
+    await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
+    deletedCounts.lance = chunkCount;
+    stages.push({ stage: "lance", ok: true });
+  } catch (err) {
+    const lastError = err?.message || String(err);
+    stages.push({ stage: "lance", ok: false, error: lastError });
+    if (useRepair) {
+      upsertDeleteJob(libDir, {
+        jobId: crypto.randomUUID(),
+        docId: normDocId,
+        libraryId: String(libraryId),
+        stage: "lance",
+        status: "pending",
+        attempts: 0,
+        lastError,
+        nextRetryAt: nextRetryAt(0),
+      });
+      return {
+        ok: false,
+        status: "partial",
+        failedStage: "lance",
+        lastError,
+        deletedCounts,
+        stages,
+        removedChunks: 0,
+      };
+    }
+    throw err;
+  }
+
+  try {
+    const fts = removeDocFromFtsIndex(loadFtsIndex(libDir), normDocId);
+    saveFtsIndex(libDir, fts);
+    deletedCounts.fts = chunkCount;
+    stages.push({ stage: "fts", ok: true });
+  } catch (err) {
+    const lastError = err?.message || String(err);
+    stages.push({ stage: "fts", ok: false, error: lastError });
+    if (useRepair) {
+      upsertDeleteJob(libDir, {
+        jobId: crypto.randomUUID(),
+        docId: normDocId,
+        libraryId: String(libraryId),
+        stage: "fts",
+        status: "pending",
+        attempts: 0,
+        lastError,
+        nextRetryAt: nextRetryAt(0),
+      });
+      return {
+        ok: false,
+        status: "partial",
+        failedStage: "fts",
+        lastError,
+        deletedCounts,
+        stages,
+        removedChunks: 0,
+      };
+    }
+    throw err;
+  }
+
+  const before = st.chunks.length;
+  st.documents = (st.documents || []).filter((d) => String(d.id) !== normDocId);
+  st.chunks = (st.chunks || []).filter((c) => String(c.docId) !== normDocId);
+  deletedCounts.sqlite = before - st.chunks.length;
+  ensureGraphSnapshot(st, true);
   saveStore(userDataPath, libraryId, st);
-  return before - st.chunks.length;
+  stages.push({ stage: "sqlite", ok: true });
+
+  return {
+    ok: true,
+    status: "deleted",
+    deletedCounts,
+    stages,
+    removedChunks: deletedCounts.sqlite,
+  };
 }
 
 async function applyIncrementalDocumentUpdate(userDataPath, libraryId, options) {
@@ -2878,7 +3024,11 @@ async function applyIncrementalDocumentUpdate(userDataPath, libraryId, options) 
     }
   }
 
-  await removeChunksByIds(userDataPath, libraryId, plan.removeChunkIds);
+  await removeChunksByIds(userDataPath, libraryId, plan.removeChunkIds).then((r) => {
+    if (r && r.ok === false) {
+      throw new Error(r.lastError || `删除分片失败（${r.failedStage || "unknown"}）`);
+    }
+  });
 
   const finalChunks = [];
   plan.reuse.forEach(({ oldChunk, spec }) => {
@@ -3574,6 +3724,37 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     return { duplicates, toIngest, batchMd5 };
   }
 
+  function applyDocumentArchive(st, libDir, docRecord, sourcePath, options = {}) {
+    if (!isKbSourceArchiveEnabled()) {
+      return docRecord;
+    }
+    const policy = normalizeArchivePolicy(st.settings?.archivePolicy || "ask");
+    if (!shouldArchiveOnIngest(policy, options)) {
+      docRecord.archivePolicy = policy;
+      return docRecord;
+    }
+    try {
+      const archive = archiveSourceFile(
+        libDir,
+        docRecord.id,
+        sourcePath,
+        docRecord.fileMd5,
+        st.documents || []
+      );
+      if (archive.ok) {
+        docRecord.archivedPath = archive.archivedPath;
+        docRecord.archiveMd5 = archive.archiveMd5;
+        docRecord.archiveStatus = archive.archiveStatus;
+        docRecord.archivePolicy = policy;
+      }
+    } catch (err) {
+      docRecord.archiveStatus = "failed";
+      docRecord.archivePolicy = policy;
+      docRecord.archiveError = err?.message || String(err);
+    }
+    return docRecord;
+  }
+
   async function ingestOneFile(filePath, libraryId, options = {}) {
     const fp = String(filePath || "").trim();
     const report = (step) => {
@@ -3828,6 +4009,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         verification: st.settings.autoWebVerify ? verification : targetDoc.verification || verification,
         encryptionStatus: "",
       };
+      applyDocumentArchive(st, libDir, docRecord, fp, options);
       try {
         report("embedding");
         const { finalChunks, plan } = await applyIncrementalDocumentUpdate(ud(), libId, {
@@ -3900,7 +4082,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
         ftsVersion: 1,
       });
     }
-    st.documents.push({
+    const newDoc = {
       id: docId,
       name: docName,
       sourcePath: fp,
@@ -3913,7 +4095,9 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       createdAt: new Date().toISOString(),
       verification,
       encryptionStatus: "",
-    });
+    };
+    applyDocumentArchive(st, libDir, newDoc, fp, options);
+    st.documents.push(newDoc);
     st.chunks.push(...newChunks);
     report("saving");
     await lanceAppendChunks(ud(), libId, newChunks);
@@ -3926,7 +4110,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
 
   const kbWatch = createKbWatchService({
     ingestFile: async (fp, libraryId) => {
-      const r = await ingestOneFile(fp, libraryId, { batchFilePaths: [fp] });
+      const r = await ingestOneFile(fp, libraryId, { batchFilePaths: [fp], fromWatch: true });
       if (r.needsPassword) {
         return registerLockedDocument(fp, libraryId, { fileMd5: r.fileMd5 });
       }
@@ -4697,8 +4881,14 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       credibility: doc.autoLearnMeta?.credibility || "unconfirmed",
       meta: { docName: doc.name },
     });
-    const removedChunks = await removeDocumentFromLibrary(ud(), libId, docId);
-    return { ok: true, libraryId: libId, docId, removedChunks };
+    const removed = await removeDocumentFromLibrary(ud(), libId, docId);
+    return {
+      ok: removed.ok !== false,
+      libraryId: libId,
+      docId,
+      removedChunks: removed.removedChunks ?? removed.deletedCounts?.sqlite ?? 0,
+      status: removed.status,
+    };
   });
 
   ipcMain.handle("kb-auto-learn-audit-list", async (_e, payload) => {
@@ -5119,11 +5309,69 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       return { ok: false, error: err?.message || "缺少文档 id" };
     }
     try {
-      const removedChunks = await removeDocumentFromLibrary(ud(), activeLibraryId(), id);
-      return { ok: true, removedChunks };
+      const libId = activeLibraryId();
+      const result = await removeDocumentFromLibrary(ud(), libId, id);
+      return {
+        ok: result.ok !== false,
+        status: result.status,
+        removedChunks: result.removedChunks ?? result.deletedCounts?.sqlite ?? 0,
+        deletedCounts: result.deletedCounts,
+        stages: result.stages,
+        failedStage: result.failedStage,
+        lastError: result.lastError,
+      };
     } catch (err) {
       return { ok: false, error: err?.message || String(err) };
     }
+  });
+
+  ipcMain.handle("kb-delete-document-force", async (_e, payload) => {
+    const p = payload && typeof payload === "object" ? payload : {};
+    let docId = "";
+    let libId = "";
+    try {
+      docId = assertUuid(p.docId, "文档 id");
+      libId = assertKbLibraryId(p.libraryId || activeLibraryId());
+    } catch (err) {
+      return { ok: false, error: err?.message || "参数无效" };
+    }
+    const libDir = libraryDir(ud(), libId);
+    const jobs = listDeleteJobs(libDir, { status: "pending", limit: 20 }).filter(
+      (j) => String(j.doc_id) === docId
+    );
+    const ctx = buildDeleteRepairCtx(ud(), libId);
+    if (!jobs.length) {
+      const result = await removeDocumentFromLibrary(ud(), libId, docId);
+      return { ok: result.ok !== false, ...result };
+    }
+    const last = await repairDocumentDelete(ctx, jobs[0]);
+    return { ok: last.ok !== false, ...last };
+  });
+
+  ipcMain.handle("kb-delete-jobs-list", async (_e, payload) => {
+    const p = payload && typeof payload === "object" ? payload : {};
+    const libId = assertKbLibraryId(p.libraryId || activeLibraryId());
+    const libDir = libraryDir(ud(), libId);
+    const jobs = listDeleteJobs(libDir, {
+      status: p.status ? String(p.status) : "",
+      limit: Number(p.limit) || 50,
+    });
+    return {
+      ok: true,
+      libraryId: libId,
+      jobs: jobs.map((j) => ({
+        jobId: j.job_id,
+        docId: j.doc_id,
+        libraryId: j.library_id,
+        stage: j.stage,
+        status: j.status,
+        attempts: j.attempts,
+        maxAttempts: j.max_attempts,
+        nextRetryAt: j.next_retry_at,
+        lastError: j.last_error,
+        updatedAt: j.updated_at,
+      })),
+    };
   });
 
   ipcMain.handle("kb-move-document", async (_e, payload) => {
@@ -5622,13 +5870,73 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       });
   }, 4000);
 
+  setTimeout(() => {
+    if (!isKbDeleteRepairEnabled()) {
+      return;
+    }
+    try {
+      const meta = readKbMeta(ud());
+      (meta.libraries || []).forEach((lib) => {
+        const id = String(lib?.id || "").trim();
+        if (id) {
+          void processPendingDeleteJobs(ud(), id, 3);
+        }
+      });
+    } catch {
+      /* ignore startup repair errors */
+    }
+  }, 8000);
+
   async function buildLibraryHealth(userDataPath, libraryId) {
     const libDir = libraryDir(userDataPath, libraryId);
     const st = loadStore(userDataPath, libraryId);
     const lanceCount = await lanceCountChunks(userDataPath, libraryId, st);
     const fts = loadFtsIndex(libDir);
     const ftsCount = Number(fts.docCount || Object.keys(fts.chunks || {}).length || 0);
-    return checkIndexHealth(libDir, { lanceChunkCount: lanceCount, ftsChunkCount: ftsCount });
+    return checkIndexHealth(libDir, {
+      lanceChunkCount: lanceCount,
+      ftsChunkCount: ftsCount,
+      staleDeletingCount: countDocumentsByDeleteStatus(libDir, "deleting"),
+      pendingDeleteJobs: countDeleteJobs(libDir, "pending"),
+    });
+  }
+
+  function buildDeleteRepairCtx(userDataPath, libraryId) {
+    const libDir = libraryDir(userDataPath, libraryId);
+    return {
+      userDataPath,
+      libraryId,
+      libraryDir: libDir,
+      loadStore,
+      saveStore,
+      lanceDeleteByDocId,
+      removeDocFromFtsIndex,
+      loadFtsIndex,
+      saveFtsIndex,
+      upsertDeleteJob,
+      ensureGraphSnapshot,
+      listDeleteJobs: (dir, opts) => listDeleteJobs(dir, opts),
+      buildLibraryHealth: () => buildLibraryHealth(userDataPath, libraryId),
+    };
+  }
+
+  async function processPendingDeleteJobs(userDataPath, libraryId, maxBatch = 5) {
+    if (!isKbDeleteRepairEnabled()) {
+      return { processed: 0 };
+    }
+    const libDir = libraryDir(userDataPath, libraryId);
+    const jobs = listDeleteJobs(libDir, { status: "pending", limit: maxBatch });
+    const ctx = buildDeleteRepairCtx(userDataPath, libraryId);
+    let processed = 0;
+    for (const job of jobs) {
+      const nextAt = String(job.next_retry_at || "").trim();
+      if (nextAt && Date.parse(nextAt) > Date.now()) {
+        continue;
+      }
+      await repairDocumentDelete(ctx, job);
+      processed += 1;
+    }
+    return { processed };
   }
 
   ipcMain.handle("kb-index-health", async (_e, payload) => {
@@ -5649,6 +5957,33 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       };
     } catch (err) {
       return { ok: false, error: `健康检查失败：${err.message || String(err)}` };
+    }
+  });
+
+  ipcMain.handle("kb-index-health-repair", async (_e, payload) => {
+    const p = payload && typeof payload === "object" ? payload : {};
+    const libId = assertKbLibraryId(p.libraryId || activeLibraryId());
+    const libDir = libraryDir(ud(), libId);
+    const ctx = buildDeleteRepairCtx(ud(), libId);
+    try {
+      const result = await repairLibraryIndex(ctx, {
+        dryRun: p.dryRun === true,
+        maxBatch: Number(p.maxBatch) || 10,
+        docId: p.docId ? String(p.docId) : "",
+      });
+      if (p.docId && !p.dryRun) {
+        const jobs = listDeleteJobs(libDir, { status: "pending", limit: 20 }).filter(
+          (j) => String(j.doc_id) === String(p.docId)
+        );
+        if (jobs[0]) {
+          result.singleDoc = await repairDocumentDelete(ctx, jobs[0]);
+        } else {
+          result.singleDoc = await removeDocumentFromLibrary(ud(), libId, String(p.docId));
+        }
+      }
+      return { ok: true, libraryId: libId, ...result };
+    } catch (err) {
+      return { ok: false, error: err?.message || String(err) };
     }
   });
 
@@ -6060,11 +6395,16 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       previousPath: resolution.previousPath || "",
       fullDiskScan: Boolean(resolution.fullDiskScan),
       scanSkipped: Boolean(resolution.scanSkipped),
-      message: resolution.relocated
-        ? resolution.fullDiskScan
-          ? `已通过全盘搜索定位并更新路径：${opened.path || targetPath}`
-          : `文档路径已自动更新并打开：${opened.path || targetPath}`
-        : "",
+      openedFrom: resolution.openedFrom || (resolution.relocated ? "relocated" : "source"),
+      archivedPath: doc.archivedPath || "",
+      archiveStatus: doc.archiveStatus || "",
+      message: resolution.openedFrom === "archive"
+        ? `已打开归档副本：${opened.path || targetPath}`
+        : resolution.relocated
+          ? resolution.fullDiskScan
+            ? `已通过全盘搜索定位并更新路径：${opened.path || targetPath}`
+            : `文档路径已自动更新并打开：${opened.path || targetPath}`
+          : "",
     };
   });
 

@@ -46,6 +46,7 @@
     rebuildEmbeddingsBtn: document.getElementById("kbRebuildEmbeddingsBtn"),
     rebuildFtsBtn: document.getElementById("kbRebuildFtsBtn"),
     indexHealthBtn: document.getElementById("kbIndexHealthBtn"),
+    indexHealthRepairBtn: document.getElementById("kbIndexHealthRepairBtn"),
     indexHealthHint: document.getElementById("kbIndexHealthHint"),
     modelHealthBtn: document.getElementById("kbModelHealthBtn"),
     modelHealthDialog: document.getElementById("kbModelHealthDialog"),
@@ -5734,6 +5735,41 @@
       setStatus(err.message || String(err), true);
     } finally {
       setOpsButtonBusy(el.indexHealthBtn, false);
+    }
+  });
+
+  el.indexHealthRepairBtn?.addEventListener("click", async () => {
+    if (typeof api.kbIndexHealthRepair !== "function") {
+      setStatus("当前环境不支持索引修复。", true);
+      return;
+    }
+    const libId = String(el.librarySelect?.value || activeLibraryIdCache || "").trim();
+    if (!window.confirm("将尝试修复待处理的删除任务与索引不一致项，是否继续？")) {
+      return;
+    }
+    setOpsButtonBusy(el.indexHealthRepairBtn, true, "修复中…");
+    setStatus("正在执行索引修复…");
+    try {
+      const out = await api.kbIndexHealthRepair({ libraryId: libId || undefined, maxBatch: 10 });
+      if (!out.ok) {
+        setStatus(out.error || "修复失败", true);
+        return;
+      }
+      const repaired = Array.isArray(out.repaired) ? out.repaired.length : 0;
+      const skipped = Array.isArray(out.skipped) ? out.skipped.length : 0;
+      const pending = out.pendingJobs ?? out.dryRun ? "—" : 0;
+      const summary = out.dryRun
+        ? `预检：待处理删除任务 ${pending} 个`
+        : `修复完成：成功 ${repaired} · 跳过 ${skipped}`;
+      if (el.indexHealthHint) {
+        el.indexHealthHint.textContent = summary;
+      }
+      setStatus(summary);
+      el.indexHealthBtn?.click();
+    } catch (err) {
+      setStatus(err.message || String(err), true);
+    } finally {
+      setOpsButtonBusy(el.indexHealthRepairBtn, false);
     }
   });
 

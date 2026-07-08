@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.23.23",
+  "version": "1.24.0",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -26,6 +26,9 @@
     "taste-skill:update-sync": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/taste-skill-update-sync.ps1",
     "taste-skill:register-weekly-task": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/register-taste-skill-weekly-task.ps1",
     "kb:eval": "node scripts/kb-eval.js --golden config/kb-eval-golden.json",
+    "kb:security-eval": "node scripts/kb-security-eval.js",
+    "kb:delete-consistency-test": "node scripts/kb-delete-consistency-test.js",
+    "kb:archive-test": "node scripts/kb-archive-test.js",
     "kb:diagnose-doc": "node scripts/kb-diagnose-doc.js",
     "fix:ollama-models-path": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/fix-ollama-models-path-win.ps1",
     "restart:ollama-english-models": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-ollama-english-models.ps1",

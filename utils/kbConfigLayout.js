@@ -79,6 +79,7 @@ const DEFAULT_KB_RETRIEVAL_SETTINGS = {
   autoWebVerify: false,
   watchDirEnabled: false,
   watchDirPath: "",
+  archivePolicy: "ask",
 };
 
 function clamp(n, min, max) {

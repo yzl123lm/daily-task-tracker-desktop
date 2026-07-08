@@ -3888,7 +3888,7 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
           answerInstruction =
             `用户询问接口入参/响应/报文/字段格式。${sectionHint}字段表仅列 evidence 中实际出现的行；禁止用修订历史代替字段表（修订史最多一句脚注）；禁止虚构 outOrderId 等未出现字段；JSON 样例逐字复述 evidence。${fieldHint}「二选一」等说明写入 orderId 备注，不新增字段行。`;
         }
-        return {
+        let grounding = {
           confidence,
           shouldAnswer: !out.noAnswer,
           queryType: out.queryType,
@@ -3897,6 +3897,28 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
           allFieldNames,
           answerInstruction,
         };
+        if (window.KbPromptSafety && window.KbPromptBuilder) {
+          const wrapped = window.KbPromptSafety.wrapEvidenceBlocks(evidence);
+          grounding.evidence = wrapped.evidence;
+          grounding.evidenceBlock = wrapped.evidenceBlock;
+          grounding.injectionRiskLevel = wrapped.injectionRiskLevel;
+          grounding.sanitized = true;
+          grounding.safetyRules = window.KbPromptSafety.buildSafetyGroundingRules();
+          if (!evidence.length || out.noAnswer) {
+            const fb = window.KbPromptSafety.buildNoEvidenceFallback(query);
+            grounding.shouldAnswer = fb.shouldAnswer;
+            grounding.answerInstruction = fb.answerInstruction;
+            grounding.noAnswerReason = fb.noAnswerReason;
+          } else {
+            grounding.answerInstruction = `${grounding.answerInstruction}\n${grounding.safetyRules}`;
+          }
+          grounding.promptLayers = window.KbPromptBuilder.buildKbGroundingPrompt({
+            query,
+            grounding,
+            wantsApiSpec,
+          });
+        }
+        return grounding;
       };
       const isLocalSmallChatModel = async () => {
         try {
@@ -3965,6 +3987,10 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
             answerInstruction: g.answerInstruction,
             allFieldNames: g.allFieldNames || [],
             evidence,
+            evidenceBlock: g.evidenceBlock || "",
+            injectionRiskLevel: g.injectionRiskLevel || "low",
+            sanitized: g.sanitized === true,
+            noAnswerReason: g.noAnswerReason || "",
           },
         };
       };
