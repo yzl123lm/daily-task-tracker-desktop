@@ -234,6 +234,30 @@ function bindAiToChatSession(chatId) {
   }
 }
 
+function isWorkbenchChatSurface() {
+  const api = wbApi();
+  if (typeof api.wbChatsList !== "function") {
+    return false;
+  }
+  if (typeof window.__wbOnAiUserMessage !== "function") {
+    return false;
+  }
+  if (document.body.classList.contains("jl-project-workspace-active")) {
+    return false;
+  }
+  const projectWs = document.getElementById("wbProjectWorkspace");
+  if (projectWs && !projectWs.hidden && !projectWs.hasAttribute("hidden")) {
+    return false;
+  }
+  return true;
+}
+
+function syncChatModuleChrome() {
+  window.__wbStore?.setActiveModule?.("chat");
+  window.__jlSyncWorkbenchSidePanelView?.("sessions");
+  window.__jlSyncWorkbenchNavRailActive?.("sessions");
+}
+
 async function ensureActiveChatSession({ titleSeed, title } = {}) {
   const existing = getActiveChatId();
   if (existing) {
@@ -276,9 +300,12 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
     window.__wbStore?.selectChat?.(chatId);
     persistActiveChatId(chatId);
     bindAiToChatSession(chatId);
+    syncChatModuleChrome();
     window.__wbHideProjectWorkspace?.();
     window.__wbRenderChats?.();
-    await window.__wbRefreshChats?.();
+    if (typeof window.__wbRefreshChats === "function") {
+      await window.__wbRefreshChats();
+    }
     window.__wbRenderChats?.();
     return chatId;
   } catch (err) {
@@ -592,21 +619,9 @@ window.__wbOnAiAssistantMessage = async (text, { userText = "" } = {}) => {
   await window.__wbRefreshChats?.();
   window.__wbRenderChats?.();
 };
-window.__wbIsWorkbenchChatMode = () => {
-  const api = wbApi();
-  if (typeof api.wbChatsList !== "function") {
-    return false;
-  }
-  if (typeof window.__wbOnAiUserMessage !== "function") {
-    return false;
-  }
-  const store = window.__wbStore?.getState?.() || {};
-  const mod =
-    typeof window.__wbResolveActiveModule === "function"
-      ? window.__wbResolveActiveModule(store)
-      : store.activeModule || store.mode || "chat";
-  return mod === "chat" || mod === "idle";
-};
+window.__wbIsWorkbenchChatSurface = isWorkbenchChatSurface;
+window.__wbIsWorkbenchChatMode = isWorkbenchChatSurface;
+window.__wbSyncChatModuleChrome = syncChatModuleChrome;
 window.__wbFetchChatAgentContext = fetchChatAgentContextBlock;
 window.__wbDetectDevRequest = detectDevRequest;
 window.__wbDevRequestReply = devRequestReply;

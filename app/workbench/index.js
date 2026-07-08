@@ -22,11 +22,30 @@ async function refreshChats() {
     return;
   }
   try {
-    const chats = await window.electronAPI.wbChatsList({ withSummary: true });
-    window.__wbStore?.setChats?.(chats);
+    const remote = await window.electronAPI.wbChatsList({ withSummary: true });
+    const remoteList = Array.isArray(remote) ? remote : [];
+    const localList = window.__wbStore?.getState?.().chats || [];
+    const merged = new Map();
+    remoteList.forEach((chat) => {
+      if (chat?.id) {
+        merged.set(chat.id, chat);
+      }
+    });
+    localList.forEach((chat) => {
+      if (chat?.id && !merged.has(chat.id)) {
+        merged.set(chat.id, chat);
+      }
+    });
+    const next = [...merged.values()].sort((a, b) => {
+      const ta = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
+      const tb = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
+      return tb - ta;
+    });
+    window.__wbStore?.setChats?.(next);
     window.__wbRenderChats?.();
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.error("[wb] refreshChats failed:", err);
+    window.__wbRenderChats?.();
   }
 }
 
@@ -59,8 +78,9 @@ function initWorkbenchDev() {
         }
         await window.__wbSwitchWorkspaceModule?.("project");
       } else {
-        window.__jlSyncWorkbenchSidePanelView?.("project");
-        window.__jlSyncWorkbenchNavRailActive?.("project");
+        window.__wbStore?.setActiveModule?.("chat");
+        window.__jlSyncWorkbenchSidePanelView?.("sessions");
+        window.__jlSyncWorkbenchNavRailActive?.("sessions");
         window.__wbApplyMainView?.();
       }
       return;

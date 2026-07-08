@@ -2388,11 +2388,11 @@ window.__aiSaveActiveThreadSnapshot = function __aiSaveActiveThreadSnapshot(html
 };
 
 window.__aiNotifyThreadUserMessage = function __aiNotifyThreadUserMessage(text) {
-  if (
-    typeof window.__wbIsWorkbenchChatMode === "function" &&
-    window.__wbIsWorkbenchChatMode() &&
-    typeof window.__wbOnAiUserMessage === "function"
-  ) {
+  const onChatSurface =
+    (typeof window.__wbIsWorkbenchChatSurface === "function" &&
+      window.__wbIsWorkbenchChatSurface()) ||
+    (typeof window.__wbIsWorkbenchChatMode === "function" && window.__wbIsWorkbenchChatMode());
+  if (onChatSurface && typeof window.__wbOnAiUserMessage === "function") {
     void window.__wbOnAiUserMessage(text);
     return;
   }

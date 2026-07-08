@@ -4191,24 +4191,24 @@ function initAI() {
     historyIndex = -1;
     draftBeforeHistory = "";
     const docEntriesForTurn = aiMode === "chat" ? clonePendingDocEntries() : [];
-    const wbChatMode =
+    const wbChatSurface =
       aiMode === "chat" &&
-      typeof window.__wbIsWorkbenchChatMode === "function" &&
-      window.__wbIsWorkbenchChatMode();
-    if (wbChatMode && !window.__wbGetActiveChatId?.()) {
-      await window.__wbEnsureActiveChatSession?.({ titleSeed: trimmed });
+      ((typeof window.__wbIsWorkbenchChatSurface === "function" &&
+        window.__wbIsWorkbenchChatSurface()) ||
+        (typeof window.__wbIsWorkbenchChatMode === "function" &&
+          window.__wbIsWorkbenchChatMode()));
+    if (wbChatSurface) {
+      window.__wbSyncChatModuleChrome?.();
+      if (!window.__wbGetActiveChatId?.()) {
+        await window.__wbEnsureActiveChatSession?.({ titleSeed: trimmed });
+      }
       const bootChatId = window.__wbGetActiveChatId?.();
       if (bootChatId) {
         setBoundChatSession(bootChatId);
       }
     }
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
-    if (
-      typeof window.__wbOnAiUserMessage === "function" &&
-      (typeof window.__wbIsWorkbenchChatMode === "function"
-        ? window.__wbIsWorkbenchChatMode()
-        : Boolean(window.__wbGetActiveChatId?.()))
-    ) {
+    if (typeof window.__wbOnAiUserMessage === "function" && wbChatSurface) {
       await window.__wbOnAiUserMessage(trimmed);
     } else if (typeof window.__aiNotifyThreadUserMessage === "function") {
       window.__aiNotifyThreadUserMessage(trimmed);
@@ -4304,12 +4304,12 @@ function initAI() {
           setMemoryToggleUI(true);
         }
         appendBubble("assistant", reply, { ollamaUsage });
-        if (
-          typeof window.__wbOnAiAssistantMessage === "function" &&
-          (typeof window.__wbIsWorkbenchChatMode === "function"
-            ? window.__wbIsWorkbenchChatMode()
-            : Boolean(window.__wbGetActiveChatId?.()))
-        ) {
+        const wbChatSurface =
+          (typeof window.__wbIsWorkbenchChatSurface === "function" &&
+            window.__wbIsWorkbenchChatSurface()) ||
+          (typeof window.__wbIsWorkbenchChatMode === "function" &&
+            window.__wbIsWorkbenchChatMode());
+        if (typeof window.__wbOnAiAssistantMessage === "function" && wbChatSurface) {
           await window.__wbOnAiAssistantMessage(reply, { userText: trimmed });
         }
         void tryAutoLearnTurn(trimmed, reply, "chat");

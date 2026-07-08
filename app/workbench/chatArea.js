@@ -192,8 +192,25 @@ function renderChatSessionList() {
     return;
   }
   const store = window.__wbStore?.getState?.() || {};
-  const chats = store.chats || [];
+  let chats = store.chats || [];
   const activeChatId = store.selectedChatId;
+  if (!chats.length && activeChatId) {
+    const cached =
+      typeof window.__wbGetCachedChatSession === "function"
+        ? window.__wbGetCachedChatSession(activeChatId)
+        : null;
+    if (cached?.id) {
+      chats = [
+        {
+          id: cached.id,
+          title: cached.title || "新对话",
+          createdAt: cached.createdAt,
+          updatedAt: cached.updatedAt || cached.createdAt,
+          summary: cached.summary || "",
+        },
+      ];
+    }
+  }
   list.replaceChildren();
   if (!chats.length) {
     const empty = document.createElement("p");
