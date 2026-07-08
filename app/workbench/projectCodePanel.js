@@ -116,13 +116,140 @@ function hasPendingManualWrite() {
   return proposed !== original;
 }
 
+function bindSourceRootCardEvents() {
+  const btn = document.getElementById("wbProjectChooseRootBtn");
+  if (!btn || btn.dataset.bound === "1") {
+    return;
+  }
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", () => {
+    void chooseProjectRoot();
+  });
+}
+
+function ensureSourceRootCard() {
+  if (document.getElementById("wbPwsSourceRootCard")) {
+    bindSourceRootCardEvents();
+    return document.getElementById("wbPwsSourceRootCard");
+  }
+  const switcher = document.querySelector(
+    '.wb-pws-sidebar-pane[data-pane="tasks"] .wb-pws-project-switcher'
+  );
+  if (!switcher) {
+    return null;
+  }
+  const card = document.createElement("div");
+  card.className = "wb-pws-source-root-card";
+  card.id = "wbPwsSourceRootCard";
+  card.innerHTML = `
+    <div class="wb-pws-source-root-card__header">
+      <span class="wb-pws-source-root-card__title">项目源码目录</span>
+      <button type="button" id="wbProjectChooseRootBtn" class="wb-pws-source-root-card__action wb-pws-btn wb-pws-btn--ghost">
+        设置项目源码目录
+      </button>
+    </div>
+    <div class="wb-pws-source-root-card__path" id="wbProjectSourceRootText">未配置项目源码目录</div>
+    <p class="wb-pws-source-root-card__hint" id="wbProjectSourceRootHint">当前使用默认工作区，AI 编程能力可能受限</p>
+    <div class="wb-pws-source-root-card__meta">
+      <span id="wbProjectGitStatusText">Git：未知</span>
+    </div>
+  `;
+  switcher.insertAdjacentElement("afterend", card);
+  bindSourceRootCardEvents();
+  return card;
+}
+
+function renderSourceRootGitStatus(status) {
+  const gitEl = document.getElementById("wbProjectGitStatusText");
+  if (!gitEl) {
+    return;
+  }
+  if (!status?.isRepo) {
+    gitEl.textContent = "Git：非仓库";
+    return;
+  }
+  const branch = status.branch || "detached";
+  if (status.clean) {
+    gitEl.textContent = `Git：${branch}`;
+    return;
+  }
+  const count = status.changeCount ?? status.changes?.length ?? status.lines?.length ?? 0;
+  gitEl.textContent = `Git：${branch} · ${count} 项变更`;
+}
+
+function renderSourceRootCard(info = {}) {
+  ensureSourceRootCard();
+  const card = document.getElementById("wbPwsSourceRootCard");
+  const pathEl = document.getElementById("wbProjectSourceRootText");
+  const hintEl = document.getElementById("wbProjectSourceRootHint");
+  if (!card || !pathEl) {
+    return;
+  }
+  const codeRoot = String(info.codeRoot || "").trim();
+  const localPath = String(info.localPath || "").trim();
+  const hasConfiguredPath = Boolean(localPath);
+  const isFallback = Boolean(info.isFallback);
+  const isAsar = /app\.asar/i.test(codeRoot);
+  const isWarning = isFallback || isAsar;
+
+  card.classList.toggle("is-warning", isWarning);
+
+  if (!hasConfiguredPath) {
+    pathEl.textContent = "未配置项目源码目录";
+    if (hintEl) {
+      hintEl.hidden = false;
+      hintEl.textContent = "当前使用默认工作区，AI 编程能力可能受限";
+    }
+  } else if (isWarning) {
+    pathEl.textContent = codeRoot || localPath || "默认工作区";
+    if (hintEl) {
+      hintEl.hidden = false;
+      hintEl.textContent = "当前为默认工作区，建议选择真实源码根目录";
+    }
+  } else {
+    pathEl.textContent = codeRoot || localPath;
+    if (hintEl) {
+      hintEl.hidden = true;
+      hintEl.textContent = "";
+    }
+  }
+}
+
+function migrateLegacyCodeHeader(section) {
+  section?.querySelector("#wbCodeRootLabel")?.remove();
+  section?.querySelector("#wbGitStatusLabel")?.remove();
+  section?.querySelector("#wbSetCodeRootBtn")?.remove();
+  const head = section?.querySelector(".wb-code-panel__head");
+  if (head && !head.querySelector("#wbFilePreviewPath")) {
+    head.remove();
+  } else if (head) {
+    head.classList.add("wb-code-file-head");
+    head.id = "wbCodeFileHead";
+    head.querySelector(".wb-code-panel__head-main")?.replaceChildren?.();
+    const breadcrumb = head.querySelector(".wb-code-panel__breadcrumb");
+    if (!breadcrumb) {
+      const nav = document.createElement("nav");
+      nav.className = "wb-code-panel__breadcrumb";
+      nav.setAttribute("aria-label", "文件路径");
+      const path = document.getElementById("wbFilePreviewPath");
+      if (path) {
+        nav.appendChild(path);
+      } else {
+        nav.innerHTML = '<span id="wbFilePreviewPath" class="wb-code-panel__file-path"></span>';
+      }
+      head.prepend(nav);
+    }
+    head.querySelector(".wb-code-panel__head-main")?.remove();
+  }
+}
+
 function syncCodeWriteUiState() {
   const emptyState = document.getElementById("wbCodeEmptyState");
   const editorView = document.getElementById("wbCodeEditorView");
   const writeHint = document.getElementById("wbCodeWriteHint");
   const manualWrite = document.getElementById("wbCodeManualWrite");
   const writebar = document.getElementById("wbCodeWritebar");
-  const pathEl = document.getElementById("wbFilePreviewPath");
+  const fileHead = document.getElementById("wbCodeFileHead");
   const hasFile = Boolean(panelState.selectedPath);
   const pendingWrite = hasPendingManualWrite();
   const manualOpen = manualWrite?.dataset.open === "1";
@@ -133,8 +260,8 @@ function syncCodeWriteUiState() {
   if (editorView) {
     editorView.hidden = !hasFile;
   }
-  if (pathEl && !hasFile) {
-    pathEl.textContent = "请选择左侧文件进行预览或编辑";
+  if (fileHead) {
+    fileHead.hidden = !hasFile;
   }
   if (writeHint) {
     writeHint.hidden = !hasFile || pendingWrite || manualOpen;
@@ -168,7 +295,7 @@ function migrateLegacyWriteUi(section) {
     <div id="wbCodeEmptyState" class="wb-code-empty-state">
       <div class="wb-code-empty-state__title">请选择文件</div>
       <div class="wb-code-empty-state__desc">
-        从左侧文件列表选择文件后，可预览代码、生成 Diff 或进行受控写入。
+        从左侧「文件」中选择文件后，可预览代码、生成 Diff 或进行受控写入。
       </div>
     </div>
     <div id="wbCodeEditorView" class="wb-code-editor-view" hidden></div>
@@ -229,6 +356,8 @@ function ensureCodePanelMount() {
   if (section) {
     migrateLegacyCodeSidebar(section);
     migrateLegacyWriteUi(section);
+    migrateLegacyCodeHeader(section);
+    ensureSourceRootCard();
     ensureTerminalToolsMount();
     syncCodeWriteUiState();
     return section;
@@ -242,15 +371,10 @@ function ensureCodePanelMount() {
   section.id = "wbCodePanel";
   section.className = "wb-code-panel";
   section.innerHTML = `
-    <header class="wb-code-panel__head main-tabs">
-      <div class="wb-code-panel__head-main">
-        <nav class="wb-code-panel__breadcrumb" aria-label="文件路径">
-          <span id="wbFilePreviewPath" class="wb-code-panel__file-path">选择文件预览</span>
-        </nav>
-        <p id="wbCodeRootLabel" class="wb-code-panel__root">未加载代码目录</p>
-        <p id="wbGitStatusLabel" class="wb-code-panel__git"></p>
-      </div>
-      <button type="button" id="wbSetCodeRootBtn" class="wb-pws-btn wb-pws-btn--ghost">设置代码目录</button>
+    <header class="wb-code-panel__head wb-code-file-head" id="wbCodeFileHead" hidden>
+      <nav class="wb-code-panel__breadcrumb" aria-label="文件路径">
+        <span id="wbFilePreviewPath" class="wb-code-panel__file-path"></span>
+      </nav>
     </header>
     <div class="wb-code-panel__layout main-workspace">
       <div class="wb-code-panel__main main-editor-body">
@@ -469,17 +593,12 @@ function startManualWriteEdit() {
 
 async function refreshCodeRoot(projectId) {
   const api = wbApi();
-  const label = document.getElementById("wbCodeRootLabel");
   if (typeof api.wbProjectCodeRoot !== "function") {
     return;
   }
   const info = await api.wbProjectCodeRoot({ projectId });
   panelState.codeRoot = info.codeRoot;
-  if (label) {
-    const rootText = info.codeRoot || "未配置";
-    const suffix = info.isFallback ? "（默认工作区）" : info.localPath ? "" : "";
-    label.textContent = `${rootText}${suffix}`;
-  }
+  renderSourceRootCard(info);
 }
 
 async function refreshFileTree(projectId) {
@@ -1151,9 +1270,6 @@ function bindCodePanelEvents() {
       void runControlledShell();
     }
   });
-  document.getElementById("wbSetCodeRootBtn")?.addEventListener("click", () => {
-    void chooseProjectRoot();
-  });
   document.getElementById("wbFileTreeRefreshBtn")?.addEventListener("click", () => {
     const projectId = panelState.projectId;
     if (projectId) {
@@ -1177,6 +1293,7 @@ async function refreshCodePanel(projectId, taskId) {
   window.__wbEnsureTestResultPanel?.();
   window.__wbEnsureGitChangePanel?.();
   ensureCodePanelMount();
+  ensureSourceRootCard();
   ensureTerminalToolsMount();
   ensureShellPanel();
   panelState.projectId = projectId;
@@ -1348,6 +1465,9 @@ async function applyAcceptedDiffs() {
 }
 
 window.__wbRefreshCodePanel = refreshCodePanel;
+window.__wbRenderSourceRootCard = renderSourceRootCard;
+window.__wbRenderSourceRootGitStatus = renderSourceRootGitStatus;
+window.__wbEnsureSourceRootCard = ensureSourceRootCard;
 window.__wbRenderPlanCodeExtras = renderPlanCodeExtras;
 window.__wbBindCodePanel = ensureCodePanelMount;
 window.__wbApplyPlanPatch = applyPlanPatch;

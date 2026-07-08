@@ -70,7 +70,7 @@ function renderSidebarGitSummary(snap) {
   if (!snap?.isRepo) {
     mount.innerHTML = `
       <p class="wb-pws-sidebar-git__status">非 Git 仓库</p>
-      <p class="wb-pws-sidebar-git__hint">可在主工作区设置代码目录后查看 Git 状态。</p>
+      <p class="wb-pws-sidebar-git__hint">可在左侧「任务」中设置项目源码目录后查看 Git 状态。</p>
     `;
     return;
   }
@@ -126,7 +126,7 @@ function renderGitChangePanel(status) {
 
   if (summary) {
     if (!snap?.isRepo) {
-      summary.innerHTML = `<p class="wb-git-summary__empty">当前代码目录不是 Git 仓库。可在「代码」Tab 设置代码目录。</p>`;
+      summary.innerHTML = `<p class="wb-git-summary__empty">当前项目源码目录不是 Git 仓库。可在左侧「任务」设置项目源码目录。</p>`;
     } else if (snap.clean) {
       summary.innerHTML = `<p class="wb-git-summary__clean">✓ 无待提交变更</p>`;
     } else {
@@ -177,6 +177,7 @@ function renderGitChangePanel(status) {
     });
   }
   renderSidebarGitSummary(snap);
+  window.__wbRenderSourceRootGitStatus?.(snap);
 }
 
 async function refreshGitChangePanel(projectId) {
@@ -189,16 +190,10 @@ async function refreshGitChangePanel(projectId) {
     const status = await api.wbProjectGitStatus({ projectId: pid });
     const snap = window.__wbGitChangeStore?.setStatus?.(pid, status);
     renderGitChangePanel(snap);
-    const miniLabel = document.querySelector("#wbCodePanel .wb-code-panel__git");
-    if (miniLabel) {
-      if (!status.isRepo) {
-        miniLabel.textContent = "Git：非仓库";
-      } else {
-        miniLabel.textContent = `Git：${status.branch || "detached"} · ${status.clean ? "干净" : `变更 ${status.lines.length} 项`}`;
-      }
-    }
+    window.__wbRenderSourceRootGitStatus?.(status);
   } catch {
     renderGitChangePanel({ isRepo: false, projectId: pid, changes: [], clean: true });
+    window.__wbRenderSourceRootGitStatus?.({ isRepo: false });
   }
 }
 

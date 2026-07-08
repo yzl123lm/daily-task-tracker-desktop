@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "8";
+const WB_PWS_LAYOUT_VERSION = "9";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -21,6 +21,19 @@ const WB_PWS_PROJECT_COL_HTML = `
           </div>
           <div class="wb-pws-project-switcher">
             <div id="wbPwsProjectList" class="wb-pws-project-list scroll-tech" role="list" aria-label="项目列表"></div>
+          </div>
+          <div class="wb-pws-source-root-card" id="wbPwsSourceRootCard">
+            <div class="wb-pws-source-root-card__header">
+              <span class="wb-pws-source-root-card__title">项目源码目录</span>
+              <button type="button" id="wbProjectChooseRootBtn" class="wb-pws-source-root-card__action wb-pws-btn wb-pws-btn--ghost">
+                设置项目源码目录
+              </button>
+            </div>
+            <div class="wb-pws-source-root-card__path" id="wbProjectSourceRootText">未配置项目源码目录</div>
+            <p class="wb-pws-source-root-card__hint" id="wbProjectSourceRootHint">当前使用默认工作区，AI 编程能力可能受限</p>
+            <div class="wb-pws-source-root-card__meta">
+              <span id="wbProjectGitStatusText">Git：未知</span>
+            </div>
           </div>
           <div class="wb-pws-task-filters" id="wbPwsTaskFilters" role="tablist" aria-label="任务筛选">
             <button type="button" class="wb-pws-task-filter is-active" data-filter="all">全部</button>
@@ -266,6 +279,7 @@ function ensureProjectWorkspaceLayout() {
   }
   if (root) {
     ensureProjectColInSidebar();
+    window.__wbEnsureSourceRootCard?.();
     bindSidebarTabs();
     return root;
   }
@@ -277,6 +291,7 @@ function ensureProjectWorkspaceLayout() {
   root.innerHTML = WB_PWS_LAYOUT_HTML;
   panelAi.appendChild(root);
   ensureProjectColInSidebar();
+  window.__wbEnsureSourceRootCard?.();
   bindSidebarTabs();
   return root;
 }

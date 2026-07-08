@@ -58,7 +58,7 @@ function ensureNewProjectModal() {
           <input id="wbProjectStackInput" type="text" placeholder="Electron, JavaScript" />
         </label>
         <label class="wb-field">
-          <span>代码目录（可选）</span>
+          <span>项目源码目录（可选）</span>
           <div class="wb-field__row">
             <input id="wbProjectPathInput" type="text" readonly placeholder="未选择则使用默认工作区" />
             <button type="button" id="wbProjectPickPathBtn" class="secondary">选择目录</button>
@@ -112,7 +112,7 @@ function ensureEditProjectModal() {
           <input id="wbEditProjectStackInput" type="text" />
         </label>
         <label class="wb-field">
-          <span>代码目录</span>
+          <span>项目源码目录</span>
           <div class="wb-field__row">
             <input id="wbEditProjectPathInput" type="text" readonly />
             <button type="button" id="wbEditProjectPickPathBtn" class="secondary">选择</button>

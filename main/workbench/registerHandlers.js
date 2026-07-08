@@ -202,7 +202,7 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     const win = BrowserWindow.fromWebContents(event.sender);
     const res = await dialog.showOpenDialog(win || undefined, {
       properties: ["openDirectory"],
-      title: "选择项目代码目录",
+      title: "选择项目源码目录",
     });
     if (res.canceled || !res.filePaths?.length) {
       return null;

@@ -143,7 +143,7 @@ function renderProjectColCard(project) {
       '<p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>';
     return;
   }
-  const path = project.localPath || project.local_path || "未配置代码目录";
+  const path = project.localPath || project.local_path || "未配置项目源码目录";
   card.innerHTML = `
     <h4>${escapeHtml(project.name)}</h4>
     <p class="wb-pws-project-card__ns">${escapeHtml(project.namespace || `project:${project.id}`)}</p>
