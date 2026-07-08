@@ -1,5 +1,5 @@
 const WB_TEST_RESULT_EVENT = "wb:test-result-change";
-const STORAGE_KEY = "wb_test_results_v1";
+const WB_TEST_RESULTS_STORAGE_KEY = "wb_test_results_v1";
 const MAX_RUNS = 24;
 
 function taskKey(projectId, taskId) {
@@ -8,7 +8,7 @@ function taskKey(projectId, taskId) {
 
 function loadAll() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(WB_TEST_RESULTS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
@@ -17,7 +17,7 @@ function loadAll() {
 
 function saveAll(data) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(WB_TEST_RESULTS_STORAGE_KEY, JSON.stringify(data));
   } catch {
     /* ignore */
   }

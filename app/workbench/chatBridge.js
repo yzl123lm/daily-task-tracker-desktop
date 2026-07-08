@@ -2,9 +2,6 @@ const WB_CHAT_SNAPSHOTS_KEY = "wb_chat_snapshots_v1";
 const WB_CHAT_CONTEXT_KEY = "wb_chat_context_snapshots_v1";
 const WB_ACTIVE_CHAT_KEY = "wb_active_chat_id_v1";
 const WB_CHAT_MIGRATED_KEY = "wb_chat_migrated_v1";
-const AI_THREADS_STORAGE_KEY = "daily_task_tracker_ai_threads_v1";
-const AI_THREAD_SNAPSHOTS_KEY = "daily_task_tracker_ai_thread_snapshots_v1";
-const AI_ACTIVE_THREAD_KEY = "daily_task_tracker_ai_active_thread_v1";
 const CONTEXT_SUMMARY_MAX = 2000;
 
 const DEV_REQUEST_RE =
@@ -352,7 +349,12 @@ async function migrateLegacyChats() {
       newSnapshots[chat.id] = String(legacyHtml);
     }
     if (thread.id === activeLegacy) {
-      window.__wbStore?.selectChat?.(chat.id);
+      const module = window.__wbStore?.getState?.().activeModule || "chat";
+      if (module === "project") {
+        window.__wbStore?.setSelectedChatId?.(chat.id);
+      } else {
+        window.__wbStore?.selectChat?.(chat.id);
+      }
       persistActiveChatId(chat.id);
     }
   }
@@ -360,7 +362,12 @@ async function migrateLegacyChats() {
   writeChatSnapshots(newSnapshots);
   localStorage.setItem(WB_CHAT_MIGRATED_KEY, "1");
   if (!window.__wbStore?.getState?.().selectedChatId && firstChatId) {
-    window.__wbStore?.selectChat?.(firstChatId);
+    const module = window.__wbStore?.getState?.().activeModule || "chat";
+    if (module === "project") {
+      window.__wbStore?.setSelectedChatId?.(firstChatId);
+    } else {
+      window.__wbStore?.selectChat?.(firstChatId);
+    }
     persistActiveChatId(firstChatId);
   }
 }

@@ -10,30 +10,12 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
-const TASK_STATUS_LABELS = {
-  ...(window.__wbTaskStatus?.TASK_STATUS_LABELS || {}),
-  DRAFT: "草稿",
-  REQUIREMENT: "需求确认",
-  PLANNING: "方案生成",
-  WAIT_CONFIRM: "待确认",
-  DEVELOPING: "开发中",
-  TESTING: "测试中",
-  REVIEWING: "待审阅",
-  WAITING_APPROVAL: "待确认",
-  APPLYING: "写入中",
-  FIXING: "修复中",
-  DONE: "已完成",
-  COMPLETED: "已完成",
-  PAUSED: "已暂停",
-  FAILED: "失败",
-  ARCHIVED: "已归档",
-};
-
 function taskStatusLabel(status) {
   if (window.__wbTaskStatus?.labelForTaskStatus) {
     return window.__wbTaskStatus.labelForTaskStatus(status);
   }
-  return TASK_STATUS_LABELS[status] || status;
+  const labels = window.__wbTaskStatus?.TASK_STATUS_LABELS || {};
+  return labels[status] || status;
 }
 
 function statusChipClass(status) {

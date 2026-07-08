@@ -267,7 +267,14 @@ function renderChatSessionList() {
         </div>
       </div>
     `;
-    card.classList.toggle("is-active", chat.id === activeChatId);
+    const module =
+      typeof window.__wbResolveActiveModule === "function"
+        ? window.__wbResolveActiveModule(store)
+        : store.activeModule || store.mode || "chat";
+    card.classList.toggle(
+      "is-active",
+      module === "chat" && chat.id === activeChatId
+    );
     card.querySelector('[data-action="rename"]')?.addEventListener("click", (ev) => {
       ev.stopPropagation();
       openEditChatModal(chat);

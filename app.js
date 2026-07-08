@@ -2150,6 +2150,16 @@ function readWorkbenchBootModule() {
   return "chat";
 }
 
+function readBootSelectedProjectId() {
+  try {
+    const saved = localStorage.getItem("wb_selected_project_id_v1");
+    return saved ? String(saved) : null;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 function syncWorkbenchSidePanelView(view = "project") {
   const panel = document.getElementById("jlWorkbenchSidePanel");
   if (!panel) {
@@ -2670,7 +2680,11 @@ function initShell() {
     syncHash: true,
     skipWorkbenchGuard: true,
     skipProjectLoad: bootRoute !== "project-dev",
-    projectId: window.__wbPendingProjectRouteId || null,
+    projectId:
+      window.__wbPendingProjectRouteId ||
+      window.__wbStore?.getState?.().selectedProjectId ||
+      readBootSelectedProjectId() ||
+      null,
   });
 }
 

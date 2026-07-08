@@ -89,8 +89,16 @@ function setActiveSessionId(sessionId) {
   if (id && !chatModuleState.sessionOrder.includes(id)) {
     chatModuleState.sessionOrder.unshift(id);
   }
-  const cur = window.__wbStore?.getState?.().selectedChatId;
-  if (id && cur !== id && window.__wbStore?.selectChat) {
+  const store = window.__wbStore?.getState?.() || {};
+  const cur = store.selectedChatId;
+  if (!id || cur === id) {
+    persistToStorage();
+    return;
+  }
+  const module = store.activeModule || store.mode || "chat";
+  if (module === "project" && typeof window.__wbStore?.setSelectedChatId === "function") {
+    window.__wbStore.setSelectedChatId(id);
+  } else if (typeof window.__wbStore?.selectChat === "function") {
     window.__wbStore.selectChat(id);
   }
   persistToStorage();

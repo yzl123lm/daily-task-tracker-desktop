@@ -295,7 +295,7 @@ function selectProject(projectId) {
       syncHash: true,
       projectId,
       skipWorkbenchGuard: true,
-      skipProjectLoad: true,
+      skipProjectLoad: false,
     });
   }
 }
@@ -324,7 +324,14 @@ function buildProjectListCard(project, store) {
       </div>
     </div>
   `;
-  card.classList.toggle("is-active", project.id === store.selectedProjectId);
+  const module =
+    typeof window.__wbResolveActiveModule === "function"
+      ? window.__wbResolveActiveModule(store)
+      : store.activeModule || store.mode || "chat";
+  card.classList.toggle(
+    "is-active",
+    module === "project" && project.id === store.selectedProjectId
+  );
   return card;
 }
 

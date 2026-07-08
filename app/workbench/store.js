@@ -1,5 +1,6 @@
 const WB_EVENT = "wb:state-change";
 const WB_ACTIVE_MODULE_KEY = "wb_active_module_v1";
+const WB_SELECTED_PROJECT_KEY = "wb_selected_project_id_v1";
 
 function readPersistedActiveModule() {
   try {
@@ -23,12 +24,35 @@ function persistActiveModule(module) {
   }
 }
 
+function readPersistedSelectedProjectId() {
+  try {
+    const saved = localStorage.getItem(WB_SELECTED_PROJECT_KEY);
+    return saved ? String(saved) : null;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function persistSelectedProjectId(projectId) {
+  try {
+    const id = projectId ? String(projectId) : "";
+    if (id) {
+      localStorage.setItem(WB_SELECTED_PROJECT_KEY, id);
+    } else {
+      localStorage.removeItem(WB_SELECTED_PROJECT_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 const initialModule = readPersistedActiveModule();
 
 const state = {
   activeModule: initialModule,
   mode: initialModule,
-  selectedProjectId: null,
+  selectedProjectId: readPersistedSelectedProjectId(),
   selectedChatId: null,
   projects: [],
   chats: [],
@@ -72,11 +96,17 @@ function setActiveModule(module) {
 function selectProject(projectId) {
   const id = projectId ? String(projectId) : null;
   state.selectedProjectId = id;
+  persistSelectedProjectId(id);
   if (id) {
     state.activeModule = "project";
     state.mode = "project";
     persistActiveModule("project");
   }
+  emitChange();
+}
+
+function setSelectedChatId(chatId) {
+  state.selectedChatId = chatId ? String(chatId) : null;
   emitChange();
 }
 
@@ -93,6 +123,7 @@ function selectChat(chatId) {
 
 function clearSelection() {
   state.selectedProjectId = null;
+  persistSelectedProjectId(null);
   state.selectedChatId = null;
   state.activeModule = "idle";
   state.mode = "idle";
@@ -136,6 +167,7 @@ window.__wbStore = {
   getActiveModule,
   setActiveModule,
   selectProject,
+  setSelectedChatId,
   selectChat,
   clearSelection,
   setProjects,
