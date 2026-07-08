@@ -2388,8 +2388,16 @@ window.__aiSaveActiveThreadSnapshot = function __aiSaveActiveThreadSnapshot(html
 };
 
 window.__aiNotifyThreadUserMessage = function __aiNotifyThreadUserMessage(text) {
+  if (
+    typeof window.__wbIsWorkbenchChatMode === "function" &&
+    window.__wbIsWorkbenchChatMode() &&
+    typeof window.__wbOnAiUserMessage === "function"
+  ) {
+    void window.__wbOnAiUserMessage(text);
+    return;
+  }
   if (typeof window.__wbOnAiUserMessage === "function" && window.__wbGetActiveChatId?.()) {
-    window.__wbOnAiUserMessage(text);
+    void window.__wbOnAiUserMessage(text);
     return;
   }
   touchActiveAiThreadTitle(text);

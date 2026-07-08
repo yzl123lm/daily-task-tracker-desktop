@@ -193,6 +193,7 @@ function renderChatSessionList() {
   }
   const store = window.__wbStore?.getState?.() || {};
   const chats = store.chats || [];
+  const activeChatId = store.selectedChatId;
   list.replaceChildren();
   if (!chats.length) {
     const empty = document.createElement("p");
@@ -205,7 +206,18 @@ function renderChatSessionList() {
     const card = document.createElement("div");
     card.className = "wb-list-card wb-list-card--chat";
     card.dataset.chatId = chat.id;
-    const preview = chat.summary || "点击开始对话…";
+    const preview =
+      chat.summary ||
+      (chat.id === activeChatId && typeof window.__wbGetCachedChatSession === "function"
+        ? (() => {
+            const cached = window.__wbGetCachedChatSession(chat.id);
+            const last = [...(cached?.messages || [])]
+              .reverse()
+              .find((m) => m.role === "user" && String(m.content || "").trim());
+            return last ? String(last.content).slice(0, 40) : "";
+          })()
+        : "") ||
+      "点击开始对话…";
     const timeLabel = formatChatListTime(chat.updatedAt);
     card.innerHTML = `
       <div class="wb-list-card__surface">
@@ -250,6 +262,13 @@ async function createChatSession() {
     return;
   }
   const chat = await api.wbChatCreate({ title: "新对话" });
+  window.__wbStore?.upsertChat?.({
+    id: chat.id,
+    title: chat.title || "新对话",
+    createdAt: chat.createdAt,
+    updatedAt: chat.updatedAt || chat.createdAt,
+    summary: "",
+  });
   await window.__wbRefreshChats?.();
   await window.__wbSwitchChat?.(chat.id);
 }

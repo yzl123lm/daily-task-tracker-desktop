@@ -4175,7 +4175,7 @@ function initAI() {
         await window.__wbOnAiUserMessage(trimmed);
       }
       if (typeof window.__wbOnAiAssistantMessage === "function") {
-        await window.__wbOnAiAssistantMessage(reply);
+        await window.__wbOnAiAssistantMessage(reply, { userText: trimmed });
       }
       return true;
     }
@@ -4191,6 +4191,17 @@ function initAI() {
     historyIndex = -1;
     draftBeforeHistory = "";
     const docEntriesForTurn = aiMode === "chat" ? clonePendingDocEntries() : [];
+    const wbChatMode =
+      aiMode === "chat" &&
+      typeof window.__wbIsWorkbenchChatMode === "function" &&
+      window.__wbIsWorkbenchChatMode();
+    if (wbChatMode && !window.__wbGetActiveChatId?.()) {
+      await window.__wbEnsureActiveChatSession?.({ titleSeed: trimmed });
+      const bootChatId = window.__wbGetActiveChatId?.();
+      if (bootChatId) {
+        setBoundChatSession(bootChatId);
+      }
+    }
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
     if (
       typeof window.__wbOnAiUserMessage === "function" &&
@@ -4299,7 +4310,7 @@ function initAI() {
             ? window.__wbIsWorkbenchChatMode()
             : Boolean(window.__wbGetActiveChatId?.()))
         ) {
-          await window.__wbOnAiAssistantMessage(reply);
+          await window.__wbOnAiAssistantMessage(reply, { userText: trimmed });
         }
         void tryAutoLearnTurn(trimmed, reply, "chat");
         void maybeSpeakAssistantReply(api, reply);
@@ -4576,6 +4587,7 @@ function initAI() {
   window.__aiGetChatLogHtml = () => chatLog?.innerHTML || "";
   window.__aiGetChatTurns = () => chatTurns.map((t) => ({ role: t.role, content: t.content }));
   window.__aiGetBoundChatId = () => boundChatId;
+  window.__aiSetBoundChatSession = setBoundChatSession;
   window.__aiAbortActiveCompose = abortActiveAiChatCompose;
   window.__aiSetChatLogHtml = (html, { sessionId } = {}) => {
     if (!chatLog) {

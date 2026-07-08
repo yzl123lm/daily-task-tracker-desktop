@@ -107,6 +107,21 @@ function setChats(chats) {
   state.chats = Array.isArray(chats) ? chats : [];
 }
 
+function upsertChat(chat) {
+  const item = chat && typeof chat === "object" ? chat : null;
+  if (!item?.id) {
+    return;
+  }
+  const id = String(item.id);
+  const idx = state.chats.findIndex((c) => c.id === id);
+  if (idx >= 0) {
+    state.chats[idx] = { ...state.chats[idx], ...item };
+  } else {
+    state.chats.unshift(item);
+  }
+  emitChange();
+}
+
 function setTasks(tasks) {
   state.tasks = Array.isArray(tasks) ? tasks : [];
 }
@@ -125,6 +140,7 @@ window.__wbStore = {
   clearSelection,
   setProjects,
   setChats,
+  upsertChat,
   setTasks,
   setLoading,
 };

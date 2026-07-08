@@ -224,9 +224,20 @@ async function saveCurrentChatState(chatId) {
   }
 }
 
+function bindAiToChatSession(chatId) {
+  const id = String(chatId || "").trim();
+  if (!id) {
+    return;
+  }
+  if (typeof window.__aiSetBoundChatSession === "function") {
+    window.__aiSetBoundChatSession(id);
+  }
+}
+
 async function ensureActiveChatSession({ titleSeed, title } = {}) {
   const existing = getActiveChatId();
   if (existing) {
+    bindAiToChatSession(existing);
     return existing;
   }
   const api = wbApi();
@@ -246,19 +257,32 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
         })}`);
   try {
     const chat = await api.wbChatCreate({ title: nextTitle });
-    const chatId = chat.id;
+    const chatId = String(chat?.id || "").trim();
+    if (!chatId) {
+      return null;
+    }
     cacheSession(
       sessionModel().normalizeChatSession
         ? sessionModel().normalizeChatSession(chat, { messages: [] })
         : { ...chat, messages: [], contextSnapshot: "" }
     );
+    window.__wbStore?.upsertChat?.({
+      id: chatId,
+      title: chat.title || nextTitle,
+      createdAt: chat.createdAt,
+      updatedAt: chat.updatedAt || chat.createdAt,
+      summary: "",
+    });
     window.__wbStore?.selectChat?.(chatId);
     persistActiveChatId(chatId);
+    bindAiToChatSession(chatId);
     window.__wbHideProjectWorkspace?.();
+    window.__wbRenderChats?.();
     await window.__wbRefreshChats?.();
     window.__wbRenderChats?.();
     return chatId;
-  } catch {
+  } catch (err) {
+    console.error("[wb] ensureActiveChatSession failed:", err);
     return null;
   }
 }
@@ -434,30 +458,60 @@ async function touchChatTitle(text) {
 }
 
 async function persistChatMessage(role, content) {
-  const chatId = getActiveChatId();
+  let chatId = getActiveChatId();
   const api = wbApi();
+  if (!chatId) {
+    chatId = await ensureActiveChatSession({});
+  }
   if (!chatId || typeof api.wbChatAppendMessage !== "function") {
-    return;
+    return null;
   }
   const body = String(content || "").trim();
   if (!body) {
-    return;
+    return null;
   }
-  if (
-    typeof window.__aiGetBoundChatId === "function" &&
-    window.__aiGetBoundChatId() &&
-    window.__aiGetBoundChatId() !== chatId
-  ) {
-    return;
+  bindAiToChatSession(chatId);
+  const boundId =
+    typeof window.__aiGetBoundChatId === "function" ? window.__aiGetBoundChatId() : null;
+  if (boundId && boundId !== chatId) {
+    bindAiToChatSession(chatId);
   }
   try {
     const result = await api.wbChatAppendMessage({ chatId, role, content: body });
     sessionCache.delete(chatId);
+    const cached = getCachedSession(chatId) || {
+      id: chatId,
+      title: "",
+      messages: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const normalize = sessionModel().normalizeChatMessage;
+    const saved = result?.message || { role, content: body };
+    const msg = normalize
+      ? normalize(saved, chatId)
+      : {
+          id: saved.id,
+          sessionId: chatId,
+          role,
+          content: body,
+          createdAt: saved.createdAt || Date.now(),
+        };
+    cached.messages = [...(cached.messages || []), msg];
+    cached.updatedAt = saved.createdAt || Date.now();
+    cacheSession(cached);
+    window.__wbStore?.upsertChat?.({
+      id: chatId,
+      updatedAt: saved.createdAt || new Date().toISOString(),
+    });
     if (result?.summaryUpdate?.updated && typeof window.__wbRefreshChats === "function") {
       await window.__wbRefreshChats();
     }
-  } catch {
-    /* ignore duplicate or validation errors during sync */
+    window.__wbRenderChats?.();
+    return result;
+  } catch (err) {
+    console.error("[wb] persistChatMessage failed:", err);
+    return null;
   }
 }
 
@@ -510,20 +564,49 @@ window.__wbGetChatContextSnapshot = getChatContextSnapshot;
 window.__wbUpdateChatContextSnapshot = updateChatContextSnapshot;
 window.__wbTouchChatTitle = touchChatTitle;
 window.__wbOnAiUserMessage = async (text) => {
-  await ensureActiveChatSession({ titleSeed: text });
-  await touchChatTitle(text);
+  const chatId = await ensureActiveChatSession({ titleSeed: text });
+  if (!chatId) {
+    return;
+  }
+  bindAiToChatSession(chatId);
   await persistChatMessage("user", text);
+  await touchChatTitle(text);
   await window.__wbRefreshChats?.();
+  window.__wbRenderChats?.();
 };
-window.__wbOnAiAssistantMessage = async (text) => {
-  await ensureActiveChatSession({});
+window.__wbOnAiAssistantMessage = async (text, { userText = "" } = {}) => {
+  const chatId = await ensureActiveChatSession({});
+  if (!chatId) {
+    return;
+  }
+  bindAiToChatSession(chatId);
   await persistChatMessage("assistant", text);
+  const u = String(userText || "").trim();
+  if (u) {
+    updateChatContextSnapshot(chatId, u, text);
+  }
   persistActiveChatSnapshot();
+  const session =
+    getCachedSession(chatId) || (await fetchChatSession(chatId, { force: true }));
+  await ensureChatTitleFromMessages(session);
   await window.__wbRefreshChats?.();
+  window.__wbRenderChats?.();
 };
-window.__wbIsWorkbenchChatMode = () =>
-  typeof wbApi().wbChatsList === "function" &&
-  typeof window.__wbOnAiUserMessage === "function";
+window.__wbIsWorkbenchChatMode = () => {
+  const api = wbApi();
+  if (typeof api.wbChatsList !== "function") {
+    return false;
+  }
+  if (typeof window.__wbOnAiUserMessage !== "function") {
+    return false;
+  }
+  const store = window.__wbStore?.getState?.() || {};
+  const mod =
+    typeof window.__wbResolveActiveModule === "function"
+      ? window.__wbResolveActiveModule(store)
+      : store.activeModule || store.mode || "chat";
+  return mod === "chat" || mod === "idle";
+};
 window.__wbFetchChatAgentContext = fetchChatAgentContextBlock;
 window.__wbDetectDevRequest = detectDevRequest;
 window.__wbDevRequestReply = devRequestReply;
