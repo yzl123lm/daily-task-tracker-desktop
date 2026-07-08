@@ -99,6 +99,22 @@ function initWorkbenchDev() {
       chatId = chats[0].id;
     }
     if (chatId) {
+      const latest = window.__wbStore?.getState?.() || {};
+      const latestModule =
+        typeof window.__wbResolveActiveModule === "function"
+          ? window.__wbResolveActiveModule(latest)
+          : latest.activeModule || latest.mode || "chat";
+      if (latestModule === "project") {
+        const projects = latest.projects || [];
+        const projectId = latest.selectedProjectId || projects[0]?.id;
+        if (projectId) {
+          if (!latest.selectedProjectId) {
+            window.__wbStore?.selectProject?.(projectId);
+          }
+          await window.__wbSwitchWorkspaceModule?.("project");
+          return;
+        }
+      }
       window.__wbChatSessionStore?.setActiveSessionId?.(chatId);
       await window.__wbSwitchChat?.(chatId);
     } else {

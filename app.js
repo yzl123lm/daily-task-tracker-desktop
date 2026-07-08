@@ -2658,16 +2658,20 @@ function initShell() {
   initAiSessionSidebar();
   initWindowChrome();
   openTabs = ["ai"];
+  const hashRoute = parseHashRoute();
   const wbBootModule = readWorkbenchBootModule();
-  if (wbBootModule === "project") {
-    activateRoute("project-dev", {
-      syncHash: true,
-      skipWorkbenchGuard: true,
-      skipProjectLoad: true,
-    });
-  } else {
-    activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+  let bootRoute = "ai";
+  if (hashRoute === "project-dev") {
+    bootRoute = "project-dev";
+  } else if (wbBootModule === "project") {
+    bootRoute = "project-dev";
   }
+  activateRoute(bootRoute, {
+    syncHash: true,
+    skipWorkbenchGuard: true,
+    skipProjectLoad: bootRoute !== "project-dev",
+    projectId: window.__wbPendingProjectRouteId || null,
+  });
 }
 
 window.activateRoute = activateRoute;
@@ -2934,11 +2938,20 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, pro
       if (route === "project-dev") {
         syncWorkbenchNavRailActive("project");
         syncWorkbenchSidePanelView("project");
+        if (resolvedProjectId) {
+          window.__wbEnterProjectWorkspaceShell?.();
+        }
+        window.__wbApplyMainView?.();
       } else if (route === "ai") {
         syncWorkbenchNavRailActive(wbModule === "project" ? "project" : "sessions");
         syncWorkbenchSidePanelView(wbModule === "project" ? "project" : "sessions");
-        if (wbModule === "chat") {
+        if (wbModule === "project") {
+          window.__wbApplyMainView?.();
+        } else if (wbModule === "chat") {
           window.__wbShowChatView?.();
+          if (typeof window.onAIPanelVisible === "function") {
+            window.onAIPanelVisible();
+          }
         }
       } else {
         syncWorkbenchNavRailActive(route);
@@ -2963,14 +2976,28 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, pro
     renderDashboard();
   }
   if (route === "ai" && typeof window.onAIPanelVisible === "function") {
-    window.onAIPanelVisible();
-  }
-  if (route === "project-dev" && resolvedProjectId && !skipProjectLoad) {
-    window.__wbStore?.selectProject?.(resolvedProjectId);
-    if (typeof window.__wbShowProjectWorkspace === "function") {
-      void window.__wbShowProjectWorkspace(resolvedProjectId);
+    const store = window.__wbStore?.getState?.() || {};
+    const wbModule =
+      typeof window.__wbResolveActiveModule === "function"
+        ? window.__wbResolveActiveModule(store)
+        : store.activeModule || store.mode || "chat";
+    if (wbModule === "chat") {
+      window.onAIPanelVisible();
     }
-    delete window.__wbPendingProjectRouteId;
+  }
+  if (route === "project-dev") {
+    if (resolvedProjectId) {
+      window.__wbStore?.selectProject?.(resolvedProjectId);
+      window.__wbEnterProjectWorkspaceShell?.();
+    }
+    if (resolvedProjectId && !skipProjectLoad) {
+      if (typeof window.__wbShowProjectWorkspace === "function") {
+        void window.__wbShowProjectWorkspace(resolvedProjectId);
+      }
+      delete window.__wbPendingProjectRouteId;
+    } else if (isAiWindow()) {
+      window.__wbApplyMainView?.();
+    }
   }
   if (route === "knowledge-base" && typeof window.onKnowledgeBasePanelVisible === "function") {
     void window.onKnowledgeBasePanelVisible({ route: "kb-main" });

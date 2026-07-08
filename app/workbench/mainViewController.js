@@ -6,6 +6,7 @@ function applyMainView() {
       : store.activeModule || store.mode || "chat";
 
   if (module === "project" && store.selectedProjectId) {
+    window.__wbEnterProjectWorkspaceShell?.();
     const root = document.getElementById("wbProjectWorkspace");
     const ready =
       root &&
@@ -24,17 +25,21 @@ function applyMainView() {
   window.__wbShowChatView?.();
 }
 
-let mainViewApplyQueued = false;
+let mainViewApplySeq = 0;
 
 function scheduleMainView() {
-  if (mainViewApplyQueued) {
-    return;
-  }
-  mainViewApplyQueued = true;
+  const seq = ++mainViewApplySeq;
   queueMicrotask(() => {
-    mainViewApplyQueued = false;
+    if (seq !== mainViewApplySeq) {
+      return;
+    }
     applyMainView();
-    requestAnimationFrame(applyMainView);
+  });
+  requestAnimationFrame(() => {
+    if (seq !== mainViewApplySeq) {
+      return;
+    }
+    applyMainView();
   });
 }
 

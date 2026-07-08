@@ -284,6 +284,11 @@ function selectProject(projectId) {
     window.__wbPersistActiveChatId?.(prevChat);
   }
   window.__wbStore?.selectProject?.(projectId);
+  const project = (window.__wbStore?.getState?.().projects || []).find(
+    (item) => item.id === projectId
+  );
+  window.__wbEnterProjectWorkspaceShell?.(project?.name || "");
+  window.__wbScheduleMainView?.();
   void window.__wbShowProjectWorkspace?.(projectId);
   if (typeof window.activateRoute === "function") {
     window.activateRoute("project-dev", {

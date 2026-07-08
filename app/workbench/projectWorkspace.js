@@ -413,6 +413,25 @@ function syncProjectViewChrome(active, projectName = "") {
   }
 }
 
+function enterProjectWorkspaceShell(projectName = "") {
+  const panelAi = document.getElementById("panel-ai");
+  const root = ensureWorkspaceRoot();
+  if (panelAi) {
+    panelAi.hidden = false;
+    panelAi.removeAttribute("hidden");
+  }
+  if (root) {
+    root.hidden = false;
+    root.removeAttribute("hidden");
+    if (panelAi && root.parentElement !== panelAi) {
+      panelAi.appendChild(root);
+    } else if (panelAi) {
+      panelAi.appendChild(root);
+    }
+  }
+  syncProjectViewChrome(true, projectName);
+}
+
 function showProjectWorkspaceView(projectId, gen) {
   if (projectId != null && gen != null && !isProjectViewActive(projectId, gen)) {
     return;
@@ -438,7 +457,19 @@ function showProjectWorkspaceView(projectId, gen) {
   }
 }
 
-function showChatView() {
+function showChatView(options = {}) {
+  const force = Boolean(options?.force);
+  if (!force) {
+    const store = window.__wbStore?.getState?.() || {};
+    const module =
+      typeof window.__wbResolveActiveModule === "function"
+        ? window.__wbResolveActiveModule(store)
+        : store.activeModule || store.mode;
+    if (module === "project" && store.selectedProjectId) {
+      window.__wbShowProjectView?.(store.selectedProjectId);
+      return;
+    }
+  }
   projectWorkspaceLoadGen += 1;
   window.__wbApprovalStore?.clearPending?.();
   window.__wbClosePwsDrawers?.();
@@ -492,16 +523,24 @@ function showProjectView(projectId) {
 }
 
 async function loadProjectWorkspace(projectId) {
-  const api = wbApi();
-  const root = ensureWorkspaceRoot();
   const id = String(projectId || "").trim();
   const gen = ++projectWorkspaceLoadGen;
-  if (!root || !id || typeof api.wbProjectGet !== "function") {
+  if (!id) {
+    return;
+  }
+  const storeProject = (window.__wbStore?.getState?.().projects || []).find(
+    (item) => item.id === id
+  );
+  enterProjectWorkspaceShell(storeProject?.name || "");
+  const api = wbApi();
+  const root = ensureWorkspaceRoot();
+  if (!root || typeof api.wbProjectGet !== "function") {
     return;
   }
   root.dataset.wbReady = "0";
   delete root.dataset.wbProjectId;
   window.__wbApprovalStore?.clearPending?.();
+  showProjectWorkspaceView(id, gen);
   const project = await api.wbProjectGet({ projectId: id });
   if (!isProjectViewActive(id, gen)) {
     return;
@@ -895,6 +934,7 @@ function bindProjectWorkspace() {
 
 window.__wbRenderProjectColSessions = renderProjectColSessions;
 window.__wbShowChatView = showChatView;
+window.__wbEnterProjectWorkspaceShell = enterProjectWorkspaceShell;
 window.__wbShowProjectView = showProjectView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;

@@ -11,11 +11,11 @@ function syncModuleChrome(module) {
 async function switchWorkspaceModule(module) {
   const target = module === "project" ? "project" : "chat";
   const store = window.__wbStore?.getState?.() || {};
-  window.__wbStore?.setActiveModule?.(target);
-  syncModuleChrome(target);
 
   if (target === "chat") {
-    window.__wbShowChatView?.();
+    window.__wbStore?.setActiveModule?.(target);
+    syncModuleChrome(target);
+    window.__wbShowChatView?.({ force: true });
     if (typeof window.activateRoute === "function") {
       window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
     }
@@ -32,16 +32,18 @@ async function switchWorkspaceModule(module) {
     return;
   }
 
+  syncModuleChrome(target);
   let projectId = store.selectedProjectId;
   if (!projectId) {
     const projects = window.__wbStore?.getState?.().projects || [];
     projectId = projects[0]?.id || null;
-    if (projectId) {
-      window.__wbStore?.selectProject?.(projectId);
-    }
   }
-
   if (projectId) {
+    window.__wbStore?.selectProject?.(projectId);
+    const project = (window.__wbStore?.getState?.().projects || []).find(
+      (item) => item.id === projectId
+    );
+    window.__wbEnterProjectWorkspaceShell?.(project?.name || "");
     if (typeof window.activateRoute === "function") {
       window.activateRoute("project-dev", {
         syncHash: true,
@@ -55,6 +57,7 @@ async function switchWorkspaceModule(module) {
     return;
   }
 
+  window.__wbStore?.setActiveModule?.("project");
   window.__wbApplyMainView?.();
 }
 
