@@ -4197,20 +4197,31 @@ function initAI() {
         window.__wbIsWorkbenchChatSurface()) ||
         (typeof window.__wbIsWorkbenchChatMode === "function" &&
           window.__wbIsWorkbenchChatMode()));
+    let chatTurnMeta = null;
     if (wbChatSurface) {
       window.__wbSyncChatModuleChrome?.();
-      if (!window.__wbGetActiveChatId?.()) {
-        await window.__wbEnsureActiveChatSession?.({ titleSeed: trimmed });
+      if (typeof window.__wbChatSessionStore?.beginChatTurn === "function") {
+        chatTurnMeta = await window.__wbChatSessionStore.beginChatTurn(trimmed);
       }
-      const bootChatId = window.__wbGetActiveChatId?.();
-      if (bootChatId) {
-        setBoundChatSession(bootChatId);
+      if (!chatTurnMeta?.requestSessionId) {
+        const fallbackId = await window.__wbEnsureActiveChatSession?.({ titleSeed: trimmed });
+        if (!fallbackId) {
+          appendBubble("assistant", "会话创建失败，请稍后重试。", { isError: true });
+          return false;
+        }
+        chatTurnMeta = { requestSessionId: fallbackId, assistantMessageId: null };
       }
+      setBoundChatSession(chatTurnMeta.requestSessionId);
+      window.__wbChatSessionStore?.bindComposeRequestSession?.(chatTurnMeta.requestSessionId);
     }
     appendBubble("user", trimmed, { userDocs: docEntriesForTurn });
-    if (typeof window.__wbOnAiUserMessage === "function" && wbChatSurface) {
+    if (
+      !chatTurnMeta &&
+      typeof window.__wbOnAiUserMessage === "function" &&
+      wbChatSurface
+    ) {
       await window.__wbOnAiUserMessage(trimmed);
-    } else if (typeof window.__aiNotifyThreadUserMessage === "function") {
+    } else if (!wbChatSurface && typeof window.__aiNotifyThreadUserMessage === "function") {
       window.__aiNotifyThreadUserMessage(trimmed);
     }
     if (aiMode === "chat" && pendingDocEntries.length) {
@@ -4304,13 +4315,29 @@ function initAI() {
           setMemoryToggleUI(true);
         }
         appendBubble("assistant", reply, { ollamaUsage });
-        const wbChatSurface =
-          (typeof window.__wbIsWorkbenchChatSurface === "function" &&
-            window.__wbIsWorkbenchChatSurface()) ||
-          (typeof window.__wbIsWorkbenchChatMode === "function" &&
-            window.__wbIsWorkbenchChatMode());
-        if (typeof window.__wbOnAiAssistantMessage === "function" && wbChatSurface) {
-          await window.__wbOnAiAssistantMessage(reply, { userText: trimmed });
+        const requestSessionId =
+          chatTurnMeta?.requestSessionId ||
+          window.__wbChatSessionStore?.getComposeRequestSessionId?.() ||
+          window.__wbGetActiveChatId?.();
+        if (
+          chatTurnMeta?.assistantMessageId &&
+          requestSessionId &&
+          typeof window.__wbChatSessionStore?.completeChatTurn === "function"
+        ) {
+          await window.__wbChatSessionStore.completeChatTurn(
+            requestSessionId,
+            chatTurnMeta.assistantMessageId,
+            reply,
+            { userText: trimmed }
+          );
+        } else if (
+          typeof window.__wbOnAiAssistantMessage === "function" &&
+          wbChatSurface
+        ) {
+          await window.__wbOnAiAssistantMessage(reply, {
+            userText: trimmed,
+            sessionId: requestSessionId,
+          });
         }
         void tryAutoLearnTurn(trimmed, reply, "chat");
         void maybeSpeakAssistantReply(api, reply);
@@ -4321,6 +4348,13 @@ function initAI() {
         /用户已取消|已取消生成|aborted/i.test(String(err?.message || err || ""));
       if (aiMode === "chat") {
         chatTurns.pop();
+      }
+      if (chatTurnMeta?.assistantMessageId && typeof window.__wbChatSessionStore?.failChatTurn === "function") {
+        await window.__wbChatSessionStore.failChatTurn(
+          chatTurnMeta.requestSessionId,
+          chatTurnMeta.assistantMessageId,
+          isAbort ? "已停止生成" : err?.message || String(err)
+        );
       }
       if (isAbort) {
         appendBubble("assistant", "已停止生成。你可以修改输入后重新发送。", { isError: false });

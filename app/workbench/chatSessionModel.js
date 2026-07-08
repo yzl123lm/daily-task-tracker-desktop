@@ -107,10 +107,19 @@ function generateConversationTitle(messages) {
   return title || "新对话";
 }
 
+function generateSessionTitle(content) {
+  const text = String(content || "").trim();
+  if (!text) {
+    return "新对话";
+  }
+  return text.length > 18 ? `${text.slice(0, 18)}…` : text;
+}
+
 window.__wbChatSessionModel = {
   normalizeChatMessage,
   normalizeChatSession,
   turnsFromMessages,
   isDefaultChatTitle,
   generateConversationTitle,
+  generateSessionTitle,
 };

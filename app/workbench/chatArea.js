@@ -177,6 +177,7 @@ async function deleteChat(chat) {
   }
   window.__wbPersistActiveChatSnapshot?.();
   await api.wbChatDelete({ chatId: chat.id });
+  window.__wbChatSessionStore?.removeSession?.(chat.id);
   const snapshots = JSON.parse(localStorage.getItem("wb_chat_snapshots_v1") || "{}");
   delete snapshots[chat.id];
   localStorage.setItem("wb_chat_snapshots_v1", JSON.stringify(snapshots));
@@ -192,8 +193,13 @@ function renderChatSessionList() {
     return;
   }
   const store = window.__wbStore?.getState?.() || {};
-  let chats = store.chats || [];
-  const activeChatId = store.selectedChatId;
+  const activeChatId = store.selectedChatId || window.__wbChatSessionStore?.getActiveSessionId?.();
+  let chats =
+    (typeof window.__wbChatSessionStore?.getOrderedSessions === "function"
+      ? window.__wbChatSessionStore.getOrderedSessions()
+      : null) ||
+    store.chats ||
+    [];
   if (!chats.length && activeChatId) {
     const cached =
       typeof window.__wbGetCachedChatSession === "function"
@@ -225,6 +231,11 @@ function renderChatSessionList() {
     card.dataset.chatId = chat.id;
     const preview =
       chat.summary ||
+      (typeof window.__wbChatSessionStore?.getLastMessageSummary === "function"
+        ? window.__wbChatSessionStore.getLastMessageSummary(
+            window.__wbChatSessionStore.getSession?.(chat.id) || chat
+          )
+        : "") ||
       (chat.id === activeChatId && typeof window.__wbGetCachedChatSession === "function"
         ? (() => {
             const cached = window.__wbGetCachedChatSession(chat.id);
@@ -256,7 +267,7 @@ function renderChatSessionList() {
         </div>
       </div>
     `;
-    card.classList.toggle("is-active", chat.id === store.selectedChatId);
+    card.classList.toggle("is-active", chat.id === activeChatId);
     card.querySelector('[data-action="rename"]')?.addEventListener("click", (ev) => {
       ev.stopPropagation();
       openEditChatModal(chat);

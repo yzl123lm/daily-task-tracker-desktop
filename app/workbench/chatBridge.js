@@ -272,7 +272,9 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
   const nextTitle =
     String(title || "").trim() ||
     (seed
-      ? seed.slice(0, 24)
+      ? sessionModel().generateSessionTitle?.(seed) ||
+        sessionModel().generateConversationTitle?.([{ role: "user", content: seed }]) ||
+        seed.slice(0, 24)
       : `对话 ${new Date().toLocaleString("zh-CN", {
           month: "numeric",
           day: "numeric",
@@ -297,7 +299,15 @@ async function ensureActiveChatSession({ titleSeed, title } = {}) {
       updatedAt: chat.updatedAt || chat.createdAt,
       summary: "",
     });
-    window.__wbStore?.selectChat?.(chatId);
+    window.__wbChatSessionStore?.upsertSessionRecord?.({
+      id: chatId,
+      title: chat.title || nextTitle,
+      createdAt: chat.createdAt,
+      updatedAt: chat.updatedAt || chat.createdAt,
+      messages: [],
+      summary: "",
+    });
+    window.__wbChatSessionStore?.setActiveSessionId?.(chatId);
     persistActiveChatId(chatId);
     bindAiToChatSession(chatId);
     syncChatModuleChrome();
@@ -395,6 +405,8 @@ async function loadChatIntoAi(chatId, { loadGen } = {}) {
     : (session?.messages || []).map((m) => ({ role: m.role, content: m.content }));
 
   if (turnsFromDb.length) {
+    window.__wbChatSessionStore?.hydrateSessionMessages?.(id, session?.messages || []);
+    window.__wbChatSessionStore?.setActiveSessionId?.(id);
     if (typeof window.__aiLoadChatTurns === "function") {
       window.__aiLoadChatTurns(turnsFromDb, { sessionId: id });
     }
@@ -438,6 +450,7 @@ async function switchChat(chatId) {
     await saveCurrentChatState(prev);
   }
   window.__wbStore?.selectChat?.(nextId);
+  window.__wbChatSessionStore?.setActiveSessionId?.(nextId);
   persistActiveChatId(nextId);
   window.__wbShowChatView?.();
   window.__wbApplyMainView?.();
@@ -484,8 +497,8 @@ async function touchChatTitle(text) {
   }
 }
 
-async function persistChatMessage(role, content) {
-  let chatId = getActiveChatId();
+async function persistChatMessage(role, content, { sessionId = null, userText = "" } = {}) {
+  let chatId = String(sessionId || getActiveChatId() || "").trim();
   const api = wbApi();
   if (!chatId) {
     chatId = await ensureActiveChatSession({});
@@ -494,7 +507,10 @@ async function persistChatMessage(role, content) {
     return null;
   }
   const body = String(content || "").trim();
-  if (!body) {
+  if (!body && role !== "assistant") {
+    return null;
+  }
+  if (!body && role === "assistant") {
     return null;
   }
   bindAiToChatSession(chatId);
@@ -535,6 +551,10 @@ async function persistChatMessage(role, content) {
       await window.__wbRefreshChats();
     }
     window.__wbRenderChats?.();
+    if (role === "assistant" && userText) {
+      updateChatContextSnapshot(chatId, userText, body);
+    }
+    persistActiveChatSnapshot();
     return result;
   } catch (err) {
     console.error("[wb] persistChatMessage failed:", err);
@@ -590,32 +610,49 @@ window.__wbSaveChatSnapshot = persistActiveChatSnapshot;
 window.__wbGetChatContextSnapshot = getChatContextSnapshot;
 window.__wbUpdateChatContextSnapshot = updateChatContextSnapshot;
 window.__wbTouchChatTitle = touchChatTitle;
-window.__wbOnAiUserMessage = async (text) => {
-  const chatId = await ensureActiveChatSession({ titleSeed: text });
+window.__wbPersistChatMessageForSession = (sessionId, role, content, opts = {}) =>
+  persistChatMessage(role, content, { sessionId, ...opts });
+window.__wbOnAiUserMessage = async (text, { sessionId = null } = {}) => {
+  const chatId =
+    sessionId ||
+    (await ensureActiveChatSession({ titleSeed: text }));
   if (!chatId) {
-    return;
+    return null;
   }
   bindAiToChatSession(chatId);
-  await persistChatMessage("user", text);
+  window.__wbChatSessionStore?.bindComposeRequestSession?.(chatId);
+  await persistChatMessage("user", text, { sessionId: chatId });
   await touchChatTitle(text);
+  window.__wbChatSessionStore?.appendMessage?.(chatId, {
+    role: "user",
+    content: String(text || "").trim(),
+    status: "success",
+  });
+  window.__wbChatSessionStore?.updateSessionMeta?.(chatId);
   await window.__wbRefreshChats?.();
   window.__wbRenderChats?.();
+  return chatId;
 };
-window.__wbOnAiAssistantMessage = async (text, { userText = "" } = {}) => {
-  const chatId = await ensureActiveChatSession({});
+window.__wbOnAiAssistantMessage = async (text, { userText = "", sessionId = null } = {}) => {
+  const chatId =
+    sessionId ||
+    window.__wbChatSessionStore?.getComposeRequestSessionId?.() ||
+    (await ensureActiveChatSession({}));
   if (!chatId) {
     return;
   }
   bindAiToChatSession(chatId);
-  await persistChatMessage("assistant", text);
-  const u = String(userText || "").trim();
-  if (u) {
-    updateChatContextSnapshot(chatId, u, text);
-  }
-  persistActiveChatSnapshot();
+  await persistChatMessage("assistant", text, { sessionId: chatId, userText });
+  window.__wbChatSessionStore?.appendMessage?.(chatId, {
+    role: "assistant",
+    content: String(text || "").trim(),
+    status: "success",
+  });
   const session =
     getCachedSession(chatId) || (await fetchChatSession(chatId, { force: true }));
   await ensureChatTitleFromMessages(session);
+  window.__wbChatSessionStore?.updateSessionMeta?.(chatId);
+  window.__wbChatSessionStore?.clearComposeRequestSession?.();
   await window.__wbRefreshChats?.();
   window.__wbRenderChats?.();
 };

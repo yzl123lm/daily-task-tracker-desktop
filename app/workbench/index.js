@@ -42,6 +42,7 @@ async function refreshChats() {
       return tb - ta;
     });
     window.__wbStore?.setChats?.(next);
+    window.__wbChatSessionStore?.syncSessionsFromApi?.(next);
     window.__wbRenderChats?.();
   } catch (err) {
     console.error("[wb] refreshChats failed:", err);
@@ -53,6 +54,7 @@ function initWorkbenchDev() {
   if (!wbReady()) {
     return;
   }
+  window.__wbChatSessionStore?.loadFromStorage?.();
   window.__wbRefreshProjects = refreshProjects;
   window.__wbRefreshChats = refreshChats;
   window.__wbBindProjectArea?.();
