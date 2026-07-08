@@ -319,9 +319,13 @@ let projectWorkspaceLoadGen = 0;
 function isProjectViewActive(projectId, gen) {
   const id = String(projectId || "").trim();
   const store = window.__wbStore?.getState?.() || {};
+  const module =
+    typeof window.__wbResolveActiveModule === "function"
+      ? window.__wbResolveActiveModule(store)
+      : store.activeModule || store.mode;
   return (
     gen === projectWorkspaceLoadGen &&
-    store.mode === "project" &&
+    module === "project" &&
     store.selectedProjectId === id
   );
 }
@@ -453,7 +457,11 @@ function showChatView() {
 function showProjectView(projectId) {
   const id = String(projectId || "").trim();
   const store = window.__wbStore?.getState?.() || {};
-  if (!id || store.mode !== "project" || store.selectedProjectId !== id) {
+  const module =
+    typeof window.__wbResolveActiveModule === "function"
+      ? window.__wbResolveActiveModule(store)
+      : store.activeModule || store.mode;
+  if (!id || module !== "project" || store.selectedProjectId !== id) {
     return;
   }
   showProjectWorkspaceView(id, projectWorkspaceLoadGen);
@@ -790,16 +798,7 @@ function bindProjectWorkspace() {
   window.__wbBindGitChangePanel?.();
   bindTaskFilters();
   document.getElementById("wbPwsBackToChat")?.addEventListener("click", () => {
-    const chats = window.__wbStore?.getState?.().chats || [];
-    const chatId = chats[0]?.id;
-    hideProjectWorkspace();
-    if (typeof window.activateRoute === "function") {
-      window.activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
-    }
-    if (chatId && window.__wbStore?.selectChat) {
-      window.__wbStore.selectChat(chatId);
-      void window.__wbSwitchChat?.(chatId);
-    }
+    void window.__wbSwitchWorkspaceModule?.("chat");
   });
   document.getElementById("wbPwsProjectNewBtn")?.addEventListener("click", () => {
     window.__wbOpenNewProjectModal?.();

@@ -1,10 +1,11 @@
 function applyMainView() {
   const store = window.__wbStore?.getState?.() || {};
-  if (store.mode === "chat" && store.selectedChatId) {
-    window.__wbShowChatView?.();
-    return;
-  }
-  if (store.mode === "project" && store.selectedProjectId) {
+  const module =
+    typeof window.__wbResolveActiveModule === "function"
+      ? window.__wbResolveActiveModule(store)
+      : store.activeModule || store.mode || "chat";
+
+  if (module === "project" && store.selectedProjectId) {
     const root = document.getElementById("wbProjectWorkspace");
     const ready =
       root &&
@@ -12,9 +13,14 @@ function applyMainView() {
       root.dataset.wbProjectId === store.selectedProjectId;
     if (ready) {
       window.__wbShowProjectView?.(store.selectedProjectId);
+      return;
+    }
+    if (typeof window.__wbShowProjectWorkspace === "function") {
+      void window.__wbShowProjectWorkspace(store.selectedProjectId);
     }
     return;
   }
+
   window.__wbShowChatView?.();
 }
 

@@ -2138,6 +2138,18 @@ function ensureWorkbenchSidePanel() {
   return panel;
 }
 
+function readWorkbenchBootModule() {
+  try {
+    const saved = localStorage.getItem("wb_active_module_v1");
+    if (saved === "project" || saved === "chat") {
+      return saved;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "chat";
+}
+
 function syncWorkbenchSidePanelView(view = "project") {
   const panel = document.getElementById("jlWorkbenchSidePanel");
   if (!panel) {
@@ -2195,19 +2207,16 @@ function bindWorkbenchNavClicks() {
       const cap = btn.dataset.wbCap;
       const sidepanel = btn.dataset.wbSidepanel;
       if (sidepanel && isAiWindow()) {
+        if (module === "project" && typeof window.__wbSwitchWorkspaceModule === "function") {
+          void window.__wbSwitchWorkspaceModule("project");
+          return;
+        }
+        if (module === "chat" && typeof window.__wbSwitchWorkspaceModule === "function") {
+          void window.__wbSwitchWorkspaceModule("chat");
+          return;
+        }
         syncWorkbenchSidePanelView(sidepanel);
         syncWorkbenchNavRailActive(sidepanel);
-        if (module === "project") {
-          const selectedId = window.__wbStore?.getState?.().selectedProjectId;
-          if (selectedId) {
-            activateRoute("project-dev", { projectId: selectedId, skipProjectLoad: true });
-          } else {
-            activateRoute("ai");
-          }
-        }
-        if (module === "chat") {
-          activateRoute("ai");
-        }
         return;
       }
       if (module === "record" || route === "record") {
@@ -2585,7 +2594,9 @@ function initShell() {
   if (workbenchNav) {
     workbenchNav.hidden = false;
     ensureWorkbenchSidePanel();
-    syncWorkbenchSidePanelView("project");
+    const wbBootModule = readWorkbenchBootModule();
+    syncWorkbenchSidePanelView(wbBootModule === "project" ? "project" : "sessions");
+    syncWorkbenchNavRailActive(wbBootModule === "project" ? "project" : "sessions");
     bindWorkbenchNavClicks();
     bindWorkbenchHubClicks();
   }
@@ -2639,7 +2650,16 @@ function initShell() {
   initAiSessionSidebar();
   initWindowChrome();
   openTabs = ["ai"];
-  activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+  const wbBootModule = readWorkbenchBootModule();
+  if (wbBootModule === "project") {
+    activateRoute("project-dev", {
+      syncHash: true,
+      skipWorkbenchGuard: true,
+      skipProjectLoad: true,
+    });
+  } else {
+    activateRoute("ai", { syncHash: true, skipWorkbenchGuard: true });
+  }
 }
 
 window.activateRoute = activateRoute;
@@ -2898,12 +2918,22 @@ function activateRoute(route, { syncHash = true, skipWorkbenchGuard = false, pro
   if (isWorkbenchWindow() || isAiWindow()) {
     syncWorkbenchNavActive(route);
     if (isAiWindow()) {
-      syncWorkbenchNavRailActive(route === "project-dev" ? "project-dev" : route);
-      if (route === "ai") {
-        const store = window.__wbStore?.getState?.() || {};
-        syncWorkbenchSidePanelView(
-          store.mode === "chat" && store.selectedChatId ? "sessions" : "project"
-        );
+      const store = window.__wbStore?.getState?.() || {};
+      const wbModule =
+        typeof window.__wbResolveActiveModule === "function"
+          ? window.__wbResolveActiveModule(store)
+          : store.activeModule || store.mode || "chat";
+      if (route === "project-dev") {
+        syncWorkbenchNavRailActive("project");
+        syncWorkbenchSidePanelView("project");
+      } else if (route === "ai") {
+        syncWorkbenchNavRailActive(wbModule === "project" ? "project" : "sessions");
+        syncWorkbenchSidePanelView(wbModule === "project" ? "project" : "sessions");
+        if (wbModule === "chat") {
+          window.__wbShowChatView?.();
+        }
+      } else {
+        syncWorkbenchNavRailActive(route);
       }
     }
   }

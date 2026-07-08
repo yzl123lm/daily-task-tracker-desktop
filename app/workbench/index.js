@@ -44,7 +44,28 @@ function initWorkbenchDev() {
     await window.__wbMigrateLegacyChats?.();
     await refreshProjects();
     await refreshChats();
-    window.__wbApplyMainView?.();
+    const store = window.__wbStore?.getState?.() || {};
+    const module =
+      typeof window.__wbResolveActiveModule === "function"
+        ? window.__wbResolveActiveModule(store)
+        : store.activeModule || store.mode || "chat";
+
+    if (module === "project") {
+      const projects = window.__wbStore?.getState?.().projects || [];
+      let projectId = window.__wbStore?.getState?.().selectedProjectId || projects[0]?.id;
+      if (projectId) {
+        if (!store.selectedProjectId) {
+          window.__wbStore?.selectProject?.(projectId);
+        }
+        await window.__wbSwitchWorkspaceModule?.("project");
+      } else {
+        window.__jlSyncWorkbenchSidePanelView?.("project");
+        window.__jlSyncWorkbenchNavRailActive?.("project");
+        window.__wbApplyMainView?.();
+      }
+      return;
+    }
+
     const chats = window.__wbStore?.getState?.().chats || [];
     const storedActive = window.__wbReadStoredActiveChatId?.();
     let chatId = window.__wbStore?.getState?.().selectedChatId;
@@ -56,6 +77,10 @@ function initWorkbenchDev() {
     }
     if (chatId) {
       await window.__wbSwitchChat?.(chatId);
+    } else {
+      window.__jlSyncWorkbenchSidePanelView?.("sessions");
+      window.__jlSyncWorkbenchNavRailActive?.("sessions");
+      window.__wbApplyMainView?.();
     }
   })();
 }
