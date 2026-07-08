@@ -4216,17 +4216,15 @@ function initAI() {
     }
     if (chatStatusEl) {
       if (aiMode === "image-gen") {
-        chatStatusEl.textContent = "文生图生成中…";
         showAiLoadingCard("文生图生成中…");
       } else if (aiMode === "image-vision") {
-        chatStatusEl.textContent = "图像理解中…";
         showAiLoadingCard("图像理解中…");
       } else {
         const useWeb = isWebSearchOn();
         const status = useWeb ? "联网检索与生成中…" : "思考中…";
-        chatStatusEl.textContent = status;
         showAiLoadingCard(status);
       }
+      chatStatusEl.textContent = "";
       chatStatusEl.classList.add("is-busy");
     }
     syncSendEnabled();

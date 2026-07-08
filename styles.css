@@ -5263,6 +5263,10 @@ label.cap-check:last-child {
   box-shadow: 8px 0 0 var(--primary), 16px 0 0 var(--primary);
 }
 
+.ai-chat-status.is-busy {
+  display: none;
+}
+
 @keyframes ai-chat-dots {
   0%,
   80%,
