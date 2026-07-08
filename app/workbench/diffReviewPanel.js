@@ -157,6 +157,7 @@ function renderDiffReviewPanel() {
           <div class="wb-diff-review__file-actions">
             <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-one" data-change-id="${escapeHtml(c.id)}">接受</button>
             <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-one" data-change-id="${escapeHtml(c.id)}">拒绝</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-revise-one" data-change-id="${escapeHtml(c.id)}">需修改</button>
           </div>
         </li>
       `;
@@ -215,6 +216,38 @@ function renderDiffReviewPanel() {
         btn.dataset.changeId,
         reviewStore.REVIEW_STATUS.REJECTED
       );
+    });
+  });
+  panel.querySelectorAll(".wb-diff-revise-one").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const changeId = btn.dataset.changeId;
+      const change = reviewStore.getChanges(projectId, taskId).find((c) => c.id === changeId);
+      const feedback = window.prompt(
+        `请描述对 ${change?.path || "该文件"} 的修改意见：`,
+        ""
+      );
+      if (feedback === null) {
+        return;
+      }
+      void (async () => {
+        await reviewStore.requestRevisionWithFeedback(projectId, taskId, changeId, feedback);
+        const api = window.electronAPI || {};
+        if (typeof api.wbProjectAgentRun === "function") {
+          await api.wbProjectAgentRun({
+            projectId,
+            taskId,
+            message: [
+              `请根据用户修订意见重新生成补丁（stage_patch），文件：${change?.path || ""}`,
+              `用户意见：${feedback}`,
+              change?.summary ? `原补丁摘要：${change.summary}` : "",
+            ].join("\n"),
+            mode: "PATCH_PROPOSE",
+          });
+          await reviewStore.syncFromStagedPatches(projectId, taskId);
+        }
+        renderDiffReviewPanel();
+      })();
     });
   });
   panel.querySelector(".wb-diff-accept-all")?.addEventListener("click", () => {

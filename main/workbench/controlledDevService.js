@@ -11,6 +11,7 @@ const {
   assertProjectAgentTool,
   recordToolOperation,
 } = require("./toolPermissionService.js");
+const { TASK_STATUS } = require("./taskStatus.js");
 
 function requireUserApproval(payload) {
   if (!payload?.userApproved) {
@@ -19,6 +20,141 @@ function requireUserApproval(payload) {
     err.status = 403;
     throw err;
   }
+}
+
+function applyBatchEnabled() {
+  return String(process.env.WB_APPLY_APPROVED_BATCH || "1") !== "0";
+}
+
+function applyAcceptedPatches(
+  getUserDataPath,
+  userId,
+  { projectId, taskId, patchIds, userApproved, approvalId, requestId, createGitBranch },
+  { getDefaultProjectRoot } = {}
+) {
+  requireUserApproval({ userApproved });
+  if (!approvalId && !requestId) {
+    const err = new Error("批量写入需要 approvalId 或 requestId");
+    err.code = "APPROVAL_ID_REQUIRED";
+    err.status = 403;
+    throw err;
+  }
+  const uid = resolveUserId(userId);
+  const patchStagingService = require("./patchStagingService.js");
+  const { PATCH_STATUS } = patchStagingService;
+  const idSet = new Set((patchIds || []).map(String));
+  let accepted = patchStagingService.listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+    status: PATCH_STATUS.ACCEPTED,
+  });
+  if (idSet.size) {
+    accepted = accepted.filter((p) => idSet.has(p.id));
+  }
+  if (!accepted.length) {
+    const err = new Error("没有可写入的 ACCEPTED 补丁");
+    err.code = "NO_ACCEPTED_PATCHES";
+    throw err;
+  }
+  const results = [];
+  const appliedIds = [];
+  let firstError = null;
+  for (const patch of accepted) {
+    try {
+      const result = applyControlledPatch(
+        getUserDataPath,
+        uid,
+        {
+          projectId,
+          taskId,
+          path: patch.filePath,
+          content: patch.proposedContent,
+          userApproved: true,
+          createGitBranch: Boolean(createGitBranch) && results.length === 0,
+          stagedPatchId: patch.id,
+        },
+        { getDefaultProjectRoot }
+      );
+      results.push({ patchId: patch.id, path: patch.filePath, ok: true, result });
+      appliedIds.push(patch.id);
+      try {
+        const symbolIndexService = require("./symbolIndexService.js");
+        if (result.codeRoot) {
+          symbolIndexService.invalidateCache(result.codeRoot);
+        }
+      } catch {
+        /* optional */
+      }
+    } catch (err) {
+      firstError = err;
+      try {
+        patchStagingService.updatePatchStatus(
+          getUserDataPath,
+          uid,
+          projectId,
+          taskId,
+          patch.id,
+          PATCH_STATUS.FAILED
+        );
+      } catch {
+        /* ignore */
+      }
+      recordToolOperation(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        toolName: "apply_accepted_patch",
+        args: { patchId: patch.id, path: patch.filePath, approvalId, requestId },
+        resultText: `失败: ${err.message}`,
+        riskLevel: "HIGH",
+        approvedByUser: true,
+      });
+      break;
+    }
+  }
+  const db = require("./db.js");
+  const auditTs = db.nowIso();
+  require("./db.js")
+    .getDb(getUserDataPath)
+    .prepare(
+      `INSERT INTO audit_logs (id, user_id, scope_type, scope_id, action, detail_json, created_at)
+       VALUES (?, ?, 'task', ?, 'apply.accepted_patches', ?, ?)`
+    )
+    .run(
+      db.newId("audit"),
+      uid,
+      taskId,
+      JSON.stringify({
+        approvalId,
+        requestId,
+        appliedIds,
+        failed: Boolean(firstError),
+        total: accepted.length,
+      }),
+      auditTs
+    );
+  if (firstError) {
+    updateTask(getUserDataPath, uid, projectId, taskId, {
+      status: appliedIds.length ? TASK_STATUS.PARTIAL_FAILED : TASK_STATUS.FAILED,
+      currentStep: appliedIds.length
+        ? `部分写入成功 (${appliedIds.length}/${accepted.length})，${firstError.message}`
+        : `写入失败: ${firstError.message}`,
+    });
+    return {
+      ok: false,
+      partial: appliedIds.length > 0,
+      appliedIds,
+      results,
+      error: firstError.message,
+    };
+  }
+  updateTask(getUserDataPath, uid, projectId, taskId, {
+    status: TASK_STATUS.TESTING,
+    currentStep: `已写入 ${appliedIds.length} 个文件，等待验证`,
+  });
+  return {
+    ok: true,
+    appliedIds,
+    results,
+    count: appliedIds.length,
+  };
 }
 
 function applyControlledPatch(
@@ -316,6 +452,8 @@ function contentFromUnifiedDiff(unifiedDiff, originalContent) {
 }
 
 module.exports = {
+  applyBatchEnabled,
+  applyAcceptedPatches,
   applyControlledPatch,
   runTestWithFixSuggestions,
   getGitStatusForProject,

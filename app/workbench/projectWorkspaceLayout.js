@@ -93,6 +93,11 @@ const WB_PWS_LAYOUT_HTML = `
         <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述开发需求，生成 PLAN_ONLY 方案…"></textarea>
         <div class="wb-pws-composer__actions">
           <button type="button" id="wbPwsOpenCodeDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only">查看代码变更</button>
+          <label class="wb-pws-auto-verify" for="wbAutoVerifyAfterWrite">
+            <input type="checkbox" id="wbAutoVerifyAfterWrite" />
+            写入后自动验证
+          </label>
+          <button type="button" id="wbAgentCancelBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>取消任务</button>
           <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">生成开发方案</button>
           <button type="button" id="wbTaskConfirmBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>确认方案</button>
         </div>

@@ -14,14 +14,17 @@ const PERMISSION = {
   PROPOSE: "PROPOSE",
   VERIFY: "VERIFY",
   WRITE: "WRITE",
+  MEMORY_WRITE: "MEMORY_WRITE",
   DANGEROUS: "DANGEROUS",
 };
 
+const MEMORY_WRITE_MODES = new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE]);
+
 const MODE_ALLOWED = {
-  PLAN_ONLY: new Set([PERMISSION.READ]),
-  PATCH_PROPOSE: new Set([PERMISSION.READ, PERMISSION.PROPOSE]),
+  PLAN_ONLY: new Set([PERMISSION.READ, PERMISSION.MEMORY_WRITE]),
+  PATCH_PROPOSE: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE]),
   APPLY_APPROVED: new Set([]),
-  VERIFY_FIX: new Set([PERMISSION.READ, PERMISSION.PROPOSE]),
+  VERIFY_FIX: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE]),
 };
 
 const TOOL_ALIASES = {
@@ -122,6 +125,17 @@ const TOOL_DEFS = {
       properties: { text: { type: "string" } },
     },
   },
+  compress_context: {
+    permission: PERMISSION.MEMORY_WRITE,
+    description: "Compress task context into snapshot (writes memory, not code)",
+    parameters: {
+      type: "object",
+      properties: {
+        reason: { type: "string", enum: ["manual", "auto", "threshold"] },
+        mode: { type: "string", enum: ["normal", "aggressive", "light"] },
+      },
+    },
+  },
 };
 
 function normalizeToolName(name) {
@@ -133,10 +147,19 @@ function getToolDef(name) {
   return TOOL_DEFS[normalizeToolName(name)] || null;
 }
 
+function compressContextToolEnabled() {
+  return String(process.env.WB_AGENT_COMPRESS_CONTEXT || "1") !== "0";
+}
+
 function listToolSchemas(mode = "PLAN_ONLY") {
   const allowed = MODE_ALLOWED[String(mode).toUpperCase()] || MODE_ALLOWED.PLAN_ONLY;
   return Object.entries(TOOL_DEFS)
-    .filter(([, def]) => allowed.has(def.permission))
+    .filter(([name, def]) => {
+      if (name === "compress_context" && !compressContextToolEnabled()) {
+        return false;
+      }
+      return allowed.has(def.permission);
+    })
     .map(([name, def]) => ({
       type: "function",
       function: {
@@ -166,6 +189,11 @@ function assertToolAllowed(toolName, mode) {
     err.code = "TOOL_FORBIDDEN";
     throw err;
   }
+  if (name === "compress_context" && !compressContextToolEnabled()) {
+    const err = new Error("compress_context 已禁用");
+    err.code = "TOOL_FORBIDDEN";
+    throw err;
+  }
   return def;
 }
 
@@ -192,7 +220,12 @@ async function dispatchTool(ctx, toolName, args = {}) {
     toolName: name,
     args,
     resultText: typeof result === "string" ? result : JSON.stringify(result).slice(0, 16000),
-    riskLevel: def.permission === PERMISSION.PROPOSE ? "MEDIUM" : "LOW",
+    riskLevel:
+      def.permission === PERMISSION.PROPOSE
+        ? "MEDIUM"
+        : def.permission === PERMISSION.MEMORY_WRITE
+          ? "LOW"
+          : "LOW",
   });
   return result;
 }
@@ -267,6 +300,26 @@ const HANDLERS = {
       patchEdits: proposal.patchEdits,
     });
     return { ok: true, stagedPatchId: patch.id, status: patch.status, summary: patch.summary };
+  },
+  compress_context(ctx, args) {
+    const compressionManager = require("./context-compression/contextCompressionManager.js");
+    const namespace = buildTaskNamespace(ctx.projectId, ctx.taskId);
+    const result = compressionManager.applyCompression(ctx.getUserDataPath, ctx.userId, {
+      namespace,
+      messages: [],
+      reason: args.reason || "manual",
+      mode: args.mode || "normal",
+    });
+    return {
+      ok: Boolean(result.applied),
+      applied: result.applied,
+      snapshotId: result.snapshot?.id || null,
+      revision: result.snapshot?.revision || null,
+      tokensBefore: result.tokensBefore,
+      tokensAfter: result.tokensAfter,
+      summaryPreview: result.snapshot?.snapshot?.currentObjective?.text || "",
+      error: result.message || null,
+    };
   },
 };
 

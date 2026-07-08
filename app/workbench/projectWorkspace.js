@@ -152,6 +152,71 @@ function renderProjectColCard(project) {
 }
 
 let taskFilterMode = "all";
+let activeAgentRunId = null;
+const WB_AUTO_VERIFY_KEY = "wb_auto_verify_v1";
+
+function setAgentRunning(running, agentRunId) {
+  activeAgentRunId = running ? agentRunId || activeAgentRunId : null;
+  const cancelBtn = document.getElementById("wbAgentCancelBtn");
+  const runBtn = document.getElementById("wbAgentRunBtn");
+  const confirmBtn = document.getElementById("wbTaskConfirmBtn");
+  if (cancelBtn) {
+    cancelBtn.hidden = !running;
+  }
+  if (runBtn) {
+    runBtn.disabled = Boolean(running);
+  }
+  if (confirmBtn && running) {
+    confirmBtn.disabled = true;
+  } else if (confirmBtn) {
+    confirmBtn.disabled = false;
+  }
+}
+
+function initAutoVerifyCheckbox() {
+  const el = document.getElementById("wbAutoVerifyAfterWrite");
+  if (!el || el.dataset.bound === "1") {
+    return;
+  }
+  el.dataset.bound = "1";
+  try {
+    el.checked = localStorage.getItem(WB_AUTO_VERIFY_KEY) === "1";
+  } catch {
+    el.checked = false;
+  }
+  el.addEventListener("change", () => {
+    try {
+      localStorage.setItem(WB_AUTO_VERIFY_KEY, el.checked ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+async function cancelActiveAgent() {
+  const api = wbApi();
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  if (!projectId || !taskId || !activeAgentRunId || typeof api.wbProjectAgentCancel !== "function") {
+    return;
+  }
+  try {
+    await api.wbProjectAgentCancel({
+      projectId,
+      taskId,
+      agentRunId: activeAgentRunId,
+    });
+    setAgentRunning(false);
+    const out = document.getElementById("wbAgentOutput");
+    if (out) {
+      out.hidden = false;
+      out.textContent = "Agent 任务已取消";
+    }
+    await loadTaskContext(projectId, taskId);
+  } catch (err) {
+    alert(err?.message || "取消失败");
+  }
+}
 
 function taskMatchesFilter(task) {
   const step = String(task.currentStep || "");
@@ -219,7 +284,10 @@ async function loadTaskContext(projectId, taskId) {
     } else {
       memories.forEach((m) => {
         const li = document.createElement("li");
-        li.className = "wb-task-memories__item";
+        li.className =
+          m.memoryType === "fix_loop_event"
+            ? "wb-task-memories__item wb-task-memories__item--fix-loop"
+            : "wb-task-memories__item";
         li.innerHTML = `<span class="wb-task-memories__type">${escapeHtml(m.memoryType)}</span><span>${escapeHtml(m.content)}</span>`;
         memList.appendChild(li);
       });
@@ -589,7 +657,7 @@ async function refreshProjectContextHealth(projectId, taskId) {
   const health = await window.__wbContextHealth.fetchHealth(namespace, []);
   window.__wbContextHealth.renderHealthBadge(healthEl, health);
   const snaps = await window.__wbContextHealth.listSnapshots(namespace);
-  window.__wbContextHealth.renderSnapshotHistory(historyEl, snaps);
+  window.__wbContextHealth.renderSnapshotHistory(historyEl, snaps, namespace);
 }
 
 async function manualCompressProject() {
@@ -750,6 +818,7 @@ async function runProjectAgent(projectId) {
   }
   window.__wbExpandTerminalDrawer?.("log");
   document.getElementById("wbPlanCard").hidden = true;
+  setAgentRunning(true, null);
   try {
     const result = await api.wbProjectAgentRun({
       projectId,
@@ -757,6 +826,9 @@ async function runProjectAgent(projectId) {
       message,
       mode: "PLAN_ONLY",
     });
+    if (result.agentRunId) {
+      setAgentRunning(true, result.agentRunId);
+    }
     renderPlanCard(result.output);
     const tasks = await api.wbProjectTasksList({ projectId });
     window.__wbStore?.setTasks?.(tasks);
@@ -766,6 +838,8 @@ async function runProjectAgent(projectId) {
     if (out) {
       out.textContent = err?.message || "生成失败";
     }
+  } finally {
+    setAgentRunning(false);
   }
 }
 
@@ -785,6 +859,7 @@ async function confirmTaskPlan() {
     out.hidden = false;
     out.textContent = "生成补丁提议中…";
   }
+  setAgentRunning(true, null);
   try {
     const result = await api.wbProjectAgentRun({
       projectId,
@@ -792,6 +867,9 @@ async function confirmTaskPlan() {
       message,
       mode: "PATCH_PROPOSE",
     });
+    if (result.agentRunId) {
+      setAgentRunning(true, result.agentRunId);
+    }
     if (result.output?.plan?.length) {
       renderPlanCard(result.output);
     }
@@ -816,6 +894,8 @@ async function confirmTaskPlan() {
     if (out) {
       out.textContent = err?.message || "补丁生成失败";
     }
+  } finally {
+    setAgentRunning(false);
   }
 }
 
@@ -899,6 +979,10 @@ function bindProjectWorkspace() {
       void createTaskForProject(projectId);
     }
   });
+  document.getElementById("wbAgentCancelBtn")?.addEventListener("click", () => {
+    void cancelActiveAgent();
+  });
+  initAutoVerifyCheckbox();
   document.getElementById("wbAgentRunBtn")?.addEventListener("click", () => {
     const projectId = window.__wbStore?.getState?.().selectedProjectId;
     if (projectId) {
@@ -920,6 +1004,7 @@ window.__wbEnterProjectWorkspaceShell = enterProjectWorkspaceShell;
 window.__wbShowProjectView = showProjectView;
 window.__wbShowProjectWorkspace = loadProjectWorkspace;
 window.__wbHideProjectWorkspace = hideProjectWorkspace;
+window.__wbLoadTaskContext = loadTaskContext;
 window.__wbBindProjectWorkspace = bindProjectWorkspace;
 window.__wbAuditProjectLayout = function auditProjectLayout() {
   const pickRect = (el) => {

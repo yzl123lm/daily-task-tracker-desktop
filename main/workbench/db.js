@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -44,6 +44,7 @@ function ensureSchema(db) {
       status TEXT NOT NULL DEFAULT 'DRAFT',
       priority INTEGER NOT NULL DEFAULT 3,
       current_step TEXT,
+      fix_loop_json TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -217,7 +218,27 @@ function ensureSchema(db) {
   if (!row) {
     db.prepare("INSERT INTO wb_meta(key, value) VALUES('schema_version', ?)").run(String(SCHEMA_VERSION));
   } else if (current < SCHEMA_VERSION) {
+    migrateSchema(db, current);
     db.prepare("UPDATE wb_meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
+  }
+  ensureColumnMigrations(db);
+}
+
+function ensureColumnMigrations(db) {
+  try {
+    const cols = db.prepare("PRAGMA table_info(project_tasks)").all();
+    const hasFixLoop = cols.some((c) => c.name === "fix_loop_json");
+    if (!hasFixLoop) {
+      db.exec("ALTER TABLE project_tasks ADD COLUMN fix_loop_json TEXT DEFAULT NULL");
+    }
+  } catch {
+    /* column may already exist */
+  }
+}
+
+function migrateSchema(db, fromVersion) {
+  if (fromVersion < 6) {
+    ensureColumnMigrations(db);
   }
 }
 
@@ -269,6 +290,14 @@ function rowToTask(row) {
   if (!row) {
     return null;
   }
+  let fixLoopState = null;
+  if (row.fix_loop_json) {
+    try {
+      fixLoopState = JSON.parse(row.fix_loop_json);
+    } catch {
+      fixLoopState = null;
+    }
+  }
   return {
     id: row.id,
     projectId: row.project_id,
@@ -278,6 +307,7 @@ function rowToTask(row) {
     status: row.status,
     priority: row.priority,
     currentStep: row.current_step || "",
+    fixLoopState,
     namespace: `task:${row.project_id}:${row.id}`,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

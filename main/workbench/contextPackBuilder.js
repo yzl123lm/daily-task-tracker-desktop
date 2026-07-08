@@ -1,6 +1,9 @@
 const projectStructureService = require("./projectStructureService.js");
 const symbolIndexService = require("./symbolIndexService.js");
 const projectCodeService = require("./projectCodeService.js");
+const graphifyContextService = require("./graphifyContextService.js");
+const { searchMemories } = require("./contextMemoryService.js");
+const { buildTaskNamespace } = require("./namespace.js");
 
 const DEFAULT_TOKEN_BUDGET = 12000;
 const CHARS_PER_TOKEN = 4;
@@ -18,9 +21,27 @@ function truncate(text, maxTokens) {
   return `${s.slice(0, maxChars)}\n…[truncated]`;
 }
 
-function buildContextPack({ root, message, tokenBudget = DEFAULT_TOKEN_BUDGET, promptContext }) {
+function buildContextPack({
+  root,
+  message,
+  tokenBudget = DEFAULT_TOKEN_BUDGET,
+  promptContext,
+  projectId,
+  taskId,
+  userId,
+  getUserDataPath,
+}) {
   let remaining = tokenBudget;
   const sections = [];
+
+  if (promptContext?.text) {
+    const ctxTokens = estimateTokens(promptContext.text);
+    sections.push({
+      type: "compressed_context",
+      content: truncate(promptContext.text, Math.min(ctxTokens, remaining)),
+    });
+    remaining -= Math.min(ctxTokens, remaining);
+  }
 
   const structure = projectStructureService.analyzeProjectStructure(root);
   const structureText = JSON.stringify(structure, null, 2);
@@ -33,6 +54,23 @@ function buildContextPack({ root, message, tokenBudget = DEFAULT_TOKEN_BUDGET, p
   const symTokens = estimateTokens(symText);
   sections.push({ type: "symbols", content: truncate(symText, Math.min(symTokens, 600)) });
   remaining -= Math.min(symTokens, 600);
+
+  if (getUserDataPath && userId && projectId && taskId) {
+    const ns = buildTaskNamespace(projectId, taskId);
+    const lessons = searchMemories(getUserDataPath, userId, {
+      namespace: ns,
+      query: "error_lesson",
+      limit: 5,
+    }).filter((m) => m.memoryType === "error_lesson");
+    if (lessons.length) {
+      const lessonText = lessons.map((m) => `- ${m.content}`).join("\n");
+      sections.push({
+        type: "error_lessons",
+        content: truncate(lessonText, Math.min(estimateTokens(lessonText), 400)),
+      });
+      remaining -= Math.min(estimateTokens(lessonText), 400);
+    }
+  }
 
   const searchHits = projectCodeService.searchProjectCode(root, message).slice(0, 8);
   const snippets = [];
@@ -52,14 +90,6 @@ function buildContextPack({ root, message, tokenBudget = DEFAULT_TOKEN_BUDGET, p
   }
   sections.push({ type: "snippets", content: JSON.stringify(snippets, null, 2) });
 
-  if (promptContext?.sections) {
-    const ctxText = JSON.stringify(promptContext.sections, null, 2);
-    sections.push({
-      type: "memory",
-      content: truncate(ctxText, Math.min(estimateTokens(ctxText), remaining)),
-    });
-  }
-
   return {
     sections,
     tokenBudget,
@@ -70,8 +100,34 @@ function buildContextPack({ root, message, tokenBudget = DEFAULT_TOKEN_BUDGET, p
   };
 }
 
+async function buildContextPackAsync(options) {
+  const pack = buildContextPack(options);
+  if (options.appRoot && graphifyContextService.graphifyEnabled()) {
+    try {
+      const graphify = await graphifyContextService.buildGraphifySummary({
+        appRoot: options.appRoot,
+        message: options.message,
+        tokenBudget: 2000,
+      });
+      const graphText = graphifyContextService.formatGraphifySection(graphify);
+      if (graphText) {
+        pack.sections.unshift({
+          type: "graphify",
+          content: truncate(graphText, 500),
+        });
+        pack.graphify = graphify;
+      }
+    } catch {
+      pack.graphify = { available: false };
+    }
+  }
+  pack.estimatedTokens = pack.sections.reduce((sum, s) => sum + estimateTokens(s.content), 0);
+  return pack;
+}
+
 module.exports = {
   DEFAULT_TOKEN_BUDGET,
   buildContextPack,
+  buildContextPackAsync,
   estimateTokens,
 };

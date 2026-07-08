@@ -19,7 +19,9 @@ const {
 const { runProjectAgentLLM, agentLlmEnabled } = require("./projectAgentLLM.js");
 const { listStagedPatches, patchToDiffPreview, PATCH_STATUS } = require("./patchStagingService.js");
 const { TASK_STATUS } = require("./taskStatus.js");
-const { runFixLoop } = require("./fixLoopController.js");
+const { runFixLoop, resumeFixLoopAfterApply } = require("./fixLoopController.js");
+const { getFixLoopState, fixLoopV2Enabled } = require("./fixLoopStateService.js");
+const { applyAcceptedPatches } = require("./controlledDevService.js");
 
 let getDefaultProjectRootFn = null;
 
@@ -124,19 +126,78 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   }
 
   if (mode === "APPLY_APPROVED") {
+    if (!payload.userApproved) {
+      const err = new Error("APPLY_APPROVED 需要 userApproved: true");
+      err.code = "USER_APPROVAL_REQUIRED";
+      err.status = 403;
+      throw err;
+    }
+    if (!payload.approvalId && !payload.requestId) {
+      const err = new Error("APPLY_APPROVED 需要 approvalId 或 requestId");
+      err.code = "APPROVAL_ID_REQUIRED";
+      err.status = 403;
+      throw err;
+    }
     updateTask(getUserDataPath, uid, projectId, taskId, {
       status: TASK_STATUS.APPLYING,
-      currentStep: "用户已接受补丁",
+      currentStep: "用户已接受，批量写入中",
     });
-    updateTask(getUserDataPath, uid, projectId, taskId, {
-      status: TASK_STATUS.TESTING,
-      currentStep: "等待验证",
-    });
+    const applyResult = applyAcceptedPatches(
+      getUserDataPath,
+      uid,
+      {
+        projectId,
+        taskId,
+        patchIds: payload.patchIds,
+        userApproved: true,
+        approvalId: payload.approvalId,
+        requestId: payload.requestId,
+        createGitBranch: Boolean(payload.createGitBranch),
+      },
+      { getDefaultProjectRoot: getDefaultProjectRootFn }
+    );
+    let fixResult = null;
+    const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+    if (applyResult.ok && fixState?.active) {
+      const taskNs = buildTaskNamespace(projectId, taskId);
+      const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
+        namespace: taskNs,
+        messages: [],
+      });
+      fixResult = await resumeFixLoopAfterApply(
+        getUserDataPath,
+        uid,
+        {
+          getUserDataPath,
+          userId: uid,
+          projectId,
+          taskId,
+          agentRunId: payload.agentRunId || fixState.agentRunId,
+          promptContext: prepared.promptContext,
+        },
+        {
+          patchIds: payload.patchIds,
+          appliedPatchIds: applyResult.appliedIds,
+          getDefaultProjectRoot: getDefaultProjectRootFn,
+        }
+      );
+    }
     return {
       agentRunId: null,
-      status: RUN_STATUS.COMPLETED,
+      status: applyResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.FAILED,
       mode,
-      output: { summary: "已进入测试阶段", needUserConfirm: false },
+      output: {
+        summary: applyResult.ok
+          ? fixResult?.ok
+            ? "补丁已写入且验证通过"
+            : fixResult?.waitingApproval
+              ? "补丁已写入，等待下一轮 Diff 审阅"
+              : `已写入 ${applyResult.count} 个文件`
+          : applyResult.error || "批量写入失败",
+        applyResult,
+        fixResult,
+        needUserConfirm: Boolean(fixResult?.waitingApproval),
+      },
     };
   }
 
@@ -173,23 +234,42 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       agentRunId,
       mode,
       root,
+      appRoot: typeof getDefaultProjectRootFn === "function" ? getDefaultProjectRootFn() : null,
       project,
       task,
       promptContext: prepared.promptContext,
     };
 
     if (mode === "VERIFY_FIX" && payload.fixContext?.scriptName) {
-      const fixResult = await runFixLoop(getUserDataPath, uid, ctx, {
-        scriptName: payload.fixContext.scriptName,
-        getDefaultProjectRoot: getDefaultProjectRootFn,
-      });
-      output = {
-        summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程结束",
-        fixResult,
-        toolTrace: [],
-        mode,
-      };
-      runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+      if (payload.fixContext?.resume && fixLoopV2Enabled()) {
+        const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+        if (fixState?.active) {
+          const fixResult = await resumeFixLoopAfterApply(getUserDataPath, uid, ctx, {
+            patchIds: payload.fixContext.patchIds,
+            getDefaultProjectRoot: getDefaultProjectRootFn,
+          });
+          output = {
+            summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程继续",
+            fixResult,
+            toolTrace: [],
+            mode,
+          };
+          runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+        }
+      }
+      if (!output) {
+        const fixResult = await runFixLoop(getUserDataPath, uid, ctx, {
+          scriptName: payload.fixContext.scriptName,
+          getDefaultProjectRoot: getDefaultProjectRootFn,
+        });
+        output = {
+          summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程结束",
+          fixResult,
+          toolTrace: [],
+          mode,
+        };
+        runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+      }
     } else if (agentLlmEnabled() && root) {
       output = await runProjectAgentLLM(ctx, { message, mode });
       runStatus =
@@ -285,6 +365,8 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
 }
 
 function cancelProjectAgent(getUserDataPath, userId, { projectId, taskId, agentRunId }) {
+  const { cancelFixLoop } = require("./fixLoopController.js");
+  cancelFixLoop(getUserDataPath, userId, projectId, taskId, "用户取消 Agent");
   return cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId });
 }
 

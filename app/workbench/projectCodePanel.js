@@ -916,6 +916,30 @@ function renderPlanCodeExtras(output) {
   window.__wbLastPlanDiffs = diffs;
 }
 
+async function applyAcceptedDiffsLegacy(api, projectId, taskId, accepted, createGitBranch) {
+  const postDiff = document.getElementById("wbPostWriteDiff");
+  const results = [];
+  for (const change of accepted) {
+    const result = await api.wbProjectApplyPatch({
+      projectId,
+      taskId,
+      path: change.path,
+      content: change.proposedContent,
+      userApproved: true,
+      createGitBranch: Boolean(createGitBranch),
+      stagedPatchId: change.stagedPatchId || null,
+    });
+    results.push({ path: change.path, ok: true, result });
+  }
+  if (postDiff && results.length) {
+    const last = results[results.length - 1];
+    postDiff.hidden = false;
+    postDiff.textContent =
+      last.result?.writeResult?.patch?.unifiedDiff || `已写入 ${results.length} 个文件`;
+  }
+  return results;
+}
+
 async function applyAcceptedDiffs() {
   const api = wbApi();
   const projectId = panelState.projectId;
@@ -930,6 +954,7 @@ async function applyAcceptedDiffs() {
     return;
   }
   const createGitBranch = document.getElementById("wbCreateGitBranch")?.checked;
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const approved = await window.__wbRequestApproval?.({
     taskId,
     projectId,
@@ -939,33 +964,35 @@ async function applyAcceptedDiffs() {
     scope: accepted.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
     riskLevel: "MEDIUM",
     details: {
+      requestId,
       stagedPatchIds: accepted.map((c) => c.stagedPatchId).filter(Boolean),
     },
   });
   if (!approved) {
     return;
   }
-  const postDiff = document.getElementById("wbPostWriteDiff");
-  const results = [];
+  const patchIds = accepted.map((c) => c.stagedPatchId).filter(Boolean);
+  const useBatchApply = window.__wbApplyBatchEnabled !== false;
   try {
-    for (const change of accepted) {
-      const result = await api.wbProjectApplyPatch({
+    let applyOutput = null;
+    if (useBatchApply && typeof api.wbProjectAgentRun === "function" && patchIds.length) {
+      const result = await api.wbProjectAgentRun({
         projectId,
         taskId,
-        path: change.path,
-        content: change.proposedContent,
+        message: "用户已接受 Diff，批量写入",
+        mode: "APPLY_APPROVED",
         userApproved: true,
+        requestId,
+        approvalId: requestId,
+        patchIds,
         createGitBranch: Boolean(createGitBranch),
-        stagedPatchId: change.stagedPatchId || null,
       });
-      results.push({ path: change.path, ok: true, result });
-    }
-    if (postDiff && results.length) {
-      const last = results[results.length - 1];
-      postDiff.hidden = false;
-      postDiff.textContent =
-        last.result?.writeResult?.patch?.unifiedDiff ||
-        `已写入 ${results.length} 个文件`;
+      applyOutput = result.output;
+      if (!result.output?.applyResult?.ok) {
+        throw new Error(result.output?.applyResult?.error || result.output?.summary || "批量写入失败");
+      }
+    } else {
+      await applyAcceptedDiffsLegacy(api, projectId, taskId, accepted, createGitBranch);
     }
     reviewStore.clearChanges(projectId, taskId);
     window.__wbExpandTerminalDrawer?.("log");
@@ -975,8 +1002,9 @@ async function applyAcceptedDiffs() {
     await refreshToolOps();
     window.__wbRefreshTaskList?.();
     window.__wbRenderDiffReviewPanel?.();
+    await window.__wbLoadTaskContext?.(projectId, taskId);
     const autoVerify = document.getElementById("wbAutoVerifyAfterWrite")?.checked;
-    if (autoVerify && typeof api.wbProjectVerifyStart === "function") {
+    if (autoVerify && typeof api.wbProjectAgentRun === "function") {
       const approvedVerify = await window.__wbRequestApproval?.({
         taskId,
         projectId,
@@ -984,20 +1012,18 @@ async function applyAcceptedDiffs() {
         title: "写入后自动验证 build",
         summary: "运行 npm run build 验证写入结果",
         riskLevel: "MEDIUM",
-        details: { auto_verify: true },
+        details: { auto_verify: true, requestId: `verify_${requestId}` },
       });
       if (approvedVerify) {
-        const verify = await api.wbProjectVerifyStart({
-          projectId,
-          taskId,
-          scriptName: "build",
-          userApproved: true,
-        });
-        if (!verify.ok && !verify.skipped && typeof api.wbProjectAgentRun === "function") {
+        const fixResult = applyOutput?.fixResult;
+        if (fixResult?.waitingApproval) {
+          await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+          window.__wbRenderDiffReviewPanel?.();
+        } else if (!fixResult?.ok) {
           await api.wbProjectAgentRun({
             projectId,
             taskId,
-            message: verify.parsed?.summary || "构建失败，请修复",
+            message: "构建失败，请修复",
             mode: "VERIFY_FIX",
             fixContext: { scriptName: "build" },
           });

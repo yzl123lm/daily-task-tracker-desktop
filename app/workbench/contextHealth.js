@@ -67,7 +67,19 @@ async function listSnapshots(namespace) {
   return api.wbContextSnapshotsList({ namespace, limit: 10 });
 }
 
-function renderSnapshotHistory(container, snapshots) {
+async function restoreSnapshot(namespace, snapshotId) {
+  const api = wbApi();
+  if (typeof api.wbContextSnapshotRestore !== "function" || !snapshotId) {
+    return null;
+  }
+  const ok = window.confirm(`确认恢复压缩快照 rev 关联记录？\n快照 ID: ${snapshotId}`);
+  if (!ok) {
+    return null;
+  }
+  return api.wbContextSnapshotRestore({ namespace, snapshotId });
+}
+
+function renderSnapshotHistory(container, snapshots, namespace) {
   if (!container) {
     return;
   }
@@ -90,6 +102,28 @@ function renderSnapshotHistory(container, snapshots) {
       <span class="wb-snapshot-history__meta">${snap.validationStatus} · ${snap.riskLevel || "LOW"}</span>
       <span class="wb-snapshot-history__tokens">${snap.tokensBefore || 0} → ${snap.tokensAfter || 0} tokens (${ratio})</span>
     `;
+    if (namespace && snap.id) {
+      const restoreBtn = document.createElement("button");
+      restoreBtn.type = "button";
+      restoreBtn.className = "wb-pws-btn wb-pws-btn--ghost wb-snapshot-restore-btn";
+      restoreBtn.textContent = "恢复";
+      restoreBtn.addEventListener("click", () => {
+        void (async () => {
+          try {
+            await restoreSnapshot(namespace, snap.id);
+            alert("快照已恢复为最新版本");
+            const projectId = namespace.split(":")[1];
+            const taskId = namespace.split(":")[2];
+            if (projectId && taskId) {
+              await window.__wbLoadTaskContext?.(projectId, taskId);
+            }
+          } catch (err) {
+            alert(err?.message || "恢复快照失败");
+          }
+        })();
+      });
+      li.appendChild(restoreBtn);
+    }
     list.appendChild(li);
   });
   container.appendChild(list);
@@ -100,6 +134,7 @@ window.__wbContextHealth = {
   fetchHealth,
   manualCompress,
   listSnapshots,
+  restoreSnapshot,
   renderSnapshotHistory,
   STATUS_LABELS,
 };

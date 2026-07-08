@@ -128,8 +128,28 @@ function rejectAll(projectId, taskId) {
   emitChange(projectId, taskId);
 }
 
-function requestRevision(projectId, taskId, changeId) {
+function requestRevision(projectId, taskId, changeId, feedback = "") {
   setReviewStatus(projectId, taskId, changeId, REVIEW_STATUS.REVISION);
+  return { changeId, feedback: String(feedback || "").trim() };
+}
+
+async function requestRevisionWithFeedback(projectId, taskId, changeId, feedback) {
+  const change = getChanges(projectId, taskId).find((c) => c.id === changeId);
+  const result = requestRevision(projectId, taskId, changeId, feedback);
+  const api = window.electronAPI || {};
+  if (change?.stagedPatchId && typeof api.wbProjectPatchStatus === "function") {
+    try {
+      await api.wbProjectPatchStatus({
+        projectId,
+        taskId,
+        patchId: change.stagedPatchId,
+        status: "REVISION_REQUESTED",
+      });
+    } catch {
+      /* UI state already updated */
+    }
+  }
+  return { ...result, change, feedback: result.feedback };
 }
 
 function getChanges(projectId, taskId) {
@@ -172,6 +192,7 @@ window.__wbCodeReviewStore = {
   acceptAll,
   rejectAll,
   requestRevision,
+  requestRevisionWithFeedback,
   getChanges,
   getAcceptedChanges,
   getPendingChanges,

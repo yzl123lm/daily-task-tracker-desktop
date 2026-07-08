@@ -107,6 +107,12 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       message: payload?.message,
       mode: payload?.mode || "PLAN_ONLY",
       fixContext: payload?.fixContext,
+      userApproved: payload?.userApproved,
+      approvalId: payload?.approvalId,
+      requestId: payload?.requestId,
+      patchIds: payload?.patchIds,
+      createGitBranch: payload?.createGitBranch,
+      agentRunId: payload?.agentRunId,
     });
   });
 

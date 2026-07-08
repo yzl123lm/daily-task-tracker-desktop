@@ -1,6 +1,6 @@
 const { llmChatWithTools } = require("./llmClient.js");
 const { listToolSchemas, dispatchTool } = require("./toolRegistry.js");
-const { buildContextPack } = require("./contextPackBuilder.js");
+const { buildContextPackAsync } = require("./contextPackBuilder.js");
 const {
   appendToolTrace,
   completeAgentRun,
@@ -62,10 +62,15 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     err.code = "LLM_DISABLED";
     throw err;
   }
-  const contextPack = buildContextPack({
+  const contextPack = await buildContextPackAsync({
     root: ctx.root,
     message,
     promptContext: ctx.promptContext,
+    appRoot: ctx.appRoot,
+    projectId: ctx.projectId,
+    taskId: ctx.taskId,
+    userId: ctx.userId,
+    getUserDataPath: ctx.getUserDataPath,
   });
   const tools = listToolSchemas(mode);
   const messages = [
