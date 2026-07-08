@@ -52,6 +52,23 @@ async function runVerification(
     riskLevel: "MEDIUM",
     approvedByUser: true,
   });
+  if (!result.success && taskId) {
+    try {
+      const { recordErrorEvent } = require("./error-lessons/errorEventCollector.js");
+      recordErrorEvent(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        source: "verify",
+        stdout: result.stdout,
+        stderr: result.stderr,
+        parsed,
+        verifyCommand: resolved.command,
+        message: parsed.summary,
+      });
+    } catch {
+      /* optional */
+    }
+  }
   return {
     ok: result.success,
     exitCode: result.exitCode,

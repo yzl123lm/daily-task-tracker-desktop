@@ -51,7 +51,7 @@ function extractNextActions(blocks, scopeType) {
   ];
 }
 
-function buildSnapshot({ namespace, plan, runtimeState }) {
+function buildSnapshot({ namespace, plan, runtimeState, lessonRefs = [] }) {
   const parsed = parseNamespace(namespace);
   const scopeType = parsed.type === "task" ? "task" : parsed.type;
   const blocks = plan?.blocks || [];
@@ -117,6 +117,14 @@ function buildSnapshot({ namespace, plan, runtimeState }) {
     openQuestions: [],
     nextActions: extractNextActions(blocks, scopeType),
     compressedHistory,
+    lessonRefs: Array.isArray(lessonRefs)
+      ? lessonRefs.map((ref) => ({
+          lessonId: ref.lessonId,
+          fingerprint: ref.fingerprint,
+          status: ref.status,
+          ruleText: String(ref.ruleText || "").slice(0, 300),
+        }))
+      : [],
     riskFlags: [],
   };
   return snapshot;

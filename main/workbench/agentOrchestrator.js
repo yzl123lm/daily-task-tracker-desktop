@@ -303,6 +303,21 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
     }
   } catch (err) {
+    if (projectId && taskId) {
+      try {
+        const { recordErrorEvent } = require("./error-lessons/errorEventCollector.js");
+        recordErrorEvent(getUserDataPath, uid, {
+          projectId,
+          taskId,
+          source: "agent",
+          message: err.message,
+          summary: err.message,
+          category: err.code || "agent_error",
+        });
+      } catch {
+        /* optional */
+      }
+    }
     if (agentRunId) {
       failAgentRun(getUserDataPath, uid, {
         projectId,

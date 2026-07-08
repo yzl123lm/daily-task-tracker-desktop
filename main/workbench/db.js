@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -221,7 +221,64 @@ function ensureSchema(db) {
     migrateSchema(db, current);
     db.prepare("UPDATE wb_meta SET value = ? WHERE key = 'schema_version'").run(String(SCHEMA_VERSION));
   }
+  ensureErrorLessonTables(db);
   ensureColumnMigrations(db);
+}
+
+function ensureErrorLessonTables(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS error_lessons (
+      lesson_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      task_id TEXT,
+      namespace TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      fingerprint_version INTEGER NOT NULL DEFAULT 1,
+      category TEXT NOT NULL DEFAULT 'unknown',
+      source TEXT NOT NULL DEFAULT 'unknown',
+      severity TEXT NOT NULL DEFAULT 'medium',
+      error_signature TEXT,
+      raw_excerpt TEXT,
+      parsed_issues_json TEXT,
+      related_files_json TEXT,
+      tags_json TEXT,
+      root_cause TEXT,
+      fix_summary TEXT,
+      fix_steps_json TEXT,
+      rule_text TEXT,
+      prevention_prompt TEXT,
+      status TEXT NOT NULL DEFAULT 'candidate',
+      verified_by TEXT,
+      verify_command TEXT,
+      recurrence_count INTEGER NOT NULL DEFAULT 1,
+      confidence REAL NOT NULL DEFAULT 0.5,
+      first_seen_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_error_lessons_project_fp
+      ON error_lessons(project_id, fingerprint);
+    CREATE INDEX IF NOT EXISTS idx_error_lessons_project_status
+      ON error_lessons(project_id, status, last_seen_at DESC);
+    CREATE TABLE IF NOT EXISTS error_lesson_events (
+      event_id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      task_id TEXT,
+      lesson_id TEXT,
+      fingerprint TEXT,
+      source TEXT NOT NULL,
+      category TEXT,
+      event_type TEXT NOT NULL DEFAULT 'recorded',
+      detail_json TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_error_lesson_events_project
+      ON error_lesson_events(project_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_error_lesson_events_lesson
+      ON error_lesson_events(lesson_id, created_at DESC);
+  `);
 }
 
 function ensureColumnMigrations(db) {
@@ -239,6 +296,9 @@ function ensureColumnMigrations(db) {
 function migrateSchema(db, fromVersion) {
   if (fromVersion < 6) {
     ensureColumnMigrations(db);
+  }
+  if (fromVersion < 7) {
+    ensureErrorLessonTables(db);
   }
 }
 

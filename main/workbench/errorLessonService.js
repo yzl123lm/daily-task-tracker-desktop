@@ -5,6 +5,11 @@ const { writeMemory, searchMemories } = require("./contextMemoryService.js");
 const { buildTaskNamespace } = require("./namespace.js");
 const { resolveUserId } = require("./projectService.js");
 const { getDb, newId, nowIso } = require("./db.js");
+const {
+  pipelineEnabled,
+  recordErrorEvent,
+} = require("./error-lessons/errorEventCollector.js");
+const { markVerifiedForTask } = require("./error-lessons/lessonStatusUpdater.js");
 
 function lessonsRoot(getUserDataPath, projectId) {
   return path.join(String(getUserDataPath() || ""), ".jl-ai", "projects", projectId, "lessons");
@@ -54,7 +59,7 @@ function appendMarkdown(filePath, block) {
   fs.appendFileSync(filePath, header + block, "utf8");
 }
 
-function recordErrorLesson(getUserDataPath, userId, lessonInput) {
+function recordErrorLessonLegacy(getUserDataPath, userId, lessonInput) {
   const uid = resolveUserId(userId);
   const projectId = String(lessonInput?.projectId || "").trim();
   const taskId = String(lessonInput?.taskId || "").trim();
@@ -120,10 +125,52 @@ function recordErrorLesson(getUserDataPath, userId, lessonInput) {
   return lesson;
 }
 
+function recordErrorLesson(getUserDataPath, userId, lessonInput) {
+  if (pipelineEnabled()) {
+    const result = recordErrorEvent(getUserDataPath, userId, {
+      projectId: lessonInput?.projectId,
+      taskId: lessonInput?.taskId,
+      source: lessonInput?.source || "manual",
+      message: lessonInput?.summary || lessonInput?.message,
+      summary: lessonInput?.summary,
+      file: lessonInput?.file,
+      rootCause: lessonInput?.rootCause,
+      fixPlan: lessonInput?.fixPlan,
+      rule: lessonInput?.rule,
+      ruleText: lessonInput?.rule,
+      tags: lessonInput?.tags,
+      stdout: lessonInput?.stdout,
+      stderr: lessonInput?.stderr,
+    });
+    if (result) {
+      return result;
+    }
+  }
+  return recordErrorLessonLegacy(getUserDataPath, userId, lessonInput);
+}
+
 function recordVerifyFailureLesson(getUserDataPath, userId, { projectId, taskId, verify }) {
   const parsed = verify?.parsed;
   const first = parsed?.issues?.[0];
-  return recordErrorLesson(getUserDataPath, userId, {
+  if (pipelineEnabled()) {
+    return recordErrorEvent(getUserDataPath, userId, {
+      projectId,
+      taskId,
+      source: "verify",
+      stdout: verify?.stdout,
+      stderr: verify?.stderr,
+      parsed,
+      file: first?.file || "",
+      summary: parsed?.summary || verify?.stderr?.slice(0, 200) || "",
+      rootCause: parsed?.summary || "",
+      ruleText: first?.file
+        ? `修复前先检查 ${first.file}:${first.line || "?"}`
+        : "修复前先阅读 stderr 首个 error 行",
+      verifyCommand: verify?.command,
+      tags: ["build-error", "verify"],
+    });
+  }
+  return recordErrorLessonLegacy(getUserDataPath, userId, {
     projectId,
     taskId,
     source: "verify",
@@ -138,7 +185,15 @@ function recordVerifyFailureLesson(getUserDataPath, userId, { projectId, taskId,
 }
 
 function recordFixSuccessLesson(getUserDataPath, userId, { projectId, taskId, round, scriptName }) {
-  return recordErrorLesson(getUserDataPath, userId, {
+  if (pipelineEnabled()) {
+    return markVerifiedForTask(getUserDataPath, userId, {
+      projectId,
+      taskId,
+      verifyCommand: scriptName || "build",
+      verifiedBy: "fix_loop",
+    });
+  }
+  return recordErrorLessonLegacy(getUserDataPath, userId, {
     projectId,
     taskId,
     source: "fix_loop",
@@ -156,4 +211,5 @@ module.exports = {
   recordVerifyFailureLesson,
   recordFixSuccessLesson,
   buildFingerprint,
+  pipelineEnabled,
 };

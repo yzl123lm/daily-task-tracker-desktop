@@ -7,7 +7,7 @@ const { tokenBudgetForRuntime } = require("./tokenBudget.js");
 const contextStore = require("./contextStore.js");
 const { collectRuntimeState } = require("./contextMonitor.js");
 const { buildPromptContext } = require("./runtimeInjector.js");
-const { assertNoCrossScopeRead } = require("../namespace.js");
+const { parseNamespace, assertNoCrossScopeRead } = require("../namespace.js");
 const { resolveUserId } = require("../projectService.js");
 const { getDb, newId, nowIso } = require("../db.js");
 
@@ -56,11 +56,42 @@ function applyCompression(getUserDataPath, userId, payload) {
   const mode = payload?.mode || decision.mode || "normal";
   const reason = payload?.reason || decision.reason || "manual";
   const blocks = classifyBlocks(runtimeState.messages, { scopeType: runtimeState.scopeType });
-  const plan = buildCompressionPlan(blocks, { minRecentTurnsKeep: config.minRecentTurnsKeep });
+  let keepLessonFingerprints = [];
+  let lessonRefs = [];
+  try {
+    const parsedNs = parseNamespace(namespace);
+    if (parsedNs.projectId && runtimeState.scopeType === "task") {
+      const {
+        getLessonRefsForSnapshot,
+        getHighRecurrenceVerifiedFingerprints,
+      } = require("../error-lessons/lessonRetriever.js");
+      const lastUser = [...(runtimeState.messages || [])]
+        .reverse()
+        .find((m) => m.role === "user" && m.content);
+      lessonRefs = getLessonRefsForSnapshot(getUserDataPath, uid, {
+        projectId: parsedNs.projectId,
+        taskId: parsedNs.taskId,
+        message: lastUser?.content || "",
+      });
+      keepLessonFingerprints = getHighRecurrenceVerifiedFingerprints(
+        getUserDataPath,
+        parsedNs.projectId,
+        2
+      );
+    }
+  } catch {
+    lessonRefs = [];
+    keepLessonFingerprints = [];
+  }
+  const plan = buildCompressionPlan(blocks, {
+    minRecentTurnsKeep: config.minRecentTurnsKeep,
+    keepLessonFingerprints,
+  });
   const snapshot = buildSnapshot({
     namespace,
     plan,
     runtimeState: { ...runtimeState, mode, reason },
+    lessonRefs,
   });
   const validation = validateSnapshot(snapshot, { scopeType: runtimeState.scopeType });
   const tokensBefore =

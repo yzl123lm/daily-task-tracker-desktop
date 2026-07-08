@@ -56,19 +56,39 @@ function buildContextPack({
   remaining -= Math.min(symTokens, 600);
 
   if (getUserDataPath && userId && projectId && taskId) {
-    const ns = buildTaskNamespace(projectId, taskId);
-    const lessons = searchMemories(getUserDataPath, userId, {
-      namespace: ns,
-      query: "error_lesson",
-      limit: 5,
-    }).filter((m) => m.memoryType === "error_lesson");
-    if (lessons.length) {
-      const lessonText = lessons.map((m) => `- ${m.content}`).join("\n");
-      sections.push({
-        type: "error_lessons",
-        content: truncate(lessonText, Math.min(estimateTokens(lessonText), 400)),
+    try {
+      const { retrieveLessonsForContext } = require("./error-lessons/lessonRetriever.js");
+      const lessonPack = retrieveLessonsForContext(getUserDataPath, userId, {
+        projectId,
+        taskId,
+        message,
+        tokenBudget: 2000,
       });
-      remaining -= Math.min(estimateTokens(lessonText), 400);
+      if (lessonPack.formattedText) {
+        const lessonTokens = estimateTokens(lessonPack.formattedText);
+        const targetBudget = Math.min(2500, Math.max(1500, lessonTokens));
+        const budget = Math.min(targetBudget, remaining);
+        sections.push({
+          type: "historicalErrorLessons",
+          content: truncate(lessonPack.formattedText, budget),
+        });
+        remaining -= Math.min(lessonTokens, budget);
+      }
+    } catch {
+      const ns = buildTaskNamespace(projectId, taskId);
+      const lessons = searchMemories(getUserDataPath, userId, {
+        namespace: ns,
+        query: "error_lesson",
+        limit: 5,
+      }).filter((m) => m.memoryType === "error_lesson");
+      if (lessons.length) {
+        const lessonText = lessons.map((m) => `- ${m.content}`).join("\n");
+        sections.push({
+          type: "historicalErrorLessons",
+          content: truncate(lessonText, Math.min(estimateTokens(lessonText), 400)),
+        });
+        remaining -= Math.min(estimateTokens(lessonText), 400);
+      }
     }
   }
 

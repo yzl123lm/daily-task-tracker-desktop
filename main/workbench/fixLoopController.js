@@ -186,12 +186,12 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
       message: "fixLoop 验证通过",
     });
     try {
-      const { recordFixSuccessLesson } = require("./errorLessonService.js");
-      recordFixSuccessLesson(getUserDataPath, uid, {
+      const { markVerifiedForTask } = require("./error-lessons/lessonStatusUpdater.js");
+      markVerifiedForTask(getUserDataPath, uid, {
         projectId: ctx.projectId,
         taskId: ctx.taskId,
-        round: state.round + 1,
-        scriptName: state.scriptName,
+        verifyCommand: state.scriptName,
+        verifiedBy: "fix_loop",
       });
     } catch {
       /* optional */

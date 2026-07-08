@@ -131,6 +131,21 @@ function applyAcceptedPatches(
       auditTs
     );
   if (firstError) {
+    if (taskId) {
+      try {
+        const { recordErrorEvent } = require("./error-lessons/errorEventCollector.js");
+        recordErrorEvent(getUserDataPath, uid, {
+          projectId,
+          taskId,
+          source: "patch",
+          message: firstError.message,
+          summary: firstError.message,
+          file: accepted.find((p) => !appliedIds.includes(p.id))?.filePath || "",
+        });
+      } catch {
+        /* optional */
+      }
+    }
     updateTask(getUserDataPath, uid, projectId, taskId, {
       status: appliedIds.length ? TASK_STATUS.PARTIAL_FAILED : TASK_STATUS.FAILED,
       currentStep: appliedIds.length
@@ -284,6 +299,21 @@ async function runTestWithFixSuggestions(
       source: "ControlledDev",
       importance: 4,
     });
+    try {
+      const { recordErrorEvent } = require("./error-lessons/errorEventCollector.js");
+      recordErrorEvent(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        source: "test",
+        stdout: result.stdout,
+        stderr: result.stderr,
+        message: fix.suggestions?.[0]?.text || result.stderr || result.stdout,
+        fixPlan: fix.suggestions?.map((s) => s.text).join(" "),
+        verifyCommand: command,
+      });
+    } catch {
+      /* optional */
+    }
     updateTask(getUserDataPath, uid, projectId, taskId, {
       status: "TESTING",
       currentStep: "测试失败，待修复",
@@ -409,6 +439,20 @@ async function runControlledShell(
         status: "TESTING",
         currentStep: "Shell 命令失败，待修复",
       });
+      try {
+        const { recordErrorEvent } = require("./error-lessons/errorEventCollector.js");
+        recordErrorEvent(getUserDataPath, uid, {
+          projectId,
+          taskId,
+          source: "shell",
+          stdout: result.stdout,
+          stderr: result.stderr,
+          message: result.stderr || result.stdout || `exit ${result.exitCode}`,
+          verifyCommand: classified.cmd,
+        });
+      } catch {
+        /* optional */
+      }
     }
   }
   return { ...result, classified, fixSuggestions: fix, codeRoot: root };

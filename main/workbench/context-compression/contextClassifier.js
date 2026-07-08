@@ -11,6 +11,9 @@ function scoreBlock(block) {
   if (type === "error") {
     score += 0.25;
   }
+  if (type === "error_lesson" || type === "lesson") {
+    score += 0.35;
+  }
   if (type === "requirement") {
     score += 0.2;
   }
@@ -49,7 +52,7 @@ function classifyBlocks(messages, { scopeType = "chat" } = {}) {
       tokenCount: estimateTokens(content),
       recencyRank: total - 1 - idx,
       scopeType,
-      isPinned: type === "constraint" || type === "error",
+      isPinned: type === "constraint" || type === "error" || type === "error_lesson" || type === "lesson",
     };
     block.priorityScore = scoreBlock(block);
     return block;

@@ -62,7 +62,7 @@ const ctx = {
     getUserDataPath,
   });
   assert.ok(pack.sections.some((s) => s.type === "compressed_context"));
-  assert.ok(pack.sections.some((s) => s.type === "error_lessons"));
+  assert.ok(pack.sections.some((s) => s.type === "historicalErrorLessons"));
 
   console.log("wb-compress-context-tool-test: OK");
   try {

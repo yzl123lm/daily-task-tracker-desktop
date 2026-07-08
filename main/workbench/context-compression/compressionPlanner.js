@@ -1,7 +1,14 @@
 const { estimateTokens } = require("./types.js");
 
-function actionForScore(block) {
+function actionForScore(block, { keepLessonFingerprints = [] } = {}) {
   if (block.isPinned || block.type === "constraint" || block.type === "error") {
+    return "keep_raw";
+  }
+  if (
+    block.type === "error_lesson" ||
+    block.type === "lesson" ||
+    (block.lessonFingerprint && keepLessonFingerprints.includes(block.lessonFingerprint))
+  ) {
     return "keep_raw";
   }
   const score = Number(block.priorityScore) || 0;
@@ -28,7 +35,7 @@ function summarizeContent(content, maxLen = 160) {
   return `${text.slice(0, maxLen)}…`;
 }
 
-function buildCompressionPlan(blocks, { minRecentTurnsKeep = 8 } = {}) {
+function buildCompressionPlan(blocks, { minRecentTurnsKeep = 8, keepLessonFingerprints = [] } = {}) {
   const sorted = [...(blocks || [])];
   const recentIds = new Set(
     sorted.slice(-minRecentTurnsKeep).map((b) => b.id)
@@ -37,7 +44,7 @@ function buildCompressionPlan(blocks, { minRecentTurnsKeep = 8 } = {}) {
   let summarized = 0;
   let dropped = 0;
   const planned = sorted.map((block) => {
-    let action = actionForScore(block);
+    let action = actionForScore(block, { keepLessonFingerprints });
     if (recentIds.has(block.id) && action === "drop") {
       action = "summarize";
     }
