@@ -169,6 +169,11 @@ body.jl-project-workspace-active #panel-ai {
   overflow: hidden;
 }
 
+.wb-pws-code-col .wb-code-panel__main.main-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .wb-pws-panel {
   border: 1px solid #dcebfa;
   border-radius: 10px;

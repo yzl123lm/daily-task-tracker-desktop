@@ -74,11 +74,163 @@ function highlightFileTreeSelection(relPath) {
   }
 }
 
+async function wbAlert(message, { title = "提示", detail = "" } = {}) {
+  if (typeof window.__wbAlert === "function") {
+    await window.__wbAlert({ title, message, detail });
+    return;
+  }
+  alert(message);
+}
+
+async function wbConfirm(message, { title = "确认操作", detail = "" } = {}) {
+  if (typeof window.__wbConfirm === "function") {
+    return window.__wbConfirm({ title, message, detail });
+  }
+  return window.confirm(detail ? `${message}\n\n${detail}` : message);
+}
+
+function getCreateGitBranchChecked() {
+  return (
+    document.getElementById("wbCreateBranchBeforeWrite")?.checked ??
+    document.getElementById("wbCreateGitBranch")?.checked ??
+    false
+  );
+}
+
+function hasPendingManualWrite() {
+  if (!panelState.selectedPath) {
+    return false;
+  }
+  const patchContent = document.getElementById("wbPatchContent");
+  if (!patchContent) {
+    return false;
+  }
+  const proposed = String(patchContent.value ?? "");
+  if (!proposed.trim()) {
+    return false;
+  }
+  const original = String(panelState.fileContent ?? "");
+  if (patchContent.dataset.userEdited !== "1") {
+    return false;
+  }
+  return proposed !== original;
+}
+
+function syncCodeWriteUiState() {
+  const emptyState = document.getElementById("wbCodeEmptyState");
+  const editorView = document.getElementById("wbCodeEditorView");
+  const writeHint = document.getElementById("wbCodeWriteHint");
+  const manualWrite = document.getElementById("wbCodeManualWrite");
+  const writebar = document.getElementById("wbCodeWritebar");
+  const pathEl = document.getElementById("wbFilePreviewPath");
+  const hasFile = Boolean(panelState.selectedPath);
+  const pendingWrite = hasPendingManualWrite();
+  const manualOpen = manualWrite?.dataset.open === "1";
+
+  if (emptyState) {
+    emptyState.hidden = hasFile;
+  }
+  if (editorView) {
+    editorView.hidden = !hasFile;
+  }
+  if (pathEl && !hasFile) {
+    pathEl.textContent = "请选择左侧文件进行预览或编辑";
+  }
+  if (writeHint) {
+    writeHint.hidden = !hasFile || pendingWrite || manualOpen;
+  }
+  const startManualBtn = document.getElementById("wbStartManualWriteBtn");
+  if (startManualBtn) {
+    startManualBtn.hidden = !hasFile || pendingWrite || manualOpen;
+  }
+  if (manualWrite) {
+    manualWrite.hidden = !hasFile || (!pendingWrite && !manualOpen);
+  }
+  if (writebar) {
+    writebar.hidden = !pendingWrite;
+  }
+}
+
+function migrateLegacyWriteUi(section) {
+  if (!section || section.querySelector("#wbCodeEmptyState")) {
+    return;
+  }
+  const main = section.querySelector(".wb-code-panel__main");
+  if (!main) {
+    return;
+  }
+  const preview = main.querySelector("#wbFilePreview");
+  const patchContent = main.querySelector("#wbPatchContent");
+  const patchProposal = main.querySelector("#wbPatchProposal");
+  const diffPreview = main.querySelector("#wbDiffPreview");
+  const postDiff = main.querySelector("#wbPostWriteDiff");
+  main.innerHTML = `
+    <div id="wbCodeEmptyState" class="wb-code-empty-state">
+      <div class="wb-code-empty-state__title">请选择文件</div>
+      <div class="wb-code-empty-state__desc">
+        从左侧文件列表选择文件后，可预览代码、生成 Diff 或进行受控写入。
+      </div>
+    </div>
+    <div id="wbCodeEditorView" class="wb-code-editor-view" hidden></div>
+    <div id="wbCodeWritebar" class="wb-code-writebar" hidden>
+      <label class="wb-code-writebar__branch">
+        <input type="checkbox" id="wbCreateBranchBeforeWrite" checked />
+        写入前创建 Git 分支
+      </label>
+      <div class="wb-code-writebar__actions">
+        <button type="button" id="wbPreviewDiffBtn" class="wb-pws-btn wb-pws-btn--ghost">预览 Diff</button>
+        <button type="button" id="wbConfirmWriteBtn" class="wb-pws-btn wb-pws-btn--primary">确认并写入</button>
+      </div>
+    </div>
+  `;
+  const editorView = main.querySelector("#wbCodeEditorView");
+  if (editorView && preview) {
+    editorView.appendChild(preview);
+    preview.textContent = preview.textContent || "";
+    const hint = document.createElement("p");
+    hint.id = "wbCodeWriteHint";
+    hint.className = "wb-code-write-hint";
+    hint.innerHTML =
+      '可在下方输入拟写入内容后预览 Diff <button type="button" id="wbStartManualWriteBtn" class="wb-pws-btn wb-pws-btn--ghost wb-code-write-hint__btn">编辑拟写入内容</button>';
+    editorView.appendChild(hint);
+    const manualWrite = document.createElement("div");
+    manualWrite.id = "wbCodeManualWrite";
+    manualWrite.className = "wb-code-manual-write";
+    manualWrite.hidden = true;
+    if (patchContent?.parentElement) {
+      manualWrite.appendChild(patchContent.parentElement);
+    }
+    if (patchProposal?.parentElement && patchProposal.parentElement !== patchContent?.parentElement) {
+      manualWrite.appendChild(patchProposal.parentElement);
+    }
+    editorView.appendChild(manualWrite);
+    if (diffPreview) {
+      editorView.appendChild(diffPreview);
+    }
+    if (postDiff) {
+      editorView.appendChild(postDiff);
+    }
+  }
+  main.querySelector(".wb-code-panel__actions")?.remove();
+  section.querySelector(".wb-tool-ops-panel")?.remove();
+  const legacyBackup = section.querySelector("#wbBackupPanel");
+  if (legacyBackup) {
+    legacyBackup.remove();
+  }
+  ensureTerminalToolsMount();
+  delete section.dataset.wbBound;
+  bindCodePanelEvents();
+  syncCodeWriteUiState();
+}
+
 function ensureCodePanelMount() {
   ensureSidebarMounts();
   let section = document.getElementById("wbCodePanel");
   if (section) {
     migrateLegacyCodeSidebar(section);
+    migrateLegacyWriteUi(section);
+    ensureTerminalToolsMount();
+    syncCodeWriteUiState();
     return section;
   }
   const workspace = document.getElementById("wbProjectWorkspace");
@@ -102,28 +254,46 @@ function ensureCodePanelMount() {
     </header>
     <div class="wb-code-panel__layout main-workspace">
       <div class="wb-code-panel__main main-editor-body">
-        <pre id="wbFilePreview" class="wb-file-preview scroll-tech">选择文件后可编辑下方「拟写入内容」</pre>
-        <label class="wb-field wb-code-panel__patch-label">
-          <span>拟写入内容（Phase 5 受控写入）</span>
-          <textarea id="wbPatchContent" rows="8" placeholder="编辑后将写入磁盘（需确认）…"></textarea>
-        </label>
-        <label class="wb-field wb-code-panel__patch-label">
-          <span>补丁说明（仅用于 Diff 预览）</span>
-          <textarea id="wbPatchProposal" rows="2" placeholder="描述拟议修改…"></textarea>
-        </label>
-        <div class="wb-code-panel__actions">
-          <label class="wb-code-panel__check">
-            <input type="checkbox" id="wbCreateGitBranch" checked />
+        <div id="wbCodeEmptyState" class="wb-code-empty-state">
+          <div class="wb-code-empty-state__title">请选择文件</div>
+          <div class="wb-code-empty-state__desc">
+            从左侧文件列表选择文件后，可预览代码、生成 Diff 或进行受控写入。
+          </div>
+        </div>
+        <div id="wbCodeEditorView" class="wb-code-editor-view" hidden>
+          <pre id="wbFilePreview" class="wb-file-preview scroll-tech"></pre>
+          <p id="wbCodeWriteHint" class="wb-code-write-hint">
+            可在下方输入拟写入内容后预览 Diff
+            <button type="button" id="wbStartManualWriteBtn" class="wb-pws-btn wb-pws-btn--ghost wb-code-write-hint__btn">
+              编辑拟写入内容
+            </button>
+          </p>
+          <div id="wbCodeManualWrite" class="wb-code-manual-write" hidden>
+            <label class="wb-field wb-code-panel__patch-label">
+              <span>拟写入内容</span>
+              <textarea id="wbPatchContent" rows="6" placeholder="编辑后将写入磁盘（需确认）…"></textarea>
+            </label>
+            <label class="wb-field wb-code-panel__patch-label">
+              <span>补丁说明（Diff 预览）</span>
+              <textarea id="wbPatchProposal" rows="2" placeholder="描述拟议修改…"></textarea>
+            </label>
+          </div>
+          <pre id="wbDiffPreview" class="wb-diff-preview scroll-tech" hidden></pre>
+          <pre id="wbPostWriteDiff" class="wb-diff-preview wb-diff-preview--applied scroll-tech" hidden></pre>
+        </div>
+        <div id="wbCodeWritebar" class="wb-code-writebar" hidden>
+          <label class="wb-code-writebar__branch">
+            <input type="checkbox" id="wbCreateBranchBeforeWrite" checked />
             写入前创建 Git 分支
           </label>
-          <button type="button" id="wbDiffPreviewBtn" class="wb-pws-btn wb-pws-btn--ghost">预览 Diff</button>
-          <button type="button" id="wbApplyPatchBtn" class="wb-pws-btn wb-pws-btn--primary">确认并写入</button>
+          <div class="wb-code-writebar__actions">
+            <button type="button" id="wbPreviewDiffBtn" class="wb-pws-btn wb-pws-btn--ghost">预览 Diff</button>
+            <button type="button" id="wbConfirmWriteBtn" class="wb-pws-btn wb-pws-btn--primary">确认并写入</button>
+          </div>
         </div>
-        <pre id="wbDiffPreview" class="wb-diff-preview scroll-tech" hidden></pre>
-        <pre id="wbPostWriteDiff" class="wb-diff-preview wb-diff-preview--applied scroll-tech" hidden></pre>
       </div>
     </div>
-    <div class="wb-shell-panel" id="wbShellPanel">
+    <div class="wb-shell-panel" id="wbShellPanel" hidden>
       <h4>受控 Shell（需确认）</h4>
       <p class="wb-shell-panel__hint">仅允许白名单命令（npm run / node scripts / git status 等），禁止链式与危险操作。</p>
       <div class="wb-shell-panel__row">
@@ -134,18 +304,11 @@ function ensureCodePanelMount() {
       <pre id="wbShellOutput" class="wb-test-output scroll-tech">选择或输入命令后运行，将记入 tool_operations。</pre>
       <ul id="wbShellFixSuggestions" class="wb-fix-suggestions" hidden></ul>
     </div>
-    <div class="wb-backup-panel" id="wbBackupPanel">
-      <h4>写入备份与还原</h4>
-      <p class="wb-backup-panel__hint">每次受控写入前会自动备份；可在此一键还原到写入前状态。</p>
-      <ul id="wbBackupList" class="wb-backup-list scroll-tech"></ul>
-    </div>
-    <div class="wb-tool-ops-panel">
-      <h4>工具操作记录</h4>
-      <ul id="wbToolOpsList" class="wb-tool-ops-list scroll-tech"></ul>
-    </div>
   `;
   mount.appendChild(section);
+  ensureTerminalToolsMount();
   bindCodePanelEvents();
+  syncCodeWriteUiState();
   return section;
 }
 
@@ -263,10 +426,45 @@ async function loadFilePreview(relPath) {
     preview.textContent = file.content || "";
   }
   const patchContent = document.getElementById("wbPatchContent");
-  if (patchContent && !patchContent.dataset.userEdited) {
+  if (patchContent) {
+    patchContent.dataset.userEdited = "";
     patchContent.value = file.content || "";
   }
+  const diffPreview = document.getElementById("wbDiffPreview");
+  const postDiff = document.getElementById("wbPostWriteDiff");
+  if (diffPreview) {
+    diffPreview.hidden = true;
+    diffPreview.textContent = "";
+  }
+  if (postDiff) {
+    postDiff.hidden = true;
+  }
+  const manualWrite = document.getElementById("wbCodeManualWrite");
+  if (manualWrite) {
+    delete manualWrite.dataset.open;
+  }
+  syncCodeWriteUiState();
   await refreshToolOps();
+}
+
+function startManualWriteEdit() {
+  if (!panelState.selectedPath) {
+    return;
+  }
+  const patchContent = document.getElementById("wbPatchContent");
+  const manualWrite = document.getElementById("wbCodeManualWrite");
+  if (patchContent) {
+    if (!patchContent.value) {
+      patchContent.value = panelState.fileContent || "";
+    }
+    patchContent.dataset.userEdited = "1";
+    patchContent.focus();
+  }
+  if (manualWrite) {
+    manualWrite.hidden = false;
+    manualWrite.dataset.open = "1";
+  }
+  syncCodeWriteUiState();
 }
 
 async function refreshCodeRoot(projectId) {
@@ -441,7 +639,10 @@ async function restoreBackup(backup) {
   const action = backup.hadOriginal
     ? `将 ${backup.relPath} 还原到该备份时间点`
     : `删除受控写入创建的文件 ${backup.relPath}`;
-  const ok = window.confirm(`确认还原？\n\n${action}\n\n还原前会再次备份当前文件内容。`);
+  const ok = await wbConfirm(`确认还原？`, {
+    title: "还原备份",
+    detail: `${action}\n\n还原前会再次备份当前文件内容。`,
+  });
   if (!ok) {
     return;
   }
@@ -465,7 +666,7 @@ async function restoreBackup(backup) {
     await refreshFileTree(projectId);
     window.__wbRefreshTaskList?.();
   } catch (err) {
-    alert(err?.message || "还原失败");
+    await wbAlert(err?.message || "还原失败", { title: "还原失败" });
   }
 }
 
@@ -479,10 +680,13 @@ async function applyControlledPatch() {
   const taskId = getTaskId();
   const relPath = panelState.selectedPath;
   const content = document.getElementById("wbPatchContent")?.value;
-  const createGitBranch = document.getElementById("wbCreateGitBranch")?.checked;
+  const createGitBranch = getCreateGitBranchChecked();
   const postDiff = document.getElementById("wbPostWriteDiff");
   if (!projectId || !taskId || !relPath || typeof api.wbProjectApplyPatch !== "function") {
-    alert("请先选择任务和文件。");
+    await wbAlert("请先选择任务和文件。", {
+      title: "无法写入",
+      detail: "请在左侧选择任务，并在「文件」Tab 中选中要写入的文件。",
+    });
     return;
   }
   const approved = await window.__wbRequestApproval?.({
@@ -519,13 +723,14 @@ async function applyControlledPatch() {
     if (patchContent) {
       patchContent.dataset.userEdited = "";
     }
+    syncCodeWriteUiState();
     await refreshGitStatus(projectId);
     await refreshToolOps();
     await refreshBackupList();
     await refreshFileTree(projectId);
     window.__wbRefreshTaskList?.();
   } catch (err) {
-    alert(err?.message || "写入失败");
+    await wbAlert(err?.message || "写入失败", { title: "写入失败" });
   }
 }
 
@@ -625,16 +830,17 @@ async function gitCommitConfirmed() {
       message: message || "wb: controlled dev",
       userApproved: true,
     });
-    alert(
+    await wbAlert(
       result.commitResult?.committed
         ? `已提交 ${result.commitResult.shortHash}`
-        : result.commitResult?.reason || "无可提交变更"
+        : result.commitResult?.reason || "无可提交变更",
+      { title: "Git Commit" }
     );
     await refreshGitStatus(projectId);
     await refreshToolOps();
     window.__wbSwitchCodeTab?.("git");
   } catch (err) {
-    alert(err?.message || "Git commit 失败");
+    await wbAlert(err?.message || "Git commit 失败", { title: "Git Commit 失败" });
   }
 }
 
@@ -644,24 +850,21 @@ async function applyPlanPatch(diffPreview) {
   }
   const projectId = panelState.projectId;
   const taskId = getTaskId();
-  const changes = window.__wbCodeReviewStore?.getChanges?.(projectId, taskId) || [];
-  const match = changes.find((c) => c.path === diffPreview.filePath);
-  if (match) {
-    window.__wbCodeReviewStore?.setSelectedChange?.(projectId, taskId, match.id);
-    window.__wbCodeReviewStore?.setReviewStatus?.(
-      projectId,
-      taskId,
-      match.id,
-      window.__wbCodeReviewStore.REVIEW_STATUS.ACCEPTED
-    );
+  const reviewStore = window.__wbCodeReviewStore;
+  if (reviewStore && projectId && taskId) {
+    try {
+      await reviewStore.syncFromStagedPatches?.(projectId, taskId);
+    } catch {
+      /* optional */
+    }
+    const changes = reviewStore.getChanges(projectId, taskId) || [];
+    const match = changes.find((c) => c.path === diffPreview.filePath);
+    if (match) {
+      reviewStore.setSelectedChange?.(projectId, taskId, match.id);
+    }
   }
-  await loadFilePreview(diffPreview.filePath);
-  const patchContent = document.getElementById("wbPatchContent");
-  if (patchContent && diffPreview.proposedContent) {
-    patchContent.value = diffPreview.proposedContent;
-    patchContent.dataset.userEdited = "1";
-  }
-  document.getElementById("wbCodePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.__wbSwitchCodeTab?.("diff");
+  window.__wbRenderDiffReviewPanel?.();
 }
 
 function recordTestRun(projectId, taskId, command, result, fixCount = 0) {
@@ -811,7 +1014,7 @@ async function runControlledShell() {
   const out = document.getElementById("wbShellOutput");
   const fixList = document.getElementById("wbShellFixSuggestions");
   if (!projectId || !command || typeof api.wbProjectRunShell !== "function") {
-    alert("请输入受控 shell 命令。");
+    await wbAlert("请输入受控 shell 命令。", { title: "Shell 命令" });
     return;
   }
   const approved = await window.__wbRequestApproval?.({
@@ -872,27 +1075,45 @@ async function runControlledShell() {
   }
 }
 
-function ensureBackupPanel() {
-  if (document.getElementById("wbBackupPanel")) {
+function ensureTerminalToolsMount() {
+  const mount = document.getElementById("wbPwsTerminalToolsMount");
+  if (!mount) {
     return;
   }
-  const toolOps = document.querySelector(".wb-tool-ops-panel");
-  if (!toolOps?.parentNode) {
+  mount.querySelector(".wb-pws-terminal-tools-placeholder")?.remove();
+  if (!mount.querySelector("#wbToolOpsList")) {
+    const toolSection = document.createElement("section");
+    toolSection.className = "wb-pws-terminal-section wb-tool-ops-panel";
+    toolSection.innerHTML = `
+      <h4 class="wb-pws-terminal-section__title">工具操作记录</h4>
+      <ul id="wbToolOpsList" class="wb-tool-ops-list scroll-tech"></ul>
+    `;
+    mount.appendChild(toolSection);
+  }
+  ensureBackupPanel(mount);
+}
+
+function ensureBackupPanel(parent = document.body) {
+  if (document.getElementById("wbBackupPanel")) {
+    const existing = document.getElementById("wbBackupPanel");
+    if (parent !== document.body && existing.parentElement !== parent) {
+      parent.appendChild(existing);
+    }
     return;
   }
   const panel = document.createElement("div");
   panel.id = "wbBackupPanel";
-  panel.className = "wb-backup-panel";
+  panel.className = "wb-backup-panel wb-pws-terminal-section";
   panel.innerHTML = `
-    <h4>写入备份与还原</h4>
+    <h4 class="wb-pws-terminal-section__title">写入备份与还原</h4>
     <p class="wb-backup-panel__hint">每次受控写入前会自动备份；可在此一键还原到写入前状态。</p>
     <ul id="wbBackupList" class="wb-backup-list scroll-tech"></ul>
   `;
-  toolOps.parentNode.insertBefore(panel, toolOps);
+  parent.appendChild(panel);
 }
 
 function bindCodePanelEvents() {
-  ensureBackupPanel();
+  ensureTerminalToolsMount();
   ensureShellPanel();
   const panel = document.getElementById("wbCodePanel");
   if (!panel || panel.dataset.wbBound === "1") {
@@ -907,16 +1128,20 @@ function bindCodePanelEvents() {
       void runCodeSearch();
     }
   });
-  document.getElementById("wbDiffPreviewBtn")?.addEventListener("click", () => {
+  document.getElementById("wbPreviewDiffBtn")?.addEventListener("click", () => {
     void runDiffPreview();
   });
-  document.getElementById("wbApplyPatchBtn")?.addEventListener("click", () => {
+  document.getElementById("wbConfirmWriteBtn")?.addEventListener("click", () => {
     void applyControlledPatch();
   });
   document.getElementById("wbPatchContent")?.addEventListener("input", (ev) => {
     if (ev.target) {
       ev.target.dataset.userEdited = "1";
     }
+    syncCodeWriteUiState();
+  });
+  document.getElementById("wbStartManualWriteBtn")?.addEventListener("click", () => {
+    startManualWriteEdit();
   });
   document.getElementById("wbRunShellBtn")?.addEventListener("click", () => {
     void runControlledShell();
@@ -952,10 +1177,12 @@ async function refreshCodePanel(projectId, taskId) {
   window.__wbEnsureTestResultPanel?.();
   window.__wbEnsureGitChangePanel?.();
   ensureCodePanelMount();
-  ensureBackupPanel();
+  ensureTerminalToolsMount();
   ensureShellPanel();
   panelState.projectId = projectId;
   panelState.taskId = taskId || getTaskId();
+  panelState.selectedPath = null;
+  panelState.fileContent = "";
   await refreshCodeRoot(projectId);
   await refreshGitStatus(projectId);
   await refreshFileTree(projectId);
@@ -964,6 +1191,7 @@ async function refreshCodePanel(projectId, taskId) {
   await refreshBackupList();
   await refreshToolOps();
   window.__wbRenderTestResultPanel?.();
+  syncCodeWriteUiState();
 }
 
 function renderPlanCodeExtras(output) {
@@ -1029,10 +1257,13 @@ async function applyAcceptedDiffs() {
   }
   const accepted = reviewStore.getAcceptedChanges(projectId, taskId);
   if (!accepted.length) {
-    alert("请先在 Diff 审阅面板中「接受」至少一个文件。");
+    await wbAlert("请先在 Diff 审阅面板中「接受」至少一个文件。", {
+      title: "无可写入变更",
+      detail: "在「Diff 审阅」Tab 中逐文件接受后，再执行批量写入。",
+    });
     return;
   }
-  const createGitBranch = document.getElementById("wbCreateGitBranch")?.checked;
+  const createGitBranch = getCreateGitBranchChecked();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const approved = await window.__wbRequestApproval?.({
     taskId,
@@ -1112,7 +1343,7 @@ async function applyAcceptedDiffs() {
       }
     }
   } catch (err) {
-    alert(err?.message || "批量写入失败");
+    await wbAlert(err?.message || "批量写入失败", { title: "批量写入失败" });
   }
 }
 
@@ -1125,3 +1356,4 @@ window.__wbRunWhitelistedTest = runWhitelistedTest;
 window.__wbRunTestWithFix = runTestWithFix;
 window.__wbGitCommitConfirmed = gitCommitConfirmed;
 window.__wbLoadFilePreview = loadFilePreview;
+window.__wbSyncCodeWriteUi = syncCodeWriteUiState;

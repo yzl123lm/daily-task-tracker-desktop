@@ -14,17 +14,19 @@
 .wb-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(30, 64, 175, 0.12);
+  backdrop-filter: blur(2px);
 }
 
 .wb-modal__panel {
   position: relative;
   width: min(440px, calc(100vw - 32px));
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
-  border: 1px solid #d8e0eb;
-  color: #17202b;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
+  border: 1px solid #dcebfa;
+  color: #1e293b;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
 .wb-modal__head {
@@ -36,9 +38,9 @@
 
 .wb-modal__head h2 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #1d2129;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1e293b;
   letter-spacing: 0.01em;
 }
 
@@ -116,15 +118,15 @@
 }
 
 .wb-modal button.primary {
-  color: #1d2129;
-  background: #e8f3ff;
-  border: 1px solid #91caff;
+  color: #fff;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
 }
 
 .wb-modal button.primary:hover {
-  color: #1d2129;
-  background: #d6e8ff;
-  border-color: #69b1ff;
+  color: #fff;
+  background: #1d4ed8;
+  border-color: #1e40af;
 }
 
 .wb-form-error {
@@ -147,10 +149,10 @@
 
 .wb-confirm-modal__message {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  color: #1d2129;
-  line-height: 1.45;
+  color: #1e293b;
+  line-height: 1.5;
 }
 
 .wb-confirm-modal__detail {
@@ -158,6 +160,14 @@
   font-size: 13px;
   color: #64748b;
   line-height: 1.55;
+}
+
+.wb-confirm-modal[data-alert-only="1"] .wb-confirm-modal__foot {
+  justify-content: flex-end;
+}
+
+.wb-confirm-modal[data-alert-only="1"] #wbConfirmCancelBtn {
+  display: none;
 }
 
 .wb-confirm-modal__foot {
@@ -1207,6 +1217,124 @@ body.jl-window-ai .jl-ai-session-list {
   margin-top: 8px;
 }
 
+.wb-code-panel__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.wb-code-empty-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px;
+  text-align: center;
+  color: #6b7a90;
+}
+
+.wb-code-empty-state[hidden] {
+  display: none !important;
+}
+
+.wb-code-empty-state__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.wb-code-empty-state__desc {
+  margin: 0;
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.wb-code-editor-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wb-code-editor-view[hidden] {
+  display: none !important;
+}
+
+.wb-code-editor-view .wb-file-preview,
+.wb-code-editor-view .wb-diff-preview {
+  flex: 1 1 auto;
+  min-height: 72px;
+  max-height: none;
+  margin: 0;
+}
+
+.wb-code-write-hint {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #64748b;
+  border-top: 1px solid #e8f1fc;
+  background: #f8fbff;
+}
+
+.wb-code-write-hint[hidden] {
+  display: none !important;
+}
+
+.wb-code-write-hint__btn {
+  margin-left: 8px;
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: 11px;
+}
+
+.wb-code-manual-write {
+  flex: 0 0 auto;
+  padding: 0 12px 8px;
+  border-top: 1px solid #e8f1fc;
+  background: #fff;
+}
+
+.wb-code-manual-write[hidden] {
+  display: none !important;
+}
+
+.wb-code-writebar {
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid #dceBfa;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.wb-code-writebar[hidden] {
+  display: none !important;
+}
+
+.wb-code-writebar__branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.wb-code-writebar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .wb-code-panel__check {
   font-size: 12px;
   display: flex;
@@ -1449,16 +1577,16 @@ body.jl-window-ai.theme-nebula .wb-modal button.secondary:hover {
 
 body.theme-nebula .wb-modal button.primary,
 body.jl-window-ai.theme-nebula .wb-modal button.primary {
-  color: #1d2129;
-  background: #e8f3ff;
-  border: 1px solid #91caff;
+  color: #fff;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
 }
 
 body.theme-nebula .wb-modal button.primary:hover,
 body.jl-window-ai.theme-nebula .wb-modal button.primary:hover {
-  color: #1d2129;
-  background: #d6e8ff;
-  border-color: #69b1ff;
+  color: #fff;
+  background: #1d4ed8;
+  border-color: #1e40af;
 }
 
 body.theme-nebula .wb-modal button.danger,

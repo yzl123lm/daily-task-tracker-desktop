@@ -12,6 +12,7 @@ function closeWbConfirm(result) {
   const modal = document.getElementById("wbConfirmModal");
   if (modal) {
     modal.hidden = true;
+    modal.dataset.alertOnly = "0";
   }
   const resolve = confirmResolve;
   confirmResolve = null;
@@ -49,7 +50,7 @@ function ensureConfirmModal() {
   document.body.appendChild(modal);
   modal.addEventListener("click", (ev) => {
     if (ev.target?.dataset?.wbConfirmClose === "1") {
-      closeWbConfirm(false);
+      closeWbConfirm(modal.dataset.alertOnly === "1");
     }
   });
   document.getElementById("wbConfirmOkBtn")?.addEventListener("click", () => {
@@ -62,7 +63,7 @@ function ensureConfirmModal() {
     }
     if (ev.key === "Escape") {
       ev.preventDefault();
-      closeWbConfirm(false);
+      closeWbConfirm(m.dataset.alertOnly === "1");
     }
   });
   return modal;
@@ -75,12 +76,14 @@ function showWbConfirm({
   confirmLabel = "确定",
   cancelLabel = "取消",
   danger = false,
+  alertOnly = false,
 } = {}) {
   return new Promise((resolve) => {
     if (confirmResolve) {
-      closeWbConfirm(false);
+      closeWbConfirm(alertOnly);
     }
     const modal = ensureConfirmModal();
+    modal.dataset.alertOnly = alertOnly ? "1" : "0";
     confirmResolve = resolve;
     const titleEl = document.getElementById("wbConfirmTitle");
     const messageEl = document.getElementById("wbConfirmMessage");
@@ -104,10 +107,28 @@ function showWbConfirm({
     }
     if (cancelBtn) {
       cancelBtn.textContent = cancelLabel;
+      cancelBtn.hidden = Boolean(alertOnly);
+      cancelBtn.setAttribute("aria-hidden", alertOnly ? "true" : "false");
     }
     modal.hidden = false;
     window.setTimeout(() => okBtn?.focus(), 0);
   });
 }
 
+function showWbAlert({
+  title = "提示",
+  message = "",
+  detail = "",
+  okLabel = "确定",
+} = {}) {
+  return showWbConfirm({
+    title,
+    message,
+    detail,
+    confirmLabel: okLabel,
+    alertOnly: true,
+  });
+}
+
 window.__wbConfirm = showWbConfirm;
+window.__wbAlert = showWbAlert;

@@ -146,7 +146,9 @@ const WB_PWS_LAYOUT_HTML = `
         <pre id="wbAgentOutput" class="wb-pws-terminal-pane is-active" data-pane="log" hidden></pre>
         <pre id="wbPwsTerminalShell" class="wb-pws-terminal-pane" data-pane="shell">终端输出将在此显示（运行受控 Shell 后同步）。</pre>
         <pre id="wbPwsTerminalTest" class="wb-pws-terminal-pane" data-pane="test">测试输出将在此显示。</pre>
-        <pre id="wbPwsTerminalTools" class="wb-pws-terminal-pane" data-pane="tools">工具调用记录将在此显示。</pre>
+        <div id="wbPwsTerminalToolsMount" class="wb-pws-terminal-pane" data-pane="tools">
+          <p class="wb-pws-terminal-tools-placeholder">工具记录与写入备份将在此显示。</p>
+        </div>
       </div>
     </footer>
   </div>
@@ -359,21 +361,13 @@ function bindTerminalDrawer() {
 function syncTerminalDrawerFromPanels() {
   const shellSrc = document.getElementById("wbShellOutput");
   const testSrc = document.getElementById("wbTestOutput");
-  const toolsSrc = document.getElementById("wbToolOpsList");
   const shellDst = document.getElementById("wbPwsTerminalShell");
   const testDst = document.getElementById("wbPwsTerminalTest");
-  const toolsDst = document.getElementById("wbPwsTerminalTools");
   if (shellSrc && shellDst) {
     shellDst.textContent = shellSrc.textContent || "暂无终端输出。";
   }
   if (testSrc && testDst) {
     testDst.textContent = testSrc.textContent || "暂无测试输出。";
-  }
-  if (toolsSrc && toolsDst) {
-    const lines = Array.from(toolsSrc.querySelectorAll("li"))
-      .map((li) => li.textContent?.trim())
-      .filter(Boolean);
-    toolsDst.textContent = lines.length ? lines.join("\n") : "暂无工具记录。";
   }
 }
 
