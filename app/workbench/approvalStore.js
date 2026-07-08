@@ -45,6 +45,7 @@ function requestApproval({
   details = {},
   riskLevel,
   rollbackHint,
+  stagedPatchId,
   onApprove,
   onReject,
 }) {
@@ -61,6 +62,7 @@ function requestApproval({
     summary: summary || "",
     scope: Array.isArray(scope) ? scope : [],
     details,
+    stagedPatchId: stagedPatchId || details.stagedPatchId || null,
     riskLevel: riskLevel || inferRiskLevel(actionType, details),
     rollbackHint: rollbackHint || "受控写入前会自动创建备份，可在备份面板还原。",
     status: "waiting",

@@ -241,7 +241,21 @@ async function refreshTestCommands() {
   if (!select) {
     return;
   }
+  const api = wbApi();
   const commands = [...DEFAULT_TEST_COMMANDS];
+  const projectId = panelState.projectId;
+  if (projectId && typeof api.wbProjectVerifyScripts === "function") {
+    try {
+      const scripts = await api.wbProjectVerifyScripts({ projectId });
+      (scripts || []).forEach((s) => {
+        if (s.command && !commands.includes(s.command)) {
+          commands.unshift(s.command);
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
   select.replaceChildren();
   commands.forEach((cmd) => {
     const opt = document.createElement("option");
@@ -924,6 +938,9 @@ async function applyAcceptedDiffs() {
     summary: "将应用 Diff 审阅中已接受的变更。",
     scope: accepted.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
     riskLevel: "MEDIUM",
+    details: {
+      stagedPatchIds: accepted.map((c) => c.stagedPatchId).filter(Boolean),
+    },
   });
   if (!approved) {
     return;
