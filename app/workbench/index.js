@@ -65,6 +65,7 @@ function initWorkbenchDev() {
     await window.__wbMigrateLegacyChats?.();
     await refreshProjects();
     await refreshChats();
+    await window.__wbRepairOrphanChatSession?.();
     const store = window.__wbStore?.getState?.() || {};
     const module =
       typeof window.__wbResolveActiveModule === "function"
@@ -98,12 +99,15 @@ function initWorkbenchDev() {
       chatId = chats[0].id;
     }
     if (chatId) {
+      window.__wbChatSessionStore?.setActiveSessionId?.(chatId);
       await window.__wbSwitchChat?.(chatId);
     } else {
+      window.__wbStore?.setActiveModule?.("chat");
       window.__jlSyncWorkbenchSidePanelView?.("sessions");
       window.__jlSyncWorkbenchNavRailActive?.("sessions");
       window.__wbApplyMainView?.();
     }
+    window.__wbChatSessionStore?.persistToStorage?.();
   })();
 }
 

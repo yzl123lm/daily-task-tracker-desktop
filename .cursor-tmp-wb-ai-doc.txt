@@ -1,0 +1,666 @@
+
+Workbench AI 编程能力升级
+修正优化方案 · Word 需求开发文档
+版本：V1.0 修订版｜日期：2026-07-08｜适用：Electron + 原生 HTML/CSS/JS Workbench
+文档定位
+本文件是在 Cursor 原设计方案基础上做的工程化修订版。目标不是重做 UI，而是在现有 Workbench 安全壳、Layout v4、审批、Diff、Shell、备份与记忆能力之上，补齐真正的 AI 编程大脑、工具调用闭环、真实补丁与自动验证修复能力。
+
+
+目录
+1. 修订摘要与结论
+2. 背景与升级目标
+3. 修订后的总体架构
+4. Agent 模式与状态机
+5. 工具调用协议与权限等级
+6. PatchEdit 与 StagedPatch 设计
+7. AgentRun 并发、取消与持久化
+8. LLM 兼容策略与 ToolCallAdapter
+9. 项目结构、符号索引与上下文包
+10. 验证与修复闭环
+11. 安全策略与禁止行为
+12. 渲染层、IPC 与文件改造清单
+13. 分阶段实施计划
+14. 测试计划与验收标准
+15. 风险、回滚与 Cursor 执行提示词
+
+1. 修订摘要与结论
+Cursor 原方案的方向正确：新增 LLM Agent、工具注册表、真实补丁、结构扫描、测试构建与修复闭环。但原方案在工程约束上仍偏粗，尤其是补丁协议、写入边界、LLM 工具兼容、并发取消、staged patch 持久化和测试验收不足。
+最终结论
+建议先通过本修订方案完成 P0-0 协议与安全底座，再进入只读 Agent Loop、真实补丁 staging、审批写入链路、验证修复闭环。不要让 Cursor 直接按原方案编码。
+
+修订点
+原方案风险
+修正方案
+Agent 模式
+PLAN_ONLY 同时生成 patch，语义混乱
+拆为 PLAN_ONLY / PATCH_PROPOSE / APPLY_APPROVED / VERIFY_FIX
+写入工具
+apply_patch_after_approval 命名像直接写入
+改为 stage_patch；真正写入只走 approvalStore 链路
+补丁协议
+replace / insert_after / full_content 过少
+新增 replace_range、insert_before、delete、create_file、append_file 等
+补丁保存
+只依赖渲染层 codeReviewStore 易丢失
+新增 patchStagingService 在主进程持久化 staged patches
+Agent 并发
+缺 run 锁、取消、过期结果丢弃
+新增 agentRunStore / runId / cancel / timeout
+代码定位
+仅 search_code 子串搜索不足
+新增 symbolIndexService 与符号工具
+模型兼容
+OpenAI/Ollama fallback 粗糙
+新增 ToolCallAdapter，统一 tool_calls 与 JSON Action Loop
+验证修复
+写入后可能频繁自动验证
+用户授权后验证；修复生成补丁仍需审批
+
+2. 背景与升级目标
+当前项目已经具备安全开发工作台基础：项目隔离、代码读写、Diff、Shell、测试、Git、记忆、压缩、审批和备份。但 ProjectAgent 仍偏规则模板，缺少真正 LLM 工具调用循环与真实代码补丁能力。
+当前能力
+判断
+升级目标
+工具链
+L3：读写、Diff、Shell、测试、Git、审批已具备
+保留并复用，不推倒重写
+AI 智能层
+约 L2：可读项目，但 Agent 仍非真正 LLM
+升级为 L4 可用 AI 编程 Agent
+项目工作区 UI
+Layout v4 已基本稳定
+本轮不重构 UI，只补 Agent 能力
+安全能力
+B+：路径校验、审批、备份较完整
+补足任务级 staging、回滚和运行锁
+
+2.1 升级后要达到的能力闭环
+用户提出开发需求
+→ Agent 分析项目结构与上下文
+→ Agent 搜索和读取相关文件
+→ Agent 生成 PLAN_ONLY 方案
+→ 用户确认进入 PATCH_PROPOSE
+→ Agent 生成真实 unified diff
+→ DiffReviewPanel 审查
+→ 用户接受 / 拒绝
+→ 受控写入 + 自动备份
+→ 用户授权后运行 build/test/lint
+→ 失败则 VERIFY_FIX 生成修复补丁
+→ 再次审批与验证
+→ 任务 Timeline、记忆和报告沉淀
+
+3. 修订后的总体架构
+渲染层 app/workbench/
+  projectWorkspace.js / diffReviewPanel.js / approvalStore.js / codeReviewStore.js
+        │ IPC
+        ▼
+主进程 main/workbench/
+  agentOrchestrator.js
+  ├─ projectAgentLLM.js          # Agent 主循环
+  ├─ agentRunStore.js            # run 锁、取消、状态
+  ├─ toolRegistry.js             # 工具注册、权限、日志
+  ├─ patchProposalService.js     # PatchEdit → 新文件内容 → unified diff
+  ├─ patchStagingService.js      # staged patch 持久化
+  ├─ projectStructureService.js  # 项目结构扫描
+  ├─ symbolIndexService.js       # 轻量符号索引
+  ├─ contextPackBuilder.js       # LLM 上下文包
+  ├─ verificationService.js      # build/test/lint/typecheck 编排
+  ├─ fixLoopController.js        # 失败修复闭环
+  └─ commandPolicyService.js     # 命令策略
+        │
+        ▼
+共享 AI 层 main/ai/
+  chatCompletionsClient.js / modelProfileResolver.js / toolCallAdapter.js
+
+架构边界
+LLM 只负责“分析、调用只读工具、生成结构化 PatchEdit、生成修复建议”。磁盘写入只允许由用户审批后的 applyAcceptedDiffs → controlledDevService → projectWriteService 完成。
+
+4. Agent 模式与状态机
+4.1 Agent 模式定义
+模式
+目标
+允许行为
+禁止行为
+产出
+PLAN_ONLY
+只分析需求并生成方案
+list/read/search/analyze/find_symbols/write_memory
+生成可写入 Diff；写磁盘；跑高风险命令
+计划、影响文件、风险、验证建议
+PATCH_PROPOSE
+基于确认方案生成真实 Diff
+读取文件、生成 PatchEdit、stage_patch、preview_diff
+直接写磁盘；直接执行 Shell
+staged patch、diffPreviews
+APPLY_APPROVED
+应用用户已接受变更
+仅由 approvalStore / applyAcceptedDiffs 触发
+LLM 直接调用；绕过审批
+写入结果、备份记录
+VERIFY_FIX
+验证失败后生成修复补丁
+读取错误、读取文件、生成修复 PatchEdit
+自动写入；无限循环
+新 staged patch、修复说明
+
+4.2 统一任务状态机
+CREATED → ANALYZING → SCANNING → PLANNING
+→ WAITING_APPROVAL → PATCH_READY → APPLYING
+→ TESTING → FIXING → REVIEWING → COMPLETED
+↘ FAILED / CANCELED / ARCHIVED
+
+后端 REVIEWING 与前端 WAITING_APPROVAL 需要统一映射，避免筛选和状态 pill 不一致。
+每次状态切换必须写入 Timeline，包含时间、agentRunId、触发来源和摘要。
+FIXING 只在用户授权验证且验证失败后进入，最多 3 轮。
+5. 工具调用协议与权限等级
+5.1 工具权限等级
+等级
+含义
+示例工具
+审批要求
+READ
+只读项目和上下文，不改变状态
+list_files, read_file, search_code, analyze_package, find_symbols
+无需审批，但需日志
+PROPOSE
+生成可审查产物，不写入磁盘
+stage_patch, preview_diff, write_task_memory
+无需写入审批，但需要任务可追溯
+VERIFY
+运行受控验证命令
+run_test, run_build, run_lint
+用户授权或白名单策略
+WRITE
+修改磁盘或 Git 历史
+applyAcceptedDiffs, restore_backup, git_commit
+必须用户显式审批
+DANGEROUS
+删除、覆盖、重置、长期进程
+delete_file, npm install, git reset, push
+默认禁止或强审批
+
+5.2 建议工具清单
+工具
+等级
+说明
+关键约束
+list_files
+READ
+列出项目目录树
+排除 node_modules/dist/build/.git
+read_file
+READ
+读取文件内容
+assertUnderRoot；大小限制；文本白名单
+search_code
+READ
+关键词搜索
+返回片段和行号，限制结果数
+find_symbols
+READ
+符号搜索
+基于 symbolIndexService
+analyze_package
+READ
+分析 package.json scripts
+脚本不存在返回提示，不报错
+stage_patch
+PROPOSE
+PatchEdit 生成 staged patch
+不写磁盘；持久化 patchStagingService
+preview_diff
+PROPOSE
+生成 unified diff 预览
+diff 只展示，不应用
+run_test / run_build / run_lint
+VERIFY
+运行白名单验证命令
+用户授权；超时；禁止长期进程
+git_status
+READ
+查看 Git 状态
+只读
+write_task_memory
+PROPOSE
+写入任务记忆
+区分 project/task namespace
+
+
+6. PatchEdit 与 StagedPatch 设计
+6.1 PatchEdit 协议
+{
+  "file": "app/workbench/projectArea.js",
+  "operation": "replace_range",
+  "startAnchor": "function bindConversationClick",
+  "endAnchor": "function renderConversationList",
+  "oldText": "...",
+  "newText": "...",
+  "reason": "修复会话点击后未切换 activeConversationId",
+  "confidence": 0.82
+}
+
+operation
+用途
+关键校验
+replace
+替换唯一 oldText
+oldText 必须唯一匹配
+replace_range
+基于起止 anchor 替换区间
+anchor 必须稳定且唯一
+insert_before
+在 anchor 前插入
+anchor 必须唯一
+insert_after
+在 anchor 后插入
+anchor 必须唯一
+delete
+删除指定片段
+高风险审批；必须可恢复
+create_file
+新增文件
+不得覆盖已有文件，除非强审批
+append_file
+追加到文件末尾
+限制文件类型和大小
+full_content
+整文件替换
+仅小文件或强审批；大文件禁止
+
+6.2 Patch 校验规则
+file 必须通过 assertUnderRoot，禁止路径穿越。
+修改前必须 read_file；不能对未读文件生成补丁。
+oldText 多处匹配必须失败，不能猜测修改位置。
+oldText 不匹配必须失败，让 LLM 重新读取上下文缩小范围。
+所有 PatchEdit 必须先生成 unified diff，再进入 DiffReviewPanel。
+LLM 不允许调用 writeProjectFile 或 controlledDevService 写入。
+6.3 StagedPatch 持久化
+{
+  "patchId": "patch_xxx",
+  "projectId": "proj_xxx",
+  "taskId": "task_xxx",
+  "agentRunId": "run_xxx",
+  "mode": "PATCH_PROPOSE | VERIFY_FIX",
+  "files": [],
+  "edits": [],
+  "diff": "",
+  "status": "STAGED | ACCEPTED | REJECTED | APPLIED | FAILED",
+  "createdAt": 0,
+  "updatedAt": 0
+}
+
+
+关键修正
+StagedPatch 必须由主进程 patchStagingService 持久化。渲染层 codeReviewStore 只作为展示状态，不应作为唯一数据源。
+
+7. AgentRun 并发、取消与持久化
+同一个 taskId 同一时间只允许一个 active agent run。
+每次运行生成 agentRunId，所有工具调用、Patch、Timeline 都必须携带该 ID。
+用户切换项目、取消任务或关闭窗口时，当前 run 必须可取消。
+runId 不一致的异步结果不得写回 UI，也不得生成 staged patch。
+LLM 请求和工具调用都需要 timeout；超时后状态进入 FAILED 或 CANCELED。
+应用重启后未完成 run 标记为 CANCELED 或 FAILED，避免悬挂状态。
+状态
+说明
+允许转换
+PENDING
+等待启动
+RUNNING / CANCELED
+RUNNING
+LLM 或工具执行中
+WAITING_APPROVAL / FAILED / CANCELED
+WAITING_APPROVAL
+等待用户审查 Diff 或授权验证
+RUNNING / COMPLETED / CANCELED
+COMPLETED
+运行完成
+终态
+FAILED
+异常失败
+可创建新 run 重试
+CANCELED
+用户取消或页面切换取消
+终态
+
+8. LLM 兼容策略与 ToolCallAdapter
+不要让 Workbench 单独复制一套主对话模型调用逻辑。建议抽取共享 AI 层，由主 AI 对话和 Workbench Agent 共用模型配置、鉴权、错误处理与工具调用适配。
+模块
+职责
+chatCompletionsClient.js
+统一 OpenAI 兼容 /chat/completions 调用、超时、错误归一化
+modelProfileResolver.js
+从当前模型配置读取 baseUrl、apiKey、model、provider 类型
+toolCallAdapter.js
+统一 OpenAI tools、Ollama tools、JSON Action Loop fallback
+llmClient.js
+Workbench Agent 侧薄封装，调用共享 client，不复制模型逻辑
+
+8.1 ToolCallAdapter 统一输出
+{
+  "id": "call_xxx",
+  "name": "read_file",
+  "arguments": { "path": "app/workbench/projectArea.js" },
+  "source": "openai-tools | ollama-tools | json-action"
+}
+
+模型支持原生 tools 时，直接使用 tool_calls。
+模型不支持 tools 时，使用 JSON Action Loop fallback。
+所有工具参数必须通过 schema 校验。
+未知工具、越权参数、非法 JSON 必须拒绝并记录。
+MAX_TOOL_ROUNDS 默认 12，防止无限工具循环。
+9. 项目结构、符号索引与上下文包
+9.1 projectStructureService
+任务启动时自动扫描 package.json、index.html、app.js、main.js、preload.js、app/workbench/、main/workbench/。
+识别技术栈、入口文件、npm scripts、关键模块、风险路径。
+graphify 可用时接入 Workbench Agent；不可用时降级为结构摘要。
+不要一次性塞入大文件，结构摘要默认控制在 token 预算内。
+9.2 symbolIndexService
+前端开发定位问题通常依赖函数名、DOM id、CSS class、IPC channel、localStorage key。仅子串搜索不够，需要轻量符号索引。
+索引类型
+示例
+函数 / 类 / 变量
+function xxx, class Xxx, const xxx =
+DOM 选择器
+document.getElementById, querySelector, CSS class, DOM id
+事件绑定
+addEventListener, onclick, input/change/submit
+Electron IPC
+ipcMain.handle, ipcRenderer.invoke, window.electronAPI
+存储键
+localStorage, SQLite table key, namespace key
+
+9.3 Context Pack 格式
+{
+  "summary": "...",
+  "techStack": "Electron + HTML/CSS/JS",
+  "entryFiles": [],
+  "scripts": {},
+  "relevantFiles": [],
+  "symbols": [],
+  "risks": [],
+  "tokenBudget": {
+    "maxInputTokens": 12000,
+    "used": 0,
+    "truncatedFiles": []
+  }
+}
+
+10. 验证与修复闭环
+设计原则
+自动验证可以被用户授权；自动修复可以生成 staged patch；自动写入仍然禁止。每一轮修复都必须进入 DiffReviewPanel，由用户接受后再写入。
+
+写入成功
+→ 用户授权自动验证
+→ verificationService 运行 build/test/lint/typecheck
+→ parseBuildError 解析 stderr/stdout
+→ VERIFY_FIX Agent 读取错误相关文件
+→ 生成修复 PatchEdit
+→ stage_patch + DiffReviewPanel
+→ 用户审批写入
+→ 最多 3 轮
+
+命令类型
+默认策略
+npm run build
+可作为验证命令，需用户授权或任务级授权
+npm run test
+可作为验证命令，需用户授权或任务级授权
+npm run lint / typecheck
+可作为验证命令，脚本存在才展示
+npm run dev
+长期运行命令，默认不自动执行
+npm install
+会改依赖，默认禁止自动执行，需强审批
+rm / del / format / shutdown
+危险命令，禁止
+
+11. 安全策略与禁止行为
+11.1 必须保留的安全能力
+路径 assertUnderRoot 与 namespace 隔离。
+写入前自动备份。
+Diff 审查 accept/reject。
+Shell 白名单、黑名单、超时和用户审批。
+Git commit 必须用户确认，禁止自动 push。
+工具调用、状态切换、审批结果写入 Timeline。
+11.2 明确禁止行为
+禁止项
+原因
+LLM 直接写磁盘
+绕过审批和备份，风险最高
+LLM 直接执行任意 Shell
+可能破坏系统或项目
+LLM 绕过 approvalStore
+破坏受控开发链路
+修改项目目录外文件
+路径越权风险
+自动 npm install
+依赖变更不可控
+自动 git push
+远程风险不可接受
+多处匹配时猜测替换位置
+容易误改代码
+fix loop 无限循环
+消耗资源且可能扩大错误
+
+12. 渲染层、IPC 与文件改造清单
+12.1 新增主进程模块
+文件
+作用
+优先级
+main/ai/chatCompletionsClient.js
+共享模型调用
+P0-0
+main/ai/modelProfileResolver.js
+模型配置解析
+P0-0
+main/ai/toolCallAdapter.js
+工具调用兼容层
+P0-0
+main/workbench/toolRegistry.js
+工具注册与权限
+P0-0
+main/workbench/agentRunStore.js
+并发锁与取消
+P0-0
+main/workbench/patchStagingService.js
+staged patch 持久化
+P0-0
+main/workbench/projectAgentLLM.js
+Agent 主循环
+P0-A
+main/workbench/patchProposalService.js
+PatchEdit 到 Diff
+P0-B
+main/workbench/symbolIndexService.js
+符号索引
+P0-A
+main/workbench/contextPackBuilder.js
+上下文包
+P0-A
+main/workbench/projectStructureService.js
+结构扫描
+P0-A
+main/workbench/verificationService.js
+验证命令编排
+P1-A
+main/workbench/fixLoopController.js
+修复闭环
+P1-B
+
+12.2 改造文件
+文件
+改造点
+main/workbench/agentOrchestrator.js
+委托 projectAgentLLM；保留 planOnlyOutput fallback
+main/workbench/registerHandlers.js
+注册新的 agent、structure、patch staging、verification IPC
+main/workbench/toolPermissionService.js
+接入工具等级和 Timeline 日志
+main/workbench/diffPreviewService.js
+支持 PatchEdit 生成真实 unified diff
+main/workbench/testRunnerService.js
+与 verificationService / packageScriptService 协作
+app/workbench/projectWorkspace.js
+传 mode、展示 toolTrace、触发验证授权
+app/workbench/projectCodePanel.js
+读取 package scripts；写入成功后可触发验证
+app/workbench/approvalStore.js
+承接 stagedPatchId、auto_verify 授权
+preload.js
+暴露新的 wbProjectAgentRun / staging / verification IPC
+
+12.3 IPC 建议
+wb-project-agent-run：{ projectId, taskId, mode, userRequest, patchId?, fixContext? }
+wb-project-agent-cancel：{ projectId, taskId, agentRunId }
+wb-project-patches-list：按 projectId/taskId 获取 staged patches。
+wb-project-patch-stage：仅由主进程 Agent 调用或测试调用。
+wb-project-verify-start：用户授权后运行 build/test/lint/typecheck。
+wb-project-structure-get：调试和手动刷新结构摘要。
+13. 分阶段实施计划
+阶段
+目标
+交付内容
+验收
+P0-0
+协议与安全底座
+Tool schema、PatchEdit schema、AgentRun、ToolCallAdapter、PatchStaging 数据结构、Command policy
+mock 工具调用可跑通；无 LLM 也能验证权限和日志
+P0-A
+只读 Agent Loop
+llmClient、toolRegistry、projectAgentLLM、list/read/search/analyze/find_symbols、context pack
+Agent 能主动搜索和读取相关文件，输出真实分析方案，不写入
+P0-B
+真实补丁 staging
+patchProposalService、patchStagingService、preview_diff、codeReviewStore 接入
+Agent 生成真实 Diff；页面刷新不丢 staged patch；不写磁盘
+P0-C
+审批写入链路
+approvalStore、applyAcceptedDiffs、controlledDevService、备份、patch status
+用户接受后才写入；拒绝后不写入；写入前有备份
+P1-A
+测试构建验证
+packageScriptService、verificationService、parseBuildError
+能识别 build/test/lint/typecheck；脚本缺失不报错
+P1-B
+修复闭环
+fixLoopController、VERIFY_FIX、最多 3 轮
+构建失败后生成修复 staged patch，仍需审批
+P2
+体验增强
+逐 hunk 接受、Git commit message、任务报告、记忆沉淀
+开发体验接近成熟 AI 编程工具
+
+14. 测试计划与验收标准
+14.1 测试计划
+测试类型
+必须覆盖
+toolRegistry 单测
+schema 校验、权限等级、未知工具拒绝、日志写入
+ToolCallAdapter 单测
+OpenAI tools、Ollama tools、JSON Action Loop fallback、非法 JSON 重试
+PatchProposal 单测
+replace、insert、delete、create_file、多处匹配失败、oldText 不匹配失败
+PatchStaging 单测
+STAGED/ACCEPTED/REJECTED/APPLIED/FAILED 状态流转与恢复
+AgentRun 单测
+同 task 互斥、取消、过期 run 结果丢弃、timeout
+LLM Mock 集成测试
+模拟工具调用，不真实消耗模型 API
+Approval 集成测试
+拒绝不写入；接受才写入；写入前备份
+FixLoop 测试
+build 失败解析、生成修复补丁、最多 3 轮
+
+14.2 最终验收标准
+Agent 能主动搜索和读取与需求相关的文件。
+PLAN_ONLY 只生成基于真实代码的分析方案，不生成可写入 Diff。
+PATCH_PROPOSE 能生成真实 unified diff，不再出现“顶部插 PLAN_ONLY 注释”的伪 Diff。
+DiffReviewPanel 支持 accept/reject，拒绝不写入。
+用户接受后才写入，写入前自动备份。
+staged patch 由主进程持久化，刷新页面不丢失。
+写入后用户可授权运行 build/test/lint/typecheck。
+验证失败时能读取错误并生成二次修复补丁，最多 3 轮。
+所有工具调用、审批、验证和状态切换写入 Timeline。
+不破坏 Layout v4、现有审批、备份、Shell 白名单、namespace 隔离能力。
+15. 风险、回滚与 Cursor 执行提示词
+15.1 风险与回滚
+风险
+影响
+应对
+LLM 幻觉文件路径
+补丁无法应用或越权
+assertUnderRoot + 修改前 read_file + 文件不存在即失败
+Patch 多处匹配
+误改代码
+多处匹配失败，要求 LLM 缩小 anchor
+模型不支持 tools
+工具循环不可用
+ToolCallAdapter JSON Action Loop fallback
+Agent 并发运行
+状态覆盖或 UI 错乱
+agentRunStore 同 task 互斥和 runId 校验
+staged patch 丢失
+用户审查状态丢失
+patchStagingService 主进程持久化
+fix loop 反复失败
+消耗资源
+最多 3 轮，用户审批每轮修复
+新能力影响现有 UI
+项目工作区回退
+不改 Layout v4，保留 planOnlyOutput fallback
+
+15.2 给 Cursor 的执行提示词
+请基于《Workbench AI 编程能力升级修正优化方案》进行开发。不要直接按旧设计稿编码。
+
+本轮先执行 P0-0：协议与安全底座，不接真实 LLM 写补丁，不改 UI Layout v4。
+
+必须完成：
+1. Tool schema 与权限等级。
+2. PatchEdit schema 与校验规则。
+3. AgentRun 状态、runId、同 task 互斥、取消机制。
+4. ToolCallAdapter：OpenAI tools / Ollama tools / JSON Action Loop fallback。
+5. PatchStagingService 数据结构和持久化接口。
+6. CommandPolicyService 基础策略。
+7. 单元测试：未知工具拒绝、路径越权拒绝、多处匹配失败、run 取消后不写回 UI。
+
+禁止：
+- LLM 直接写磁盘。
+- 绕过 approvalStore。
+- 修改项目工作区 Layout v4。
+- 自动执行 npm install / git push / rm / del 等危险命令。
+
+请先输出具体修改文件清单和测试清单，再进行最小范围编码。
+
+附录 A：推荐 JSON Schema 摘要
+A.1 Tool 定义结构
+{
+  "name": "read_file",
+  "description": "读取项目内文本文件",
+  "permission": "READ",
+  "riskLevel": "LOW",
+  "timeoutMs": 15000,
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "path": { "type": "string" }
+    },
+    "required": ["path"]
+  }
+}
+
+A.2 工具调用日志结构
+{
+  "time": 0,
+  "projectId": "proj_xxx",
+  "taskId": "task_xxx",
+  "agentRunId": "run_xxx",
+  "tool": "read_file",
+  "inputSummary": "app/workbench/projectArea.js",
+  "outputSummary": "读取 12KB，返回前 8KB",
+  "status": "SUCCESS | FAILED | REJECTED",
+  "error": null
+}
+
+落地建议
+先做 P0-0 和 P0-A，跑通“只读 Agent 分析”后，再做真实补丁 staging。这样可以先验证模型配置、工具调用、上下文构建和日志链路，避免一开始就进入高风险写入。
+

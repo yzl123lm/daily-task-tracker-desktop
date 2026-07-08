@@ -245,8 +245,8 @@ function isWorkbenchChatSurface() {
   if (document.body.classList.contains("jl-project-workspace-active")) {
     return false;
   }
-  const projectWs = document.getElementById("wbProjectWorkspace");
-  if (projectWs && !projectWs.hidden && !projectWs.hasAttribute("hidden")) {
+  const aiMain = document.getElementById("aiPanelMain");
+  if (aiMain && (aiMain.hidden || aiMain.hasAttribute("hidden"))) {
     return false;
   }
   return true;
@@ -594,6 +594,48 @@ function devRequestReply() {
     "如需开发项目，请在左侧「项目区域」创建或选择项目，并在项目工作区中描述需求。"
   );
 }
+
+async function repairOrphanChatSession() {
+  if (!isWorkbenchChatSurface()) {
+    return;
+  }
+  const storeChats = window.__wbStore?.getState?.().chats || [];
+  const ordered = window.__wbChatSessionStore?.getOrderedSessions?.() || [];
+  if (storeChats.length || ordered.length) {
+    return;
+  }
+  const turns =
+    typeof window.__aiGetChatTurns === "function" ? window.__aiGetChatTurns() : [];
+  if (!turns.length) {
+    return;
+  }
+  const firstUser = turns.find((t) => t.role === "user" && String(t.content || "").trim());
+  const seed = firstUser?.content || turns[0]?.content || "新对话";
+  const sessionId = await ensureActiveChatSession({ titleSeed: seed });
+  if (!sessionId) {
+    return;
+  }
+  bindAiToChatSession(sessionId);
+  syncChatModuleChrome();
+  for (const turn of turns) {
+    const role = turn.role === "assistant" ? "assistant" : "user";
+    const content = String(turn.content || "").trim();
+    if (!content) {
+      continue;
+    }
+    window.__wbChatSessionStore?.appendMessage?.(sessionId, {
+      role,
+      content,
+      status: "success",
+    });
+    await persistChatMessage(role, content, { sessionId });
+  }
+  window.__wbChatSessionStore?.updateSessionMeta?.(sessionId);
+  await window.__wbRefreshChats?.();
+  window.__wbRenderChats?.();
+}
+
+window.__wbRepairOrphanChatSession = repairOrphanChatSession;
 
 window.__wbMigrateLegacyChats = migrateLegacyChats;
 window.__wbGetActiveChatId = getActiveChatId;

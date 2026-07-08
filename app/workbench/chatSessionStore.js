@@ -110,9 +110,13 @@ function getSessionMessages(sessionId) {
 }
 
 function getOrderedSessions() {
-  const list = chatModuleState.sessionOrder
+  const ordered = chatModuleState.sessionOrder
     .map((id) => chatModuleState.sessions[id])
     .filter((s) => s && !s.deleted);
+  const orphan = Object.values(chatModuleState.sessions).filter(
+    (s) => s && !s.deleted && !chatModuleState.sessionOrder.includes(s.id)
+  );
+  const list = [...ordered, ...orphan];
   if (list.length) {
     return list;
   }
@@ -219,13 +223,15 @@ function getLastMessageSummary(session) {
 
 function syncSessionsFromApi(apiChats) {
   const list = Array.isArray(apiChats) ? apiChats : [];
-  const order = [];
+  const order = [...chatModuleState.sessionOrder];
   list.forEach((chat) => {
     if (!chat?.id) {
       return;
     }
     const id = String(chat.id);
-    order.push(id);
+    if (!order.includes(id)) {
+      order.push(id);
+    }
     const cached = chatModuleState.sessions[id];
     const merged = normalizeSession(chat, cached?.messages || []);
     if (cached?.messages?.length) {
@@ -233,10 +239,19 @@ function syncSessionsFromApi(apiChats) {
     }
     chatModuleState.sessions[id] = merged;
   });
-  chatModuleState.sessionOrder = order;
+  chatModuleState.sessionOrder = order
+    .filter((id) => chatModuleState.sessions[id] && !chatModuleState.sessions[id].deleted)
+    .sort((a, b) => {
+      const sa = chatModuleState.sessions[a];
+      const sb = chatModuleState.sessions[b];
+      const ta = Date.parse(sa?.updatedAt || sa?.createdAt || 0) || 0;
+      const tb = Date.parse(sb?.updatedAt || sb?.createdAt || 0) || 0;
+      return tb - ta;
+    });
   list.forEach((chat) => {
-    if (chat?.id && !order.includes(String(chat.id))) {
-      chatModuleState.sessionOrder.push(String(chat.id));
+    const id = String(chat?.id || "");
+    if (id && !chatModuleState.sessionOrder.includes(id)) {
+      chatModuleState.sessionOrder.unshift(id);
     }
   });
   persistToStorage();
