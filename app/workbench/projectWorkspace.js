@@ -11,6 +11,7 @@ function escapeHtml(text) {
 }
 
 const TASK_STATUS_LABELS = {
+  ...(window.__wbTaskStatus?.TASK_STATUS_LABELS || {}),
   DRAFT: "草稿",
   REQUIREMENT: "需求确认",
   PLANNING: "方案生成",
@@ -18,14 +19,33 @@ const TASK_STATUS_LABELS = {
   DEVELOPING: "开发中",
   TESTING: "测试中",
   REVIEWING: "待审阅",
+  WAITING_APPROVAL: "待确认",
+  APPLYING: "写入中",
+  FIXING: "修复中",
   DONE: "已完成",
+  COMPLETED: "已完成",
   PAUSED: "已暂停",
   FAILED: "失败",
   ARCHIVED: "已归档",
 };
 
+function taskStatusLabel(status) {
+  if (window.__wbTaskStatus?.labelForTaskStatus) {
+    return window.__wbTaskStatus.labelForTaskStatus(status);
+  }
+  return TASK_STATUS_LABELS[status] || status;
+}
+
 function statusChipClass(status) {
-  if (status === "REVIEWING" || status === "PLANNING") {
+  const normalized = window.__wbTaskStatus?.normalizeTaskStatus?.(status) || status;
+  if (
+    normalized === "REVIEWING" ||
+    normalized === "PLANNING" ||
+    normalized === "WAITING_APPROVAL"
+  ) {
+    return "wb-task-status--active";
+  }
+  if (normalized === "FIXING" || normalized === "TESTING") {
     return "wb-task-status--active";
   }
   if (status === "DONE") {
@@ -126,7 +146,7 @@ function renderTaskDetail(task) {
     desc.textContent = task.description || "（无任务描述）";
   }
   if (step) {
-    const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
+    const statusLabel = taskStatusLabel(task.status);
     step.textContent = `状态：${statusLabel}${task.currentStep ? ` · 当前步骤：${task.currentStep}` : ""}`;
   }
 }
@@ -159,8 +179,10 @@ function taskMatchesFilter(task) {
     case "waiting":
       return (
         task.status === "WAITING_APPROVAL" ||
+        task.status === "REVIEWING" ||
         step.includes("审批") ||
-        step.includes("等待")
+        step.includes("等待") ||
+        step.includes("确认")
       );
     case "done":
       return ["DONE", "COMPLETED", "ARCHIVED"].includes(task.status);
@@ -253,6 +275,8 @@ async function loadTaskContext(projectId, taskId) {
     }
   }
   await refreshProjectContextHealth(projectId, taskId);
+  await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+  window.__wbRenderDiffReviewPanel?.();
   await window.__wbRefreshCodePanel?.(projectId, taskId);
 }
 
@@ -280,7 +304,7 @@ function renderTasks(tasks, selectedTaskId) {
     item.className = "wb-task-item";
     item.dataset.taskId = task.id;
     item.classList.toggle("is-active", task.id === selectedTaskId);
-    const statusLabel = TASK_STATUS_LABELS[task.status] || task.status;
+    const statusLabel = taskStatusLabel(task.status);
     item.innerHTML = `
       <div class="wb-task-item__main">
         <span class="wb-task-item__title">${escapeHtml(task.title)}</span>
@@ -728,24 +752,50 @@ async function confirmTaskPlan() {
   const api = wbApi();
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
-  if (!projectId || !taskId || typeof api.wbProjectTaskUpdate !== "function") {
+  if (!projectId || !taskId) {
     return;
   }
-  await api.wbProjectTaskUpdate({
-    projectId,
-    taskId,
-    status: "DEVELOPING",
-    currentStep: "用户已确认方案，可受控写入",
-  });
-  const modePill = document.getElementById("wbPwsModePill");
-  if (modePill) {
-    modePill.textContent = "受控写入";
+  const message =
+    document.getElementById("wbAgentInput")?.value?.trim() ||
+    document.querySelector(".wb-plan-card__req")?.textContent?.trim() ||
+    "继续生成补丁";
+  const out = document.getElementById("wbAgentOutput");
+  if (out) {
+    out.hidden = false;
+    out.textContent = "生成补丁提议中…";
   }
-  document.getElementById("wbTaskConfirmBtn").hidden = true;
-  const tasks = await api.wbProjectTasksList({ projectId });
-  window.__wbStore?.setTasks?.(tasks);
-  renderTasks(tasks, taskId);
-  await loadTaskContext(projectId, taskId);
+  try {
+    const result = await api.wbProjectAgentRun({
+      projectId,
+      taskId,
+      message,
+      mode: "PATCH_PROPOSE",
+    });
+    if (result.output?.plan?.length) {
+      renderPlanCard(result.output);
+    }
+    await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+    window.__wbRenderDiffReviewPanel?.();
+    window.__wbSwitchCodeTab?.("diff");
+    const modePill = document.getElementById("wbPwsModePill");
+    if (modePill) {
+      modePill.textContent = "PATCH_PROPOSE / 受控写入";
+    }
+    document.getElementById("wbTaskConfirmBtn").hidden = true;
+    const tasks = await api.wbProjectTasksList({ projectId });
+    window.__wbStore?.setTasks?.(tasks);
+    renderTasks(tasks, taskId);
+    await loadTaskContext(projectId, taskId);
+    if (out) {
+      out.textContent = result.output?.toolTrace?.length
+        ? `Agent 调用了 ${result.output.toolTrace.length} 次工具`
+        : "补丁已生成，请在 Diff 审阅面板确认";
+    }
+  } catch (err) {
+    if (out) {
+      out.textContent = err?.message || "补丁生成失败";
+    }
+  }
 }
 
 function renderProjectColSessions() {

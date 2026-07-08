@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -177,6 +177,40 @@ function ensureSchema(db) {
       created_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_file_write_backups_task ON file_write_backups(project_id, task_id, created_at DESC);
+    CREATE TABLE IF NOT EXISTS staged_patches (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      agent_run_id TEXT,
+      file_path TEXT NOT NULL,
+      original_content TEXT,
+      proposed_content TEXT NOT NULL,
+      unified_diff TEXT,
+      summary TEXT,
+      status TEXT NOT NULL DEFAULT 'STAGED',
+      patch_edits_json TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_staged_patches_task ON staged_patches(project_id, task_id, status, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS agent_run_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      task_id TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      input_text TEXT,
+      output_json TEXT,
+      tool_trace_json TEXT,
+      error_message TEXT,
+      started_at TEXT,
+      completed_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_agent_run_sessions_task ON agent_run_sessions(project_id, task_id, status, updated_at DESC);
   `);
   const row = db.prepare("SELECT value FROM wb_meta WHERE key = 'schema_version'").get();
   const current = Number(row?.value) || 0;

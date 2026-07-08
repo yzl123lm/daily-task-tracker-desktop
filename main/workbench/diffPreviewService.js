@@ -37,6 +37,12 @@ function buildPatchPreview({ filePath, originalContent, proposedContent, summary
   };
 }
 
+function buildFromPatchEdits(root, filePath, edits, summary) {
+  const patchProposalService = require("./patchProposalService.js");
+  const proposal = patchProposalService.buildProposalFromPatchEdits(root, filePath, edits, summary);
+  return buildPatchPreview(proposal);
+}
+
 function suggestPatchFromDescription(filePath, originalContent, description) {
   const desc = String(description || "").trim();
   const marker = `// [PLAN_ONLY 建议] ${desc.slice(0, 120)}`;
@@ -53,5 +59,6 @@ function suggestPatchFromDescription(filePath, originalContent, description) {
 module.exports = {
   buildUnifiedDiff,
   buildPatchPreview,
+  buildFromPatchEdits,
   suggestPatchFromDescription,
 };

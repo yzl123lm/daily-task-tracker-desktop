@@ -1,37 +1,31 @@
 const { getDb, nowIso, newId } = require("./db.js");
 const {
   buildTaskNamespace,
-  isDevToolName,
   namespacesForProjectScope,
 } = require("./namespace.js");
 const { getProject, getTask, updateTask } = require("./projectService.js");
-const { appendMessage } = require("./chatService.js");
-const { writeMemory } = require("./contextMemoryService.js");
 const { resolveUserId } = require("./projectService.js");
-const { collectChatMessages } = require("./context-compression/contextMonitor.js");
 const compressionManager = require("./context-compression/contextCompressionManager.js");
 const { buildPlanOnlyOutput } = require("./planOnlyOutput.js");
-const { maybeUpdateChatSummary } = require("./chatSummaryService.js");
-const { analyzeProjectCode } = require("./projectCodeService.js");
+const { analyzeProjectCode, resolveProjectRoot } = require("./projectCodeService.js");
 const {
-  assertProjectAgentTool,
-  recordToolOperation,
-} = require("./toolPermissionService.js");
+  startAgentRun,
+  cancelAgentRun,
+  completeAgentRun,
+  failAgentRun,
+  isRunCanceled,
+  RUN_STATUS,
+} = require("./agentRunStore.js");
+const { runProjectAgentLLM, agentLlmEnabled } = require("./projectAgentLLM.js");
+const { listStagedPatches, patchToDiffPreview, PATCH_STATUS } = require("./patchStagingService.js");
+const { TASK_STATUS } = require("./taskStatus.js");
+const { runFixLoop } = require("./fixLoopController.js");
 
 let getDefaultProjectRootFn = null;
 
 function configureAgentOrchestrator(options = {}) {
   if (typeof options.getDefaultProjectRoot === "function") {
     getDefaultProjectRootFn = options.getDefaultProjectRoot;
-  }
-}
-
-function assertChatAgentTool(toolName) {
-  if (isDevToolName(toolName)) {
-    const err = new Error(`ChatAgent 禁止调用开发工具: ${toolName}`);
-    err.code = "TOOL_FORBIDDEN";
-    err.status = 403;
-    throw err;
   }
 }
 
@@ -49,6 +43,7 @@ function recordTaskMemories(getUserDataPath, userId, output) {
         ? "project"
         : "chat";
     const scopeId = ns.split(":").pop();
+    const { writeMemory } = require("./contextMemoryService.js");
     writeMemory(getUserDataPath, uid, {
       namespace: ns,
       scopeType,
@@ -61,10 +56,10 @@ function recordTaskMemories(getUserDataPath, userId, output) {
   }
 }
 
-function recordAgentRun(getUserDataPath, userId, fields) {
+function recordLegacyAgentRun(getUserDataPath, userId, fields) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
-  const id = newId("run");
+  const id = fields.agentRunId || newId("run");
   const ts = nowIso();
   db.prepare(
     `INSERT INTO agent_runs (
@@ -88,8 +83,37 @@ function recordAgentRun(getUserDataPath, userId, fields) {
   return id;
 }
 
-function runProjectAgent(getUserDataPath, userId, { projectId, taskId, message, mode = "PLAN_ONLY" }) {
+function taskStatusForMode(mode, phase) {
+  const m = String(mode).toUpperCase();
+  if (phase === "start") {
+    if (m === "PLAN_ONLY") {
+      return { status: TASK_STATUS.PLANNING, currentStep: "生成开发方案" };
+    }
+    if (m === "PATCH_PROPOSE") {
+      return { status: TASK_STATUS.PLANNING, currentStep: "生成补丁提议" };
+    }
+    if (m === "VERIFY_FIX") {
+      return { status: TASK_STATUS.FIXING, currentStep: "验证失败，生成修复补丁" };
+    }
+    if (m === "APPLY_APPROVED") {
+      return { status: TASK_STATUS.APPLYING, currentStep: "用户已接受，准备写入" };
+    }
+  }
+  if (phase === "done") {
+    if (m === "PLAN_ONLY" || m === "PATCH_PROPOSE") {
+      return { status: TASK_STATUS.WAITING_APPROVAL, currentStep: "等待用户确认" };
+    }
+  }
+  return null;
+}
+
+async function runProjectAgent(getUserDataPath, userId, payload) {
   const uid = resolveUserId(userId);
+  const projectId = payload.projectId;
+  const taskId = payload.taskId;
+  const message = String(payload.message || "");
+  const mode = String(payload.mode || "PLAN_ONLY").toUpperCase();
+
   const project = getProject(getUserDataPath, uid, projectId);
   if (!project) {
     throw new Error("项目不存在");
@@ -98,88 +122,170 @@ function runProjectAgent(getUserDataPath, userId, { projectId, taskId, message, 
   if (!task) {
     throw new Error("任务不存在");
   }
-  if (String(mode).toUpperCase() !== "PLAN_ONLY") {
-    throw new Error("Phase 3 仅支持 PLAN_ONLY 模式");
+
+  if (mode === "APPLY_APPROVED") {
+    updateTask(getUserDataPath, uid, projectId, taskId, {
+      status: TASK_STATUS.APPLYING,
+      currentStep: "用户已接受补丁",
+    });
+    updateTask(getUserDataPath, uid, projectId, taskId, {
+      status: TASK_STATUS.TESTING,
+      currentStep: "等待验证",
+    });
+    return {
+      agentRunId: null,
+      status: RUN_STATUS.COMPLETED,
+      mode,
+      output: { summary: "已进入测试阶段", needUserConfirm: false },
+    };
   }
+
+  const startStatus = taskStatusForMode(mode, "start");
+  if (startStatus) {
+    updateTask(getUserDataPath, uid, projectId, taskId, startStatus);
+  }
+
   const taskNs = buildTaskNamespace(projectId, taskId);
-  updateTask(getUserDataPath, uid, projectId, taskId, {
-    status: "PLANNING",
-    currentStep: "生成开发方案",
-  });
-  const messages = [{ role: "user", content: String(message || "") }];
+  const messages = [{ role: "user", content: message }];
   const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
     namespace: taskNs,
     messages,
   });
+  const root = resolveProjectRoot(project, getDefaultProjectRootFn);
   const codeAnalysis = analyzeProjectCode(project, message, getDefaultProjectRootFn);
-  const output = buildPlanOnlyOutput({
-    message,
-    project,
-    task,
-    projectId,
-    taskId,
-    promptContext: prepared.promptContext,
-    codeAnalysis,
-  });
-  recordTaskMemories(getUserDataPath, uid, output);
-  updateTask(getUserDataPath, uid, projectId, taskId, {
-    status: "REVIEWING",
-    currentStep: "等待用户确认方案",
-  });
-  const agentRunId = recordAgentRun(getUserDataPath, uid, {
+
+  let agentRunId = null;
+  let output;
+  let runStatus = RUN_STATUS.COMPLETED;
+  try {
+    const started = startAgentRun(getUserDataPath, uid, {
+      projectId,
+      taskId,
+      mode,
+      inputText: message,
+    });
+    agentRunId = started.runId;
+    const ctx = {
+      getUserDataPath,
+      userId: uid,
+      projectId,
+      taskId,
+      agentRunId,
+      mode,
+      root,
+      project,
+      task,
+      promptContext: prepared.promptContext,
+    };
+
+    if (mode === "VERIFY_FIX" && payload.fixContext?.scriptName) {
+      const fixResult = await runFixLoop(getUserDataPath, uid, ctx, {
+        scriptName: payload.fixContext.scriptName,
+        getDefaultProjectRoot: getDefaultProjectRootFn,
+      });
+      output = {
+        summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程结束",
+        fixResult,
+        toolTrace: [],
+        mode,
+      };
+      runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+    } else if (agentLlmEnabled() && root) {
+      output = await runProjectAgentLLM(ctx, { message, mode });
+      runStatus =
+        mode === "PATCH_PROPOSE" ? RUN_STATUS.WAITING_APPROVAL : RUN_STATUS.COMPLETED;
+    } else {
+      output = buildPlanOnlyOutput({
+        message,
+        project,
+        task,
+        projectId,
+        taskId,
+        promptContext: prepared.promptContext,
+        codeAnalysis,
+      });
+      if (mode === "PATCH_PROPOSE") {
+        output.diffPreviews = [];
+        output.note = "LLM 不可用，PATCH_PROPOSE 需要配置模型";
+      }
+      completeAgentRun(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        agentRunId,
+        output,
+        status: runStatus,
+      });
+    }
+
+    recordTaskMemories(getUserDataPath, uid, output);
+    const doneStatus = taskStatusForMode(mode, "done");
+    if (doneStatus) {
+      updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
+    }
+  } catch (err) {
+    if (agentRunId) {
+      failAgentRun(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        agentRunId,
+        errorMessage: err.message,
+      });
+    }
+    if (agentLlmEnabled() && err.code !== "AGENT_RUN_MUTEX") {
+      output = buildPlanOnlyOutput({
+        message,
+        project,
+        task,
+        projectId,
+        taskId,
+        promptContext: prepared.promptContext,
+        codeAnalysis,
+      });
+      output.fallbackReason = err.message;
+      recordTaskMemories(getUserDataPath, uid, output);
+      updateTask(getUserDataPath, uid, projectId, taskId, {
+        status: TASK_STATUS.WAITING_APPROVAL,
+        currentStep: "规则 Agent 方案（LLM 失败回退）",
+      });
+      runStatus = RUN_STATUS.COMPLETED;
+    } else {
+      throw err;
+    }
+  }
+
+  if (mode === "PATCH_PROPOSE" || mode === "VERIFY_FIX") {
+    const patches = listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+      status: PATCH_STATUS.STAGED,
+    });
+    output = output || {};
+    output.diffPreviews = patches.map(patchToDiffPreview).filter(Boolean);
+  }
+
+  recordLegacyAgentRun(getUserDataPath, uid, {
+    agentRunId,
     agentType: "ProjectAgent",
     scopeType: "task",
     projectId,
     taskId,
-    inputText: String(message || ""),
+    inputText: message,
     output,
-    status: "COMPLETED",
+    status: runStatus,
   });
-  if (codeAnalysis?.codeRoot) {
-    assertProjectAgentTool("search_project_code");
-    recordToolOperation(getUserDataPath, uid, {
-      agentRunId,
-      projectId,
-      taskId,
-      toolName: "search_project_code",
-      args: { query: String(message || "").slice(0, 200) },
-      resultText: `命中 ${(codeAnalysis.searchHits || []).length} 处，读取 ${(codeAnalysis.relevantFiles || []).length} 个文件`,
-      riskLevel: "LOW",
-    });
-    for (const filePath of (codeAnalysis.relevantFiles || []).slice(0, 3)) {
-      assertProjectAgentTool("read_project_file");
-      recordToolOperation(getUserDataPath, uid, {
-        agentRunId,
-        projectId,
-        taskId,
-        toolName: "read_project_file",
-        args: { path: filePath },
-        resultText: `只读预览 ${filePath}`,
-        riskLevel: "LOW",
-      });
-    }
-    for (const preview of output.diffPreviews || []) {
-      assertProjectAgentTool("preview_diff");
-      recordToolOperation(getUserDataPath, uid, {
-        agentRunId,
-        projectId,
-        taskId,
-        toolName: "preview_diff",
-        args: { filePath: preview.filePath },
-        resultText: preview.summary,
-        riskLevel: "LOW",
-      });
-    }
-  }
+
   return {
     agentRunId,
-    status: "COMPLETED",
+    status: runStatus,
+    mode,
     contextHealth: prepared.contextHealth,
     compressionResult: prepared.compressionResult,
     output,
     namespace: taskNs,
     allowedNamespaces: [...namespacesForProjectScope(projectId, taskId)],
   };
+}
+
+function cancelProjectAgent(getUserDataPath, userId, { projectId, taskId, agentRunId }) {
+  return cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId });
 }
 
 function buildChatAgentOutput(message, promptContext) {
@@ -200,6 +306,9 @@ function runChatAgent(getUserDataPath, userId, { chatId, message, toolName }) {
   }
   const uid = resolveUserId(userId);
   const chatNs = `chat:${chatId}`;
+  const { collectChatMessages } = require("./context-compression/contextMonitor.js");
+  const { appendMessage } = require("./chatService.js");
+  const { maybeUpdateChatSummary } = require("./chatSummaryService.js");
   const history = collectChatMessages(getUserDataPath, uid, chatId);
   const userMsg = appendMessage(getUserDataPath, uid, chatId, {
     role: "user",
@@ -216,7 +325,7 @@ function runChatAgent(getUserDataPath, userId, { chatId, message, toolName }) {
     content: output.answer,
   });
   const summaryResult = maybeUpdateChatSummary(getUserDataPath, uid, chatId);
-  const agentRunId = recordAgentRun(getUserDataPath, uid, {
+  const agentRunId = recordLegacyAgentRun(getUserDataPath, uid, {
     agentType: "ChatAgent",
     scopeType: "chat",
     chatId,
@@ -238,9 +347,20 @@ function runChatAgent(getUserDataPath, userId, { chatId, message, toolName }) {
   };
 }
 
+function assertChatAgentTool(toolName) {
+  const { isDevToolName } = require("./namespace.js");
+  if (isDevToolName(toolName)) {
+    const err = new Error(`ChatAgent 禁止调用开发工具: ${toolName}`);
+    err.code = "TOOL_FORBIDDEN";
+    err.status = 403;
+    throw err;
+  }
+}
+
 module.exports = {
   assertChatAgentTool,
   configureAgentOrchestrator,
   runProjectAgent,
+  cancelProjectAgent,
   runChatAgent,
 };

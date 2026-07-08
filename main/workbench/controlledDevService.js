@@ -24,7 +24,7 @@ function requireUserApproval(payload) {
 function applyControlledPatch(
   getUserDataPath,
   userId,
-  { projectId, taskId, path: relPath, content, userApproved, createGitBranch },
+  { projectId, taskId, path: relPath, content, userApproved, createGitBranch, stagedPatchId },
   { getDefaultProjectRoot } = {}
 ) {
   requireUserApproval({ userApproved });
@@ -84,6 +84,21 @@ function applyControlledPatch(
     status: "DEVELOPING",
     currentStep: `已写入 ${relPath}`,
   });
+  if (stagedPatchId) {
+    try {
+      const patchStagingService = require("./patchStagingService.js");
+      patchStagingService.updatePatchStatus(
+        getUserDataPath,
+        uid,
+        projectId,
+        taskId,
+        stagedPatchId,
+        patchStagingService.PATCH_STATUS.APPLIED
+      );
+    } catch {
+      /* patch may already be accepted/applied */
+    }
+  }
   return {
     writeResult,
     gitBranch,

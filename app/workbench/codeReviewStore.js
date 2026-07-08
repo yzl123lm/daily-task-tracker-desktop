@@ -49,8 +49,10 @@ function normalizeChange(preview, index, taskId) {
   } else if (deletions > 0 && additions === 0) {
     changeType = "delete";
   }
+  const stagedPatchId = preview.stagedPatchId || preview.raw?.stagedPatchId || null;
   return {
-    id: `chg_${taskId || "t"}_${index}_${path.replace(/[^\w.-]/g, "_")}`,
+    id: stagedPatchId || `chg_${taskId || "t"}_${index}_${path.replace(/[^\w.-]/g, "_")}`,
+    stagedPatchId,
     taskId,
     path,
     changeType,
@@ -63,6 +65,19 @@ function normalizeChange(preview, index, taskId) {
     originalContent: preview.originalContent || "",
     raw: preview,
   };
+}
+
+async function syncFromStagedPatches(projectId, taskId) {
+  const api = window.electronAPI || {};
+  if (!projectId || !taskId || typeof api.wbProjectPatchesList !== "function") {
+    return [];
+  }
+  try {
+    const previews = await api.wbProjectPatchesList({ projectId, taskId });
+    return setFromDiffPreviews(projectId, taskId, previews, "staging");
+  } catch {
+    return [];
+  }
 }
 
 function setFromDiffPreviews(projectId, taskId, diffPreviews, source = "plan") {
@@ -150,6 +165,7 @@ window.__wbCodeReviewStore = {
   WB_REVIEW_EVENT,
   REVIEW_STATUS,
   setFromDiffPreviews,
+  syncFromStagedPatches,
   setReviewStatus,
   setSelectedChange,
   setViewMode,

@@ -1,17 +1,26 @@
 const { getDb, nowIso, newId } = require("./db.js");
 const { resolveUserId } = require("./projectService.js");
 const { isDevToolName } = require("./namespace.js");
+const { PERMISSION, normalizeToolName, getToolDef } = require("./toolRegistry.js");
 
 const PROJECT_AGENT_TOOLS = new Set([
+  "list_files",
+  "read_file",
+  "search_code",
+  "find_symbols",
+  "analyze_package",
+  "write_task_memory",
+  "git_status",
+  "preview_diff",
+  "stage_patch",
+  "mock_echo",
+  "list_project_files",
   "read_project_file",
   "search_project_code",
-  "list_project_files",
-  "preview_diff",
   "run_tests",
   "compress_context",
   "write_project_file",
   "restore_file_backup",
-  "git_status",
   "git_commit",
   "git_checkout_branch",
   "run_shell_command",
@@ -23,10 +32,30 @@ const USER_APPROVAL_TOOLS = new Set([
   "git_commit",
   "git_checkout_branch",
   "run_shell_command",
+  "run_tests",
 ]);
 
-function assertProjectAgentTool(toolName, { userApproved } = {}) {
-  const name = String(toolName || "").trim();
+const LLM_FORBIDDEN_TOOLS = new Set([
+  "write_project_file",
+  "restore_file_backup",
+  "git_commit",
+  "git_checkout_branch",
+  "run_shell_command",
+]);
+
+function permissionLevelForTool(toolName) {
+  const def = getToolDef(normalizeToolName(toolName));
+  return def?.permission || null;
+}
+
+function assertProjectAgentTool(toolName, { userApproved, fromLlm = false } = {}) {
+  const name = normalizeToolName(toolName);
+  if (fromLlm && LLM_FORBIDDEN_TOOLS.has(name)) {
+    const err = new Error(`LLM 禁止调用: ${name}`);
+    err.code = "TOOL_FORBIDDEN";
+    err.status = 403;
+    throw err;
+  }
   if (USER_APPROVAL_TOOLS.has(name) && !userApproved) {
     const err = new Error(`工具 ${name} 需要用户确认`);
     err.code = "USER_APPROVAL_REQUIRED";
@@ -93,6 +122,9 @@ module.exports = {
   assertProjectAgentTool,
   recordToolOperation,
   listToolOperations,
+  permissionLevelForTool,
   PROJECT_AGENT_TOOLS,
   USER_APPROVAL_TOOLS,
+  LLM_FORBIDDEN_TOOLS,
+  PERMISSION,
 };

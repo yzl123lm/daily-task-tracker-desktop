@@ -135,18 +135,6 @@ body.jl-window-ai .jl-workbench-sidepanel .jl-workbench-nav__zone--sessions {
   max-height: none;
 }
 
-body.jl-window-ai .jl-workbench-sidepanel .jl-workbench-nav__zone--project[hidden],
-body.jl-window-ai .jl-workbench-sidepanel .jl-workbench-nav__zone--sessions[hidden] {
-  display: none !important;
-  flex: 0 0 auto !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  pointer-events: none !important;
-}
-
 body.jl-window-ai .jl-workbench-sidepanel .jl-workbench-nav__zone-title {
   display: block !important;
 }

@@ -19,6 +19,8 @@ const {
 } = require("./toolPermissionService.js");
 const controlledDevService = require("./controlledDevService.js");
 const backupRestoreService = require("./backupRestoreService.js");
+const patchStagingService = require("./patchStagingService.js");
+const verificationService = require("./verificationService.js");
 
 function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProjectRoot }) {
   if (!ipcMain || typeof getUserDataPath !== "function") {
@@ -104,7 +106,90 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       taskId,
       message: payload?.message,
       mode: payload?.mode || "PLAN_ONLY",
+      fixContext: payload?.fixContext,
     });
+  });
+
+  ipcMain.handle("wb-project-agent-cancel", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const agentRunId = assertSafeId(payload?.agentRunId, "agentRunId");
+    return agentOrchestrator.cancelProjectAgent(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      agentRunId,
+    });
+  });
+
+  ipcMain.handle("wb-project-patches-list", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const patches = patchStagingService.listStagedPatches(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId,
+      { status: payload?.status }
+    );
+    return patches.map(patchStagingService.patchToDiffPreview);
+  });
+
+  ipcMain.handle("wb-project-patch-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const patchId = assertSafeId(payload?.patchId, "patchId");
+    const patch = patchStagingService.getStagedPatch(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId,
+      patchId
+    );
+    if (!patch) {
+      throw new Error("补丁不存在");
+    }
+    return patchStagingService.patchToDiffPreview(patch);
+  });
+
+  ipcMain.handle("wb-project-patch-status", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const patchId = assertSafeId(payload?.patchId, "patchId");
+    const status = String(payload?.status || "").toUpperCase();
+    return patchStagingService.updatePatchStatus(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId,
+      patchId,
+      status
+    );
+  });
+
+  ipcMain.handle("wb-project-verify-start", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    return verificationService.runVerification(
+      getUserDataPath,
+      payload?.userId,
+      {
+        projectId,
+        taskId,
+        scriptName: payload?.scriptName || "build",
+        userApproved: Boolean(payload?.userApproved),
+      },
+      { getDefaultProjectRoot }
+    );
+  });
+
+  ipcMain.handle("wb-project-verify-scripts", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    return verificationService.listAvailableVerifications(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      { getDefaultProjectRoot }
+    );
   });
 
   ipcMain.handle("wb-project-choose-root", async (event) => {
@@ -291,6 +376,7 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
         content: payload?.content,
         userApproved: Boolean(payload?.userApproved),
         createGitBranch: Boolean(payload?.createGitBranch),
+        stagedPatchId: payload?.stagedPatchId || null,
       },
       { getDefaultProjectRoot }
     );

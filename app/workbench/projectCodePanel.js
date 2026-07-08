@@ -939,6 +939,7 @@ async function applyAcceptedDiffs() {
         content: change.proposedContent,
         userApproved: true,
         createGitBranch: Boolean(createGitBranch),
+        stagedPatchId: change.stagedPatchId || null,
       });
       results.push({ path: change.path, ok: true, result });
     }
@@ -957,6 +958,37 @@ async function applyAcceptedDiffs() {
     await refreshToolOps();
     window.__wbRefreshTaskList?.();
     window.__wbRenderDiffReviewPanel?.();
+    const autoVerify = document.getElementById("wbAutoVerifyAfterWrite")?.checked;
+    if (autoVerify && typeof api.wbProjectVerifyStart === "function") {
+      const approvedVerify = await window.__wbRequestApproval?.({
+        taskId,
+        projectId,
+        actionType: "run_test",
+        title: "写入后自动验证 build",
+        summary: "运行 npm run build 验证写入结果",
+        riskLevel: "MEDIUM",
+        details: { auto_verify: true },
+      });
+      if (approvedVerify) {
+        const verify = await api.wbProjectVerifyStart({
+          projectId,
+          taskId,
+          scriptName: "build",
+          userApproved: true,
+        });
+        if (!verify.ok && !verify.skipped && typeof api.wbProjectAgentRun === "function") {
+          await api.wbProjectAgentRun({
+            projectId,
+            taskId,
+            message: verify.parsed?.summary || "构建失败，请修复",
+            mode: "VERIFY_FIX",
+            fixContext: { scriptName: "build" },
+          });
+          await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+          window.__wbRenderDiffReviewPanel?.();
+        }
+      }
+    }
   } catch (err) {
     alert(err?.message || "批量写入失败");
   }

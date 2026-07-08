@@ -1,0 +1,150 @@
+const { getDb, nowIso, newId } = require("./db.js");
+const { resolveUserId } = require("./projectService.js");
+
+const PATCH_STATUS = {
+  STAGED: "STAGED",
+  ACCEPTED: "ACCEPTED",
+  REJECTED: "REJECTED",
+  APPLIED: "APPLIED",
+};
+
+const VALID_TRANSITIONS = {
+  STAGED: ["ACCEPTED", "REJECTED"],
+  ACCEPTED: ["APPLIED", "REJECTED"],
+  REJECTED: [],
+  APPLIED: [],
+};
+
+function rowToPatch(row) {
+  if (!row) {
+    return null;
+  }
+  let patchEdits = [];
+  try {
+    patchEdits = row.patch_edits_json ? JSON.parse(row.patch_edits_json) : [];
+  } catch {
+    patchEdits = [];
+  }
+  return {
+    id: row.id,
+    userId: row.user_id,
+    projectId: row.project_id,
+    taskId: row.task_id,
+    agentRunId: row.agent_run_id || null,
+    filePath: row.file_path,
+    originalContent: row.original_content || "",
+    proposedContent: row.proposed_content || "",
+    unifiedDiff: row.unified_diff || "",
+    summary: row.summary || "",
+    status: row.status,
+    patchEdits,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function createStagedPatch(getUserDataPath, userId, payload) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const id = newId("patch");
+  const ts = nowIso();
+  db.prepare(
+    `INSERT INTO staged_patches (
+      id, user_id, project_id, task_id, agent_run_id, file_path,
+      original_content, proposed_content, unified_diff, summary,
+      status, patch_edits_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id,
+    uid,
+    payload.projectId,
+    payload.taskId,
+    payload.agentRunId || null,
+    payload.filePath,
+    payload.originalContent ?? "",
+    payload.proposedContent ?? "",
+    payload.unifiedDiff ?? "",
+    payload.summary ?? "",
+    PATCH_STATUS.STAGED,
+    JSON.stringify(payload.patchEdits || []),
+    ts,
+    ts
+  );
+  return getStagedPatch(getUserDataPath, uid, payload.projectId, payload.taskId, id);
+}
+
+function getStagedPatch(getUserDataPath, userId, projectId, taskId, patchId) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const row = db
+    .prepare(
+      `SELECT * FROM staged_patches
+       WHERE id = ? AND user_id = ? AND project_id = ? AND task_id = ?`
+    )
+    .get(patchId, uid, projectId, taskId);
+  return rowToPatch(row);
+}
+
+function listStagedPatches(getUserDataPath, userId, projectId, taskId, { status } = {}) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  let sql = `SELECT * FROM staged_patches
+             WHERE user_id = ? AND project_id = ? AND task_id = ?`;
+  const params = [uid, projectId, taskId];
+  if (status) {
+    sql += " AND status = ?";
+    params.push(String(status).toUpperCase());
+  }
+  sql += " ORDER BY updated_at DESC";
+  const rows = db.prepare(sql).all(...params);
+  return rows.map(rowToPatch);
+}
+
+function updatePatchStatus(getUserDataPath, userId, projectId, taskId, patchId, nextStatus) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const patch = getStagedPatch(getUserDataPath, uid, projectId, taskId, patchId);
+  if (!patch) {
+    throw new Error("补丁不存在");
+  }
+  const target = String(nextStatus || "").toUpperCase();
+  const allowed = VALID_TRANSITIONS[patch.status] || [];
+  if (!allowed.includes(target)) {
+    const err = new Error(`不允许状态流转 ${patch.status} → ${target}`);
+    err.code = "INVALID_PATCH_TRANSITION";
+    throw err;
+  }
+  const ts = nowIso();
+  db.prepare(
+    `UPDATE staged_patches SET status = ?, updated_at = ?
+     WHERE id = ? AND user_id = ? AND project_id = ? AND task_id = ?`
+  ).run(target, ts, patchId, uid, projectId, taskId);
+  return getStagedPatch(getUserDataPath, uid, projectId, taskId, patchId);
+}
+
+function patchToDiffPreview(patch) {
+  if (!patch) {
+    return null;
+  }
+  return {
+    stagedPatchId: patch.id,
+    filePath: patch.filePath,
+    originalContent: patch.originalContent,
+    proposedContent: patch.proposedContent,
+    unifiedDiff: patch.unifiedDiff,
+    summary: patch.summary,
+    status: patch.status,
+    linesAdded: (patch.unifiedDiff.match(/^\+[^+]/gm) || []).length,
+    linesRemoved: (patch.unifiedDiff.match(/^-[^-]/gm) || []).length,
+    writeApplied: patch.status === PATCH_STATUS.APPLIED,
+  };
+}
+
+module.exports = {
+  PATCH_STATUS,
+  createStagedPatch,
+  getStagedPatch,
+  listStagedPatches,
+  updatePatchStatus,
+  patchToDiffPreview,
+};

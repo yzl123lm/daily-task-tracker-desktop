@@ -31,6 +31,30 @@ function changeTypeLabel(type) {
   return map[type] || type;
 }
 
+async function syncPatchReviewStatus(projectId, taskId, changeId, uiStatus) {
+  const reviewStore = window.__wbCodeReviewStore;
+  const api = window.electronAPI || {};
+  reviewStore.setReviewStatus(projectId, taskId, changeId, uiStatus);
+  const change = reviewStore.getChanges(projectId, taskId).find((c) => c.id === changeId);
+  if (!change?.stagedPatchId || typeof api.wbProjectPatchStatus !== "function") {
+    return;
+  }
+  const patchStatus = uiStatus === "accepted" ? "ACCEPTED" : uiStatus === "rejected" ? "REJECTED" : null;
+  if (!patchStatus) {
+    return;
+  }
+  try {
+    await api.wbProjectPatchStatus({
+      projectId,
+      taskId,
+      patchId: change.stagedPatchId,
+      status: patchStatus,
+    });
+  } catch {
+    /* UI state already updated */
+  }
+}
+
 function renderDiffLines(diff, viewMode) {
   const lines = String(diff || "").split(/\r?\n/);
   if (viewMode === "split") {
@@ -174,20 +198,40 @@ function renderDiffReviewPanel() {
   panel.querySelectorAll(".wb-diff-accept-one").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      reviewStore.setReviewStatus(projectId, taskId, btn.dataset.changeId, reviewStore.REVIEW_STATUS.ACCEPTED);
+      void syncPatchReviewStatus(
+        projectId,
+        taskId,
+        btn.dataset.changeId,
+        reviewStore.REVIEW_STATUS.ACCEPTED
+      );
     });
   });
   panel.querySelectorAll(".wb-diff-reject-one").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      reviewStore.setReviewStatus(projectId, taskId, btn.dataset.changeId, reviewStore.REVIEW_STATUS.REJECTED);
+      void syncPatchReviewStatus(
+        projectId,
+        taskId,
+        btn.dataset.changeId,
+        reviewStore.REVIEW_STATUS.REJECTED
+      );
     });
   });
   panel.querySelector(".wb-diff-accept-all")?.addEventListener("click", () => {
     reviewStore.acceptAll(projectId, taskId);
+    state.changes.forEach((c) => {
+      if (c.stagedPatchId) {
+        void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.ACCEPTED);
+      }
+    });
   });
   panel.querySelector(".wb-diff-reject-all")?.addEventListener("click", () => {
     reviewStore.rejectAll(projectId, taskId);
+    state.changes.forEach((c) => {
+      if (c.stagedPatchId) {
+        void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.REJECTED);
+      }
+    });
   });
   panel.querySelectorAll(".wb-diff-view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
