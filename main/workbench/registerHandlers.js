@@ -113,6 +113,10 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       patchIds: payload?.patchIds,
       createGitBranch: payload?.createGitBranch,
       agentRunId: payload?.agentRunId,
+      scene: payload?.scene,
+      autoVerify: payload?.autoVerify,
+      source: payload?.source,
+      basedOnLastPlan: payload?.basedOnLastPlan,
     });
   });
 

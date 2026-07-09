@@ -599,6 +599,7 @@ async function refreshCodeRoot(projectId) {
   const info = await api.wbProjectCodeRoot({ projectId });
   panelState.codeRoot = info.codeRoot;
   renderSourceRootCard(info);
+  void window.__wbSyncComposerSourceGate?.(projectId);
 }
 
 async function refreshFileTree(projectId) {
@@ -1430,6 +1431,7 @@ async function applyAcceptedDiffs() {
     window.__wbRefreshTaskList?.();
     window.__wbRenderDiffReviewPanel?.();
     await window.__wbLoadTaskContext?.(projectId, taskId);
+    window.__wbOnComposerDiffApplied?.(projectId, taskId);
     const autoVerify = document.getElementById("wbAutoVerifyAfterWrite")?.checked;
     if (autoVerify && typeof api.wbProjectAgentRun === "function") {
       const approvedVerify = await window.__wbRequestApproval?.({
@@ -1442,8 +1444,11 @@ async function applyAcceptedDiffs() {
         details: { auto_verify: true, requestId: `verify_${requestId}` },
       });
       if (approvedVerify) {
+        window.__wbUpsertComposerStep?.("run_verify", "running");
         const fixResult = applyOutput?.fixResult;
         if (fixResult?.waitingApproval) {
+          window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，已生成修复 Diff");
+          window.__wbUpsertComposerStep?.("fix_failure", "pending");
           await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
           window.__wbRenderDiffReviewPanel?.();
         } else if (!fixResult?.ok) {
@@ -1453,9 +1458,15 @@ async function applyAcceptedDiffs() {
             message: "构建失败，请修复",
             mode: "VERIFY_FIX",
             fixContext: { scriptName: "build" },
+            source: "diff_review",
           });
+          window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，进入修复流程");
+          window.__wbUpsertComposerStep?.("fix_failure", "pending");
           await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
           window.__wbRenderDiffReviewPanel?.();
+        } else {
+          window.__wbUpsertComposerStep?.("run_verify", "done", "验证通过");
+          window.__wbUpsertComposerStep?.("complete", "done");
         }
       }
     }
@@ -1472,6 +1483,7 @@ window.__wbRenderPlanCodeExtras = renderPlanCodeExtras;
 window.__wbBindCodePanel = ensureCodePanelMount;
 window.__wbApplyPlanPatch = applyPlanPatch;
 window.__wbApplyAcceptedDiffs = applyAcceptedDiffs;
+window.__wbChooseProjectRoot = chooseProjectRoot;
 window.__wbRunWhitelistedTest = runWhitelistedTest;
 window.__wbRunTestWithFix = runTestWithFix;
 window.__wbGitCommitConfirmed = gitCommitConfirmed;

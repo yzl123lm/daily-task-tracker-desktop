@@ -339,8 +339,68 @@ body.jl-project-workspace-active #panel-ai {
 
 .wb-pws-composer__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
+  align-items: center;
+}
+
+.wb-composer-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.wb-composer-source-gate {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+}
+
+.wb-composer-source-gate__text {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #92400e;
+}
+
+.wb-composer-error {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #dc2626;
+}
+
+.wb-composer-toast {
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.45;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.wb-composer-toast--success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.wb-composer-toast--warn {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
+}
+
+.wb-composer-toast--error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
 }
 
 .wb-pws-plan-card {

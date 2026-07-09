@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "9";
+const WB_PWS_LAYOUT_VERSION = "10";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -105,7 +105,7 @@ const WB_PWS_LAYOUT_HTML = `
           <p id="wbTaskDetailDesc" class="wb-pws-user-card__desc"></p>
           <p id="wbTaskDetailStep" class="wb-pws-user-card__step"></p>
         </div>
-        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">暂无任务，请在左侧创建或选择任务。</p>
+        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">输入下方 AI 指令并点击「开始执行」，系统将自动创建任务并分析项目。</p>
       </header>
       <div class="wb-pws-agent-scroll">
         <div class="wb-pws-panel wb-pws-panel--timeline">
@@ -127,20 +127,31 @@ const WB_PWS_LAYOUT_HTML = `
       </div>
       <div class="wb-pws-agent-composer">
         <header class="wb-pws-panel__head">
-          <h3>任务描述 / 追问</h3>
-          <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板"></select>
+          <h3>AI 指令</h3>
+          <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
         </header>
         <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
-        <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述开发需求，生成 PLAN_ONLY 方案…"></textarea>
+        <div id="wbComposerSourceGate" class="wb-composer-source-gate" hidden>
+          <p class="wb-composer-source-gate__text">请先设置项目源码目录，AI 需要在源码目录内读取、搜索、生成 Diff 和受控修改代码。</p>
+          <button type="button" id="wbComposerChooseRootBtn" class="wb-pws-btn wb-pws-btn--ghost">设置项目源码目录</button>
+        </div>
+        <p id="wbComposerHint" class="wb-composer-hint">AI 会先分析项目并生成方案，写入代码前会展示 Diff 并等待你确认。</p>
+        <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：修复项目卡片文字被按钮挤压的问题"></textarea>
+        <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
+        <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
         <div class="wb-pws-composer__actions">
           <button type="button" id="wbPwsOpenCodeDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only">查看代码变更</button>
           <label class="wb-pws-auto-verify" for="wbAutoVerifyAfterWrite">
             <input type="checkbox" id="wbAutoVerifyAfterWrite" />
             写入后自动验证
           </label>
-          <button type="button" id="wbAgentCancelBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>取消任务</button>
-          <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">生成开发方案</button>
-          <button type="button" id="wbTaskConfirmBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>确认方案</button>
+          <button type="button" id="wbAgentCancelBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>停止任务</button>
+          <button type="button" id="wbAgentRegenBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>重新生成方案</button>
+          <button type="button" id="wbAgentViewDiffBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>查看 Diff</button>
+          <button type="button" id="wbAgentRunVerifyBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>运行验证</button>
+          <button type="button" id="wbAgentCompleteBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>完成任务</button>
+          <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
+          <button type="button" id="wbTaskConfirmBtn" class="wb-pws-btn wb-pws-btn--primary" hidden>生成代码变更</button>
         </div>
       </div>
     </section>
