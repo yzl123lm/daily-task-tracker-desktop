@@ -1075,8 +1075,8 @@ async function loadTaskContext(projectId, taskId) {
   }
   composerPhase = detectComposerPhaseFromContext(projectId, taskId);
   updateComposerUi(composerPhase);
-  const tasks = window.__wbStore?.getState?.()?.tasks || [];
-  renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
+  const latestTasks = window.__wbStore?.getState?.()?.tasks || tasks;
+  renderTaskDetail(latestTasks.find((t) => t.id === taskId) || task || null);
   await syncComposerPathState(projectId);
   await refreshProjectContextHealth(projectId, taskId);
   await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
