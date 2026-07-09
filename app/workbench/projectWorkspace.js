@@ -159,22 +159,8 @@ function renderTaskDetail(task, planOutput = null) {
   `;
 }
 
-function renderProjectColCard(project) {
-  const card = document.getElementById("wbPwsProjectCard");
-  if (!card) {
-    return;
-  }
-  if (!project) {
-    card.innerHTML =
-      '<p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>';
-    return;
-  }
-  const path = project.localPath || project.local_path || "未配置项目路径";
-  card.innerHTML = `
-    <h4>${escapeHtml(project.name)}</h4>
-    <p class="wb-pws-project-card__ns">${escapeHtml(project.namespace || `project:${project.id}`)}</p>
-    <p class="wb-pws-project-card__meta">状态 ${escapeHtml(project.status || "active")} · ${escapeHtml(String(path).slice(-56))}</p>
-  `;
+function renderProjectColCard(_project) {
+  /* 侧栏项目摘要已取消展示；保留函数以免旧调用报错 */
 }
 
 let taskFilterMode = "all";
@@ -800,6 +786,17 @@ function handleComposerMoreAction(action) {
       break;
     case "complete":
       void completeComposerTask();
+      break;
+    case "new-task":
+      if (projectId) {
+        void createTaskForProject(projectId);
+      }
+      break;
+    case "reset-layout":
+      window.__wbResetPwsLayout?.();
+      break;
+    case "manual-compress":
+      void manualCompressProject();
       break;
     case "open-path": {
       const store = window.__wbStore?.getState?.() || {};
@@ -1606,9 +1603,15 @@ async function loadProjectWorkspace(projectId) {
   window.__wbStore?.setTasks?.(tasks);
   renderProjectColCard(project);
   window.__wbRenderProjectList?.();
-  document.getElementById("wbProjectWorkspaceTitle").textContent = project.name;
+  const titleEl = document.getElementById("wbProjectWorkspaceTitle");
+  if (titleEl) {
+    titleEl.textContent = project.name;
+  }
   window.__wbSyncProjectTopChrome?.(true, project.name);
-  document.getElementById("wbProjectWorkspaceNs").textContent = project.namespace || `project:${id}`;
+  const nsEl = document.getElementById("wbProjectWorkspaceNs");
+  if (nsEl) {
+    nsEl.textContent = project.namespace || `project:${id}`;
+  }
   const modePill = document.getElementById("wbPwsModePill");
   if (modePill) {
     modePill.textContent = "PLAN_ONLY / 受控写入";
@@ -1942,12 +1945,14 @@ function bindProjectWorkspace() {
   document.getElementById("wbCompressBtn")?.addEventListener("click", () => {
     void manualCompressProject();
   });
-  document.getElementById("wbNewTaskBtn")?.addEventListener("click", () => {
+  const openNewTask = () => {
     const projectId = window.__wbStore?.getState?.().selectedProjectId;
     if (projectId) {
       void createTaskForProject(projectId);
     }
-  });
+  };
+  document.getElementById("wbNewTaskBtn")?.addEventListener("click", openNewTask);
+  document.getElementById("wbNewTaskBtnMobile")?.addEventListener("click", openNewTask);
   document.getElementById("wbAgentCancelBtn")?.addEventListener("click", () => {
     void cancelActiveAgent();
   });

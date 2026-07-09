@@ -409,10 +409,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 }
 
 .wb-pws-project-summary {
-  flex: 0 0 auto;
-  padding: 10px 10px 6px;
-  border-bottom: 1px solid #dcebfa;
-  background: rgba(255, 255, 255, 0.86);
+  display: none !important;
 }
 
 .wb-pws-sidebar-tabs {

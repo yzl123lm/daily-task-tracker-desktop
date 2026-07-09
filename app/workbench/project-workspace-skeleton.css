@@ -332,13 +332,8 @@ body.jl-pws-top-chrome-active.jl-window-ai .jl-titlebar-drag-main {
   min-width: 48px;
 }
 
-body.jl-pws-top-chrome-active .wb-pws-status-bar {
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  border-top: none;
-  box-shadow: none;
-  border-bottom: 1px solid var(--wb-pws-border);
+body.jl-pws-top-chrome-active .wb-pws-status-bar:not(.wb-pws-mobile-toolbar) {
+  display: none;
 }
 
 body.jl-project-workspace-active #panel-ai {
@@ -377,7 +372,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   margin: 0 !important;
 }
 
-/* Grid skeleton: topbar + main + assistant + terminal（文件树在左侧 sidebar） */
+/* Grid skeleton: main + assistant + terminal（文件树在左侧 sidebar；桌面无顶栏） */
 .wb-pws-layout,
 .wb-ai-workbench-layout {
   position: relative;
@@ -395,9 +390,8 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   --wb-pws-agent-width: 360px;
   --wb-pws-terminal-height: 220px;
   grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
-  grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
+  grid-template-rows: minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
-    "topbar topbar"
     "main assistant"
     "terminal terminal";
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%);
@@ -407,7 +401,6 @@ body.wb-pws-sidebar-mounted .wb-pws-layout,
 body.wb-pws-sidebar-mounted .wb-ai-workbench-layout {
   grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
   grid-template-areas:
-    "topbar topbar"
     "main assistant"
     "terminal terminal";
 }
@@ -425,18 +418,42 @@ body.wb-pws-sidebar-mounted .wb-pws-project-col {
 }
 
 .wb-pws-layout[data-terminal-collapsed="1"] {
-  grid-template-rows: 48px minmax(0, 1fr) 40px;
+  grid-template-rows: minmax(0, 1fr) 40px;
 }
 
 .wb-pws-topbar,
-.wb-pws-status-bar {
+.wb-pws-status-bar,
+.wb-pws-mobile-toolbar {
+  display: none;
   grid-area: topbar;
   border-radius: 0;
   border-left: none;
   border-right: none;
   border-top: none;
-  min-height: 48px;
+  min-height: 44px;
   box-shadow: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--wb-pws-border, #dcebfa);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.wb-pws-mobile-toolbar__spacer {
+  flex: 1 1 auto;
+}
+
+.wb-pws-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
 }
 
 .wb-pws-project-col {
@@ -552,6 +569,21 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   justify-content: space-between;
   gap: 8px;
   border-bottom: 1px solid var(--wb-pws-border, #dcebfa);
+}
+
+.wb-pws-project-col__head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.wb-pws-project-col__head-actions #wbNewTaskBtn {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .wb-pws-project-switcher {
@@ -928,7 +960,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-layout,
   .wb-ai-workbench-layout {
     grid-template-columns: minmax(0, 1fr) var(--wb-pws-agent-width);
-    grid-template-rows: 48px minmax(0, 1fr) var(--wb-pws-terminal-height);
+    grid-template-rows: minmax(0, 1fr) var(--wb-pws-terminal-height);
   }
 }
 
@@ -936,7 +968,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-layout,
   .wb-ai-workbench-layout {
     --wb-pws-agent-width: 340px;
-    grid-template-rows: 48px minmax(0, 1fr) 210px;
+    grid-template-rows: minmax(0, 1fr) 210px;
   }
 
   body.jl-project-workspace-active {
@@ -964,11 +996,20 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
   .wb-pws-layout,
   .wb-ai-workbench-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: 48px minmax(0, 1fr) 180px;
+    grid-template-rows: 44px minmax(0, 1fr) 180px;
     grid-template-areas:
       "topbar"
       "main"
       "terminal";
+  }
+
+  .wb-pws-layout[data-terminal-collapsed="1"],
+  .wb-ai-workbench-layout[data-terminal-collapsed="1"] {
+    grid-template-rows: 44px minmax(0, 1fr) 40px;
+  }
+
+  .wb-pws-mobile-toolbar {
+    display: flex;
   }
 
   body.wb-pws-assistant-collapsed .wb-pws-layout,

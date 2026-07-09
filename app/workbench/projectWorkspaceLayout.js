@@ -1,12 +1,7 @@
-const WB_PWS_LAYOUT_VERSION = "14";
+const WB_PWS_LAYOUT_VERSION = "15";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
-      <div class="wb-pws-project-summary" id="wbPwsProjectSummary">
-        <div id="wbPwsProjectCard" class="wb-pws-project-card">
-          <p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>
-        </div>
-      </div>
       <nav class="wb-pws-sidebar-tabs" id="wbPwsSidebarTabs" role="tablist" aria-label="侧栏模块">
         <button type="button" class="wb-pws-sidebar-tab is-active" data-tab="tasks" role="tab" aria-selected="true">任务</button>
         <button type="button" class="wb-pws-sidebar-tab" data-tab="files" role="tab" aria-selected="false">文件</button>
@@ -17,7 +12,10 @@ const WB_PWS_PROJECT_COL_HTML = `
         <div class="wb-pws-sidebar-pane is-active" data-pane="tasks" role="tabpanel">
           <div class="wb-pws-project-col__head">
             <h3>项目与任务</h3>
-            <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
+            <div class="wb-pws-project-col__head-actions">
+              <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--ghost" title="新建任务">新建任务</button>
+              <button type="button" id="wbPwsProjectNewBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-icon-btn" title="新建项目" aria-label="新建项目">+</button>
+            </div>
           </div>
           <div class="wb-pws-project-switcher">
             <div id="wbPwsProjectList" class="wb-pws-project-list scroll-tech" role="list" aria-label="项目列表"></div>
@@ -59,25 +57,20 @@ const WB_PWS_PROJECT_COL_HTML = `
 
 const WB_PWS_LAYOUT_HTML = `
   <div class="wb-pws-layout wb-ai-workbench-layout" data-terminal-collapsed="1">
-    <header class="wb-pws-topbar wb-pws-status-bar" id="wbPwsTopbar">
-      <div class="wb-pws-status-bar__left">
-        <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only" title="项目与任务">项目</button>
-        <span class="wb-pws-status-bar__badge">项目开发</span>
-        <h2 id="wbProjectWorkspaceTitle" class="wb-pws-status-bar__title">项目工作区</h2>
-        <span id="wbPwsModePill" class="wb-pws-status-bar__mode">PLAN_ONLY</span>
-      </div>
-      <div class="wb-pws-status-bar__meta">
-        <span id="wbProjectWorkspaceNs" class="wb-pws-status-bar__ns"></span>
-        <div id="wbProjectContextHealth" class="wb-pws-status-bar__health"></div>
-      </div>
-      <div class="wb-pws-status-bar__actions">
-        <div class="wb-pws-status-bar__layout-actions">
-          <button type="button" id="wbPwsLayoutResetBtn" class="wb-pws-btn wb-pws-btn--ghost wb-pws-layout-reset" title="恢复默认栏宽与终端高度">重置布局</button>
-        </div>
-        <button type="button" id="wbCompressBtn" class="wb-pws-btn wb-pws-btn--ghost">手动压缩</button>
-        <button type="button" id="wbNewTaskBtn" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
-      </div>
+    <header class="wb-pws-topbar wb-pws-status-bar wb-pws-mobile-toolbar" id="wbPwsTopbar" aria-label="移动端工具栏">
+      <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost" title="项目与任务">项目</button>
+      <span class="wb-pws-mobile-toolbar__spacer"></span>
+      <button type="button" id="wbNewTaskBtnMobile" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
     </header>
+    <div class="wb-pws-sr-only" aria-hidden="true">
+      <span id="wbProjectWorkspaceTitle"></span>
+      <span id="wbPwsModePill"></span>
+      <span id="wbProjectWorkspaceNs"></span>
+      <div id="wbProjectContextHealth"></div>
+      <div id="wbPwsProjectCard"></div>
+      <button type="button" id="wbPwsLayoutResetBtn" tabindex="-1"></button>
+      <button type="button" id="wbCompressBtn" tabindex="-1"></button>
+    </div>
     <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="主工作区">
       <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
         <h3>代码变更</h3>
@@ -137,6 +130,9 @@ const WB_PWS_LAYOUT_HTML = `
               <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
               <button type="button" data-wb-more-action="open-log">查看执行日志</button>
               <button type="button" data-wb-more-action="open-tools">查看工具记录</button>
+              <button type="button" data-wb-more-action="new-task">新建任务</button>
+              <button type="button" data-wb-more-action="reset-layout">重置布局</button>
+              <button type="button" data-wb-more-action="manual-compress">手动压缩</button>
               <button type="button" data-wb-more-action="open-path">打开项目路径</button>
               <button type="button" data-wb-more-action="edit-path">编辑项目路径</button>
               <button type="button" data-wb-more-action="complete">标记完成</button>
