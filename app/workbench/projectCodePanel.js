@@ -126,25 +126,49 @@ function ensureSourceRootCard() {
 }
 
 function bindSourceRootCardEvents() {
-  const openBtn = document.getElementById("wbPwsOpenProjectPathBtn");
-  if (openBtn && openBtn.dataset.bound !== "1") {
-    openBtn.dataset.bound = "1";
-    openBtn.addEventListener("click", () => {
-      const path = document.getElementById("wbProjectSourceRootText")?.textContent?.trim();
-      if (path && path !== "未配置项目路径" && window.electronAPI?.shellOpenPath) {
-        void window.electronAPI.shellOpenPath(path);
-      }
-    });
+  /* 打开目录已绑定在项目卡片 actions 上 */
+}
+
+let lastSourceRootInfo = null;
+let lastSourceRootGit = null;
+
+async function openSourceRootPath(explicitPath) {
+  const api = wbApi();
+  const path =
+    String(explicitPath || "").trim() ||
+    document.getElementById("wbProjectSourceRootText")?.textContent?.trim() ||
+    "";
+  const projectId = panelState.projectId || window.__wbStore?.getState?.().selectedProjectId;
+  if ((!path || path === "未配置项目路径") && !projectId) {
+    return;
+  }
+  try {
+    let result = null;
+    if (typeof api.wbProjectOpenPath === "function") {
+      result = await api.wbProjectOpenPath({
+        path: path && path !== "未配置项目路径" ? path : undefined,
+        projectId,
+      });
+    } else if (typeof api.shellOpenPath === "function" && path && path !== "未配置项目路径") {
+      result = await api.shellOpenPath(path);
+    }
+    if (result && result.ok === false) {
+      window.alert?.(result.error || "无法打开目录");
+    }
+  } catch (error) {
+    window.alert?.(error?.message || "无法打开目录");
   }
 }
 
 function renderSourceRootGitStatus(status) {
+  lastSourceRootGit = status || null;
   const gitEl = document.getElementById("wbProjectGitStatusText");
   const hintEl = document.getElementById("wbProjectSourceRootHint");
   if (!gitEl) {
     return;
   }
   if (!status?.isRepo) {
+    gitEl.hidden = false;
     gitEl.textContent = "Git：非仓库";
     if (hintEl) {
       hintEl.hidden = false;
@@ -157,6 +181,7 @@ function renderSourceRootGitStatus(status) {
     hintEl.textContent = "";
   }
   const branch = status.branch || "detached";
+  gitEl.hidden = false;
   if (status.clean) {
     gitEl.textContent = `Git：${branch}`;
     return;
@@ -166,6 +191,7 @@ function renderSourceRootGitStatus(status) {
 }
 
 function renderSourceRootCard(info = {}) {
+  lastSourceRootInfo = info;
   ensureSourceRootCard();
   const card = document.getElementById("wbPwsSourceRootCard");
   const pathEl = document.getElementById("wbProjectSourceRootText");
@@ -197,10 +223,23 @@ function renderSourceRootCard(info = {}) {
     }
   } else {
     pathEl.textContent = codeRoot || localPath;
+    pathEl.title = codeRoot || localPath;
     if (hintEl) {
       hintEl.hidden = true;
       hintEl.textContent = "";
     }
+  }
+  if (lastSourceRootGit) {
+    renderSourceRootGitStatus(lastSourceRootGit);
+  }
+}
+
+function reapplySourceRootCard() {
+  if (lastSourceRootInfo) {
+    renderSourceRootCard(lastSourceRootInfo);
+  }
+  if (lastSourceRootGit) {
+    renderSourceRootGitStatus(lastSourceRootGit);
   }
 }
 
@@ -1468,6 +1507,8 @@ window.__wbRefreshCodePanel = refreshCodePanel;
 window.__wbRenderSourceRootCard = renderSourceRootCard;
 window.__wbRenderSourceRootGitStatus = renderSourceRootGitStatus;
 window.__wbEnsureSourceRootCard = ensureSourceRootCard;
+window.__wbReapplySourceRootCard = reapplySourceRootCard;
+window.__wbOpenSourceRootPath = openSourceRootPath;
 window.__wbRenderPlanCodeExtras = renderPlanCodeExtras;
 window.__wbBindCodePanel = ensureCodePanelMount;
 window.__wbApplyPlanPatch = applyPlanPatch;

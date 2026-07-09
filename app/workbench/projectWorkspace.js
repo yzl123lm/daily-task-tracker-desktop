@@ -615,7 +615,11 @@ function handleComposerMoreAction(action) {
       const store = window.__wbStore?.getState?.() || {};
       const project = (store.projects || []).find((p) => p.id === projectId);
       const p = project?.localPath || project?.local_path;
-      if (p && window.electronAPI?.shellOpenPath) {
+      if (typeof window.__wbOpenProjectPath === "function") {
+        void window.__wbOpenProjectPath(p, projectId);
+      } else if (p && window.electronAPI?.wbProjectOpenPath) {
+        void window.electronAPI.wbProjectOpenPath({ path: p, projectId });
+      } else if (p && window.electronAPI?.shellOpenPath) {
         void window.electronAPI.shellOpenPath(p);
       }
       break;
@@ -1722,7 +1726,12 @@ function bindProjectWorkspace() {
   document.getElementById("wbPwsOpenProjectDir")?.addEventListener("click", (ev) => {
     const btn = ev.currentTarget;
     const p = btn?.dataset?.path;
-    if (p && window.electronAPI?.shellOpenPath) {
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    if (typeof window.__wbOpenProjectPath === "function") {
+      void window.__wbOpenProjectPath(p, projectId);
+    } else if (p && window.electronAPI?.wbProjectOpenPath) {
+      void window.electronAPI.wbProjectOpenPath({ path: p, projectId });
+    } else if (p && window.electronAPI?.shellOpenPath) {
       void window.electronAPI.shellOpenPath(p);
     }
   });

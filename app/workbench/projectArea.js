@@ -300,28 +300,74 @@ function selectProject(projectId) {
   }
 }
 
-function buildProjectListCard(project, store) {
+async function openProjectPath(targetPath, projectId) {
+  const api = wbApi();
+  const path = String(targetPath || "").trim();
+  if (!path && !projectId) {
+    return;
+  }
+  try {
+    let result = null;
+    if (typeof api.wbProjectOpenPath === "function") {
+      result = await api.wbProjectOpenPath({ path: path || undefined, projectId });
+    } else if (typeof api.shellOpenPath === "function") {
+      result = await api.shellOpenPath(path);
+    } else {
+      return;
+    }
+    if (result && result.ok === false) {
+      window.alert?.(result.error || "无法打开目录");
+    }
+  } catch (error) {
+    window.alert?.(error?.message || "无法打开目录");
+  }
+}
+
+function buildProjectListCard(project, store, { compact = false } = {}) {
   const card = document.createElement("div");
   card.className = "wb-list-card wb-list-card--project";
   card.dataset.projectId = project.id;
   const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
+  const localPath = String(project.localPath || project.local_path || "").trim();
+  const pathLabel = localPath || "未配置项目路径";
+  const isSelected = project.id === store.selectedProjectId;
+  const openDirBtn = compact
+    ? `<button type="button" class="wb-project-card__open-dir" data-action="open-path" title="打开目录" ${
+        localPath ? `data-path="${escapeHtml(localPath)}"` : "disabled"
+      }>打开目录</button>`
+    : "";
+  const pathMeta = compact
+    ? `<div class="wb-project-card__path-meta${isSelected ? " is-selected" : ""}"${
+        isSelected ? ' id="wbPwsSourceRootCard"' : ""
+      }>
+        <span class="wb-project-card__path"${isSelected ? ' id="wbProjectSourceRootText"' : ""} title="${escapeHtml(
+          pathLabel
+        )}">${escapeHtml(pathLabel)}</span>
+        <span class="wb-project-card__git"${isSelected ? ' id="wbProjectGitStatusText"' : ""} hidden></span>
+        <p class="wb-project-card__path-hint"${isSelected ? ' id="wbProjectSourceRootHint"' : ""} hidden></p>
+      </div>`
+    : "";
   card.innerHTML = `
     <div class="wb-list-card__surface">
-      <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
-        <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
-        <span class="wb-project-card__main">
-          <span class="wb-project-card__name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span>
-          <span class="wb-status-pill ${statusPillClass(project.status)}">
-            <span class="wb-status-pill__dot" aria-hidden="true"></span>
-            ${escapeHtml(statusLabel)}
+      <div class="wb-project-card__row">
+        <button type="button" class="wb-project-card jl-ai-session-item wb-list-card__body">
+          <span class="wb-project-card__icon">${PROJECT_ICON_SVG}</span>
+          <span class="wb-project-card__main">
+            <span class="wb-project-card__name" title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</span>
+            <span class="wb-status-pill ${statusPillClass(project.status)}">
+              <span class="wb-status-pill__dot" aria-hidden="true"></span>
+              ${escapeHtml(statusLabel)}
+            </span>
           </span>
-        </span>
-      </button>
-      <div class="wb-list-card__actions wb-list-card__actions--overlay" role="group" aria-label="项目操作">
-        <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
-        <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
-        <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+        </button>
+        <div class="wb-list-card__actions wb-list-card__actions--overlay" role="group" aria-label="项目操作">
+          ${openDirBtn}
+          <button type="button" class="wb-icon-btn" data-action="edit" title="编辑" aria-label="编辑">✎</button>
+          <button type="button" class="wb-icon-btn" data-action="archive" title="归档" aria-label="归档">📦</button>
+          <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
+        </div>
       </div>
+      ${pathMeta}
     </div>
   `;
   const module =
@@ -361,6 +407,13 @@ function mountProjectListCard(card, list) {
       void deleteProject(project);
     }
   });
+  card.querySelectorAll('[data-action="open-path"]').forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const p = btn.dataset.path || project?.localPath || project?.local_path;
+      void openProjectPath(p, projectId);
+    });
+  });
   list.appendChild(card);
 }
 
@@ -375,7 +428,7 @@ function renderProjectListToContainer(listEl, emptyEl, compact = false) {
     emptyEl.hidden = projects.length > 0;
   }
   projects.forEach((project) => {
-    const card = buildProjectListCard(project, store);
+    const card = buildProjectListCard(project, store, { compact });
     if (compact) {
       card.classList.add("wb-list-card--compact");
     }
@@ -391,6 +444,7 @@ function renderProjectList() {
   if (colList) {
     renderProjectListToContainer(colList, null, true);
   }
+  window.__wbReapplySourceRootCard?.();
 }
 
 function bindProjectArea() {
@@ -437,6 +491,7 @@ function bindProjectArea() {
 window.__wbRenderProjects = renderProjectList;
 window.__wbRenderProjectList = renderProjectList;
 window.__wbOpenNewProjectModal = openNewProjectModal;
+window.__wbOpenProjectPath = openProjectPath;
 window.__wbOpenEditProjectModal = async (projectId) => {
   const store = window.__wbStore?.getState?.() || {};
   const project = (store.projects || []).find((p) => p.id === projectId);

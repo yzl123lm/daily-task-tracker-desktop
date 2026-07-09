@@ -1,5 +1,7 @@
-const { dialog, BrowserWindow } = require("electron");
-const { assertSafeId } = require("../../utils/ipcValidate.js");
+const fs = require("fs");
+const path = require("path");
+const { dialog, BrowserWindow, shell } = require("electron");
+const { assertSafeId, assertAbsolutePath } = require("../../utils/ipcValidate.js");
 const projectService = require("./projectService.js");
 const chatService = require("./chatService.js");
 const contextMemoryService = require("./contextMemoryService.js");
@@ -212,6 +214,36 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       return null;
     }
     return res.filePaths[0];
+  });
+
+  ipcMain.handle("wb-project-open-path", async (_event, payload) => {
+    try {
+      let target = String(payload?.path || "").trim();
+      if (!target && payload?.projectId) {
+        const projectId = assertSafeId(payload.projectId, "projectId");
+        const project = projectService.getProject(getUserDataPath, payload?.userId, projectId);
+        if (!project) {
+          return { ok: false, error: "项目不存在" };
+        }
+        target = String(project.localPath || project.local_path || "").trim();
+      }
+      const resolved = assertAbsolutePath(target, { mustExist: true, label: "项目路径" });
+      let openTarget = resolved;
+      try {
+        if (!fs.statSync(resolved).isDirectory()) {
+          openTarget = path.dirname(resolved);
+        }
+      } catch {
+        /* keep resolved */
+      }
+      const err = await shell.openPath(openTarget);
+      if (err) {
+        return { ok: false, error: `打开失败：${err}` };
+      }
+      return { ok: true, path: openTarget };
+    } catch (error) {
+      return { ok: false, error: error?.message || String(error) };
+    }
   });
 
   ipcMain.handle("wb-project-code-root", (_event, payload) => {

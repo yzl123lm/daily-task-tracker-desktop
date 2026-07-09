@@ -384,6 +384,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectVerifyStart: (payload) => ipcRenderer.invoke("wb-project-verify-start", payload || {}),
   wbProjectVerifyScripts: (payload) => ipcRenderer.invoke("wb-project-verify-scripts", payload || {}),
   wbProjectChooseRoot: () => ipcRenderer.invoke("wb-project-choose-root"),
+  wbProjectOpenPath: (payload) => ipcRenderer.invoke("wb-project-open-path", payload || {}),
+  /** @deprecated 使用 wbProjectOpenPath；保留别名兼容旧调用 */
+  shellOpenPath: (targetPath) =>
+    ipcRenderer.invoke("wb-project-open-path", {
+      path: typeof targetPath === "string" ? targetPath : targetPath?.path,
+    }),
   wbProjectCodeRoot: (payload) => ipcRenderer.invoke("wb-project-code-root", payload || {}),
   wbProjectFilesTree: (payload) => ipcRenderer.invoke("wb-project-files-tree", payload || {}),
   wbProjectFileRead: (payload) => ipcRenderer.invoke("wb-project-file-read", payload || {}),
