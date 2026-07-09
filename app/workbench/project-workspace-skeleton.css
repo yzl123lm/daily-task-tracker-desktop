@@ -1560,6 +1560,30 @@ body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex butto
   box-shadow: none;
 }
 
+/* 侧栏「任务/文件/搜索/Git」标签：覆盖 nebula 深色 button，与 Codex 浅蓝主体一致 */
+body.jl-project-workspace-active .wb-pws-sidebar-tab,
+body.jl-project-workspace-active.theme-nebula .wb-pws-sidebar-tab {
+  background: #ffffff !important;
+  border: 1px solid #dcebfa !important;
+  color: #64748b !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+
+body.jl-project-workspace-active .wb-pws-sidebar-tab:hover,
+body.jl-project-workspace-active.theme-nebula .wb-pws-sidebar-tab:hover {
+  background: #f7fbff !important;
+  border-color: #b9d6fb !important;
+  color: #1e6bff !important;
+}
+
+body.jl-project-workspace-active .wb-pws-sidebar-tab.is-active,
+body.jl-project-workspace-active.theme-nebula .wb-pws-sidebar-tab.is-active {
+  background: #eaf3ff !important;
+  border-color: #93c5fd !important;
+  color: #2563eb !important;
+}
+
 body.jl-project-workspace-active.theme-nebula .wb-pws-project-col .wb-pws-task-filter {
   padding: 4px 8px;
   border: 1px solid #dcebfa !important;

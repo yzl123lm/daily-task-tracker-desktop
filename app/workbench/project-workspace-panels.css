@@ -431,11 +431,17 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
   padding: 0 6px;
   border-radius: 10px;
   border: 1px solid #dcebfa;
-  background: rgba(255, 255, 255, 0.72);
+  background: #ffffff;
   font-size: 11px;
   font-weight: 600;
   color: #64748b;
   cursor: pointer;
+}
+
+.wb-pws-sidebar-tab:hover {
+  background: #f7fbff;
+  border-color: #b9d6fb;
+  color: #1e6bff;
 }
 
 .wb-pws-sidebar-tab.is-active {
