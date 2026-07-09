@@ -70,3 +70,6 @@ build/ico-dump/
 build/debug-*.png
 build/brand-reference.png
 build/icon-source.png
+
+.tmp-*/
+.tmp-*
