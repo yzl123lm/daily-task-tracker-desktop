@@ -23,24 +23,14 @@ async function refreshChats() {
   }
   try {
     const remote = await window.electronAPI.wbChatsList({ withSummary: true });
-    const remoteList = Array.isArray(remote) ? remote : [];
-    const localList = window.__wbStore?.getState?.().chats || [];
-    const merged = new Map();
-    remoteList.forEach((chat) => {
-      if (chat?.id) {
-        merged.set(chat.id, chat);
-      }
-    });
-    localList.forEach((chat) => {
-      if (chat?.id && !merged.has(chat.id)) {
-        merged.set(chat.id, chat);
-      }
-    });
-    const next = [...merged.values()].sort((a, b) => {
-      const ta = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
-      const tb = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
-      return tb - ta;
-    });
+    // 以服务端 ACTIVE 列表为唯一真相源，禁止把本地已删除会话合并回去（否则删除后会回弹）。
+    const next = (Array.isArray(remote) ? remote : [])
+      .filter((chat) => chat?.id)
+      .sort((a, b) => {
+        const ta = Date.parse(a?.updatedAt || a?.createdAt || 0) || 0;
+        const tb = Date.parse(b?.updatedAt || b?.createdAt || 0) || 0;
+        return tb - ta;
+      });
     window.__wbStore?.setChats?.(next);
     window.__wbChatSessionStore?.syncSessionsFromApi?.(next);
     window.__wbRenderChats?.();

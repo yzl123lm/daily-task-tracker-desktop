@@ -116,28 +116,48 @@ async function submitEditChat(ev) {
 
 async function afterChatRemoved(chatId) {
   const wasSelected = window.__wbStore?.getState?.().selectedChatId === chatId;
+  const activeSession = window.__wbChatSessionStore?.getActiveSessionId?.();
+  const wasActive = wasSelected || activeSession === chatId;
+
+  window.__wbStore?.removeChat?.(chatId);
   await window.__wbRefreshChats?.();
-  if (!wasSelected) {
+
+  if (!wasActive) {
+    window.__wbRenderChats?.();
     return;
   }
+
   const chats = window.__wbStore?.getState?.().chats || [];
-  if (chats[0]?.id) {
-    await window.__wbSwitchChat?.(chats[0].id);
-  } else {
-    window.__wbStore?.clearSelection?.();
-    try {
-      localStorage.removeItem("wb_active_chat_id_v1");
-    } catch {
-      /* ignore */
-    }
-    const aiMain = document.getElementById("aiPanelMain");
-    if (aiMain) {
-      aiMain.hidden = false;
-    }
-    if (typeof window.__aiClearChatLog === "function") {
-      window.__aiClearChatLog();
-    }
+  const nextId =
+    chats.find((c) => c.id && c.id !== chatId)?.id ||
+    window.__wbChatSessionStore?.getOrderedSessions?.()?.find((c) => c.id !== chatId)?.id ||
+    null;
+
+  if (nextId) {
+    await window.__wbSwitchChat?.(nextId);
+    return;
   }
+
+  window.__wbStore?.setSelectedChatId?.(null);
+  window.__wbChatSessionStore?.setActiveSessionId?.(null);
+  try {
+    localStorage.removeItem("wb_active_chat_id_v1");
+  } catch {
+    /* ignore */
+  }
+  window.__wbStore?.setActiveModule?.("chat");
+  const aiMain = document.getElementById("aiPanelMain");
+  if (aiMain) {
+    aiMain.hidden = false;
+  }
+  if (typeof window.__aiClearChatLog === "function") {
+    window.__aiClearChatLog();
+  } else if (typeof window.__aiLoadChatTurns === "function") {
+    window.__aiLoadChatTurns([], { sessionId: null });
+  }
+  window.__wbShowChatView?.();
+  window.__wbApplyMainView?.();
+  window.__wbRenderChats?.();
 }
 
 async function archiveChat(chat) {
@@ -154,9 +174,22 @@ async function archiveChat(chat) {
   if (!ok) {
     return;
   }
-  window.__wbPersistActiveChatSnapshot?.();
-  await api.wbChatArchive({ chatId: chat.id });
-  await afterChatRemoved(chat.id);
+  try {
+    window.__wbPersistActiveChatSnapshot?.();
+    await api.wbChatArchive({ chatId: chat.id });
+    window.__wbChatSessionStore?.removeSession?.(chat.id);
+    window.__wbStore?.removeChat?.(chat.id);
+    await afterChatRemoved(chat.id);
+  } catch (err) {
+    console.error("[wb] archiveChat failed:", err);
+    if (typeof window.__wbAlert === "function") {
+      await window.__wbAlert({
+        title: "归档失败",
+        message: err?.message || "会话归档失败，请稍后重试",
+        okLabel: "知道了",
+      });
+    }
+  }
 }
 
 async function deleteChat(chat) {
@@ -166,25 +199,60 @@ async function deleteChat(chat) {
   }
   const ok = await window.__wbConfirm?.({
     title: "删除会话",
-    message: `确定删除会话「${chat.title}」吗？`,
-    detail:
-      "删除后该会话将从「会话区域」列表移除，本页聊天快照缓存会清除。历史消息与摘要仍保留在本机数据库。",
+    message: `确定要删除「${chat.title || "未命名会话"}」吗？`,
+    detail: "删除后，该会话的历史消息将被移除，且不可恢复。",
     confirmLabel: "删除",
+    cancelLabel: "取消",
     danger: true,
   });
   if (!ok) {
     return;
   }
-  window.__wbPersistActiveChatSnapshot?.();
-  await api.wbChatDelete({ chatId: chat.id });
-  window.__wbChatSessionStore?.removeSession?.(chat.id);
-  const snapshots = JSON.parse(localStorage.getItem("wb_chat_snapshots_v1") || "{}");
-  delete snapshots[chat.id];
-  localStorage.setItem("wb_chat_snapshots_v1", JSON.stringify(snapshots));
-  const ctxSnaps = JSON.parse(localStorage.getItem("wb_chat_context_snapshots_v1") || "{}");
-  delete ctxSnaps[chat.id];
-  localStorage.setItem("wb_chat_context_snapshots_v1", JSON.stringify(ctxSnaps));
-  await afterChatRemoved(chat.id);
+
+  const okBtn = document.getElementById("wbConfirmOkBtn");
+  const prevLabel = okBtn?.textContent;
+  if (okBtn) {
+    okBtn.disabled = true;
+    okBtn.textContent = "删除中…";
+  }
+
+  try {
+    window.__wbPersistActiveChatSnapshot?.();
+    await api.wbChatDelete({ chatId: chat.id });
+    window.__wbChatSessionStore?.removeSession?.(chat.id);
+    window.__wbStore?.removeChat?.(chat.id);
+
+    try {
+      const snapshots = JSON.parse(localStorage.getItem("wb_chat_snapshots_v1") || "{}");
+      delete snapshots[chat.id];
+      localStorage.setItem("wb_chat_snapshots_v1", JSON.stringify(snapshots));
+    } catch {
+      /* ignore */
+    }
+    try {
+      const ctxSnaps = JSON.parse(localStorage.getItem("wb_chat_context_snapshots_v1") || "{}");
+      delete ctxSnaps[chat.id];
+      localStorage.setItem("wb_chat_context_snapshots_v1", JSON.stringify(ctxSnaps));
+    } catch {
+      /* ignore */
+    }
+
+    await afterChatRemoved(chat.id);
+  } catch (err) {
+    console.error("[wb] deleteChat failed:", err);
+    if (typeof window.__wbAlert === "function") {
+      await window.__wbAlert({
+        title: "删除失败",
+        message: err?.message || "会话删除失败，请稍后重试",
+        okLabel: "知道了",
+      });
+    }
+  } finally {
+    if (okBtn) {
+      okBtn.disabled = false;
+      okBtn.textContent = prevLabel || "删除";
+    }
+  }
 }
 
 function renderChatSessionList() {
@@ -200,6 +268,7 @@ function renderChatSessionList() {
       : null) ||
     store.chats ||
     [];
+  chats = (chats || []).filter((c) => c?.id && !c.deleted && c.status !== "DELETED" && c.status !== "ARCHIVED");
   if (!chats.length && activeChatId) {
     const cached =
       typeof window.__wbGetCachedChatSession === "function"
@@ -276,14 +345,17 @@ function renderChatSessionList() {
       module === "chat" && chat.id === activeChatId
     );
     card.querySelector('[data-action="rename"]')?.addEventListener("click", (ev) => {
+      ev.preventDefault();
       ev.stopPropagation();
       openEditChatModal(chat);
     });
     card.querySelector('[data-action="archive"]')?.addEventListener("click", (ev) => {
+      ev.preventDefault();
       ev.stopPropagation();
       void archiveChat(chat);
     });
     card.querySelector('[data-action="delete"]')?.addEventListener("click", (ev) => {
+      ev.preventDefault();
       ev.stopPropagation();
       void deleteChat(chat);
     });

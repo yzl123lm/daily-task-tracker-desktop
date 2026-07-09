@@ -128,7 +128,10 @@ function getOrderedSessions() {
   if (list.length) {
     return list;
   }
-  const storeChats = window.__wbStore?.getState?.().chats || [];
+  // Fallback to store only when local session cache is empty; never revive deleted sessions.
+  const storeChats = (window.__wbStore?.getState?.().chats || []).filter(
+    (c) => c?.id && c.status !== "DELETED" && c.status !== "ARCHIVED"
+  );
   return storeChats.map((c) => normalizeSession(c, getSession(c.id)?.messages || []));
 }
 
@@ -231,24 +234,36 @@ function getLastMessageSummary(session) {
 
 function syncSessionsFromApi(apiChats) {
   const list = Array.isArray(apiChats) ? apiChats : [];
-  const order = [...chatModuleState.sessionOrder];
+  const aliveIds = new Set(list.map((c) => String(c?.id || "")).filter(Boolean));
+
+  // API 未返回的会话视为已删除/已归档，避免本地缓存回弹。
+  Object.keys(chatModuleState.sessions).forEach((id) => {
+    if (!aliveIds.has(id) && chatModuleState.sessions[id]) {
+      chatModuleState.sessions[id] = {
+        ...chatModuleState.sessions[id],
+        deleted: true,
+        messages: [],
+      };
+    }
+  });
+
   list.forEach((chat) => {
     if (!chat?.id) {
       return;
     }
     const id = String(chat.id);
-    if (!order.includes(id)) {
-      order.push(id);
-    }
     const cached = chatModuleState.sessions[id];
     const merged = normalizeSession(chat, cached?.messages || []);
-    if (cached?.messages?.length) {
+    if (cached?.messages?.length && !cached.deleted) {
       merged.messages = cached.messages;
     }
+    merged.deleted = false;
     chatModuleState.sessions[id] = merged;
   });
-  chatModuleState.sessionOrder = order
-    .filter((id) => chatModuleState.sessions[id] && !chatModuleState.sessions[id].deleted)
+
+  chatModuleState.sessionOrder = list
+    .map((c) => String(c?.id || ""))
+    .filter((id) => id && chatModuleState.sessions[id] && !chatModuleState.sessions[id].deleted)
     .sort((a, b) => {
       const sa = chatModuleState.sessions[a];
       const sb = chatModuleState.sessions[b];
@@ -256,12 +271,13 @@ function syncSessionsFromApi(apiChats) {
       const tb = Date.parse(sb?.updatedAt || sb?.createdAt || 0) || 0;
       return tb - ta;
     });
-  list.forEach((chat) => {
-    const id = String(chat?.id || "");
-    if (id && !chatModuleState.sessionOrder.includes(id)) {
-      chatModuleState.sessionOrder.unshift(id);
-    }
-  });
+
+  if (
+    chatModuleState.activeSessionId &&
+    !aliveIds.has(String(chatModuleState.activeSessionId))
+  ) {
+    chatModuleState.activeSessionId = chatModuleState.sessionOrder[0] || null;
+  }
   persistToStorage();
 }
 
@@ -397,7 +413,12 @@ function removeSession(sessionId) {
     return;
   }
   if (chatModuleState.sessions[id]) {
-    chatModuleState.sessions[id].deleted = true;
+    chatModuleState.sessions[id] = {
+      ...chatModuleState.sessions[id],
+      deleted: true,
+      messages: [],
+      summary: "",
+    };
   }
   chatModuleState.sessionOrder = chatModuleState.sessionOrder.filter((x) => x !== id);
   if (chatModuleState.activeSessionId === id) {

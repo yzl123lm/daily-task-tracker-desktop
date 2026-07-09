@@ -101,7 +101,44 @@ function archiveChat(getUserDataPath, userId, chatId) {
 }
 
 function deleteChat(getUserDataPath, userId, chatId) {
-  return updateChat(getUserDataPath, userId, chatId, { status: "DELETED" });
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const cid = assertSafeId(chatId, "chatId");
+  const existing = getChat(getUserDataPath, uid, cid);
+  if (!existing) {
+    throw new Error("会话不存在");
+  }
+  const ts = nowIso();
+  const ns = buildChatNamespace(cid);
+
+  // Soft-delete session so listChats (status=ACTIVE) no longer returns it.
+  db.prepare(
+    "UPDATE chat_sessions SET status = 'DELETED', updated_at = ? WHERE id = ? AND user_id = ?"
+  ).run(ts, cid, uid);
+
+  // Remove messages so deleted chats cannot be reloaded into the UI.
+  db.prepare("DELETE FROM chat_messages WHERE chat_id = ? AND user_id = ?").run(cid, uid);
+
+  // Remove chat-scoped context memories so they are not recalled later.
+  try {
+    db.prepare(
+      "DELETE FROM context_memories WHERE user_id = ? AND (namespace = ? OR scope_type = 'chat' AND scope_id = ?)"
+    ).run(uid, ns, cid);
+  } catch {
+    /* optional table / older schema */
+  }
+
+  db.prepare(
+    `INSERT INTO audit_logs (id, user_id, scope_type, scope_id, action, detail_json, created_at)
+     VALUES (?, ?, 'chat', ?, 'chat.delete', ?, ?)`
+  ).run(newId("audit"), uid, cid, JSON.stringify({ title: existing.title }), ts);
+
+  return {
+    id: cid,
+    deleted: true,
+    status: "DELETED",
+    title: existing.title,
+  };
 }
 
 function appendMessage(getUserDataPath, userId, chatId, { role, content }) {

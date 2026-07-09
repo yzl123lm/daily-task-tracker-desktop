@@ -138,6 +138,18 @@ function setChats(chats) {
   state.chats = Array.isArray(chats) ? chats : [];
 }
 
+function removeChat(chatId) {
+  const id = chatId ? String(chatId) : "";
+  if (!id) {
+    return;
+  }
+  state.chats = state.chats.filter((c) => c.id !== id);
+  if (state.selectedChatId === id) {
+    state.selectedChatId = null;
+  }
+  emitChange();
+}
+
 function upsertChat(chat) {
   const item = chat && typeof chat === "object" ? chat : null;
   if (!item?.id) {
@@ -172,6 +184,7 @@ window.__wbStore = {
   clearSelection,
   setProjects,
   setChats,
+  removeChat,
   upsertChat,
   setTasks,
   setLoading,
