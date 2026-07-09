@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "17";
+const WB_PWS_LAYOUT_VERSION = "18";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -70,13 +70,6 @@ const WB_PWS_LAYOUT_HTML = `
       <button type="button" id="wbPwsLayoutResetBtn" tabindex="-1"></button>
       <button type="button" id="wbCompressBtn" tabindex="-1"></button>
     </div>
-    <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="主工作区">
-      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
-        <h3>代码变更</h3>
-        <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
-      </header>
-      <div class="wb-pws-code-body main-editor-body" id="wbPwsCodeMount"></div>
-    </section>
     <section class="wb-pws-agent-col wb-pws-assistant-col" id="wbPwsAgentCol" aria-label="AI 助手">
       <header class="wb-pws-agent-header">
         <div id="wbTaskDetail" class="wb-pws-agent-header__task" hidden>
@@ -143,6 +136,13 @@ const WB_PWS_LAYOUT_HTML = `
           <button type="button" id="wbAgentCancelBtn"></button>
         </div>
       </div>
+    </section>
+    <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="代码工作区">
+      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
+        <h3>代码变更</h3>
+        <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
+      </header>
+      <div class="wb-pws-code-body main-editor-body" id="wbPwsCodeMount"></div>
     </section>
     <div id="wbPwsDrawerBackdrop" class="wb-pws-drawer-backdrop" hidden aria-hidden="true"></div>
     <footer class="wb-pws-terminal-drawer" id="wbPwsTerminalDrawer" data-collapsed="1">

@@ -114,8 +114,8 @@ function positionResizeHandles(prefs = loadPrefs()) {
     agentHandle.style.display = "";
     agentHandle.style.top = `${top}px`;
     agentHandle.style.bottom = `${terminalH}px`;
-    agentHandle.style.left = "auto";
-    agentHandle.style.right = `calc(${prefs.agentWidthPx}px - 3px)`;
+    agentHandle.style.right = "auto";
+    agentHandle.style.left = `calc(${prefs.agentWidthPx}px - 3px)`;
   }
   if (terminalHandle) {
     terminalHandle.style.height = "8px";
@@ -189,11 +189,11 @@ function bindWorkspaceResizers() {
     "wbPwsResizeAgent",
     "wb-pws-resize-handle--col"
   );
-  agentHandle?.setAttribute("aria-label", "调整 Agent 栏宽度");
+  agentHandle?.setAttribute("aria-label", "调整 AI 助手栏宽度");
   bindDragHandle(agentHandle, (ev, prefs) => {
     const rect = layout.getBoundingClientRect();
     prefs.agentWidthPx = clamp(
-      rect.right - ev.clientX,
+      ev.clientX - rect.left,
       LIMITS.agentMinPx,
       LIMITS.agentMaxPx
     );
