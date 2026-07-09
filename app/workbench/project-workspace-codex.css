@@ -337,6 +337,105 @@ body.jl-project-workspace-active #panel-ai {
   color: #1f2d3d;
 }
 
+.wb-ai-command__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wb-ai-command__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.wb-ai-command__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.wb-ai-command__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.wb-ai-command__more {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+
+.wb-composer-more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid #dcebfa;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wb-composer-more-menu button {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 11px;
+  color: #1f2d3d;
+  cursor: pointer;
+}
+
+.wb-composer-more-menu button:hover {
+  background: #f3f8ff;
+}
+
+.wb-composer-path-hint {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #b45309;
+}
+
+.wb-plan-card__next,
+.wb-task-detail__next,
+.wb-task-detail__summary {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.wb-task-detail__summary ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.wb-pws-btn--danger {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.wb-auto-verify-switch {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
 .wb-pws-composer__actions {
   display: flex;
   flex-wrap: wrap;

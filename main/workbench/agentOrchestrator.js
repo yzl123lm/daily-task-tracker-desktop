@@ -102,8 +102,11 @@ function taskStatusForMode(mode, phase) {
     }
   }
   if (phase === "done") {
-    if (m === "PLAN_ONLY" || m === "PATCH_PROPOSE") {
-      return { status: TASK_STATUS.WAITING_APPROVAL, currentStep: "等待用户确认" };
+    if (m === "PLAN_ONLY") {
+      return { status: TASK_STATUS.PLANNING, currentStep: "方案待确认" };
+    }
+    if (m === "PATCH_PROPOSE") {
+      return { status: TASK_STATUS.WAITING_APPROVAL, currentStep: "变更待审阅" };
     }
   }
   return null;

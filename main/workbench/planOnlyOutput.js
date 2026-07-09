@@ -1,4 +1,5 @@
 const { suggestPatchFromDescription } = require("./diffPreviewService.js");
+const { stripModelThinking } = require("../../utils/wbModelOutputSanitizer.js");
 
 const UI_KEYWORDS = [
   { re: /弹窗|modal|对话框/i, files: ["app/workbench/projectArea.js", "workbench-dev.css"] },
@@ -16,7 +17,12 @@ function uniqueFiles(list) {
 
 function inferAffectedFiles(message, project) {
   const text = String(message || "");
-  const files = ["index.html", "app/workbench/index.js"];
+  const files = [];
+  if (/贪吃蛇|snake|小游戏|game/i.test(text)) {
+    files.push("index.html", "style.css", "game.js");
+  } else {
+    files.push("index.html", "app/workbench/index.js");
+  }
   for (const rule of UI_KEYWORDS) {
     if (rule.re.test(text)) {
       files.push(...rule.files);
@@ -31,6 +37,11 @@ function inferAffectedFiles(message, project) {
 function inferPlanSteps(message, task) {
   const text = String(message || "").trim();
   const steps = [];
+  if (/贪吃蛇|snake|小游戏/i.test(text)) {
+    steps.push("创建 index.html、style.css、game.js 实现贪吃蛇小游戏");
+    steps.push("实现方向控制、碰撞检测、得分与重新开始");
+    steps.push("在浏览器或 Electron 窗口中打开 index.html 验证");
+  }
   if (task?.description) {
     steps.push(`确认任务背景：${task.description.slice(0, 80)}`);
   }
@@ -53,19 +64,17 @@ function inferPlanSteps(message, task) {
 function inferRisks(message, project) {
   const risks = [];
   const text = String(message || "");
-  if (!project?.techStack?.length) {
-    risks.push("技术栈未填写，影响文件路径推断精度。");
-  }
   if (/迁移|兼容|localStorage/i.test(text)) {
     risks.push("需验证旧数据迁移与双写边界。");
   }
   if (/ai\.js|会话|chat/i.test(text)) {
     risks.push("需确认与现有 AI 对话区的集成不破坏工具调用。");
   }
-  if (!risks.length) {
-    risks.push("方案基于规则推断，实施前请人工确认影响范围。");
+  risks.push("当前项目若未初始化 Git，无法创建分支保护，写入前会创建文件备份。");
+  if (!project?.techStack?.length) {
+    risks.push("技术栈未填写，影响文件路径推断精度。");
   }
-  return risks;
+  return risks.slice(0, 5);
 }
 
 function inferTestPlan(message) {
@@ -129,7 +138,7 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
   ];
   return {
     summary,
-    requirementUnderstanding: headline,
+    requirementUnderstanding: stripModelThinking(headline),
     plan,
     affectedFiles,
     risks: inferRisks(req, project),

@@ -116,57 +116,45 @@ function hasPendingManualWrite() {
   return proposed !== original;
 }
 
-function bindSourceRootCardEvents() {
-  const btn = document.getElementById("wbProjectChooseRootBtn");
-  if (!btn || btn.dataset.bound === "1") {
-    return;
+function ensureSourceRootCard() {
+  const existing = document.getElementById("wbPwsSourceRootCard");
+  if (existing) {
+    bindSourceRootCardEvents();
+    return existing;
   }
-  btn.dataset.bound = "1";
-  btn.addEventListener("click", () => {
-    void chooseProjectRoot();
-  });
+  return null;
 }
 
-function ensureSourceRootCard() {
-  if (document.getElementById("wbPwsSourceRootCard")) {
-    bindSourceRootCardEvents();
-    return document.getElementById("wbPwsSourceRootCard");
+function bindSourceRootCardEvents() {
+  const openBtn = document.getElementById("wbPwsOpenProjectPathBtn");
+  if (openBtn && openBtn.dataset.bound !== "1") {
+    openBtn.dataset.bound = "1";
+    openBtn.addEventListener("click", () => {
+      const path = document.getElementById("wbProjectSourceRootText")?.textContent?.trim();
+      if (path && path !== "未配置项目路径" && window.electronAPI?.shellOpenPath) {
+        void window.electronAPI.shellOpenPath(path);
+      }
+    });
   }
-  const switcher = document.querySelector(
-    '.wb-pws-sidebar-pane[data-pane="tasks"] .wb-pws-project-switcher'
-  );
-  if (!switcher) {
-    return null;
-  }
-  const card = document.createElement("div");
-  card.className = "wb-pws-source-root-card";
-  card.id = "wbPwsSourceRootCard";
-  card.innerHTML = `
-    <div class="wb-pws-source-root-card__header">
-      <span class="wb-pws-source-root-card__title">项目源码目录</span>
-      <button type="button" id="wbProjectChooseRootBtn" class="wb-pws-source-root-card__action wb-pws-btn wb-pws-btn--ghost">
-        设置项目源码目录
-      </button>
-    </div>
-    <div class="wb-pws-source-root-card__path" id="wbProjectSourceRootText">未配置项目源码目录</div>
-    <p class="wb-pws-source-root-card__hint" id="wbProjectSourceRootHint">当前使用默认工作区，AI 编程能力可能受限</p>
-    <div class="wb-pws-source-root-card__meta">
-      <span id="wbProjectGitStatusText">Git：未知</span>
-    </div>
-  `;
-  switcher.insertAdjacentElement("afterend", card);
-  bindSourceRootCardEvents();
-  return card;
 }
 
 function renderSourceRootGitStatus(status) {
   const gitEl = document.getElementById("wbProjectGitStatusText");
+  const hintEl = document.getElementById("wbProjectSourceRootHint");
   if (!gitEl) {
     return;
   }
   if (!status?.isRepo) {
     gitEl.textContent = "Git：非仓库";
+    if (hintEl) {
+      hintEl.hidden = false;
+      hintEl.textContent = "未检测到 Git 仓库，将使用备份保护代码变更。";
+    }
     return;
+  }
+  if (hintEl) {
+    hintEl.hidden = true;
+    hintEl.textContent = "";
   }
   const branch = status.branch || "detached";
   if (status.clean) {
@@ -185,26 +173,27 @@ function renderSourceRootCard(info = {}) {
   if (!card || !pathEl) {
     return;
   }
-  const codeRoot = String(info.codeRoot || "").trim();
   const localPath = String(info.localPath || "").trim();
-  const hasConfiguredPath = Boolean(localPath);
-  const isFallback = Boolean(info.isFallback);
-  const isAsar = /app\.asar/i.test(codeRoot);
-  const isWarning = isFallback || isAsar;
+  const codeRoot = String(info.codeRoot || info.root || "").trim();
+  const valid = Boolean(info.valid);
+  const reason = String(info.reason || "");
 
-  card.classList.toggle("is-warning", isWarning);
+  card.classList.toggle("is-warning", !valid);
 
-  if (!hasConfiguredPath) {
-    pathEl.textContent = "未配置项目源码目录";
+  if (!localPath) {
+    pathEl.textContent = "未配置项目路径";
     if (hintEl) {
       hintEl.hidden = false;
-      hintEl.textContent = "当前使用默认工作区，AI 编程能力可能受限";
+      hintEl.textContent = "当前项目路径不可用，请在项目设置中修复项目路径后再执行开发任务。";
     }
-  } else if (isWarning) {
-    pathEl.textContent = codeRoot || localPath || "默认工作区";
+  } else if (!valid) {
+    pathEl.textContent = localPath;
     if (hintEl) {
       hintEl.hidden = false;
-      hintEl.textContent = "当前为默认工作区，建议选择真实源码根目录";
+      hintEl.textContent =
+        reason === "PROJECT_PATH_NOT_FOUND"
+          ? "当前项目路径不可用，请在项目设置中修复项目路径后再执行开发任务。"
+          : "当前项目路径不可用，请修复后再执行开发任务。";
     }
   } else {
     pathEl.textContent = codeRoot || localPath;

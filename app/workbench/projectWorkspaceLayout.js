@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "10";
+const WB_PWS_LAYOUT_VERSION = "11";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -24,13 +24,13 @@ const WB_PWS_PROJECT_COL_HTML = `
           </div>
           <div class="wb-pws-source-root-card" id="wbPwsSourceRootCard">
             <div class="wb-pws-source-root-card__header">
-              <span class="wb-pws-source-root-card__title">项目源码目录</span>
-              <button type="button" id="wbProjectChooseRootBtn" class="wb-pws-source-root-card__action wb-pws-btn wb-pws-btn--ghost">
-                设置项目源码目录
+              <span class="wb-pws-source-root-card__title">项目路径</span>
+              <button type="button" id="wbPwsOpenProjectPathBtn" class="wb-pws-source-root-card__action wb-pws-btn wb-pws-btn--ghost">
+                打开目录
               </button>
             </div>
-            <div class="wb-pws-source-root-card__path" id="wbProjectSourceRootText">未配置项目源码目录</div>
-            <p class="wb-pws-source-root-card__hint" id="wbProjectSourceRootHint">当前使用默认工作区，AI 编程能力可能受限</p>
+            <div class="wb-pws-source-root-card__path" id="wbProjectSourceRootText">未配置项目路径</div>
+            <p class="wb-pws-source-root-card__hint" id="wbProjectSourceRootHint" hidden></p>
             <div class="wb-pws-source-root-card__meta">
               <span id="wbProjectGitStatusText">Git：未知</span>
             </div>
@@ -125,33 +125,42 @@ const WB_PWS_LAYOUT_HTML = `
           <div id="wbSnapshotHistory" class="wb-snapshot-history-panel"></div>
         </details>
       </div>
-      <div class="wb-pws-agent-composer">
-        <header class="wb-pws-panel__head">
-          <h3>AI 指令</h3>
+      <div class="wb-pws-agent-composer wb-ai-command">
+        <div class="wb-ai-command__header">
+          <span class="wb-ai-command__title">AI 指令</span>
           <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
-        </header>
-        <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
-        <div id="wbComposerSourceGate" class="wb-composer-source-gate" hidden>
-          <p class="wb-composer-source-gate__text">请先设置项目源码目录，AI 需要在源码目录内读取、搜索、生成 Diff 和受控修改代码。</p>
-          <button type="button" id="wbComposerChooseRootBtn" class="wb-pws-btn wb-pws-btn--ghost">设置项目源码目录</button>
         </div>
-        <p id="wbComposerHint" class="wb-composer-hint">AI 会先分析项目并生成方案，写入代码前会展示 Diff 并等待你确认。</p>
-        <textarea id="wbAgentInput" class="wb-pws-composer__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：修复项目卡片文字被按钮挤压的问题"></textarea>
+        <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
+        <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>
+        <p id="wbComposerHint" class="wb-composer-hint">AI 会先生成方案；生成代码变更前会展示 Diff 并等待你确认。</p>
+        <p id="wbComposerPathHint" class="wb-composer-path-hint" hidden></p>
         <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
         <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
-        <div class="wb-pws-composer__actions">
-          <button type="button" id="wbPwsOpenCodeDrawer" class="wb-pws-btn wb-pws-btn--ghost wb-pws-mobile-only">查看代码变更</button>
-          <label class="wb-pws-auto-verify" for="wbAutoVerifyAfterWrite">
+        <div class="wb-ai-command__footer">
+          <label class="wb-auto-verify-switch wb-pws-auto-verify" for="wbAutoVerifyAfterWrite">
             <input type="checkbox" id="wbAutoVerifyAfterWrite" />
-            写入后自动验证
+            自动验证
           </label>
-          <button type="button" id="wbAgentCancelBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>停止任务</button>
-          <button type="button" id="wbAgentRegenBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>重新生成方案</button>
-          <button type="button" id="wbAgentViewDiffBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>查看 Diff</button>
-          <button type="button" id="wbAgentRunVerifyBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>运行验证</button>
-          <button type="button" id="wbAgentCompleteBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>完成任务</button>
-          <button type="button" id="wbAgentRunBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
-          <button type="button" id="wbTaskConfirmBtn" class="wb-pws-btn wb-pws-btn--primary" hidden>生成代码变更</button>
+          <div class="wb-ai-command__actions">
+            <button type="button" id="wbSecondaryActionBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>调整需求</button>
+            <button type="button" id="wbPrimaryActionBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
+            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作">⋯</button>
+            <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden>
+              <button type="button" data-wb-more-action="regen-plan">重新生成方案</button>
+              <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
+              <button type="button" data-wb-more-action="open-log">查看执行日志</button>
+              <button type="button" data-wb-more-action="open-tools">查看工具记录</button>
+              <button type="button" data-wb-more-action="open-path">打开项目路径</button>
+              <button type="button" data-wb-more-action="edit-path">编辑项目路径</button>
+              <button type="button" data-wb-more-action="complete">标记完成</button>
+              <button type="button" data-wb-more-action="cancel">取消任务</button>
+            </div>
+          </div>
+        </div>
+        <div class="wb-ai-command__legacy-actions" hidden aria-hidden="true">
+          <button type="button" id="wbAgentRunBtn"></button>
+          <button type="button" id="wbTaskConfirmBtn"></button>
+          <button type="button" id="wbAgentCancelBtn"></button>
         </div>
       </div>
     </section>

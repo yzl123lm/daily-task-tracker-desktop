@@ -1,4 +1,5 @@
 const { llmChatWithTools } = require("./llmClient.js");
+const { stripModelThinking, sanitizeAgentOutputForUi } = require("../../utils/wbModelOutputSanitizer.js");
 const { listToolSchemas, dispatchTool } = require("./toolRegistry.js");
 const { buildContextPackAsync } = require("./contextPackBuilder.js");
 const {
@@ -20,7 +21,10 @@ function buildSystemPrompt(mode, contextPack) {
   const base = `你是 Workbench 项目开发 Agent。当前模式: ${mode}。
 - READ 工具可主动探索代码库。
 - 禁止直接写入磁盘；补丁须通过 stage_patch 提议。
-- 输出使用中文，结构清晰。`;
+- 空项目目录是正常场景，可为新项目创建文件（如 index.html、style.css、game.js）。
+- 非 Git 仓库时说明将使用备份保护，不要因此拒绝生成方案或补丁。
+- 不要在输出中包含 <think>、内部推理或工具权限抱怨。
+- 输出使用中文，结构清晰，面向用户展示。`;
   const ctx = contextPack?.sections
     ?.map((s) => `## ${s.type}\n${s.content}`)
     .join("\n\n");
@@ -28,7 +32,7 @@ function buildSystemPrompt(mode, contextPack) {
 }
 
 function parsePlanFromContent(content) {
-  const text = String(content || "").trim();
+  const text = stripModelThinking(content);
   const lines = text.split(/\r?\n/).filter(Boolean);
   const plan = [];
   let section = null;
@@ -37,21 +41,23 @@ function parsePlanFromContent(content) {
       section = line.replace(/^#{1,3}\s*/, "").trim();
       continue;
     }
-    if (/^[-*\d.]+\s/.test(line) && (section?.includes("步骤") || section?.includes("计划") || !section)) {
+    if (/^[-*\d.]+\s/.test(line) && (section?.includes("步骤") || section?.includes("计划") || section?.includes("方案") || !section)) {
       plan.push(line.replace(/^[-*\d.]+\s*/, "").trim());
     }
   }
   if (!plan.length && text) {
-    plan.push(...lines.slice(0, 8));
+    plan.push(...lines.slice(0, 8).map((l) => l.replace(/^[-*\d.]+\s*/, "").trim()));
   }
+  const headline = lines.find((l) => !/^[-*#]/.test(l)) || lines[0] || "开发方案";
   return {
-    summary: lines[0]?.slice(0, 120) || "Agent 方案",
-    requirementUnderstanding: text.slice(0, 500),
+    summary: stripModelThinking(lines[0]?.slice(0, 120) || "Agent 方案"),
+    requirementUnderstanding: stripModelThinking(headline).slice(0, 500),
     plan: plan.slice(0, 12),
     affectedFiles: [],
-    risks: ["需用户审阅后才会写入"],
-    testPlan: ["用户确认后运行项目测试脚本"],
+    risks: ["写入前会展示 Diff 并等待你确认"],
+    testPlan: ["确认方案后点击「生成代码变更」，审阅 Diff 后再写入"],
     needUserConfirm: true,
+    nextAction: "生成代码变更",
     answer: text,
   };
 }
@@ -89,14 +95,15 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       mode,
     });
     if (!toolCalls.length) {
-      const output =
+      let output =
         mode === "PLAN_ONLY"
           ? parsePlanFromContent(assistantMsg.content)
           : {
               summary: "Agent 完成",
-              answer: assistantMsg.content,
+              answer: stripModelThinking(assistantMsg.content),
               needUserConfirm: true,
             };
+      output = sanitizeAgentOutputForUi(output);
       if (mode === "PATCH_PROPOSE" || mode === "VERIFY_FIX") {
         const patches = listStagedPatches(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId);
         output.diffPreviews = patches.map(patchToDiffPreview).filter(Boolean);

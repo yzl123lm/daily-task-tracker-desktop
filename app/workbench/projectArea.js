@@ -437,4 +437,11 @@ function bindProjectArea() {
 window.__wbRenderProjects = renderProjectList;
 window.__wbRenderProjectList = renderProjectList;
 window.__wbOpenNewProjectModal = openNewProjectModal;
+window.__wbOpenEditProjectModal = async (projectId) => {
+  const store = window.__wbStore?.getState?.() || {};
+  const project = (store.projects || []).find((p) => p.id === projectId);
+  if (project) {
+    await openEditProjectModal(project);
+  }
+};
 window.__wbBindProjectArea = bindProjectArea;

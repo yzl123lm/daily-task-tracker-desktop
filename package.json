@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.24.3",
+  "version": "1.24.4",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -125,6 +125,7 @@
       "utils/kbDeleteRepair.js",
       "utils/kbArchive.js",
       "utils/kbPromptSafety.js",
+      "utils/wbModelOutputSanitizer.js",
       "config/kb-security-golden.json",
       "build/icon.ico",
       "build/icon.png",

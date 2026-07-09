@@ -206,7 +206,7 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     const win = BrowserWindow.fromWebContents(event.sender);
     const res = await dialog.showOpenDialog(win || undefined, {
       properties: ["openDirectory"],
-      title: "选择项目源码目录",
+      title: "选择项目路径",
     });
     if (res.canceled || !res.filePaths?.length) {
       return null;
@@ -220,12 +220,16 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     if (!project) {
       throw new Error("项目不存在");
     }
-    const root = resolveRootForProject(project);
+    const state = projectCodeService.getProjectCodeRoot(project, getDefaultProjectRoot);
     return {
       projectId,
-      localPath: project.localPath,
-      codeRoot: root,
-      isFallback: !project.localPath && Boolean(root),
+      localPath: state.localPath || project.localPath || null,
+      codeRoot: state.root,
+      source: state.source,
+      valid: state.valid,
+      isFallback: state.isFallback,
+      isAsar: state.isAsar,
+      reason: state.reason || null,
     };
   });
 

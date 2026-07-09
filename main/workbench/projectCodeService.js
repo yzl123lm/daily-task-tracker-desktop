@@ -36,17 +36,52 @@ function normalizeRelPath(rel) {
 }
 
 function resolveProjectRoot(project, getDefaultProjectRoot) {
-  const local = String(project?.localPath || "").trim();
-  if (local && fs.existsSync(local)) {
-    return path.resolve(local);
-  }
-  if (typeof getDefaultProjectRoot === "function") {
-    const fallback = getDefaultProjectRoot();
-    if (fallback && fs.existsSync(fallback)) {
-      return path.resolve(fallback);
+  return getProjectCodeRoot(project, getDefaultProjectRoot).root;
+}
+
+function getProjectCodeRoot(project, getDefaultProjectRoot) {
+  const local = String(project?.localPath || project?.local_path || "").trim();
+  if (!local) {
+    let fallbackRoot = null;
+    if (typeof getDefaultProjectRoot === "function") {
+      const fallback = getDefaultProjectRoot();
+      if (fallback && fs.existsSync(fallback)) {
+        fallbackRoot = path.resolve(fallback);
+      }
     }
+    const isAsar = Boolean(fallbackRoot && /app\.asar/i.test(fallbackRoot));
+    return {
+      root: fallbackRoot,
+      localPath: null,
+      source: "fallback",
+      valid: false,
+      isFallback: true,
+      isAsar,
+      reason: "PROJECT_PATH_MISSING",
+    };
   }
-  return null;
+  if (!fs.existsSync(local)) {
+    return {
+      root: null,
+      localPath: local,
+      source: "project.local_path",
+      valid: false,
+      isFallback: false,
+      isAsar: false,
+      reason: "PROJECT_PATH_NOT_FOUND",
+    };
+  }
+  const root = path.resolve(local);
+  const isAsar = /app\.asar/i.test(root);
+  return {
+    root: isAsar ? null : root,
+    localPath: local,
+    source: "project.local_path",
+    valid: !isAsar,
+    isFallback: false,
+    isAsar,
+    reason: isAsar ? "PROJECT_PATH_IS_APP_ASAR" : null,
+  };
 }
 
 function assertUnderRoot(rootDir, targetPath) {
@@ -242,6 +277,7 @@ function analyzeProjectCode(project, message, getDefaultProjectRoot) {
 
 module.exports = {
   resolveProjectRoot,
+  getProjectCodeRoot,
   listTreeEntries,
   readProjectFile,
   searchProjectCode,

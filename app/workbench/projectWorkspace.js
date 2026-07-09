@@ -62,7 +62,8 @@ function ensureWorkspaceRoot() {
 function renderPlanCard(output) {
   const card = document.getElementById("wbPlanCard");
   const raw = document.getElementById("wbAgentOutput");
-  if (!card || !output) {
+  const safe = window.__wbSanitizeAgentOutputForUi?.(output) || output;
+  if (!card || !safe) {
     return;
   }
   if (raw) {
@@ -71,24 +72,25 @@ function renderPlanCard(output) {
   card.hidden = false;
   composerPhase = "plan_ready";
   updateComposerUi("plan_ready");
-  const planItems = (output.plan || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("");
-  const fileItems = (output.affectedFiles || []).map((f) => `<li><code>${escapeHtml(f)}</code></li>`).join("");
-  const riskItems = (output.risks || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
-  const testItems = (output.testPlan || []).map((t) => `<li>${escapeHtml(t)}</li>`).join("");
+  const planItems = (safe.plan || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("");
+  const fileItems = (safe.affectedFiles || []).map((f) => `<li><code>${escapeHtml(f)}</code></li>`).join("");
+  const riskItems = (safe.risks || []).map((r) => `<li>${escapeHtml(r)}</li>`).join("");
+  const testItems = (safe.testPlan || []).map((t) => `<li>${escapeHtml(t)}</li>`).join("");
   card.innerHTML = `
     <header class="wb-plan-card__head">
-      <h4>${escapeHtml(output.summary || "开发方案")}</h4>
-      ${output.needUserConfirm ? '<span class="wb-plan-card__badge">待确认</span>' : ""}
+      <h4>${escapeHtml(safe.summary || "开发方案")}</h4>
+      <span class="wb-plan-card__badge">方案待确认</span>
     </header>
-    <p class="wb-plan-card__req"><strong>需求理解：</strong>${escapeHtml(output.requirementUnderstanding || "")}</p>
+    <p class="wb-plan-card__req"><strong>需求理解：</strong>${escapeHtml(safe.requirementUnderstanding || "")}</p>
     <div class="wb-plan-card__grid">
-      <div><h5>实施步骤</h5><ol>${planItems}</ol></div>
-      <div><h5>影响文件</h5><ul class="wb-plan-card__files">${fileItems}</ul></div>
-      <div><h5>风险</h5><ul>${riskItems}</ul></div>
+      <div><h5>实施方案</h5><ol>${planItems}</ol></div>
+      <div><h5>预计文件</h5><ul class="wb-plan-card__files">${fileItems}</ul></div>
+      <div><h5>风险说明</h5><ul>${riskItems}</ul></div>
       <div><h5>测试计划</h5><ul>${testItems}</ul></div>
     </div>
+    <p class="wb-plan-card__next"><strong>下一步：</strong>点击「生成代码变更」，AI 将生成可审阅 Diff。</p>
   `;
-  window.__wbRenderPlanCodeExtras?.(output);
+  window.__wbRenderPlanCodeExtras?.(safe);
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
   if (output.diffPreviews?.length && projectId && taskId) {
@@ -103,11 +105,9 @@ function renderPlanCard(output) {
   }
 }
 
-function renderTaskDetail(task) {
+function renderTaskDetail(task, planOutput = null) {
   const panel = document.getElementById("wbTaskDetail");
   const empty = document.getElementById("wbPwsAgentEmpty");
-  const desc = document.getElementById("wbTaskDetailDesc");
-  const step = document.getElementById("wbTaskDetailStep");
   if (!panel) {
     return;
   }
@@ -122,13 +122,41 @@ function renderTaskDetail(task) {
   if (empty) {
     empty.hidden = true;
   }
-  if (desc) {
-    desc.textContent = task.description || "（无任务描述）";
+  const safePlan = planOutput ? window.__wbSanitizeAgentOutputForUi?.(planOutput) || planOutput : null;
+  const statusText = resolveTaskDisplayStatus(task);
+  const modeText =
+    composerPhase === "diff_ready"
+      ? "PATCH_PROPOSE"
+      : composerPhase === "plan_ready"
+        ? "PLAN_ONLY"
+        : "PLAN_ONLY / 受控写入";
+  const summaryLines = [];
+  if (safePlan?.plan?.length) {
+    safePlan.plan.slice(0, 3).forEach((line) => summaryLines.push(line));
+  } else if (task.description) {
+    summaryLines.push(window.__wbStripModelThinking?.(task.description) || task.description);
   }
-  if (step) {
-    const statusLabel = taskStatusLabel(task.status);
-    step.textContent = `状态：${statusLabel}${task.currentStep ? ` · 当前步骤：${task.currentStep}` : ""}`;
-  }
+  const nextHint =
+    composerPhase === "plan_ready"
+      ? "生成代码变更"
+      : composerPhase === "diff_ready"
+        ? "查看 Diff / 审阅变更"
+        : composerPhase === "written"
+          ? "运行验证或完成任务"
+          : "开始执行";
+  panel.innerHTML = `
+    <h4 class="wb-pws-user-card__title">当前任务</h4>
+    <p class="wb-pws-user-card__desc"><strong>标题：</strong>${escapeHtml(task.title || "")}</p>
+    <p class="wb-pws-user-card__step"><strong>状态：</strong>${escapeHtml(statusText)} · <strong>模式：</strong>${escapeHtml(modeText)}</p>
+    ${
+      summaryLines.length
+        ? `<div class="wb-task-detail__summary"><strong>方案摘要：</strong><ul>${summaryLines
+            .map((line) => `<li>${escapeHtml(line)}</li>`)
+            .join("")}</ul></div>`
+        : ""
+    }
+    <p class="wb-task-detail__next"><strong>下一步：</strong>${escapeHtml(nextHint)}</p>
+  `;
 }
 
 function renderProjectColCard(project) {
@@ -141,7 +169,7 @@ function renderProjectColCard(project) {
       '<p class="wb-pws-project-card__placeholder">选择项目后显示详情</p>';
     return;
   }
-  const path = project.localPath || project.local_path || "未配置项目源码目录";
+  const path = project.localPath || project.local_path || "未配置项目路径";
   card.innerHTML = `
     <h4>${escapeHtml(project.name)}</h4>
     <p class="wb-pws-project-card__ns">${escapeHtml(project.namespace || `project:${project.id}`)}</p>
@@ -158,7 +186,7 @@ const WB_AUTO_VERIFY_KEY = "wb_auto_verify_v1";
 
 const COMPOSER_STEP_LABELS = {
   create_task: "创建任务",
-  check_source: "检查源码目录",
+  check_source: "检查项目路径",
   analyze_structure: "分析项目结构",
   search_files: "搜索相关文件",
   read_code: "读取关键代码",
@@ -223,19 +251,15 @@ function getComposerMessage() {
   return window.__wbSceneTemplates?.enrichAgentMessage?.(getComposerRawInput()) || "";
 }
 
-async function fetchSourceRootStatus(projectId) {
+async function fetchProjectPathStatus(projectId) {
   const api = wbApi();
   if (!projectId || typeof api.wbProjectCodeRoot !== "function") {
-    return { ready: false, reason: "api_unavailable" };
+    return { valid: false, reason: "api_unavailable" };
   }
   const info = await api.wbProjectCodeRoot({ projectId });
-  const localPath = String(info.localPath || "").trim();
-  const codeRoot = String(info.codeRoot || "").trim();
-  const isAsar = /app\.asar/i.test(codeRoot);
-  const isFallback = Boolean(info.isFallback);
-  const ready = Boolean(localPath && codeRoot && !isFallback && !isAsar);
+  const valid = Boolean(info.valid);
   let gitIsRepo = null;
-  if (ready && typeof api.wbProjectGitStatus === "function") {
+  if (valid && typeof api.wbProjectGitStatus === "function") {
     try {
       const git = await api.wbProjectGitStatus({ projectId });
       gitIsRepo = Boolean(git?.isRepo);
@@ -243,49 +267,53 @@ async function fetchSourceRootStatus(projectId) {
       gitIsRepo = null;
     }
   }
-  return { ready, localPath, codeRoot, isAsar, isFallback, gitIsRepo, ...info };
+  return { ...info, valid, gitIsRepo };
 }
 
-async function syncComposerSourceGate(projectId) {
-  const gate = document.getElementById("wbComposerSourceGate");
-  const runBtn = document.getElementById("wbAgentRunBtn");
-  const regenBtn = document.getElementById("wbAgentRegenBtn");
+async function syncComposerPathState(projectId) {
+  const hint = document.getElementById("wbComposerPathHint");
+  const primaryBtn = document.getElementById("wbPrimaryActionBtn");
   if (!projectId) {
-    if (gate) {
-      gate.hidden = true;
+    if (hint) {
+      hint.hidden = true;
     }
-    if (runBtn) {
-      runBtn.disabled = true;
+    if (primaryBtn) {
+      primaryBtn.disabled = true;
     }
-    if (regenBtn) {
-      regenBtn.disabled = true;
-    }
-    return { ready: false };
+    return { valid: false };
   }
   try {
-    const status = await fetchSourceRootStatus(projectId);
-    const blocked = !status.ready;
-    if (gate) {
-      gate.hidden = !blocked;
+    const status = await fetchProjectPathStatus(projectId);
+    const blocked = !status.valid;
+    if (hint) {
+      if (blocked) {
+        hint.hidden = false;
+        hint.textContent =
+          status.reason === "PROJECT_PATH_NOT_FOUND"
+            ? "当前项目路径不可用，请先在左侧项目卡片中修复路径。"
+            : "当前项目未配置路径，请在项目设置中补充项目路径。";
+      } else {
+        hint.hidden = true;
+        hint.textContent = "";
+      }
     }
-    if (runBtn) {
-      runBtn.disabled = blocked || composerPhase === "running" || agentRunStarting;
-    }
-    if (regenBtn) {
-      regenBtn.disabled = blocked || composerPhase === "running" || agentRunStarting;
+    if (primaryBtn) {
+      primaryBtn.disabled = blocked || composerPhase === "running" || agentRunStarting;
     }
     return status;
   } catch (err) {
-    if (gate) {
-      gate.hidden = false;
+    if (hint) {
+      hint.hidden = false;
+      hint.textContent = "无法检查项目路径，请稍后重试。";
     }
-    if (runBtn) {
-      runBtn.disabled = true;
+    if (primaryBtn) {
+      primaryBtn.disabled = true;
     }
-    showComposerError(err?.message || "无法检查源码目录");
-    return { ready: false };
+    return { valid: false };
   }
 }
+
+window.__wbSyncComposerSourceGate = syncComposerPathState;
 
 function resetComposerLiveSteps() {
   composerLiveSteps = [];
@@ -329,7 +357,8 @@ function renderComposerTimeline(historicalRuns = null) {
     return;
   }
   runs.forEach((run) => {
-    const summary = run.output?.summary || run.inputText?.slice(0, 80) || run.agentType;
+    const rawSummary = run.output?.summary || run.inputText?.slice(0, 80) || run.agentType;
+    const summary = window.__wbStripModelThinking?.(rawSummary) || rawSummary;
     const status = run.status || "success";
     const li = buildTimelineItem(run.agentType || "Agent", status, summary, run.createdAt || "", false);
     li.addEventListener("click", () => {
@@ -384,50 +413,178 @@ function detectComposerPhaseFromContext(projectId, taskId) {
   return "idle";
 }
 
+function resolveTaskDisplayStatus(task, phase = composerPhase) {
+  const step = String(task?.currentStep || "");
+  if (phase === "running" || agentRunStarting) {
+    return "运行中";
+  }
+  if (phase === "plan_ready" || step.includes("方案待确认")) {
+    return "方案待确认";
+  }
+  if (phase === "diff_ready" || step.includes("变更待审阅")) {
+    return "变更待审阅";
+  }
+  if (phase === "written") {
+    return "已写入";
+  }
+  if (step.includes("等待写入")) {
+    return "等待写入审批";
+  }
+  if (step.includes("验证")) {
+    return "测试中";
+  }
+  return taskStatusLabel(task?.status);
+}
+
+function resolveComposerActionConfig(phase = composerPhase) {
+  switch (phase) {
+    case "running":
+      return { primary: "停止任务", secondary: "", showSecondary: false, showMore: false };
+    case "plan_ready":
+      return { primary: "生成代码变更", secondary: "调整需求", showSecondary: true, showMore: true };
+    case "diff_ready":
+      return { primary: "查看 Diff", secondary: "需修改", showSecondary: true, showMore: true };
+    case "written":
+      return { primary: "运行验证", secondary: "完成任务", showSecondary: true, showMore: true };
+    case "done":
+      return { primary: "完成任务", secondary: "", showSecondary: false, showMore: true };
+    case "failed":
+      return { primary: "重新生成方案", secondary: "查看错误", showSecondary: true, showMore: true };
+    default:
+      return { primary: "开始执行", secondary: "", showSecondary: false, showMore: true };
+  }
+}
+
+function hideComposerMoreMenu() {
+  const menu = document.getElementById("wbComposerMoreMenu");
+  if (menu) {
+    menu.hidden = true;
+  }
+}
+
 function updateComposerUi(phase = composerPhase) {
   composerPhase = phase || "idle";
   const running = composerPhase === "running" || agentRunStarting;
-  const runBtn = document.getElementById("wbAgentRunBtn");
-  const cancelBtn = document.getElementById("wbAgentCancelBtn");
-  const confirmBtn = document.getElementById("wbTaskConfirmBtn");
-  const regenBtn = document.getElementById("wbAgentRegenBtn");
-  const viewDiffBtn = document.getElementById("wbAgentViewDiffBtn");
-  const verifyBtn = document.getElementById("wbAgentRunVerifyBtn");
-  const completeBtn = document.getElementById("wbAgentCompleteBtn");
+  const primaryBtn = document.getElementById("wbPrimaryActionBtn");
+  const secondaryBtn = document.getElementById("wbSecondaryActionBtn");
+  const moreBtn = document.getElementById("wbMoreActionsBtn");
   const input = document.getElementById("wbAgentInput");
+  const cfg = resolveComposerActionConfig(composerPhase);
 
-  if (runBtn) {
-    runBtn.hidden = running || composerPhase === "plan_ready" || composerPhase === "diff_ready";
-    runBtn.textContent = "开始执行";
-    runBtn.disabled = running;
+  if (primaryBtn) {
+    primaryBtn.textContent = cfg.primary;
+    primaryBtn.classList.toggle("wb-pws-btn--danger", running);
+    primaryBtn.disabled = running ? false : false;
   }
-  if (cancelBtn) {
-    cancelBtn.hidden = !running;
-    cancelBtn.textContent = "停止任务";
+  if (secondaryBtn) {
+    secondaryBtn.hidden = !cfg.showSecondary;
+    secondaryBtn.textContent = cfg.secondary;
+    secondaryBtn.disabled = running;
   }
-  if (confirmBtn) {
-    confirmBtn.hidden = composerPhase !== "plan_ready";
-    confirmBtn.textContent = "生成代码变更";
-    confirmBtn.disabled = running;
-  }
-  if (regenBtn) {
-    regenBtn.hidden = composerPhase !== "plan_ready";
-    regenBtn.disabled = running;
-  }
-  if (viewDiffBtn) {
-    viewDiffBtn.hidden = composerPhase !== "diff_ready";
-  }
-  if (verifyBtn) {
-    verifyBtn.hidden = composerPhase !== "written";
-  }
-  if (completeBtn) {
-    completeBtn.hidden = composerPhase !== "written" && composerPhase !== "done";
+  if (moreBtn) {
+    moreBtn.hidden = !cfg.showMore;
   }
   if (input) {
     input.disabled = running;
   }
+  hideComposerMoreMenu();
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  void syncComposerSourceGate(projectId);
+  void syncComposerPathState(projectId);
+}
+
+async function handlePrimaryComposerAction() {
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  if (!projectId) {
+    return;
+  }
+  switch (composerPhase) {
+    case "running":
+      await cancelActiveAgent();
+      break;
+    case "plan_ready":
+      await proposeCodePatches();
+      break;
+    case "diff_ready":
+      window.__wbSwitchCodeTab?.("diff");
+      window.__wbRenderDiffReviewPanel?.();
+      break;
+    case "written":
+      await runComposerVerification();
+      break;
+    case "done":
+      await completeComposerTask();
+      break;
+    case "failed":
+      await startAgentExecution(projectId);
+      break;
+    default:
+      await startAgentExecution(projectId);
+      break;
+  }
+}
+
+async function handleSecondaryComposerAction() {
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  switch (composerPhase) {
+    case "plan_ready":
+      document.getElementById("wbAgentInput")?.focus();
+      showComposerToast("可在输入框补充需求后重新执行", { type: "info" });
+      break;
+    case "diff_ready":
+      window.__wbSwitchCodeTab?.("diff");
+      window.__wbRenderDiffReviewPanel?.();
+      showComposerToast("请在 Diff 审阅面板标记「需修改」并填写意见", { type: "info" });
+      break;
+    case "written":
+      await completeComposerTask();
+      break;
+    case "failed":
+      window.__wbExpandTerminalDrawer?.("log");
+      break;
+    default:
+      break;
+  }
+}
+
+function handleComposerMoreAction(action) {
+  hideComposerMoreMenu();
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  switch (action) {
+    case "regen-plan":
+      if (projectId) {
+        void startAgentExecution(projectId);
+      }
+      break;
+    case "regen-patch":
+      void proposeCodePatches();
+      break;
+    case "open-log":
+      window.__wbExpandTerminalDrawer?.("log");
+      break;
+    case "open-tools":
+      window.__wbExpandTerminalDrawer?.("tools");
+      break;
+    case "cancel":
+      void cancelActiveAgent();
+      break;
+    case "complete":
+      void completeComposerTask();
+      break;
+    case "open-path": {
+      const store = window.__wbStore?.getState?.() || {};
+      const project = (store.projects || []).find((p) => p.id === projectId);
+      const p = project?.localPath || project?.local_path;
+      if (p && window.electronAPI?.shellOpenPath) {
+        void window.electronAPI.shellOpenPath(p);
+      }
+      break;
+    }
+    case "edit-path":
+      window.__wbOpenEditProjectModal?.(projectId);
+      break;
+    default:
+      break;
+  }
 }
 
 function mapAgentOutputToSteps(output, mode) {
@@ -548,22 +705,16 @@ async function startAgentExecution(projectId) {
   }
   resetComposerLiveSteps();
   upsertComposerStep("check_source", "running");
-  const sourceStatus = await syncComposerSourceGate(projectId);
-  if (!sourceStatus.ready) {
-    upsertComposerStep(
-      "check_source",
-      "error",
-      "未配置有效源码目录（不能使用 app.asar 或默认工作区）"
-    );
-    showComposerError(
-      "请先设置项目源码目录，AI 需要在源码目录内读取、搜索、生成 Diff 和受控修改代码。"
-    );
-    showComposerToast("请先设置项目源码目录", { type: "error" });
+  const pathStatus = await syncComposerPathState(projectId);
+  if (!pathStatus.valid) {
+    upsertComposerStep("check_source", "error", "项目路径不可用");
+    showComposerError("当前项目路径不可用，请先在左侧项目卡片中修复路径。");
+    showComposerToast("当前项目路径不可用", { type: "error" });
     return;
   }
-  upsertComposerStep("check_source", "done", sourceStatus.codeRoot);
-  if (sourceStatus.gitIsRepo === false) {
-    showComposerToast("当前源码目录不是 Git 仓库，部分 Git 功能可能不可用", { type: "warn" });
+  upsertComposerStep("check_source", "done", pathStatus.localPath || pathStatus.codeRoot);
+  if (pathStatus.gitIsRepo === false) {
+    showComposerToast("Git：非仓库，分支保护不可用，将使用备份保护", { type: "warn" });
   }
   let taskId;
   try {
@@ -606,15 +757,16 @@ async function startAgentExecution(projectId) {
     renderPlanCard(result.output);
     const tasks = await api.wbProjectTasksList({ projectId });
     window.__wbStore?.setTasks?.(tasks);
+    const currentTask = tasks.find((t) => t.id === taskId);
     renderTasks(tasks, taskId);
-    await loadTaskContext(projectId, taskId);
+    renderTaskDetail(currentTask, result.output);
     if (!result.output?.plan?.length) {
       showComposerToast("没有生成任何计划", { type: "warn" });
     } else {
       showComposerToast("开发方案已生成，可继续生成代码变更", { type: "success" });
     }
     if (out) {
-      out.textContent = result.output?.summary || "方案生成完成";
+      out.textContent = window.__wbFormatUserAgentLog?.(result.output?.summary || "方案生成完成") || "方案生成完成";
     }
     updateComposerUi("plan_ready");
   } catch (err) {
@@ -912,7 +1064,7 @@ async function loadTaskContext(projectId, taskId) {
           m.memoryType === "fix_loop_event"
             ? "wb-task-memories__item wb-task-memories__item--fix-loop"
             : "wb-task-memories__item";
-        li.innerHTML = `<span class="wb-task-memories__type">${escapeHtml(m.memoryType)}</span><span>${escapeHtml(m.content)}</span>`;
+        li.innerHTML = `<span class="wb-task-memories__type">${escapeHtml(m.memoryType)}</span><span>${escapeHtml(window.__wbStripModelThinking?.(m.content) || m.content)}</span>`;
         memList.appendChild(li);
       });
     }
@@ -923,7 +1075,9 @@ async function loadTaskContext(projectId, taskId) {
   }
   composerPhase = detectComposerPhaseFromContext(projectId, taskId);
   updateComposerUi(composerPhase);
-  await syncComposerSourceGate(projectId);
+  const tasks = window.__wbStore?.getState?.()?.tasks || [];
+  renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
+  await syncComposerPathState(projectId);
   await refreshProjectContextHealth(projectId, taskId);
   await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
   window.__wbRenderDiffReviewPanel?.();
@@ -1252,7 +1406,7 @@ async function loadProjectWorkspace(projectId) {
   resetComposerLiveSteps();
   composerPhase = "idle";
   updateComposerUi("idle");
-  await syncComposerSourceGate(id);
+  await syncComposerPathState(id);
   if (!isProjectViewActive(id, gen)) {
     return;
   }
@@ -1410,28 +1564,48 @@ async function confirmTaskPlan() {
 }
 
 function bindComposerActions() {
-  document.getElementById("wbComposerChooseRootBtn")?.addEventListener("click", () => {
-    void window.__wbChooseProjectRoot?.();
+  const primaryBtn = document.getElementById("wbPrimaryActionBtn");
+  const secondaryBtn = document.getElementById("wbSecondaryActionBtn");
+  const moreBtn = document.getElementById("wbMoreActionsBtn");
+  const menu = document.getElementById("wbComposerMoreMenu");
+
+  primaryBtn?.addEventListener("click", () => {
+    void handlePrimaryComposerAction();
   });
-  document.getElementById("wbAgentRegenBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    if (projectId) {
-      void startAgentExecution(projectId);
+  secondaryBtn?.addEventListener("click", () => {
+    void handleSecondaryComposerAction();
+  });
+  moreBtn?.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (menu) {
+      menu.hidden = !menu.hidden;
     }
   });
-  document.getElementById("wbAgentViewDiffBtn")?.addEventListener("click", () => {
-    window.__wbSwitchCodeTab?.("diff");
-    window.__wbRenderDiffReviewPanel?.();
+  menu?.querySelectorAll("[data-wb-more-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      handleComposerMoreAction(btn.dataset.wbMoreAction);
+    });
   });
-  document.getElementById("wbAgentRunVerifyBtn")?.addEventListener("click", () => {
-    void runComposerVerification();
+  document.addEventListener("click", (ev) => {
+    if (!menu || menu.hidden) {
+      return;
+    }
+    if (ev.target.closest("#wbMoreActionsBtn") || ev.target.closest("#wbComposerMoreMenu")) {
+      return;
+    }
+    hideComposerMoreMenu();
   });
-  document.getElementById("wbAgentCompleteBtn")?.addEventListener("click", () => {
-    void completeComposerTask();
+
+  document.getElementById("wbAgentRunBtn")?.addEventListener("click", () => {
+    void handlePrimaryComposerAction();
+  });
+  document.getElementById("wbTaskConfirmBtn")?.addEventListener("click", () => {
+    void proposeCodePatches();
+  });
+  document.getElementById("wbAgentCancelBtn")?.addEventListener("click", () => {
+    void cancelActiveAgent();
   });
 }
-
-window.__wbSyncComposerSourceGate = syncComposerSourceGate;
 window.__wbUpsertComposerStep = upsertComposerStep;
 window.__wbOnComposerDiffApplied = function onComposerDiffApplied() {
   upsertComposerStep("write_code", "done");
@@ -1526,15 +1700,6 @@ function bindProjectWorkspace() {
   });
   initAutoVerifyCheckbox();
   bindComposerActions();
-  document.getElementById("wbAgentRunBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    if (projectId) {
-      void runProjectAgent(projectId);
-    }
-  });
-  document.getElementById("wbTaskConfirmBtn")?.addEventListener("click", () => {
-    void confirmTaskPlan();
-  });
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
     window.__wbScheduleMainView?.();
     renderProjectColSessions();
