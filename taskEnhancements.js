@@ -179,7 +179,7 @@
       return false;
     }
     task.remarks.push({
-      id: (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `rm-${Date.now()}`),
+      id: (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `rm-${Date.now()}`),
       content: line,
       remarkTime: nowStr || new Date().toLocaleString("zh-CN", { hour12: false }),
       system: true,
@@ -195,7 +195,7 @@
       task.changeLog = [];
     }
     task.changeLog.push({
-      id: (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `cl-${Date.now()}`),
+      id: (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `cl-${Date.now()}`),
       at: entry.at,
       operator: entry.operator || "用户",
       field: entry.field,

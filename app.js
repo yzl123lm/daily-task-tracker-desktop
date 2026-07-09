@@ -5,6 +5,19 @@ const TASK_LIST_VIEW_KEY = "daily_task_tracker_list_view_v1";
 const DAILY_WORK_CHILD_ROUTES = new Set(["new", "filter", "list", "dashboard"]);
 const ACTIVE_TASK_STATUSES = ["待处理", "处理中", "已阻塞", "已挂起"];
 
+/** Prefer Web Crypto; never touch bare `crypto` (TDZ if a classic script failed on `const crypto = …`). */
+function appRandomUUID(prefix = "id") {
+  try {
+    const c = globalThis.crypto;
+    if (c && typeof c.randomUUID === "function") {
+      return c.randomUUID();
+    }
+  } catch {
+    /* ignore */
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 const ROUTES = {
   workbench: { panelId: "panel-workbench-hub", title: "工作台", breadcrumb: "工作台 / 每日工作跟进" },
   new: { panelId: "panel-new", title: "新增待处理事项", breadcrumb: "工作台 / 每日工作跟进 / 新增待处理事项" },
@@ -750,7 +763,7 @@ function normalizeTask(raw) {
     createdAtIsoDate = parseCreatedAtToDateKey(createdAt);
   }
   const base = {
-    id: raw.id || crypto.randomUUID(),
+    id: raw.id || appRandomUUID("task"),
     taskId: String(raw.taskId ?? ""),
     issueType: String(raw.issueType ?? ""),
     content: String(raw.content ?? ""),
@@ -865,7 +878,7 @@ function createTask(data) {
   const initialHistory = [];
   if (remarkText) {
     initialHistory.push({
-      id: crypto.randomUUID(),
+      id: appRandomUUID("rm"),
       content: remarkText,
       remarkTime: createdAt,
     });
@@ -873,7 +886,7 @@ function createTask(data) {
 
   const TE = te();
   return {
-    id: crypto.randomUUID(),
+    id: appRandomUUID("task"),
     taskId: data.taskId.trim(),
     issueType: data.issueType.trim(),
     content: data.content.trim(),
@@ -3299,7 +3312,7 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
       if (!Array.isArray(task.remarks)) {
         task.remarks = [];
       }
-      task.remarks.push({ id: crypto.randomUUID(), content, remarkTime: nowString() });
+      task.remarks.push({ id: appRandomUUID("rm"), content, remarkTime: nowString() });
       saveTasks();
       render();
       openOrFocusTab("list");
@@ -4577,7 +4590,7 @@ remarkSubmitBtn.addEventListener("click", () => {
     task.remarks = [];
   }
   task.remarks.push({
-    id: crypto.randomUUID(),
+    id: appRandomUUID("rm"),
     content: text,
     remarkTime: nowString(),
   });

@@ -811,11 +811,20 @@ function buildTaskContext() {
 /** 单次发送内的对话请求 ID（传给主进程以支持中止当前 HTTP 请求） */
 const aiComposeSession = { requestId: "", aborted: false };
 
+function safeRandomUUID(prefix = "ai") {
+  try {
+    const c = globalThis.crypto;
+    if (c && typeof c.randomUUID === "function") {
+      return c.randomUUID();
+    }
+  } catch {
+    /* bare `crypto` may be in TDZ if a classic script failed mid-init */
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function resetAiComposeSession() {
-  const rid =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `ai-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const rid = safeRandomUUID("ai");
   aiComposeSession.requestId = rid;
   aiComposeSession.aborted = false;
   return rid;
