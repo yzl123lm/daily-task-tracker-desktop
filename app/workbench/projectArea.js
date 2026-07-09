@@ -329,23 +329,10 @@ function buildProjectListCard(project, store, { compact = false } = {}) {
   card.dataset.projectId = project.id;
   const statusLabel = PROJECT_STATUS_LABELS[project.status] || project.status;
   const localPath = String(project.localPath || project.local_path || "").trim();
-  const pathLabel = localPath || "未配置项目路径";
-  const isSelected = project.id === store.selectedProjectId;
   const openDirBtn = compact
     ? `<button type="button" class="wb-project-card__open-dir" data-action="open-path" title="打开目录" ${
         localPath ? `data-path="${escapeHtml(localPath)}"` : "disabled"
       }>打开目录</button>`
-    : "";
-  const pathMeta = compact
-    ? `<div class="wb-project-card__path-meta${isSelected ? " is-selected" : ""}"${
-        isSelected ? ' id="wbPwsSourceRootCard"' : ""
-      }>
-        <span class="wb-project-card__path"${isSelected ? ' id="wbProjectSourceRootText"' : ""} title="${escapeHtml(
-          pathLabel
-        )}">${escapeHtml(pathLabel)}</span>
-        <span class="wb-project-card__git"${isSelected ? ' id="wbProjectGitStatusText"' : ""} hidden></span>
-        <p class="wb-project-card__path-hint"${isSelected ? ' id="wbProjectSourceRootHint"' : ""} hidden></p>
-      </div>`
     : "";
   card.innerHTML = `
     <div class="wb-list-card__surface">
@@ -367,7 +354,6 @@ function buildProjectListCard(project, store, { compact = false } = {}) {
           <button type="button" class="wb-icon-btn wb-icon-btn--danger" data-action="delete" title="删除" aria-label="删除">🗑</button>
         </div>
       </div>
-      ${pathMeta}
     </div>
   `;
   const module =

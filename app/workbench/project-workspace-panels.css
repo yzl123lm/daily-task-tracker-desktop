@@ -640,11 +640,3 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 .wb-pws-source-root-card {
   display: none;
 }
-
-.wb-project-card__path-meta {
-  min-width: 0;
-}
-
-.wb-project-card__path-meta.is-warning .wb-project-card__path {
-  color: #b45309;
-}

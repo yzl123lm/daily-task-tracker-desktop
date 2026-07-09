@@ -134,11 +134,13 @@ let lastSourceRootGit = null;
 
 async function openSourceRootPath(explicitPath) {
   const api = wbApi();
+  const projectId = panelState.projectId || window.__wbStore?.getState?.().selectedProjectId;
+  const storeProject = (window.__wbStore?.getState?.().projects || []).find((p) => p.id === projectId);
   const path =
     String(explicitPath || "").trim() ||
-    document.getElementById("wbProjectSourceRootText")?.textContent?.trim() ||
+    String(storeProject?.localPath || storeProject?.local_path || "").trim() ||
+    String(lastSourceRootInfo?.codeRoot || lastSourceRootInfo?.root || lastSourceRootInfo?.localPath || "").trim() ||
     "";
-  const projectId = panelState.projectId || window.__wbStore?.getState?.().selectedProjectId;
   if ((!path || path === "未配置项目路径") && !projectId) {
     return;
   }

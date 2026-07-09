@@ -591,15 +591,25 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
 }
 
 .wb-list-card--compact .wb-list-card__actions--overlay {
-  position: static;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 2px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e8eef5;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.wb-list-card--compact:hover .wb-list-card__actions--overlay,
+.wb-list-card--compact:focus-within .wb-list-card__actions--overlay {
   opacity: 1;
   pointer-events: auto;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  box-shadow: none;
-  gap: 4px;
 }
 
 .wb-list-card--compact .wb-project-card__name {
@@ -608,36 +618,6 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
 
 .wb-list-card--compact .wb-status-pill {
   display: none;
-}
-
-.wb-list-card--compact .wb-project-card__path-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding-left: 26px;
-}
-
-.wb-list-card--compact .wb-project-card__path {
-  display: block;
-  font-size: 10px;
-  line-height: 1.35;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.wb-list-card--compact .wb-project-card__path-meta.is-warning .wb-project-card__path {
-  color: #b45309;
-}
-
-.wb-list-card--compact .wb-project-card__git,
-.wb-list-card--compact .wb-project-card__path-hint {
-  font-size: 10px;
-  line-height: 1.35;
-  color: #94a3b8;
-  margin: 0;
 }
 
 .wb-list-card--compact .wb-project-card__open-dir {
