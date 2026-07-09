@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "11";
+const WB_PWS_LAYOUT_VERSION = "12";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>

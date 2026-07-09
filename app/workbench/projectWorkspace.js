@@ -459,6 +459,28 @@ function hideComposerMoreMenu() {
   const menu = document.getElementById("wbComposerMoreMenu");
   if (menu) {
     menu.hidden = true;
+    menu.setAttribute("hidden", "");
+    menu.setAttribute("aria-hidden", "true");
+  }
+  const moreBtn = document.getElementById("wbMoreActionsBtn");
+  if (moreBtn) {
+    moreBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
+function toggleComposerMoreMenu() {
+  const menu = document.getElementById("wbComposerMoreMenu");
+  if (!menu) {
+    return;
+  }
+  const willOpen = menu.hidden || menu.hasAttribute("hidden");
+  if (willOpen) {
+    menu.hidden = false;
+    menu.removeAttribute("hidden");
+    menu.setAttribute("aria-hidden", "false");
+    document.getElementById("wbMoreActionsBtn")?.setAttribute("aria-expanded", "true");
+  } else {
+    hideComposerMoreMenu();
   }
 }
 
@@ -1576,16 +1598,16 @@ function bindComposerActions() {
     void handleSecondaryComposerAction();
   });
   moreBtn?.addEventListener("click", (ev) => {
+    ev.preventDefault();
     ev.stopPropagation();
-    if (menu) {
-      menu.hidden = !menu.hidden;
-    }
+    toggleComposerMoreMenu();
   });
   menu?.querySelectorAll("[data-wb-more-action]").forEach((btn) => {
     btn.addEventListener("click", () => {
       handleComposerMoreAction(btn.dataset.wbMoreAction);
     });
   });
+  hideComposerMoreMenu();
   document.addEventListener("click", (ev) => {
     if (!menu || menu.hidden) {
       return;
@@ -1594,6 +1616,11 @@ function bindComposerActions() {
       return;
     }
     hideComposerMoreMenu();
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") {
+      hideComposerMoreMenu();
+    }
   });
 
   document.getElementById("wbAgentRunBtn")?.addEventListener("click", () => {
