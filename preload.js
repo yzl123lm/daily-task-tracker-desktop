@@ -376,8 +376,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectTaskCreate: (payload) => ipcRenderer.invoke("wb-project-task-create", payload || {}),
   wbProjectTaskUpdate: (payload) => ipcRenderer.invoke("wb-project-task-update", payload || {}),
   wbProjectAgentRunsList: (payload) => ipcRenderer.invoke("wb-project-agent-runs-list", payload || {}),
+  wbProjectAgentEventsList: (payload) =>
+    ipcRenderer.invoke("wb-project-agent-events-list", payload || {}),
   wbProjectAgentRun: (payload) => ipcRenderer.invoke("wb-project-agent-run", payload || {}),
   wbProjectAgentCancel: (payload) => ipcRenderer.invoke("wb-project-agent-cancel", payload || {}),
+  onWbProjectAgentEvent: (callback) => {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    const listener = (_event, payload) => {
+      try {
+        callback(payload);
+      } catch {
+        /* ignore renderer callback errors */
+      }
+    };
+    ipcRenderer.on("wb-project-agent-event", listener);
+    return () => ipcRenderer.removeListener("wb-project-agent-event", listener);
+  },
   wbProjectPatchesList: (payload) => ipcRenderer.invoke("wb-project-patches-list", payload || {}),
   wbProjectPatchGet: (payload) => ipcRenderer.invoke("wb-project-patch-get", payload || {}),
   wbProjectPatchStatus: (payload) => ipcRenderer.invoke("wb-project-patch-status", payload || {}),

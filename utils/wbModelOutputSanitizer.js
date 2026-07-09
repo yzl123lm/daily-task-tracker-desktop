@@ -4,11 +4,17 @@ function stripModelThinking(text) {
     return "";
   }
   let s = String(text);
+  // Closed think / redacted blocks
   s = s.replace(/<think>[\s\S]*?<\/redacted_thinking>/gi, "");
+  s = s.replace(/<\/?redacted_thinking>/gi, "");
   s = s.replace(/<think>[\s\S]*?<\/think>/gi, "");
-  s = s.replace(/```think[\s\S]*?```/gi, "");
-  s = s.replace(/^\s*思考[:：][\s\S]*?(?=需求理解[:：]|实施步骤[:：]|$)/im, "");
-  return s.trim();
+  // Unclosed <think> ... rest of string
+  s = s.replace(/<think>[\s\S]*$/gi, "");
+  s = s.replace(/<\/think>/gi, "");
+  s = s.replace(/```(?:think|thinking)[\s\S]*?```/gi, "");
+  s = s.replace(/^\s*思考[:：][\s\S]*?(?=需求理解[:：]|方案[:：]|实施步骤[:：]|$)/im, "");
+  s = s.replace(/^\s*\[thinking\][\s\S]*?(?=\n\S|$)/gim, "");
+  return s.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function sanitizeAgentOutputForUi(output) {

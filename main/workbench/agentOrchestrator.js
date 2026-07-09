@@ -22,6 +22,11 @@ const { TASK_STATUS } = require("./taskStatus.js");
 const { runFixLoop, resumeFixLoopAfterApply } = require("./fixLoopController.js");
 const { getFixLoopState, fixLoopV2Enabled } = require("./fixLoopStateService.js");
 const { applyAcceptedPatches } = require("./controlledDevService.js");
+const {
+  emitAgentEvent,
+  PHASE,
+  STATUS,
+} = require("./agentEventEmitter.js");
 
 let getDefaultProjectRootFn = null;
 
@@ -118,6 +123,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   const taskId = payload.taskId;
   const message = String(payload.message || "");
   const mode = String(payload.mode || "PLAN_ONLY").toUpperCase();
+  const webContents = payload.webContents || null;
 
   const project = getProject(getUserDataPath, uid, projectId);
   if (!project) {
@@ -145,6 +151,16 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       status: TASK_STATUS.APPLYING,
       currentStep: "用户已接受，批量写入中",
     });
+    emitAgentEvent(
+      { getUserDataPath, userId: uid, projectId, taskId, webContents },
+      {
+        phase: PHASE.APPLYING,
+        status: STATUS.running,
+        title: "写入代码",
+        summary: "正在应用已接受的 Diff",
+        stepKey: "write_code",
+      }
+    );
     const applyResult = applyAcceptedPatches(
       getUserDataPath,
       uid,
@@ -177,6 +193,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           taskId,
           agentRunId: payload.agentRunId || fixState.agentRunId,
           promptContext: prepared.promptContext,
+          webContents,
         },
         {
           patchIds: payload.patchIds,
@@ -185,6 +202,19 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         }
       );
     }
+    emitAgentEvent(
+      { getUserDataPath, userId: uid, projectId, taskId, webContents },
+      {
+        phase: applyResult.ok ? PHASE.COMPLETED : PHASE.FAILED,
+        status: applyResult.ok ? STATUS.success : STATUS.failed,
+        title: "写入代码",
+        summary: applyResult.ok
+          ? `已写入 ${applyResult.count || 0} 个文件`
+          : applyResult.error || "批量写入失败",
+        stepKey: "write_code",
+        error: applyResult.ok ? null : applyResult.error || "批量写入失败",
+      }
+    );
     return {
       agentRunId: null,
       status: applyResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.FAILED,
@@ -216,7 +246,31 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
     messages,
   });
   const root = resolveProjectRoot(project, getDefaultProjectRootFn);
+
+  emitAgentEvent(
+    { getUserDataPath, userId: uid, projectId, taskId, webContents },
+    {
+      phase: PHASE.CHECKING_PATH,
+      status: STATUS.running,
+      title: "检查项目路径",
+      summary: root ? `使用 ${root}` : "未解析到项目路径",
+      stepKey: "check_source",
+    }
+  );
+
   const codeAnalysis = analyzeProjectCode(project, message, getDefaultProjectRootFn);
+
+  emitAgentEvent(
+    { getUserDataPath, userId: uid, projectId, taskId, webContents },
+    {
+      phase: PHASE.CHECKING_PATH,
+      status: root ? STATUS.success : STATUS.failed,
+      title: "检查项目路径",
+      summary: root ? `使用 ${root}` : "项目路径不可用",
+      stepKey: "check_source",
+      error: root ? null : "项目路径不可用",
+    }
+  );
 
   let agentRunId = null;
   let output;
@@ -241,9 +295,25 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       project,
       task,
       promptContext: prepared.promptContext,
+      webContents,
     };
 
+    emitAgentEvent(ctx, {
+      phase: PHASE.ANALYZING,
+      status: STATUS.running,
+      title: "分析需求",
+      summary: "AI 正在理解你的开发目标",
+      stepKey: "analyze_req",
+    });
+
     if (mode === "VERIFY_FIX" && payload.fixContext?.scriptName) {
+      emitAgentEvent(ctx, {
+        phase: PHASE.VERIFYING,
+        status: STATUS.running,
+        title: "运行验证",
+        summary: `执行 ${payload.fixContext.scriptName}`,
+        stepKey: "run_verify",
+      });
       if (payload.fixContext?.resume && fixLoopV2Enabled()) {
         const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
         if (fixState?.active) {
@@ -273,11 +343,90 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         };
         runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
       }
+      emitAgentEvent(ctx, {
+        phase: runStatus === RUN_STATUS.COMPLETED ? PHASE.COMPLETED : PHASE.WAITING_REVIEW,
+        status: runStatus === RUN_STATUS.COMPLETED ? STATUS.success : STATUS.waiting,
+        title: runStatus === RUN_STATUS.COMPLETED ? "任务完成" : "等待用户审阅",
+        summary: output?.summary || "",
+        stepKey: runStatus === RUN_STATUS.COMPLETED ? "complete" : "await_diff",
+      });
     } else if (agentLlmEnabled() && root) {
+      if (mode === "PLAN_ONLY") {
+        emitAgentEvent(ctx, {
+          phase: PHASE.PLANNING,
+          status: STATUS.running,
+          title: "生成开发方案",
+          summary: "正在生成可确认的实施方案",
+          stepKey: "generate_plan",
+        });
+      } else if (mode === "PATCH_PROPOSE") {
+        emitAgentEvent(ctx, {
+          phase: PHASE.PATCHING,
+          status: STATUS.running,
+          title: "生成代码变更",
+          summary: "正在根据方案生成可审阅 Diff",
+          stepKey: "generate_patch",
+        });
+      }
       output = await runProjectAgentLLM(ctx, { message, mode });
       runStatus =
         mode === "PATCH_PROPOSE" ? RUN_STATUS.WAITING_APPROVAL : RUN_STATUS.COMPLETED;
+
+      emitAgentEvent(ctx, {
+        phase: PHASE.ANALYZING,
+        status: STATUS.success,
+        title: "分析需求",
+        summary: "需求理解完成",
+        stepKey: "analyze_req",
+      });
+
+      if (mode === "PLAN_ONLY") {
+        const planCount = output?.plan?.length || 0;
+        emitAgentEvent(ctx, {
+          phase: PHASE.PLANNING,
+          status: planCount ? STATUS.success : STATUS.failed,
+          title: "生成开发方案",
+          summary: planCount ? `共 ${planCount} 步，方案待确认` : "未生成任何计划",
+          stepKey: "generate_plan",
+          error: planCount ? null : "未生成任何计划",
+        });
+        emitAgentEvent(ctx, {
+          phase: PHASE.WAITING_REVIEW,
+          status: STATUS.waiting,
+          title: "方案待确认",
+          summary: "请确认方案后生成代码变更",
+          stepKey: "plan_ready",
+        });
+      } else if (mode === "PATCH_PROPOSE") {
+        const diffCount = output?.diffPreviews?.length || 0;
+        emitAgentEvent(ctx, {
+          phase: PHASE.PATCHING,
+          status: diffCount ? STATUS.success : STATUS.failed,
+          title: "生成代码变更",
+          summary: diffCount
+            ? `生成 ${diffCount} 个文件 Diff`
+            : output?.note || "Agent 未返回 staged patch",
+          stepKey: "generate_patch",
+          error: diffCount ? null : output?.note || "未生成代码变更：当前 Agent 未返回 staged patch",
+        });
+        if (diffCount) {
+          emitAgentEvent(ctx, {
+            phase: PHASE.WAITING_REVIEW,
+            status: STATUS.waiting,
+            title: "等待用户审阅",
+            summary: "Diff 已生成，请查看并确认",
+            stepKey: "await_diff",
+          });
+        }
+      }
     } else {
+      emitAgentEvent(ctx, {
+        phase: PHASE.PLANNING,
+        status: STATUS.running,
+        title: "生成开发方案",
+        summary: agentLlmEnabled() ? "LLM 不可用，使用规则方案" : "LLM 已禁用，使用规则方案",
+        stepKey: "generate_plan",
+      });
       output = buildPlanOnlyOutput({
         message,
         project,
@@ -290,6 +439,29 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       if (mode === "PATCH_PROPOSE") {
         output.diffPreviews = [];
         output.note = "LLM 不可用，PATCH_PROPOSE 需要配置模型";
+        emitAgentEvent(ctx, {
+          phase: PHASE.PATCHING,
+          status: STATUS.failed,
+          title: "生成代码变更",
+          summary: output.note,
+          stepKey: "generate_patch",
+          error: output.note,
+        });
+      } else {
+        emitAgentEvent(ctx, {
+          phase: PHASE.PLANNING,
+          status: STATUS.success,
+          title: "生成开发方案",
+          summary: `规则方案共 ${(output.plan || []).length} 步`,
+          stepKey: "generate_plan",
+        });
+        emitAgentEvent(ctx, {
+          phase: PHASE.WAITING_REVIEW,
+          status: STATUS.waiting,
+          title: "方案待确认",
+          summary: "请确认方案后生成代码变更",
+          stepKey: "plan_ready",
+        });
       }
       completeAgentRun(getUserDataPath, uid, {
         projectId,
@@ -321,6 +493,24 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         /* optional */
       }
     }
+    emitAgentEvent(
+      {
+        getUserDataPath,
+        userId: uid,
+        projectId,
+        taskId,
+        agentRunId,
+        webContents,
+      },
+      {
+        phase: PHASE.FAILED,
+        status: STATUS.failed,
+        title: "执行失败",
+        summary: err.message || "Agent 执行失败",
+        stepKey: "failed",
+        error: err.message,
+      }
+    );
     if (agentRunId) {
       failAgentRun(getUserDataPath, uid, {
         projectId,
@@ -346,6 +536,23 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         currentStep: "规则 Agent 方案（LLM 失败回退）",
       });
       runStatus = RUN_STATUS.COMPLETED;
+      emitAgentEvent(
+        {
+          getUserDataPath,
+          userId: uid,
+          projectId,
+          taskId,
+          agentRunId,
+          webContents,
+        },
+        {
+          phase: PHASE.PLANNING,
+          status: STATUS.success,
+          title: "生成开发方案",
+          summary: "LLM 失败，已回退规则方案",
+          stepKey: "generate_plan",
+        }
+      );
     } else {
       throw err;
     }

@@ -10,6 +10,15 @@ const {
 } = require("./agentRunStore.js");
 const { listStagedPatches, patchToDiffPreview } = require("./patchStagingService.js");
 const { buildToolResultMessage, buildAssistantToolCallMessage } = require("../ai/toolCallAdapter.js");
+const {
+  emitAgentEvent,
+  PHASE,
+  STATUS,
+  TOOL_PHASE_MAP,
+  TOOL_TITLE_MAP,
+  summarizeToolInput,
+  summarizeToolOutput,
+} = require("./agentEventEmitter.js");
 
 const MAX_TOOL_ROUNDS = 12;
 
@@ -62,12 +71,30 @@ function parsePlanFromContent(content) {
   };
 }
 
+function toolStepKey(toolName) {
+  const map = {
+    list_files: "analyze_structure",
+    search_code: "search_files",
+    read_file: "read_code",
+    get_symbols: "read_code",
+    stage_patch: "generate_patch",
+  };
+  return map[toolName] || TOOL_PHASE_MAP[toolName] || toolName;
+}
+
 async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
   if (!agentLlmEnabled()) {
     const err = new Error("WB_AGENT_LLM=0");
     err.code = "LLM_DISABLED";
     throw err;
   }
+  emitAgentEvent(ctx, {
+    phase: PHASE.SCANNING,
+    status: STATUS.running,
+    title: "扫描项目结构",
+    summary: "正在准备项目上下文",
+    stepKey: "analyze_structure",
+  });
   const contextPack = await buildContextPackAsync({
     root: ctx.root,
     message,
@@ -78,6 +105,14 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     userId: ctx.userId,
     getUserDataPath: ctx.getUserDataPath,
   });
+  emitAgentEvent(ctx, {
+    phase: PHASE.SCANNING,
+    status: STATUS.success,
+    title: "扫描项目结构",
+    summary: "项目上下文已就绪",
+    stepKey: "analyze_structure",
+  });
+
   const tools = listToolSchemas(mode);
   const messages = [
     { role: "system", content: buildSystemPrompt(mode, contextPack) },
@@ -87,6 +122,13 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
     if (isRunCanceled(ctx.agentRunId)) {
+      emitAgentEvent(ctx, {
+        phase: PHASE.CANCELED,
+        status: STATUS.canceled,
+        title: "已取消",
+        summary: "用户停止了任务",
+        stepKey: "canceled",
+      });
       throw new Error("Agent 运行已取消");
     }
     const { message: assistantMsg, toolCalls } = await llmChatWithTools({
@@ -123,12 +165,42 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
 
     messages.push(buildAssistantToolCallMessage(toolCalls));
     for (const tc of toolCalls) {
+      const toolName = tc.name;
+      const phase = TOOL_PHASE_MAP[toolName] || PHASE.ANALYZING;
+      const title = TOOL_TITLE_MAP[toolName] || `调用 ${toolName}`;
+      const inputSummary = summarizeToolInput(toolName, tc.arguments);
+      const startedAt = Date.now();
+      emitAgentEvent(ctx, {
+        phase,
+        status: STATUS.running,
+        title,
+        summary: inputSummary || "工具执行中",
+        toolName,
+        toolInputSummary: inputSummary,
+        stepKey: toolStepKey(toolName),
+        startedAt,
+      });
       const result = await dispatchTool(ctx, tc.name, tc.arguments);
+      const outputSummary = summarizeToolOutput(toolName, result);
+      const ok = result?.ok !== false;
       toolTrace.push({ tool: tc.name, args: tc.arguments, result, source: tc.source });
       appendToolTrace(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, ctx.agentRunId, {
         tool: tc.name,
         args: tc.arguments,
-        ok: result?.ok !== false,
+        ok,
+      });
+      emitAgentEvent(ctx, {
+        phase,
+        status: ok ? STATUS.success : STATUS.failed,
+        title,
+        summary: outputSummary || (ok ? "完成" : "失败"),
+        toolName,
+        toolInputSummary: inputSummary,
+        toolOutputSummary: outputSummary,
+        stepKey: toolStepKey(toolName),
+        startedAt,
+        endedAt: Date.now(),
+        error: ok ? null : result?.error || "工具执行失败",
       });
       messages.push(buildToolResultMessage(tc.id, tc.name, JSON.stringify(result)));
     }
@@ -139,6 +211,14 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     taskId: ctx.taskId,
     agentRunId: ctx.agentRunId,
     errorMessage: `超过最大工具轮次 ${MAX_TOOL_ROUNDS}`,
+  });
+  emitAgentEvent(ctx, {
+    phase: PHASE.FAILED,
+    status: STATUS.failed,
+    title: "执行失败",
+    summary: `超过最大工具轮次 ${MAX_TOOL_ROUNDS}`,
+    stepKey: "failed",
+    error: `超过最大工具轮次 ${MAX_TOOL_ROUNDS}`,
   });
   throw new Error(`Agent 超过最大工具轮次 ${MAX_TOOL_ROUNDS}`);
 }

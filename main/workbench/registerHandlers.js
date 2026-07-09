@@ -7,6 +7,11 @@ const chatService = require("./chatService.js");
 const contextMemoryService = require("./contextMemoryService.js");
 const agentOrchestrator = require("./agentOrchestrator.js");
 const agentRunService = require("./agentRunService.js");
+const agentRunStore = require("./agentRunStore.js");
+const {
+  listAgentTimelineEvents,
+  listTimelineEventsFromRun,
+} = require("./agentEventEmitter.js");
 const chatSummaryService = require("./chatSummaryService.js");
 const compressionManager = require("./context-compression/contextCompressionManager.js");
 const contextStore = require("./context-compression/contextStore.js");
@@ -100,7 +105,40 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     );
   });
 
-  ipcMain.handle("wb-project-agent-run", (_event, payload) => {
+  ipcMain.handle("wb-project-agent-events-list", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const agentRunId = payload?.agentRunId
+      ? assertSafeId(payload.agentRunId, "agentRunId")
+      : null;
+    if (agentRunId) {
+      return listAgentTimelineEvents(
+        getUserDataPath,
+        payload?.userId,
+        projectId,
+        taskId,
+        agentRunId
+      );
+    }
+    const active = agentRunStore.getActiveRunForTask(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId
+    );
+    if (active) {
+      return listTimelineEventsFromRun(active);
+    }
+    const latest = agentRunStore.getLatestRunForTask(
+      getUserDataPath,
+      payload?.userId,
+      projectId,
+      taskId
+    );
+    return listTimelineEventsFromRun(latest);
+  });
+
+  ipcMain.handle("wb-project-agent-run", (event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
     return agentOrchestrator.runProjectAgent(getUserDataPath, payload?.userId, {
@@ -119,6 +157,7 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       autoVerify: payload?.autoVerify,
       source: payload?.source,
       basedOnLastPlan: payload?.basedOnLastPlan,
+      webContents: event?.sender || null,
     });
   });
 

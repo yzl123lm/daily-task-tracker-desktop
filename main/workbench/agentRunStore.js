@@ -63,6 +63,19 @@ function getActiveRunForTask(getUserDataPath, userId, projectId, taskId) {
   return rowToSession(row);
 }
 
+function getLatestRunForTask(getUserDataPath, userId, projectId, taskId) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const row = db
+    .prepare(
+      `SELECT * FROM agent_run_sessions
+       WHERE user_id = ? AND project_id = ? AND task_id = ?
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(uid, projectId, taskId);
+  return rowToSession(row);
+}
+
 function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, inputText, timeoutMs }) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
@@ -213,6 +226,7 @@ module.exports = {
   startAgentRun,
   getAgentRun,
   getActiveRunForTask,
+  getLatestRunForTask,
   isCurrentRun,
   assertCurrentRun,
   appendToolTrace,

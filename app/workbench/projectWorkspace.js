@@ -182,22 +182,185 @@ let activeAgentRunId = null;
 let agentRunStarting = false;
 let composerPhase = "idle";
 let composerLiveSteps = [];
+let unsubscribeAgentEvents = null;
+let agentEventPollTimer = null;
 const WB_AUTO_VERIFY_KEY = "wb_auto_verify_v1";
 
 const COMPOSER_STEP_LABELS = {
   create_task: "创建任务",
   check_source: "检查项目路径",
-  analyze_structure: "分析项目结构",
+  analyze_req: "分析需求",
+  analyze_structure: "扫描项目结构",
   search_files: "搜索相关文件",
   read_code: "读取关键代码",
   generate_plan: "生成开发方案",
+  plan_ready: "方案待确认",
   generate_patch: "生成代码变更",
   await_diff: "等待用户审阅 Diff",
   write_code: "写入代码",
   run_verify: "运行验证",
-  fix_failure: "修复失败",
+  fix_failure: "失败修复",
   complete: "任务完成",
+  failed: "执行失败",
+  canceled: "已取消",
 };
+
+const PHASE_TO_STEP = {
+  CHECKING_PATH: "check_source",
+  ANALYZING: "analyze_req",
+  SCANNING: "analyze_structure",
+  SEARCHING: "search_files",
+  READING: "read_code",
+  PLANNING: "generate_plan",
+  PATCHING: "generate_patch",
+  WAITING_REVIEW: "await_diff",
+  APPLYING: "write_code",
+  VERIFYING: "run_verify",
+  FIXING: "fix_failure",
+  COMPLETED: "complete",
+  FAILED: "failed",
+  CANCELED: "canceled",
+};
+
+function mapEventStatusToStep(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "success" || s === "done" || s === "completed") {
+    return "done";
+  }
+  if (s === "failed" || s === "error") {
+    return "error";
+  }
+  if (s === "waiting") {
+    return "waiting";
+  }
+  if (s === "canceled" || s === "cancelled") {
+    return "error";
+  }
+  if (s === "queued" || s === "pending") {
+    return "pending";
+  }
+  return "running";
+}
+
+function appendAgentLogLine(text) {
+  const out = document.getElementById("wbAgentOutput");
+  if (!out) {
+    return;
+  }
+  const cleaned = window.__wbStripModelThinking?.(text) || text;
+  if (!cleaned) {
+    return;
+  }
+  out.hidden = false;
+  const stamp = new Date().toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const line = `${stamp} ${cleaned}`;
+  const prev = out.textContent && out.textContent !== "Agent 分析项目中…" ? out.textContent : "";
+  out.textContent = prev ? `${prev}\n${line}` : line;
+  out.scrollTop = out.scrollHeight;
+}
+
+function applyAgentEventToUi(payload) {
+  if (!payload || payload.visible === false || payload.debugOnly) {
+    return;
+  }
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  if (payload.projectId && projectId && payload.projectId !== projectId) {
+    return;
+  }
+  if (payload.taskId && taskId && payload.taskId !== taskId) {
+    return;
+  }
+  if (payload.agentRunId) {
+    activeAgentRunId = payload.agentRunId;
+  }
+
+  const stepKey =
+    payload.stepKey ||
+    PHASE_TO_STEP[payload.phase] ||
+    payload.phase ||
+    "analyze_req";
+  const stepStatus = mapEventStatusToStep(payload.status);
+  const title = COMPOSER_STEP_LABELS[stepKey] || payload.title || stepKey;
+  const summary = window.__wbStripModelThinking?.(payload.summary || payload.error || "") || "";
+  upsertComposerStep(stepKey, stepStatus, summary || title);
+
+  if (payload.status === "running" || payload.status === "queued") {
+    if (composerPhase !== "running") {
+      updateComposerUi("running");
+    }
+  } else if (payload.status === "waiting") {
+    if (payload.phase === "WAITING_REVIEW" || stepKey === "await_diff" || stepKey === "plan_ready") {
+      const nextPhase = stepKey === "plan_ready" ? "plan_ready" : "diff_ready";
+      updateComposerUi(nextPhase);
+    }
+  } else if (payload.status === "failed" && stepKey === "failed") {
+    updateComposerUi("failed");
+  } else if (payload.status === "success" && stepKey === "complete") {
+    updateComposerUi("done");
+  }
+
+  if (summary && (payload.status === "success" || payload.status === "failed" || payload.status === "waiting")) {
+    appendAgentLogLine(`${payload.title || title}：${summary}`);
+  } else if (payload.status === "running" && payload.title) {
+    appendAgentLogLine(`${payload.title}…`);
+  }
+}
+
+function stopAgentEventPolling() {
+  if (agentEventPollTimer) {
+    window.clearInterval(agentEventPollTimer);
+    agentEventPollTimer = null;
+  }
+}
+
+function startAgentEventPolling(projectId, taskId) {
+  stopAgentEventPolling();
+  const api = wbApi();
+  if (typeof api.wbProjectAgentEventsList !== "function") {
+    return;
+  }
+  agentEventPollTimer = window.setInterval(() => {
+    if (!agentRunStarting && !activeAgentRunId) {
+      stopAgentEventPolling();
+      return;
+    }
+    void api
+      .wbProjectAgentEventsList({
+        projectId,
+        taskId,
+        agentRunId: activeAgentRunId || undefined,
+      })
+      .then((events) => {
+        (events || []).forEach((ev) => applyAgentEventToUi(ev));
+      })
+      .catch(() => {});
+  }, 1000);
+}
+
+function subscribeAgentEvents() {
+  const api = wbApi();
+  if (unsubscribeAgentEvents) {
+    return;
+  }
+  if (typeof api.onWbProjectAgentEvent === "function") {
+    unsubscribeAgentEvents = api.onWbProjectAgentEvent((payload) => {
+      applyAgentEventToUi(payload);
+    });
+  }
+}
+
+function unsubscribeAgentEventListener() {
+  if (typeof unsubscribeAgentEvents === "function") {
+    unsubscribeAgentEvents();
+  }
+  unsubscribeAgentEvents = null;
+  stopAgentEventPolling();
+}
 
 function showComposerError(message) {
   const el = document.getElementById("wbComposerError");
@@ -326,7 +489,7 @@ function upsertComposerStep(id, status, detail = "") {
     id,
     label,
     status,
-    detail: String(detail || ""),
+    detail: window.__wbStripModelThinking?.(String(detail || "")) || String(detail || ""),
     at: new Date().toISOString(),
   };
   if (existing) {
@@ -343,6 +506,7 @@ function renderComposerTimeline(historicalRuns = null) {
     return;
   }
   runsList.replaceChildren();
+  runsList.classList.add("wb-agent-progress");
   if (composerLiveSteps.length) {
     composerLiveSteps.forEach((step) => {
       runsList.appendChild(buildTimelineItem(step.label, step.status, step.detail, step.at, true));
@@ -356,40 +520,66 @@ function renderComposerTimeline(historicalRuns = null) {
     runsList.innerHTML = '<li class="wb-agent-runs__empty">暂无 Agent 记录</li>';
     return;
   }
-  runs.forEach((run) => {
-    const rawSummary = run.output?.summary || run.inputText?.slice(0, 80) || run.agentType;
-    const summary = window.__wbStripModelThinking?.(rawSummary) || rawSummary;
-    const status = run.status || "success";
-    const li = buildTimelineItem(run.agentType || "Agent", status, summary, run.createdAt || "", false);
-    li.addEventListener("click", () => {
-      if (run.output?.plan) {
-        renderPlanCard(run.output);
-      }
+  if (!composerLiveSteps.length) {
+    runs.forEach((run) => {
+      const rawSummary = run.output?.summary || run.inputText?.slice(0, 80) || run.agentType;
+      const summary = window.__wbStripModelThinking?.(rawSummary) || rawSummary;
+      const status = run.status || "success";
+      const li = buildTimelineItem(run.agentType || "Agent", status, summary, run.createdAt || "", false);
+      li.addEventListener("click", () => {
+        if (run.output?.plan) {
+          renderPlanCard(run.output);
+        }
+      });
+      runsList.appendChild(li);
     });
-    runsList.appendChild(li);
-  });
+  }
 }
 
 function buildTimelineItem(title, status, detail, time, isStep) {
   const li = document.createElement("li");
-  li.className = "wb-pws-timeline__item";
+  li.className = "wb-pws-timeline__item wb-agent-step";
   const normalized = String(status || "pending").toLowerCase();
   const statusClass =
     normalized === "done" || normalized === "completed" || normalized === "success"
       ? "success"
       : normalized === "error" || normalized === "failed"
         ? "failed"
-        : normalized === "running" || normalized === "pending"
-          ? "running"
-          : normalized;
+        : normalized === "waiting"
+          ? "waiting"
+          : normalized === "running" || normalized === "pending" || normalized === "queued"
+            ? "running"
+            : normalized;
+  li.classList.add(`is-${statusClass}`);
+  const icon =
+    statusClass === "success"
+      ? "✓"
+      : statusClass === "failed"
+        ? "✕"
+        : statusClass === "waiting"
+          ? "!"
+          : statusClass === "running"
+            ? ""
+            : "·";
+  const statusLabel =
+    statusClass === "success"
+      ? "完成"
+      : statusClass === "failed"
+        ? "失败"
+        : statusClass === "waiting"
+          ? "等待确认"
+          : statusClass === "running"
+            ? "运行中"
+            : status;
+  const safeDetail = window.__wbStripModelThinking?.(detail) || detail || "";
   li.innerHTML = `
-    <span class="wb-pws-timeline__dot" aria-hidden="true"></span>
-    <div class="wb-pws-timeline__body">
+    <span class="wb-agent-step__icon ${statusClass === "running" ? "wb-agent-step__spinner" : ""}" aria-hidden="true">${escapeHtml(icon)}</span>
+    <div class="wb-pws-timeline__body wb-agent-step__content">
       <div class="wb-pws-timeline__head">
         <span class="wb-pws-timeline__type">${escapeHtml(title)}</span>
-        <span class="wb-pws-timeline__status wb-pws-timeline__status--${escapeHtml(statusClass)}">${escapeHtml(status)}</span>
+        <span class="wb-pws-timeline__status wb-pws-timeline__status--${escapeHtml(statusClass)}">${escapeHtml(statusLabel)}</span>
       </div>
-      ${detail ? `<p class="wb-pws-timeline__summary">${escapeHtml(detail)}</p>` : ""}
+      ${safeDetail ? `<p class="wb-pws-timeline__summary">${escapeHtml(safeDetail)}</p>` : ""}
       ${time && !isStep ? `<time class="wb-pws-timeline__time">${escapeHtml(time)}</time>` : ""}
     </div>
   `;
@@ -783,6 +973,8 @@ async function startAgentExecution(projectId) {
   updateComposerUi("running");
   upsertComposerStep("analyze_structure", "running");
   upsertComposerStep("generate_plan", "pending");
+  subscribeAgentEvents();
+  startAgentEventPolling(projectId, taskId);
   try {
     const result = await invokeProjectAgent(
       buildAgentPayload(projectId, taskId, "PLAN_ONLY", { message })
@@ -811,7 +1003,9 @@ async function startAgentExecution(projectId) {
       showComposerToast("开发方案已生成，可继续生成代码变更", { type: "success" });
     }
     if (out) {
-      out.textContent = window.__wbFormatUserAgentLog?.(result.output?.summary || "方案生成完成") || "方案生成完成";
+      out.textContent =
+        window.__wbFormatUserAgentLog?.(result.output?.summary || "方案生成完成") ||
+        "方案生成完成";
     }
     updateComposerUi("plan_ready");
   } catch (err) {
@@ -825,12 +1019,12 @@ async function startAgentExecution(projectId) {
     }
     showComposerError(err?.message || "Agent 执行失败");
     if (out) {
-      out.textContent = err?.message || "生成失败";
+      out.textContent = window.__wbStripModelThinking?.(err?.message) || err?.message || "生成失败";
     }
-    updateComposerUi("idle");
+    updateComposerUi("failed");
   } finally {
     agentRunStarting = false;
-    activeAgentRunId = null;
+    stopAgentEventPolling();
     setAgentRunning(false);
   }
 }
@@ -854,6 +1048,8 @@ async function proposeCodePatches() {
   upsertComposerStep("generate_patch", "running");
   agentRunStarting = true;
   updateComposerUi("running");
+  subscribeAgentEvents();
+  startAgentEventPolling(projectId, taskId);
   try {
     const result = await invokeProjectAgent(
       buildAgentPayload(projectId, taskId, "PATCH_PROPOSE", {
@@ -880,22 +1076,23 @@ async function proposeCodePatches() {
     renderTasks(tasks, taskId);
     await loadTaskContext(projectId, taskId);
     if (out) {
-      out.textContent = result.output?.diffPreviews?.length
+      const logText = result.output?.diffPreviews?.length
         ? `已生成 ${result.output.diffPreviews.length} 个文件 Diff，请在审阅面板确认`
         : result.output?.note || "补丁生成完成";
+      out.textContent = window.__wbStripModelThinking?.(logText) || logText;
     }
-    updateComposerUi(composerPhase);
+    updateComposerUi(composerPhase === "running" ? "diff_ready" : composerPhase);
   } catch (err) {
     upsertComposerStep("generate_patch", "error", err?.message || "补丁生成失败");
     showComposerError(err?.message || "补丁生成失败");
     showComposerToast(err?.message || "补丁生成失败", { type: "error" });
     if (out) {
-      out.textContent = err?.message || "补丁生成失败";
+      out.textContent = window.__wbStripModelThinking?.(err?.message) || err?.message || "补丁生成失败";
     }
-    updateComposerUi("plan_ready");
+    updateComposerUi("failed");
   } finally {
     agentRunStarting = false;
-    activeAgentRunId = null;
+    stopAgentEventPolling();
     setAgentRunning(false);
   }
 }
@@ -1024,7 +1221,8 @@ async function cancelActiveAgent() {
       taskId,
       agentRunId: activeAgentRunId,
     });
-    upsertComposerStep("generate_plan", "error", "用户已停止任务");
+    upsertComposerStep("canceled", "error", "用户已停止任务");
+    stopAgentEventPolling();
     setAgentRunning(false);
     const out = document.getElementById("wbAgentOutput");
     if (out) {
@@ -1755,6 +1953,7 @@ function bindProjectWorkspace() {
   });
   initAutoVerifyCheckbox();
   bindComposerActions();
+  subscribeAgentEvents();
   window.addEventListener(window.__wbStore?.WB_EVENT || "wb:state-change", () => {
     window.__wbScheduleMainView?.();
     renderProjectColSessions();
