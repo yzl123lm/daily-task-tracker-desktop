@@ -107,21 +107,14 @@ function renderPlanCard(output) {
 
 function renderTaskDetail(task, planOutput = null) {
   const panel = document.getElementById("wbTaskDetail");
-  const empty = document.getElementById("wbPwsAgentEmpty");
   if (!panel) {
     return;
   }
   if (!task) {
     panel.hidden = true;
-    if (empty) {
-      empty.hidden = false;
-    }
     return;
   }
   panel.hidden = false;
-  if (empty) {
-    empty.hidden = true;
-  }
   const safePlan = planOutput ? window.__wbSanitizeAgentOutputForUi?.(planOutput) || planOutput : null;
   const statusText = resolveTaskDisplayStatus(task);
   const modeText =

@@ -139,17 +139,6 @@ function applyTemplate(id, { fillComposer = false, fillNewTask = false } = {}) {
     input.placeholder = tpl?.placeholder || DEFAULT_COMPOSER_PLACEHOLDER;
   }
 
-  const hint = document.getElementById("wbPwsTemplateHint");
-  if (hint) {
-    if (tpl) {
-      hint.hidden = false;
-      hint.textContent = `${tpl.icon} ${tpl.name}（可选增强）：${tpl.description}`;
-    } else {
-      hint.hidden = false;
-      hint.textContent = "通用开发任务：未选模板时按常规开发流程分析并生成方案。";
-    }
-  }
-
   if (tpl && fillNewTask) {
     const titleInput = document.getElementById("wbTaskTitleInput");
     const descInput = document.getElementById("wbTaskDescInput");

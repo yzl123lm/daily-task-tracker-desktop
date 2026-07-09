@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "15";
+const WB_PWS_LAYOUT_VERSION = "16";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -85,7 +85,6 @@ const WB_PWS_LAYOUT_HTML = `
           <p id="wbTaskDetailDesc" class="wb-pws-user-card__desc"></p>
           <p id="wbTaskDetailStep" class="wb-pws-user-card__step"></p>
         </div>
-        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">输入下方 AI 指令并点击「开始执行」，系统将自动创建任务并分析项目。</p>
       </header>
       <div class="wb-pws-agent-scroll">
         <div class="wb-pws-panel wb-pws-panel--timeline">
@@ -110,9 +109,7 @@ const WB_PWS_LAYOUT_HTML = `
           <span class="wb-ai-command__title">AI 指令</span>
           <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
         </div>
-        <p id="wbPwsTemplateHint" class="wb-pws-template-hint" hidden></p>
         <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>
-        <p id="wbComposerHint" class="wb-composer-hint">AI 会先生成方案；生成代码变更前会展示 Diff 并等待你确认。</p>
         <p id="wbComposerPathHint" class="wb-composer-path-hint" hidden></p>
         <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
         <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
