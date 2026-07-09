@@ -93,6 +93,27 @@ function formatLessonSection(verified, candidate) {
   return lines.join("\n").trim();
 }
 
+function formatPreventionRules(verified, candidate) {
+  const lines = ["# 已知错误规避规则", "生成方案与补丁前必须遵守以下规则："];
+  let n = 0;
+  for (const item of [...verified, ...candidate]) {
+    const l = item.lesson || item;
+    const rule = String(l.preventionPrompt || l.prevention_prompt || l.ruleText || "").trim();
+    if (!rule) {
+      continue;
+    }
+    n += 1;
+    lines.push(`${n}. ${rule.slice(0, 400)}`);
+    if (n >= 8) {
+      break;
+    }
+  }
+  if (n === 0) {
+    return "";
+  }
+  return lines.join("\n");
+}
+
 function retrieveLessonsForContext(
   getUserDataPath,
   userId,
@@ -152,12 +173,14 @@ function retrieveLessonsForContext(
     }
   }
   const lessonRefs = [...verified, ...candidate].map((x) => toLessonRef(x.lesson));
+  const preventionText = formatPreventionRules(verified, candidate);
   return {
     verified: verified.map((x) => x.lesson),
     candidate: candidate.map((x) => x.lesson),
     formattedText,
+    preventionText,
     lessonRefs,
-    estimatedTokens: estimateTokens(formattedText),
+    estimatedTokens: estimateTokens(formattedText) + estimateTokens(preventionText),
   };
 }
 
@@ -195,5 +218,6 @@ module.exports = {
   getHighRecurrenceVerifiedFingerprints,
   scoreLesson,
   formatLessonSection,
+  formatPreventionRules,
   toLessonRef,
 };

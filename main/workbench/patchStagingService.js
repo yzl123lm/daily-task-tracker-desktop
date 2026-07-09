@@ -33,6 +33,12 @@ function rowToPatch(row) {
   } catch {
     patchEdits = [];
   }
+  let patchQuality = null;
+  try {
+    patchQuality = row.patch_quality_json ? JSON.parse(row.patch_quality_json) : null;
+  } catch {
+    patchQuality = null;
+  }
   return {
     id: row.id,
     userId: row.user_id,
@@ -46,6 +52,7 @@ function rowToPatch(row) {
     summary: row.summary || "",
     status: row.status,
     patchEdits,
+    patchQuality,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -60,8 +67,8 @@ function createStagedPatch(getUserDataPath, userId, payload) {
     `INSERT INTO staged_patches (
       id, user_id, project_id, task_id, agent_run_id, file_path,
       original_content, proposed_content, unified_diff, summary,
-      status, patch_edits_json, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      status, patch_edits_json, patch_quality_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     uid,
@@ -75,6 +82,7 @@ function createStagedPatch(getUserDataPath, userId, payload) {
     payload.summary ?? "",
     PATCH_STATUS.STAGED,
     JSON.stringify(payload.patchEdits || []),
+    payload.patchQuality ? JSON.stringify(payload.patchQuality) : null,
     ts,
     ts
   );

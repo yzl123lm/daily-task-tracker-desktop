@@ -1433,6 +1433,8 @@ async function applyAcceptedDiffs() {
   const useBatchApply = window.__wbApplyBatchEnabled !== false;
   try {
     let applyOutput = null;
+    const autoVerify = Boolean(document.getElementById("wbAutoVerifyAfterWrite")?.checked);
+    const orchAutoVerify = window.__wbOrchAutoVerifyEnabled !== false;
     if (useBatchApply && typeof api.wbProjectAgentRun === "function" && patchIds.length) {
       const result = await api.wbProjectAgentRun({
         projectId,
@@ -1444,6 +1446,10 @@ async function applyAcceptedDiffs() {
         approvalId: requestId,
         patchIds,
         createGitBranch: Boolean(createGitBranch),
+        autoVerify: orchAutoVerify ? autoVerify : false,
+        verifyScripts: ["build"],
+        verifyApprovalPolicy: "task_once",
+        source: "diff_review",
       });
       applyOutput = result.output;
       if (!result.output?.applyResult?.ok) {
@@ -1462,8 +1468,34 @@ async function applyAcceptedDiffs() {
     window.__wbRenderDiffReviewPanel?.();
     await window.__wbLoadTaskContext?.(projectId, taskId);
     window.__wbOnComposerDiffApplied?.(projectId, taskId);
-    const autoVerify = document.getElementById("wbAutoVerifyAfterWrite")?.checked;
-    if (autoVerify && typeof api.wbProjectAgentRun === "function") {
+
+    if (orchAutoVerify && autoVerify && applyOutput) {
+      const fixResult = applyOutput.fixResult;
+      const skipped = applyOutput.verifySkipped;
+      if (skipped?.skipped) {
+        window.__wbUpsertComposerStep?.("run_verify", "done", skipped.message || "已跳过自动验证");
+      } else if (fixResult?.waitingApproval) {
+        window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，已生成修复 Diff");
+        window.__wbUpsertComposerStep?.("fix_failure", "pending");
+        await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+        window.__wbRenderDiffReviewPanel?.();
+        window.__wbSwitchCodeTab?.("diff");
+      } else if (fixResult?.failed) {
+        window.__wbUpsertComposerStep?.(
+          "run_verify",
+          "error",
+          fixResult.remainingReport?.slice(0, 120) || "修复轮次耗尽"
+        );
+      } else if (fixResult?.ok) {
+        window.__wbUpsertComposerStep?.("run_verify", "done", "验证通过");
+        window.__wbUpsertComposerStep?.("complete", "done");
+      } else if (fixResult && !fixResult.ok && !fixResult.skipped) {
+        window.__wbUpsertComposerStep?.("run_verify", "error", fixResult.message || "验证未通过");
+        await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+        window.__wbRenderDiffReviewPanel?.();
+      }
+    } else if (!orchAutoVerify && autoVerify && typeof api.wbProjectAgentRun === "function") {
+      // WB_ORCH_AUTO_VERIFY=0 回退：渲染层二次审批后 VERIFY_FIX
       const approvedVerify = await window.__wbRequestApproval?.({
         taskId,
         projectId,
@@ -1475,29 +1507,16 @@ async function applyAcceptedDiffs() {
       });
       if (approvedVerify) {
         window.__wbUpsertComposerStep?.("run_verify", "running");
-        const fixResult = applyOutput?.fixResult;
-        if (fixResult?.waitingApproval) {
-          window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，已生成修复 Diff");
-          window.__wbUpsertComposerStep?.("fix_failure", "pending");
-          await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-          window.__wbRenderDiffReviewPanel?.();
-        } else if (!fixResult?.ok) {
-          await api.wbProjectAgentRun({
-            projectId,
-            taskId,
-            message: "构建失败，请修复",
-            mode: "VERIFY_FIX",
-            fixContext: { scriptName: "build" },
-            source: "diff_review",
-          });
-          window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，进入修复流程");
-          window.__wbUpsertComposerStep?.("fix_failure", "pending");
-          await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-          window.__wbRenderDiffReviewPanel?.();
-        } else {
-          window.__wbUpsertComposerStep?.("run_verify", "done", "验证通过");
-          window.__wbUpsertComposerStep?.("complete", "done");
-        }
+        await api.wbProjectAgentRun({
+          projectId,
+          taskId,
+          message: "构建失败，请修复",
+          mode: "VERIFY_FIX",
+          fixContext: { scriptName: "build" },
+          source: "diff_review",
+        });
+        await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+        window.__wbRenderDiffReviewPanel?.();
       }
     }
   } catch (err) {

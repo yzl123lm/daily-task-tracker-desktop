@@ -36,6 +36,19 @@ function renderHealthBadge(container, health) {
     <span class="wb-ctx-health__ratio">${pct}%</span>
   `;
   container.appendChild(badge);
+  container.classList.add("wb-ctx-health-mount--ready");
+  container.dataset.healthStatus = status;
+  container.dataset.healthPct = String(pct);
+  if (!container.dataset.boundClick) {
+    container.dataset.boundClick = "1";
+    container.addEventListener("click", () => {
+      const panel = document.querySelector(".wb-pws-panel--snapshots");
+      if (panel) {
+        panel.open = true;
+        panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    });
+  }
 }
 
 async function fetchHealth(namespace, messages) {

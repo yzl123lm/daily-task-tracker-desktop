@@ -67,7 +67,15 @@ function clearFixLoopState(getUserDataPath, userId, projectId, taskId) {
   ).run(ts, taskId, projectId, uid);
 }
 
-function createInitialFixLoopState({ projectId, taskId, scriptName, agentRunId }) {
+function createInitialFixLoopState({
+  projectId,
+  taskId,
+  scriptName,
+  agentRunId,
+  autoVerifyGranted = false,
+  lastPatchIds = [],
+  lastErrorFingerprint = null,
+} = {}) {
   const ts = Date.now();
   return {
     version: FIX_LOOP_VERSION,
@@ -81,11 +89,43 @@ function createInitialFixLoopState({ projectId, taskId, scriptName, agentRunId }
     scriptName: String(scriptName || "build"),
     verifyAttemptId: newId("verify"),
     lastStagedPatchIds: [],
-    lastAppliedPatchIds: [],
+    lastAppliedPatchIds: Array.isArray(lastPatchIds) ? lastPatchIds : [],
+    lastPatchIds: Array.isArray(lastPatchIds) ? lastPatchIds : [],
     lastVerifySummary: null,
+    lastErrorFingerprint: lastErrorFingerprint || null,
+    autoVerifyGranted: Boolean(autoVerifyGranted),
     startedAt: ts,
     updatedAt: ts,
   };
+}
+
+function grantAutoVerify(getUserDataPath, userId, projectId, taskId, { scriptName } = {}) {
+  const uid = resolveUserId(userId);
+  let state = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+  if (!state) {
+    state = {
+      version: FIX_LOOP_VERSION,
+      active: false,
+      projectId,
+      taskId,
+      phase: FIX_LOOP_PHASE.IDLE,
+      round: 0,
+      maxRounds: MAX_FIX_ROUNDS,
+      scriptName: String(scriptName || "build"),
+      autoVerifyGranted: true,
+      lastPatchIds: [],
+      lastAppliedPatchIds: [],
+      lastErrorFingerprint: null,
+      updatedAt: Date.now(),
+    };
+  } else {
+    state.autoVerifyGranted = true;
+    if (scriptName) {
+      state.scriptName = String(scriptName);
+    }
+    state.updatedAt = Date.now();
+  }
+  return saveFixLoopState(getUserDataPath, uid, projectId, taskId, state);
 }
 
 function appendFixLoopEvent(getUserDataPath, userId, projectId, taskId, event) {
@@ -150,6 +190,7 @@ module.exports = {
   saveFixLoopState,
   clearFixLoopState,
   createInitialFixLoopState,
+  grantAutoVerify,
   appendFixLoopEvent,
   assertFixLoopResume,
 };

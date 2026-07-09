@@ -1,4 +1,3 @@
-const { suggestPatchFromDescription } = require("./diffPreviewService.js");
 const { stripModelThinking } = require("../../utils/wbModelOutputSanitizer.js");
 
 const UI_KEYWORDS = [
@@ -93,19 +92,9 @@ function inferTestPlan(message) {
   return uniqueFiles(plan);
 }
 
-function buildDiffPreviews(codeAnalysis, message) {
-  const previews = [];
-  const snippets = Array.isArray(codeAnalysis?.codeSnippets) ? codeAnalysis.codeSnippets : [];
-  for (const item of snippets.slice(0, 2)) {
-    try {
-      previews.push(
-        suggestPatchFromDescription(item.path, item.snippet, String(message || "").slice(0, 120))
-      );
-    } catch {
-      /* skip */
-    }
-  }
-  return previews;
+function buildDiffPreviews(_codeAnalysis, _message) {
+  // PLAN_ONLY 不再生成注释式假补丁；真实 Diff 由 PATCH_PROPOSE / stage_patch 产出
+  return [];
 }
 
 function buildPlanOnlyOutput({ message, project, task, projectId, taskId, promptContext, codeAnalysis }) {

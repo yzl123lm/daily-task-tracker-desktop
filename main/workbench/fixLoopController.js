@@ -92,6 +92,18 @@ async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify) {
     status: TASK_STATUS.FIXING,
     currentStep: `构建失败，Agent 修复中 (${state.round}/${state.maxRounds})`,
   });
+  try {
+    const { emitAgentEvent, PHASE, STATUS } = require("./agentEventEmitter.js");
+    emitAgentEvent(ctx, {
+      phase: PHASE.FIXING,
+      status: STATUS.running,
+      title: "生成修复补丁",
+      summary: `第 ${state.round}/${state.maxRounds} 轮修复`,
+      stepKey: "fix_failure",
+    });
+  } catch {
+    /* optional */
+  }
   const fixMessage = [
     "构建/测试失败，请根据错误信息生成修复补丁（stage_patch），不要直接写入。",
     verify?.parsed?.summary || state.lastVerifySummary?.summary || "",
@@ -107,6 +119,9 @@ async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify) {
     status: PATCH_STATUS.STAGED,
   });
   state.lastStagedPatchIds = staged.map((p) => p.id);
+  state.lastPatchIds = state.lastStagedPatchIds;
+  state.lastErrorFingerprint =
+    verify?.parsed?.summary?.slice(0, 120) || state.lastVerifySummary?.summary?.slice(0, 120) || null;
   state.phase = FIX_LOOP_PHASE.WAITING_APPLY;
   state.updatedAt = Date.now();
   saveFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId, state);
@@ -205,8 +220,15 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
   state.round += 1;
   saveFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId, state);
   if (state.round > state.maxRounds) {
+    const remainingReport = [
+      `已达最大修复轮次 ${state.maxRounds}。`,
+      state.lastVerifySummary?.summary || verify?.parsed?.summary || "仍有验证错误",
+      ...(verify?.parsed?.issues || []).slice(0, 8).map((i) => `- ${i.file}:${i.line} ${i.message || ""}`),
+    ].join("\n");
     state.phase = FIX_LOOP_PHASE.FAILED;
     state.active = false;
+    state.lastErrorFingerprint = state.lastVerifySummary?.summary?.slice(0, 120) || null;
+    state.remainingReport = remainingReport;
     saveFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId, state);
     updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
       status: TASK_STATUS.FAILED,
@@ -216,9 +238,31 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
       action: "fix_loop_failed",
       phase: FIX_LOOP_PHASE.FAILED,
       round: state.round,
-      message: "达到最大修复轮次",
+      message: remainingReport.slice(0, 400),
     });
-    return { ok: false, failed: true, rounds: state.maxRounds, verify, phase: FIX_LOOP_PHASE.FAILED };
+    try {
+      const { writeMemory } = require("./contextMemoryService.js");
+      const { buildTaskNamespace } = require("./namespace.js");
+      writeMemory(getUserDataPath, uid, {
+        namespace: buildTaskNamespace(ctx.projectId, ctx.taskId),
+        scopeType: "task",
+        scopeId: ctx.taskId,
+        memoryType: "fix_loop_remaining",
+        content: remainingReport,
+        source: "FixLoop",
+        importance: 8,
+      });
+    } catch {
+      /* optional */
+    }
+    return {
+      ok: false,
+      failed: true,
+      rounds: state.maxRounds,
+      verify,
+      phase: FIX_LOOP_PHASE.FAILED,
+      remainingReport,
+    };
   }
   return runAgentFixRound(getUserDataPath, uid, ctx, state, verify);
 }

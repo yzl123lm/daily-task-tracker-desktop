@@ -105,12 +105,39 @@ const TOOL_DEFS = {
   },
   stage_patch: {
     permission: PERMISSION.PROPOSE,
-    description: "Stage a patch proposal (does not write disk)",
+    description:
+      "Stage a patch proposal (does not write disk). Prefer edits: create_file|replace|replace_range|insert_before|insert_after|delete|full_content. replace/delete require unique match.",
     parameters: {
       type: "object",
       properties: {
         path: { type: "string" },
-        edits: { type: "array" },
+        edits: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              op: {
+                type: "string",
+                enum: [
+                  "create_file",
+                  "replace",
+                  "replace_range",
+                  "insert_before",
+                  "insert_after",
+                  "delete",
+                  "full_content",
+                  "append_file",
+                ],
+              },
+              find: { type: "string" },
+              replace: { type: "string" },
+              content: { type: "string" },
+              anchor: { type: "string" },
+              startLine: { type: "number" },
+              endLine: { type: "number" },
+            },
+          },
+        },
         summary: { type: "string" },
         proposedContent: { type: "string" },
       },
@@ -298,8 +325,15 @@ const HANDLERS = {
       unifiedDiff: proposal.unifiedDiff,
       summary: proposal.summary,
       patchEdits: proposal.patchEdits,
+      patchQuality: proposal.patchQuality,
     });
-    return { ok: true, stagedPatchId: patch.id, status: patch.status, summary: patch.summary };
+    return {
+      ok: true,
+      stagedPatchId: patch.id,
+      status: patch.status,
+      summary: patch.summary,
+      patchQuality: proposal.patchQuality,
+    };
   },
   compress_context(ctx, args) {
     const compressionManager = require("./context-compression/contextCompressionManager.js");

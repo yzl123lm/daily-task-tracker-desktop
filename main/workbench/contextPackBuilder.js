@@ -74,6 +74,17 @@ function buildContextPack({
         });
         remaining -= Math.min(lessonTokens, budget);
       }
+      if (lessonPack.preventionText) {
+        const prevTokens = estimateTokens(lessonPack.preventionText);
+        const prevBudget = Math.min(800, remaining);
+        if (prevBudget > 40) {
+          sections.push({
+            type: "prevention_rules",
+            content: truncate(lessonPack.preventionText, prevBudget),
+          });
+          remaining -= Math.min(prevTokens, prevBudget);
+        }
+      }
     } catch {
       const ns = buildTaskNamespace(projectId, taskId);
       const lessons = searchMemories(getUserDataPath, userId, {

@@ -20,8 +20,13 @@ const { runProjectAgentLLM, agentLlmEnabled } = require("./projectAgentLLM.js");
 const { listStagedPatches, patchToDiffPreview, PATCH_STATUS } = require("./patchStagingService.js");
 const { TASK_STATUS } = require("./taskStatus.js");
 const { runFixLoop, resumeFixLoopAfterApply } = require("./fixLoopController.js");
-const { getFixLoopState, fixLoopV2Enabled } = require("./fixLoopStateService.js");
+const {
+  getFixLoopState,
+  fixLoopV2Enabled,
+  grantAutoVerify,
+} = require("./fixLoopStateService.js");
 const { applyAcceptedPatches } = require("./controlledDevService.js");
+const { listAvailableVerifications } = require("./verificationService.js");
 const {
   emitAgentEvent,
   PHASE,
@@ -29,6 +34,10 @@ const {
 } = require("./agentEventEmitter.js");
 
 let getDefaultProjectRootFn = null;
+
+function orchAutoVerifyEnabled() {
+  return String(process.env.WB_ORCH_AUTO_VERIFY || "1") !== "0";
+}
 
 function configureAgentOrchestrator(options = {}) {
   if (typeof options.getDefaultProjectRoot === "function") {
@@ -161,6 +170,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         stepKey: "write_code",
       }
     );
+    const applyRunId = newId("apply");
     const applyResult = applyAcceptedPatches(
       getUserDataPath,
       uid,
@@ -176,13 +186,37 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       { getDefaultProjectRoot: getDefaultProjectRootFn }
     );
     let fixResult = null;
+    let verifyResult = null;
+    let verifySkipped = null;
     const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+    const wantAutoVerify =
+      orchAutoVerifyEnabled() &&
+      (Boolean(payload.autoVerify) || Boolean(fixState?.autoVerifyGranted));
+    const verifyScripts = Array.isArray(payload.verifyScripts) && payload.verifyScripts.length
+      ? payload.verifyScripts.map(String)
+      : [String(payload.fixContext?.scriptName || fixState?.scriptName || "build")];
+    const scriptName = verifyScripts[0] || "build";
+
+    if (applyResult.ok && wantAutoVerify) {
+      grantAutoVerify(getUserDataPath, uid, projectId, taskId, { scriptName });
+    }
+
     if (applyResult.ok && fixState?.active) {
       const taskNs = buildTaskNamespace(projectId, taskId);
       const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
         namespace: taskNs,
         messages: [],
       });
+      emitAgentEvent(
+        { getUserDataPath, userId: uid, projectId, taskId, agentRunId: applyRunId, webContents },
+        {
+          phase: PHASE.VERIFYING,
+          status: STATUS.running,
+          title: "继续验证",
+          summary: "修复补丁已写入，自动继续验证",
+          stepKey: "run_verify",
+        }
+      );
       fixResult = await resumeFixLoopAfterApply(
         getUserDataPath,
         uid,
@@ -191,7 +225,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           userId: uid,
           projectId,
           taskId,
-          agentRunId: payload.agentRunId || fixState.agentRunId,
+          agentRunId: payload.agentRunId || fixState.agentRunId || applyRunId,
           promptContext: prepared.promptContext,
           webContents,
         },
@@ -201,35 +235,111 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           getDefaultProjectRoot: getDefaultProjectRootFn,
         }
       );
+    } else if (applyResult.ok && wantAutoVerify) {
+      const available = listAvailableVerifications(getUserDataPath, uid, projectId, {
+        getDefaultProjectRoot: getDefaultProjectRootFn,
+      });
+      if (!available || !available.length) {
+        verifySkipped = {
+          skipped: true,
+          message: "未配置验证脚本，已跳过自动验证",
+          scriptName,
+        };
+        emitAgentEvent(
+          { getUserDataPath, userId: uid, projectId, taskId, agentRunId: applyRunId, webContents },
+          {
+            phase: PHASE.COMPLETED,
+            status: STATUS.skipped,
+            title: "自动验证",
+            summary: verifySkipped.message,
+            stepKey: "run_verify",
+          }
+        );
+      } else {
+        const taskNs = buildTaskNamespace(projectId, taskId);
+        const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
+          namespace: taskNs,
+          messages: [],
+        });
+        emitAgentEvent(
+          { getUserDataPath, userId: uid, projectId, taskId, agentRunId: applyRunId, webContents },
+          {
+            phase: PHASE.VERIFYING,
+            status: STATUS.running,
+            title: "自动验证",
+            summary: `运行 npm run ${scriptName}`,
+            stepKey: "run_verify",
+          }
+        );
+        fixResult = await runFixLoop(
+          getUserDataPath,
+          uid,
+          {
+            getUserDataPath,
+            userId: uid,
+            projectId,
+            taskId,
+            agentRunId: applyRunId,
+            promptContext: prepared.promptContext,
+            webContents,
+            root: resolveProjectRoot(project, getDefaultProjectRootFn),
+          },
+          { scriptName, getDefaultProjectRoot: getDefaultProjectRootFn }
+        );
+        verifyResult = fixResult?.verify || null;
+        if (fixResult?.skipped) {
+          verifySkipped = {
+            skipped: true,
+            message: fixResult.message || "未配置验证脚本，已跳过自动验证",
+            scriptName,
+          };
+        }
+      }
     }
+
+    const writeOk = Boolean(applyResult.ok);
+    const verifyOk = Boolean(fixResult?.ok);
+    const waiting = Boolean(fixResult?.waitingApproval);
     emitAgentEvent(
-      { getUserDataPath, userId: uid, projectId, taskId, webContents },
+      { getUserDataPath, userId: uid, projectId, taskId, agentRunId: applyRunId, webContents },
       {
-        phase: applyResult.ok ? PHASE.COMPLETED : PHASE.FAILED,
-        status: applyResult.ok ? STATUS.success : STATUS.failed,
+        phase: !writeOk ? PHASE.FAILED : waiting ? PHASE.WAITING_REVIEW : verifyOk || verifySkipped ? PHASE.COMPLETED : PHASE.COMPLETED,
+        status: !writeOk ? STATUS.failed : waiting ? STATUS.waiting : STATUS.success,
         title: "写入代码",
-        summary: applyResult.ok
-          ? `已写入 ${applyResult.count || 0} 个文件`
-          : applyResult.error || "批量写入失败",
+        summary: !writeOk
+          ? applyResult.error || "批量写入失败"
+          : verifyOk
+            ? `已写入 ${applyResult.count || 0} 个文件，验证通过`
+            : waiting
+              ? `已写入 ${applyResult.count || 0} 个文件，等待修复 Diff 审阅`
+              : verifySkipped
+                ? `已写入 ${applyResult.count || 0} 个文件（${verifySkipped.message}）`
+                : `已写入 ${applyResult.count || 0} 个文件`,
         stepKey: "write_code",
-        error: applyResult.ok ? null : applyResult.error || "批量写入失败",
+        error: writeOk ? null : applyResult.error || "批量写入失败",
       }
     );
     return {
-      agentRunId: null,
-      status: applyResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.FAILED,
+      agentRunId: applyRunId,
+      applyRunId,
+      status: writeOk ? RUN_STATUS.COMPLETED : RUN_STATUS.FAILED,
       mode,
       output: {
-        summary: applyResult.ok
-          ? fixResult?.ok
+        summary: !writeOk
+          ? applyResult.error || "批量写入失败"
+          : verifyOk
             ? "补丁已写入且验证通过"
-            : fixResult?.waitingApproval
+            : waiting
               ? "补丁已写入，等待下一轮 Diff 审阅"
-              : `已写入 ${applyResult.count} 个文件`
-          : applyResult.error || "批量写入失败",
+              : verifySkipped
+                ? `已写入 ${applyResult.count} 个文件；${verifySkipped.message}`
+                : `已写入 ${applyResult.count} 个文件`,
         applyResult,
         fixResult,
-        needUserConfirm: Boolean(fixResult?.waitingApproval),
+        verifyResult,
+        verifySkipped,
+        needUserConfirm: waiting,
+        remainingReport: fixResult?.remainingReport || null,
       },
     };
   }
@@ -245,6 +355,20 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
     namespace: taskNs,
     messages,
   });
+  if (prepared?.compressionResult?.applied) {
+    const before = prepared.compressionResult.tokensBefore;
+    const after = prepared.compressionResult.tokensAfter;
+    emitAgentEvent(
+      { getUserDataPath, userId: uid, projectId, taskId, webContents },
+      {
+        phase: PHASE.ANALYZING,
+        status: STATUS.success,
+        title: "上下文压缩",
+        summary: `已压缩上下文，token ${before ?? "?"} → ${after ?? "?"}`,
+        stepKey: "compress_context",
+      }
+    );
+  }
   const root = resolveProjectRoot(project, getDefaultProjectRootFn);
 
   emitAgentEvent(

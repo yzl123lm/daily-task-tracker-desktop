@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "16";
+const WB_PWS_LAYOUT_VERSION = "17";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -66,7 +66,6 @@ const WB_PWS_LAYOUT_HTML = `
       <span id="wbProjectWorkspaceTitle"></span>
       <span id="wbPwsModePill"></span>
       <span id="wbProjectWorkspaceNs"></span>
-      <div id="wbProjectContextHealth"></div>
       <div id="wbPwsProjectCard"></div>
       <button type="button" id="wbPwsLayoutResetBtn" tabindex="-1"></button>
       <button type="button" id="wbCompressBtn" tabindex="-1"></button>
@@ -107,6 +106,7 @@ const WB_PWS_LAYOUT_HTML = `
       <div class="wb-pws-agent-composer wb-ai-command">
         <div class="wb-ai-command__header">
           <span class="wb-ai-command__title">AI 指令</span>
+          <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" title="上下文健康度，点击查看快照历史" aria-label="上下文健康度"></button>
           <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
         </div>
         <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>

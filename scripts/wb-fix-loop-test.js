@@ -13,6 +13,7 @@ const {
   clearFixLoopState,
   assertFixLoopResume,
   appendFixLoopEvent,
+  grantAutoVerify,
 } = require("../main/workbench/fixLoopStateService.js");
 const {
   PATCH_STATUS,
@@ -107,6 +108,40 @@ const superseded = updatePatchStatus(
   PATCH_STATUS.SUPERSEDED
 );
 assert.strictEqual(superseded.status, PATCH_STATUS.SUPERSEDED);
+
+// T4: autoVerifyGranted + lastPatchIds fields
+const granted = grantAutoVerify(getUserDataPath, uid, project.id, task.id, { scriptName: "build" });
+assert.strictEqual(granted.autoVerifyGranted, true);
+assert.strictEqual(granted.scriptName, "build");
+const withPatches = createInitialFixLoopState({
+  projectId: project.id,
+  taskId: task.id,
+  scriptName: "build",
+  agentRunId: "run_test_2",
+  autoVerifyGranted: true,
+  lastPatchIds: ["patch_x"],
+  lastErrorFingerprint: "SyntaxError: unexpected",
+});
+assert.strictEqual(withPatches.autoVerifyGranted, true);
+assert.deepStrictEqual(withPatches.lastPatchIds, ["patch_x"]);
+assert.ok(withPatches.lastErrorFingerprint);
+saveFixLoopState(getUserDataPath, uid, project.id, task.id, {
+  ...withPatches,
+  phase: FIX_LOOP_PHASE.WAITING_APPLY,
+  lastStagedPatchIds: ["patch_x"],
+  remainingReport: null,
+});
+const waiting2 = getFixLoopState(getUserDataPath, uid, project.id, task.id);
+assert.doesNotThrow(() => {
+  assertFixLoopResume(waiting2, { patchIds: ["patch_x"], agentRunId: "run_test_2" });
+});
+// simulate max-round failure report field
+waiting2.phase = FIX_LOOP_PHASE.FAILED;
+waiting2.active = false;
+waiting2.remainingReport = "已达最大修复轮次 3。\n仍有验证错误";
+saveFixLoopState(getUserDataPath, uid, project.id, task.id, waiting2);
+const failed = getFixLoopState(getUserDataPath, uid, project.id, task.id);
+assert.ok(String(failed.remainingReport || "").includes("最大修复轮次"));
 
 console.log("wb-fix-loop-test: OK");
 try {

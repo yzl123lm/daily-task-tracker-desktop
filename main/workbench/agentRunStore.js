@@ -96,7 +96,13 @@ function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, input
     ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, '[]', NULL, ?, NULL, ?, ?)`
   ).run(id, uid, projectId, taskId, String(mode || "PLAN_ONLY").toUpperCase(), RUN_STATUS.RUNNING, String(inputText || ""), ts, ts, ts);
 
-  const controller = { canceled: false, runId: id };
+  const abortController = new AbortController();
+  const controller = {
+    canceled: false,
+    runId: id,
+    abortController,
+    signal: abortController.signal,
+  };
   cancelControllers.set(id, controller);
   const ms = Number(timeoutMs) > 0 ? Number(timeoutMs) : DEFAULT_TIMEOUT_MS;
   const timer = setTimeout(() => {
@@ -110,7 +116,12 @@ function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, input
   }, ms);
   controller.timer = timer;
 
-  return { runId: id, status: RUN_STATUS.RUNNING, cancelToken: controller };
+  return {
+    runId: id,
+    status: RUN_STATUS.RUNNING,
+    cancelToken: controller,
+    signal: abortController.signal,
+  };
 }
 
 function getAgentRun(getUserDataPath, userId, projectId, taskId, agentRunId) {
@@ -196,6 +207,11 @@ function cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId
   const ctrl = cancelControllers.get(agentRunId);
   if (ctrl) {
     ctrl.canceled = true;
+    try {
+      ctrl.abortController?.abort?.(String(reason || "用户取消"));
+    } catch {
+      /* ignore */
+    }
   }
   const ts = nowIso();
   db.prepare(
@@ -203,13 +219,25 @@ function cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId
      SET status = ?, error_message = ?, completed_at = ?, updated_at = ?
      WHERE id = ? AND user_id = ? AND project_id = ? AND task_id = ?`
   ).run(RUN_STATUS.CANCELED, String(reason || "用户取消"), ts, ts, agentRunId, uid, projectId, taskId);
+  const canceledAt = ts;
   clearCancelController(agentRunId);
-  return getAgentRun(getUserDataPath, uid, projectId, taskId, agentRunId);
+  const result = getAgentRun(getUserDataPath, uid, projectId, taskId, agentRunId);
+  return {
+    ...result,
+    canceledAt,
+    wasLLMAborted: true,
+    abortedTool: null,
+  };
 }
 
 function isRunCanceled(agentRunId) {
   const ctrl = cancelControllers.get(agentRunId);
-  return Boolean(ctrl?.canceled);
+  return Boolean(ctrl?.canceled || ctrl?.signal?.aborted);
+}
+
+function getRunAbortSignal(agentRunId) {
+  const ctrl = cancelControllers.get(agentRunId);
+  return ctrl?.signal || null;
 }
 
 function clearCancelController(agentRunId) {
@@ -234,4 +262,5 @@ module.exports = {
   failAgentRun,
   cancelAgentRun,
   isRunCanceled,
+  getRunAbortSignal,
 };

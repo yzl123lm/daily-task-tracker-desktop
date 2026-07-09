@@ -155,6 +155,8 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       agentRunId: payload?.agentRunId,
       scene: payload?.scene,
       autoVerify: payload?.autoVerify,
+      verifyScripts: payload?.verifyScripts,
+      verifyApprovalPolicy: payload?.verifyApprovalPolicy,
       source: payload?.source,
       basedOnLastPlan: payload?.basedOnLastPlan,
       webContents: event?.sender || null,
@@ -387,18 +389,37 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     }
     assertProjectAgentTool("preview_diff");
     const file = projectCodeService.readProjectFile(root, relPath);
-    const preview = payload?.proposedContent
-      ? diffPreviewService.buildPatchPreview({
-          filePath: relPath,
-          originalContent: file.content,
-          proposedContent: payload.proposedContent,
-          summary: payload?.summary,
-        })
-      : diffPreviewService.suggestPatchFromDescription(
+    if (payload?.proposedContent == null && !Array.isArray(payload?.edits)) {
+      const err = new Error(
+        "preview_diff 需要 proposedContent 或 edits；注释式假补丁已禁用（调试可设 WB_ALLOW_COMMENT_PATCH_FALLBACK=1）"
+      );
+      err.code = "DIFF_PREVIEW_REQUIRES_CONTENT";
+      if (diffPreviewService.commentPatchFallbackEnabled?.()) {
+        const preview = diffPreviewService.suggestPatchFromDescription(
           relPath,
           file.content,
           payload?.description || payload?.message || "规划建议"
         );
+        recordToolOperation(getUserDataPath, payload?.userId, {
+          projectId,
+          taskId: payload?.taskId || null,
+          toolName: "preview_diff",
+          args: { filePath: relPath, fallback: "comment" },
+          resultText: preview.summary,
+          riskLevel: "LOW",
+        });
+        return preview;
+      }
+      throw err;
+    }
+    const preview = Array.isArray(payload?.edits)
+      ? diffPreviewService.buildFromPatchEdits(root, relPath, payload.edits, payload?.summary)
+      : diffPreviewService.buildPatchPreview({
+          filePath: relPath,
+          originalContent: file.content,
+          proposedContent: payload.proposedContent,
+          summary: payload?.summary,
+        });
     recordToolOperation(getUserDataPath, payload?.userId, {
       projectId,
       taskId: payload?.taskId || null,

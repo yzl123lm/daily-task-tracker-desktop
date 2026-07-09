@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -191,6 +191,7 @@ function ensureSchema(db) {
       summary TEXT,
       status TEXT NOT NULL DEFAULT 'STAGED',
       patch_edits_json TEXT,
+      patch_quality_json TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -291,6 +292,15 @@ function ensureColumnMigrations(db) {
   } catch {
     /* column may already exist */
   }
+  try {
+    const patchCols = db.prepare("PRAGMA table_info(staged_patches)").all();
+    const hasQuality = patchCols.some((c) => c.name === "patch_quality_json");
+    if (!hasQuality) {
+      db.exec("ALTER TABLE staged_patches ADD COLUMN patch_quality_json TEXT DEFAULT NULL");
+    }
+  } catch {
+    /* column may already exist */
+  }
 }
 
 function migrateSchema(db, fromVersion) {
@@ -299,6 +309,9 @@ function migrateSchema(db, fromVersion) {
   }
   if (fromVersion < 7) {
     ensureErrorLessonTables(db);
+  }
+  if (fromVersion < 8) {
+    ensureColumnMigrations(db);
   }
 }
 

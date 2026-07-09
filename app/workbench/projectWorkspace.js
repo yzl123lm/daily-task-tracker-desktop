@@ -254,7 +254,16 @@ function applyAgentEventToUi(payload) {
   if (payload.taskId && taskId && payload.taskId !== taskId) {
     return;
   }
-  if (payload.agentRunId) {
+  // 丢弃明确过期的 run 事件（取消后 activeAgentRunId 已清空或指向新 run）
+  if (
+    payload.agentRunId &&
+    activeAgentRunId &&
+    payload.agentRunId !== activeAgentRunId &&
+    !agentRunStarting
+  ) {
+    return;
+  }
+  if (payload.agentRunId && (agentRunStarting || !activeAgentRunId || payload.agentRunId === activeAgentRunId)) {
     activeAgentRunId = payload.agentRunId;
   }
 

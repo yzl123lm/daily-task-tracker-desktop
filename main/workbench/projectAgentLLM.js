@@ -7,6 +7,7 @@ const {
   completeAgentRun,
   failAgentRun,
   isRunCanceled,
+  getRunAbortSignal,
 } = require("./agentRunStore.js");
 const { listStagedPatches, patchToDiffPreview } = require("./patchStagingService.js");
 const { buildToolResultMessage, buildAssistantToolCallMessage } = require("../ai/toolCallAdapter.js");
@@ -33,11 +34,15 @@ function buildSystemPrompt(mode, contextPack) {
 - 空项目目录是正常场景，可为新项目创建文件（如 index.html、style.css、game.js）。
 - 非 Git 仓库时说明将使用备份保护，不要因此拒绝生成方案或补丁。
 - 不要在输出中包含 <think>、内部推理或工具权限抱怨。
-- 输出使用中文，结构清晰，面向用户展示。`;
-  const ctx = contextPack?.sections
-    ?.map((s) => `## ${s.type}\n${s.content}`)
-    .join("\n\n");
-  return `${base}\n\n# 项目上下文\n${ctx || "（无额外上下文）"}`;
+- 输出使用中文，结构清晰，面向用户展示。
+- 若上下文包含 prevention_rules / 已知错误规避规则，生成方案与补丁前必须遵守。`;
+  const prevention = (contextPack?.sections || []).find((s) => s.type === "prevention_rules");
+  const otherSections = (contextPack?.sections || []).filter((s) => s.type !== "prevention_rules");
+  const preventionBlock = prevention?.content
+    ? `\n\n# 已知错误规避规则\n${prevention.content}\n`
+    : "";
+  const ctx = otherSections.map((s) => `## ${s.type}\n${s.content}`).join("\n\n");
+  return `${base}${preventionBlock}\n\n# 项目上下文\n${ctx || "（无额外上下文）"}`;
 }
 
 function parsePlanFromContent(content) {
@@ -129,13 +134,41 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
         summary: "用户停止了任务",
         stepKey: "canceled",
       });
-      throw new Error("Agent 运行已取消");
+      const err = new Error("Agent 运行已取消");
+      err.code = "AGENT_CANCELED";
+      throw err;
     }
-    const { message: assistantMsg, toolCalls } = await llmChatWithTools({
-      messages,
-      tools,
-      mode,
-    });
+    const signal = getRunAbortSignal(ctx.agentRunId) || ctx.signal;
+    let assistantMsg;
+    let toolCalls;
+    try {
+      ({ message: assistantMsg, toolCalls } = await llmChatWithTools({
+        messages,
+        tools,
+        mode,
+        signal,
+      }));
+    } catch (llmErr) {
+      if (isRunCanceled(ctx.agentRunId) || llmErr?.name === "AbortError" || signal?.aborted) {
+        emitAgentEvent(ctx, {
+          phase: PHASE.CANCELED,
+          status: STATUS.canceled,
+          title: "已取消",
+          summary: "LLM 请求已中断",
+          stepKey: "canceled",
+        });
+        const err = new Error("Agent 运行已取消");
+        err.code = "AGENT_CANCELED";
+        err.wasLLMAborted = true;
+        throw err;
+      }
+      throw llmErr;
+    }
+    if (isRunCanceled(ctx.agentRunId)) {
+      const err = new Error("Agent 运行已取消");
+      err.code = "AGENT_CANCELED";
+      throw err;
+    }
     if (!toolCalls.length) {
       let output =
         mode === "PLAN_ONLY"
@@ -226,6 +259,7 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
 module.exports = {
   MAX_TOOL_ROUNDS,
   agentLlmEnabled,
+  buildSystemPrompt,
   runProjectAgentLLM,
   parsePlanFromContent,
 };

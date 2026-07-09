@@ -95,18 +95,49 @@ function applyPatchEdits(originalContent, edits) {
   return content;
 }
 
+function scorePatchQuality({ filePath, originalContent, proposedContent, patchEdits, isCreate }) {
+  const issues = [];
+  let score = 100;
+  if (!String(filePath || "").trim()) {
+    issues.push("missing_path");
+    score -= 50;
+  }
+  if (proposedContent == null || String(proposedContent) === String(originalContent || "")) {
+    issues.push("no_effective_change");
+    score -= 40;
+  }
+  if (String(proposedContent || "").includes("// [PLAN_ONLY 建议]")) {
+    issues.push("comment_placeholder_patch");
+    score -= 60;
+  }
+  if (Array.isArray(patchEdits) && patchEdits.length === 0 && !isCreate) {
+    issues.push("empty_edits");
+    score -= 10;
+  }
+  if (isCreate && !String(proposedContent || "").trim()) {
+    issues.push("empty_create_file");
+    score -= 50;
+  }
+  score = Math.max(0, Math.min(100, score));
+  return {
+    score,
+    applicable: score >= 50 && !issues.includes("comment_placeholder_patch") && !issues.includes("no_effective_change"),
+    issues,
+  };
+}
+
 function buildProposalFromArgs(root, args) {
   const filePath = String(args.path || "").replace(/\\/g, "/");
   if (!filePath) {
     throw new Error("stage_patch 需要 path");
   }
   let originalContent = "";
+  const isCreate =
+    Array.isArray(args.edits) &&
+    args.edits.some((e) => String(e.op || e.operation).toLowerCase() === "create_file");
   try {
     originalContent = projectCodeService.readProjectFile(root, filePath).content;
   } catch (err) {
-    const isCreate =
-      Array.isArray(args.edits) &&
-      args.edits.some((e) => String(e.op || e.operation).toLowerCase() === "create_file");
     if (!isCreate && args.proposedContent == null) {
       throw err;
     }
@@ -121,6 +152,19 @@ function buildProposalFromArgs(root, args) {
   } else {
     throw new Error("stage_patch 需要 edits 或 proposedContent");
   }
+  const patchQuality = scorePatchQuality({
+    filePath,
+    originalContent,
+    proposedContent,
+    patchEdits,
+    isCreate,
+  });
+  if (!patchQuality.applicable) {
+    const err = new Error(`低质量补丁被拒绝：${patchQuality.issues.join(", ") || "unknown"}`);
+    err.code = "PATCH_QUALITY_REJECTED";
+    err.patchQuality = patchQuality;
+    throw err;
+  }
   const preview = buildPatchPreview({
     filePath,
     originalContent,
@@ -134,6 +178,7 @@ function buildProposalFromArgs(root, args) {
     unifiedDiff: preview.unifiedDiff,
     summary: preview.summary,
     patchEdits,
+    patchQuality,
   };
 }
 
@@ -144,6 +189,7 @@ function buildProposalFromPatchEdits(root, filePath, edits, summary) {
 module.exports = {
   PATCH_OPS,
   applyPatchEdits,
+  scorePatchQuality,
   buildProposalFromArgs,
   buildProposalFromPatchEdits,
 };

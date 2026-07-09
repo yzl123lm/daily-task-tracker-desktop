@@ -42,6 +42,7 @@ cancelAgentRun(getUserDataPath, uid, {
   agentRunId: first.runId,
   reason: "test-cancel",
 });
+// cancel clears timeout timer via clearCancelController
 
 assert.strictEqual(isCurrentRun(getUserDataPath, uid, projectId, taskId, first.runId), false);
 
