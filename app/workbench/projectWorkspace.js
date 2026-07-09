@@ -484,6 +484,27 @@ function toggleComposerMoreMenu() {
   }
 }
 
+function setComposerButtonVisible(btn, visible, label = "") {
+  if (!btn) {
+    return;
+  }
+  if (visible) {
+    btn.hidden = false;
+    btn.removeAttribute("hidden");
+    btn.setAttribute("aria-hidden", "false");
+    if (label) {
+      btn.textContent = label;
+    }
+  } else {
+    btn.hidden = true;
+    btn.setAttribute("hidden", "");
+    btn.setAttribute("aria-hidden", "true");
+    if (!label) {
+      btn.textContent = "";
+    }
+  }
+}
+
 function updateComposerUi(phase = composerPhase) {
   composerPhase = phase || "idle";
   const running = composerPhase === "running" || agentRunStarting;
@@ -496,16 +517,14 @@ function updateComposerUi(phase = composerPhase) {
   if (primaryBtn) {
     primaryBtn.textContent = cfg.primary;
     primaryBtn.classList.toggle("wb-pws-btn--danger", running);
-    primaryBtn.disabled = running ? false : false;
+    primaryBtn.disabled = false;
+    setComposerButtonVisible(primaryBtn, true, cfg.primary);
   }
+  setComposerButtonVisible(secondaryBtn, Boolean(cfg.showSecondary), cfg.secondary || "");
   if (secondaryBtn) {
-    secondaryBtn.hidden = !cfg.showSecondary;
-    secondaryBtn.textContent = cfg.secondary;
     secondaryBtn.disabled = running;
   }
-  if (moreBtn) {
-    moreBtn.hidden = !cfg.showMore;
-  }
+  setComposerButtonVisible(moreBtn, Boolean(cfg.showMore));
   if (input) {
     input.disabled = running;
   }

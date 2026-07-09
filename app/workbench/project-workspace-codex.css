@@ -124,6 +124,12 @@ body.jl-project-workspace-active #panel-ai {
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
+.wb-pws-btn[hidden],
+.wb-ai-command [hidden],
+.wb-ai-command__actions > [hidden] {
+  display: none !important;
+}
+
 .wb-pws-btn--primary {
   color: #fff;
   background: #2f7df6;
