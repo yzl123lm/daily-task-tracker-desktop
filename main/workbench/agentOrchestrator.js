@@ -12,6 +12,7 @@ const {
   startAgentRun,
   cancelAgentRun,
   completeAgentRun,
+  getAgentRun,
   failAgentRun,
   isRunCanceled,
   RUN_STATUS,
@@ -522,7 +523,13 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           stepKey: "plan_ready",
         });
       } else if (mode === "PATCH_PROPOSE") {
-        const diffCount = output?.diffPreviews?.length || 0;
+        const stagedNow = listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+          status: PATCH_STATUS.STAGED,
+        });
+        const diffCount = Math.max(output?.diffPreviews?.length || 0, stagedNow.length);
+        if (output) {
+          output.diffPreviews = stagedNow.map(patchToDiffPreview).filter(Boolean);
+        }
         emitAgentEvent(ctx, {
           phase: PHASE.PATCHING,
           status: diffCount ? STATUS.success : STATUS.failed,
@@ -537,9 +544,18 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           emitAgentEvent(ctx, {
             phase: PHASE.WAITING_REVIEW,
             status: STATUS.waiting,
-            title: "等待用户审阅",
-            summary: "Diff 已生成，请查看并确认",
+            title: "等待用户审阅 Diff",
+            summary: `已生成 ${diffCount} 个代码变更`,
             stepKey: "await_diff",
+          });
+        } else {
+          emitAgentEvent(ctx, {
+            phase: PHASE.PATCHING,
+            status: STATUS.failed,
+            title: "未生成代码变更",
+            summary: "Agent 未返回 staged patch，请重新生成代码变更",
+            stepKey: "generate_patch",
+            error: "staged_patches count = 0",
           });
         }
       }
@@ -587,19 +603,63 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           stepKey: "plan_ready",
         });
       }
-      completeAgentRun(getUserDataPath, uid, {
-        projectId,
-        taskId,
-        agentRunId,
-        output,
-        status: runStatus,
-      });
+    }
+
+    // Always finalize the run session. PATCH_PROPOSE/VERIFY_FIX may already be
+    // WAITING_APPROVAL from projectAgentLLM; treat that as a completed hand-off
+    // so the mutex does not block「重新生成」.
+    if (agentRunId) {
+      const current = getAgentRun(getUserDataPath, uid, projectId, taskId, agentRunId);
+      if (current && [RUN_STATUS.PENDING, RUN_STATUS.RUNNING, RUN_STATUS.WAITING_APPROVAL].includes(current.status)) {
+        const finalizeStatus =
+          runStatus === RUN_STATUS.WAITING_APPROVAL || mode === "PATCH_PROPOSE" || mode === "VERIFY_FIX"
+            ? RUN_STATUS.COMPLETED
+            : runStatus || RUN_STATUS.COMPLETED;
+        completeAgentRun(getUserDataPath, uid, {
+          projectId,
+          taskId,
+          agentRunId,
+          output,
+          status: finalizeStatus,
+        });
+        if (finalizeStatus === RUN_STATUS.COMPLETED && runStatus === RUN_STATUS.WAITING_APPROVAL) {
+          runStatus = RUN_STATUS.COMPLETED;
+        }
+      }
     }
 
     recordTaskMemories(getUserDataPath, uid, output);
-    const doneStatus = taskStatusForMode(mode, "done");
-    if (doneStatus) {
-      updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
+    if (mode === "PATCH_PROPOSE") {
+      const staged = listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+        status: PATCH_STATUS.STAGED,
+      });
+      const reviewable = listStagedPatches(getUserDataPath, uid, projectId, taskId).filter((p) =>
+        [PATCH_STATUS.STAGED, PATCH_STATUS.ACCEPTED, PATCH_STATUS.REVISION_REQUESTED].includes(
+          p.status
+        )
+      );
+      const count = Math.max(staged.length, reviewable.length, output?.diffPreviews?.length || 0);
+      output = output || {};
+      output.diffPreviews = reviewable.length
+        ? reviewable.map(patchToDiffPreview).filter(Boolean)
+        : staged.map(patchToDiffPreview).filter(Boolean);
+      if (count > 0) {
+        updateTask(getUserDataPath, uid, projectId, taskId, {
+          status: TASK_STATUS.WAITING_APPROVAL,
+          currentStep: "变更待审阅",
+        });
+      } else {
+        updateTask(getUserDataPath, uid, projectId, taskId, {
+          status: TASK_STATUS.PLANNING,
+          currentStep: "未生成变更",
+        });
+        output.note = output.note || "AI 未生成代码变更，请重新生成";
+      }
+    } else {
+      const doneStatus = taskStatusForMode(mode, "done");
+      if (doneStatus) {
+        updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
+      }
     }
   } catch (err) {
     if (projectId && taskId) {
@@ -683,11 +743,16 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   }
 
   if (mode === "PATCH_PROPOSE" || mode === "VERIFY_FIX") {
-    const patches = listStagedPatches(getUserDataPath, uid, projectId, taskId, {
-      status: PATCH_STATUS.STAGED,
-    });
+    const patches = listStagedPatches(getUserDataPath, uid, projectId, taskId).filter((p) =>
+      [
+        PATCH_STATUS.STAGED,
+        PATCH_STATUS.ACCEPTED,
+        PATCH_STATUS.REVISION_REQUESTED,
+      ].includes(p.status)
+    );
     output = output || {};
     output.diffPreviews = patches.map(patchToDiffPreview).filter(Boolean);
+    output.stagedPatchIds = patches.map((p) => p.id);
   }
 
   recordLegacyAgentRun(getUserDataPath, uid, {
@@ -715,8 +780,26 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
 
 function cancelProjectAgent(getUserDataPath, userId, { projectId, taskId, agentRunId }) {
   const { cancelFixLoop } = require("./fixLoopController.js");
+  const {
+    getActiveRunForTask,
+    getOpenRunForTask,
+    releaseStaleRunsForTask,
+  } = require("./agentRunStore.js");
   cancelFixLoop(getUserDataPath, userId, projectId, taskId, "用户取消 Agent");
-  return cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId });
+  let runId = agentRunId ? String(agentRunId).trim() : "";
+  if (!runId) {
+    const active =
+      getActiveRunForTask(getUserDataPath, userId, projectId, taskId) ||
+      getOpenRunForTask(getUserDataPath, userId, projectId, taskId);
+    runId = active?.id || "";
+  }
+  if (!runId) {
+    releaseStaleRunsForTask(getUserDataPath, userId, projectId, taskId, {
+      reason: "用户取消 Agent",
+    });
+    return { ok: true, note: "no-active-run" };
+  }
+  return cancelAgentRun(getUserDataPath, userId, { projectId, taskId, agentRunId: runId });
 }
 
 function buildChatAgentOutput(message, promptContext) {

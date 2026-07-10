@@ -1405,9 +1405,9 @@ async function applyAcceptedDiffs() {
   }
   const accepted = reviewStore.getAcceptedChanges(projectId, taskId);
   if (!accepted.length) {
-    await wbAlert("请先在 Diff 审阅面板中「接受」至少一个文件。", {
+    await wbAlert("当前没有可写入的代码变更。", {
       title: "无可写入变更",
-      detail: "在「Diff 审阅」Tab 中逐文件接受后，再执行批量写入。",
+      detail: "请先在 Diff 审阅面板中「接受」至少一个文件，或点击「全部接受」。",
     });
     return;
   }
@@ -1520,7 +1520,11 @@ async function applyAcceptedDiffs() {
       }
     }
   } catch (err) {
-    await wbAlert(err?.message || "批量写入失败", { title: "批量写入失败" });
+    await wbAlert(err?.message || "批量写入失败", {
+      title: "写入失败",
+      detail: "请检查 Diff 是否仍有效，或重新生成后再试。",
+    });
+    window.__wbShowComposerToast?.(err?.message || "写入失败", { type: "error" });
   }
 }
 

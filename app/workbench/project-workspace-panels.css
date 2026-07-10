@@ -392,6 +392,33 @@
   color: #6b7a90;
 }
 
+.wb-diff-review__empty-card {
+  margin: 24px 16px;
+  padding: 28px 20px;
+  border: 1px dashed #cfe2f8;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  text-align: center;
+}
+
+.wb-diff-review__empty-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.wb-diff-review__empty-desc {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.wb-diff-review__empty-card .wb-pws-btn {
+  min-height: 32px;
+}
+
 body.jl-project-workspace-active .wb-pws-code-col #wbCodePanel[hidden] {
   display: none !important;
 }

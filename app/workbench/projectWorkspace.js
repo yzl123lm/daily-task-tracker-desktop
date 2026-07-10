@@ -574,18 +574,26 @@ function buildTimelineItem(title, status, detail, time, isStep) {
   return li;
 }
 
-function detectComposerPhaseFromContext(projectId, taskId) {
+function detectComposerPhaseFromContext(projectId, taskId, task = null) {
   if (composerPhase === "running" || agentRunStarting) {
     return "running";
   }
-  const planCard = document.getElementById("wbPlanCard");
-  const hasPlan = planCard && !planCard.hidden;
   const reviewStore = window.__wbCodeReviewStore;
   const changes = reviewStore?.getChanges?.(projectId, taskId) || [];
   if (changes.length) {
     return "diff_ready";
   }
-  if (hasPlan) {
+  const step = String(task?.currentStep || "");
+  if (step.includes("未生成变更") || step.includes("生成代码变更失败")) {
+    return "patch_empty";
+  }
+  if (step.includes("变更待审阅") || task?.status === "WAITING_APPROVAL") {
+    // 状态声称有 Diff，但 store 为空：交给 openDiff 再拉一次；UI 先按无 Diff 处理
+    return "patch_empty";
+  }
+  const planCard = document.getElementById("wbPlanCard");
+  const hasPlan = planCard && !planCard.hidden;
+  if (hasPlan || step.includes("方案待确认") || task?.status === "PLANNING") {
     return "plan_ready";
   }
   return "idle";
@@ -601,6 +609,9 @@ function resolveTaskDisplayStatus(task, phase = composerPhase) {
   }
   if (phase === "diff_ready" || step.includes("变更待审阅")) {
     return "变更待审阅";
+  }
+  if (phase === "patch_empty" || step.includes("未生成变更")) {
+    return "未生成变更";
   }
   if (phase === "written") {
     return "已写入";
@@ -622,6 +633,13 @@ function resolveComposerActionConfig(phase = composerPhase) {
       return { primary: "生成代码变更", secondary: "调整需求", showSecondary: true, showMore: true };
     case "diff_ready":
       return { primary: "查看 Diff", secondary: "需修改", showSecondary: true, showMore: true };
+    case "patch_empty":
+      return {
+        primary: "重新生成代码变更",
+        secondary: "调整需求",
+        showSecondary: true,
+        showMore: true,
+      };
     case "written":
       return { primary: "运行验证", secondary: "完成任务", showSecondary: true, showMore: true };
     case "done":
@@ -724,8 +742,10 @@ async function handlePrimaryComposerAction() {
       await proposeCodePatches();
       break;
     case "diff_ready":
-      window.__wbSwitchCodeTab?.("diff");
-      window.__wbRenderDiffReviewPanel?.();
+      await openDiffReviewForCurrentTask();
+      break;
+    case "patch_empty":
+      await proposeCodePatches();
       break;
     case "written":
       await runComposerVerification();
@@ -746,12 +766,12 @@ async function handleSecondaryComposerAction() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   switch (composerPhase) {
     case "plan_ready":
+    case "patch_empty":
       document.getElementById("wbAgentInput")?.focus();
       showComposerToast("可在输入框补充需求后重新执行", { type: "info" });
       break;
     case "diff_ready":
-      window.__wbSwitchCodeTab?.("diff");
-      window.__wbRenderDiffReviewPanel?.();
+      await openDiffReviewForCurrentTask();
       showComposerToast("请在 Diff 审阅面板标记「需修改」并填写意见", { type: "info" });
       break;
     case "written":
@@ -852,7 +872,8 @@ function mapAgentOutputToSteps(output, mode) {
       composerPhase = "diff_ready";
     } else {
       upsertComposerStep("generate_patch", "error", output.note || "没有生成任何 Diff");
-      showComposerToast("没有生成任何 Diff", { type: "error" });
+      showComposerToast(output.note || "AI 未生成代码变更，请重新生成", { type: "error" });
+      composerPhase = "patch_empty";
     }
   }
 }
@@ -924,7 +945,14 @@ function buildAgentPayload(projectId, taskId, mode, extras = {}) {
   };
 }
 
-async function startAgentExecution(projectId) {
+function isAgentRunMutexError(err) {
+  return (
+    err?.code === "AGENT_RUN_MUTEX" ||
+    /任务已有进行中的 Agent/.test(String(err?.message || ""))
+  );
+}
+
+async function startAgentExecution(projectId, { mutexRetry = false } = {}) {
   const api = wbApi();
   showComposerError("");
   const rawInput = getComposerRawInput();
@@ -933,9 +961,13 @@ async function startAgentExecution(projectId) {
     showComposerToast("请输入开发需求", { type: "error" });
     return;
   }
-  if (agentRunStarting || activeAgentRunId) {
-    showComposerToast("Agent 正在运行，不能重复启动", { type: "warn" });
+  if (agentRunStarting) {
+    showComposerToast("Agent 正在启动，请稍候", { type: "warn" });
     return;
+  }
+  // Clear stale run id left from a previous waiting/review hand-off so regen is allowed.
+  if (activeAgentRunId && composerPhase !== "running") {
+    activeAgentRunId = null;
   }
   resetComposerLiveSteps();
   upsertComposerStep("check_source", "running");
@@ -1009,8 +1041,21 @@ async function startAgentExecution(projectId) {
     updateComposerUi("plan_ready");
   } catch (err) {
     upsertComposerStep("generate_plan", "error", err?.message || "Agent 执行失败");
-    if (err?.code === "AGENT_RUN_MUTEX") {
-      showComposerToast("Agent 正在运行，不能重复启动", { type: "warn" });
+    if (isAgentRunMutexError(err) && !mutexRetry) {
+      activeAgentRunId = err?.activeRunId || activeAgentRunId;
+      showComposerToast("检测到未结束的 Agent，正在停止后重试…", { type: "warn" });
+      try {
+        await cancelActiveAgent();
+      } catch {
+        /* ignore */
+      }
+      activeAgentRunId = null;
+      agentRunStarting = false;
+      showComposerError("");
+      return startAgentExecution(projectId, { mutexRetry: true });
+    }
+    if (isAgentRunMutexError(err)) {
+      showComposerToast("Agent 仍在运行，请先点「停止任务」后再试", { type: "warn" });
     } else if (err?.message?.includes("WB_AGENT_LLM")) {
       showComposerToast("LLM Agent 已禁用（WB_AGENT_LLM=0）", { type: "error" });
     } else {
@@ -1028,7 +1073,47 @@ async function startAgentExecution(projectId) {
   }
 }
 
-async function proposeCodePatches() {
+async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
+  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const reviewStore = window.__wbCodeReviewStore;
+  window.__wbSwitchCodeTab?.("diff");
+  if (!projectId || !taskId) {
+    window.__wbRenderDiffReviewPanel?.();
+    showComposerToast("请先选择或创建开发任务", { type: "warn" });
+    return [];
+  }
+  let patches = [];
+  try {
+    patches = (await reviewStore?.syncFromStagedPatches?.(projectId, taskId)) || [];
+  } catch (err) {
+    reviewStore?.setLoadError?.(projectId, taskId, err?.message || "Diff 加载失败");
+    window.__wbRenderDiffReviewPanel?.();
+    showComposerToast(err?.message || "Diff 加载失败", { type: "error" });
+    appendAgentLogLine(`DiffReviewPanel load failed: ${err?.message || err}`);
+    return [];
+  }
+  appendAgentLogLine(`DiffReviewPanel loaded patch count=${patches.length}`);
+  window.__wbRenderDiffReviewPanel?.();
+  if (!patches.length) {
+    const task = (window.__wbStore?.getState?.().tasks || []).find((t) => t.id === taskId);
+    const step = String(task?.currentStep || "");
+    if (step.includes("方案待确认") || task?.status === "PLANNING") {
+      updateComposerUi("plan_ready");
+    } else {
+      updateComposerUi("patch_empty");
+    }
+    showComposerToast("当前任务还没有可审阅的 Diff", { type: "warn" });
+    return [];
+  }
+  updateComposerUi("diff_ready");
+  if (!forceReload) {
+    showComposerToast(`已加载 ${patches.length} 个代码变更，请审阅`, { type: "success" });
+  }
+  return patches;
+}
+
+async function proposeCodePatches({ mutexRetry = false } = {}) {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
   if (!projectId || !taskId) {
@@ -1063,9 +1148,24 @@ async function proposeCodePatches() {
       renderPlanCard(result.output);
     }
     mapAgentOutputToSteps(result.output, "PATCH_PROPOSE");
-    await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-    window.__wbRenderDiffReviewPanel?.();
-    window.__wbSwitchCodeTab?.("diff");
+    const synced = await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+    const diffCount = Math.max(result.output?.diffPreviews?.length || 0, synced?.length || 0);
+    appendAgentLogLine(
+      `PATCH_PROPOSE done; staged_patches count=${synced?.length || 0}; patch ids=${(synced || [])
+        .map((c) => c.stagedPatchId || c.id)
+        .join(",") || "(none)"}`
+    );
+    if (diffCount > 0) {
+      composerPhase = "diff_ready";
+      window.__wbSwitchCodeTab?.("diff");
+      window.__wbRenderDiffReviewPanel?.();
+      showComposerToast(`已生成 ${diffCount} 个代码变更，请审阅 Diff`, { type: "success" });
+    } else {
+      composerPhase = "patch_empty";
+      window.__wbSwitchCodeTab?.("diff");
+      window.__wbRenderDiffReviewPanel?.();
+      showComposerToast(result.output?.note || "AI 未生成代码变更，请重新生成", { type: "error" });
+    }
     const modePill = document.getElementById("wbPwsModePill");
     if (modePill) {
       modePill.textContent = "PATCH_PROPOSE / 受控写入";
@@ -1075,16 +1175,34 @@ async function proposeCodePatches() {
     renderTasks(tasks, taskId);
     await loadTaskContext(projectId, taskId);
     if (out) {
-      const logText = result.output?.diffPreviews?.length
-        ? `已生成 ${result.output.diffPreviews.length} 个文件 Diff，请在审阅面板确认`
-        : result.output?.note || "补丁生成完成";
+      const logText = diffCount
+        ? `已生成 ${diffCount} 个文件 Diff，请在审阅面板确认`
+        : result.output?.note || "补丁生成完成，但未产生可审阅 Diff";
       out.textContent = window.__wbStripModelThinking?.(logText) || logText;
     }
-    updateComposerUi(composerPhase === "running" ? "diff_ready" : composerPhase);
+    updateComposerUi(composerPhase === "running" ? (diffCount ? "diff_ready" : "patch_empty") : composerPhase);
   } catch (err) {
+    if (isAgentRunMutexError(err) && !mutexRetry) {
+      activeAgentRunId = err?.activeRunId || activeAgentRunId;
+      showComposerToast("检测到未结束的 Agent，正在停止后重试…", { type: "warn" });
+      try {
+        await cancelActiveAgent();
+      } catch {
+        /* ignore */
+      }
+      activeAgentRunId = null;
+      agentRunStarting = false;
+      showComposerError("");
+      return proposeCodePatches({ mutexRetry: true });
+    }
     upsertComposerStep("generate_patch", "error", err?.message || "补丁生成失败");
     showComposerError(err?.message || "补丁生成失败");
-    showComposerToast(err?.message || "补丁生成失败", { type: "error" });
+    showComposerToast(
+      isAgentRunMutexError(err)
+        ? "Agent 仍在运行，请先点「停止任务」后再试"
+        : err?.message || "补丁生成失败",
+      { type: "error" }
+    );
     if (out) {
       out.textContent = window.__wbStripModelThinking?.(err?.message) || err?.message || "补丁生成失败";
     }
@@ -1203,22 +1321,15 @@ async function cancelActiveAgent() {
   if (!projectId || !taskId) {
     return;
   }
-  if (!activeAgentRunId) {
-    if (agentRunStarting) {
-      showComposerToast("Agent 启动中，请稍候再试停止", { type: "warn" });
-    } else {
-      showComposerToast("当前没有运行中的 Agent", { type: "info" });
-    }
-    return;
-  }
   if (typeof api.wbProjectAgentCancel !== "function") {
     return;
   }
   try {
+    // Prefer known run id; server also resolves the latest open/active run when omitted.
     await api.wbProjectAgentCancel({
       projectId,
       taskId,
-      agentRunId: activeAgentRunId,
+      agentRunId: activeAgentRunId || undefined,
     });
     upsertComposerStep("canceled", "error", "用户已停止任务");
     stopAgentEventPolling();
@@ -1315,13 +1426,15 @@ async function loadTaskContext(projectId, taskId) {
     const runs = await api.wbProjectAgentRunsList({ projectId, taskId, limit: 8 });
     renderComposerTimeline(runs);
   }
-  composerPhase = detectComposerPhaseFromContext(projectId, taskId);
-  updateComposerUi(composerPhase);
-  const latestTasks = window.__wbStore?.getState?.()?.tasks || tasks;
-  renderTaskDetail(latestTasks.find((t) => t.id === taskId) || task || null);
   await syncComposerPathState(projectId);
   await refreshProjectContextHealth(projectId, taskId);
-  await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+  const synced = await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
+  appendAgentLogLine(`DiffReviewPanel loaded patch count=${synced?.length || 0}`);
+  const latestTasks = window.__wbStore?.getState?.()?.tasks || tasks;
+  const latestTask = latestTasks.find((t) => t.id === taskId) || task || null;
+  composerPhase = detectComposerPhaseFromContext(projectId, taskId, latestTask);
+  updateComposerUi(composerPhase);
+  renderTaskDetail(latestTask);
   window.__wbRenderDiffReviewPanel?.();
   await window.__wbRefreshCodePanel?.(projectId, taskId);
 }
@@ -1624,14 +1737,22 @@ async function loadProjectWorkspace(projectId) {
     openDirBtn.hidden = !projectPath;
     openDirBtn.dataset.path = projectPath || "";
   }
-  const selectedId = null;
-  renderTasks(tasks, selectedId, { autoSelectFirst: false });
+  const preferredTaskId =
+    document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
+    tasks.find((t) => t.status === "WAITING_APPROVAL" || String(t.currentStep || "").includes("变更待审阅"))
+      ?.id ||
+    tasks[0]?.id ||
+    null;
+  renderTasks(tasks, preferredTaskId, { autoSelectFirst: Boolean(preferredTaskId) });
   if (!isProjectViewActive(id, gen)) {
     return;
   }
   root.dataset.wbReady = "1";
   root.dataset.wbProjectId = id;
   showProjectWorkspaceView(id, gen);
+  if (preferredTaskId) {
+    await loadTaskContext(id, preferredTaskId);
+  }
   window.__wbBindTerminalDrawer?.();
   window.__wbBindPwsDrawers?.();
   window.__wbBindWorkspaceResizers?.();
@@ -1860,12 +1981,15 @@ function bindComposerActions() {
   });
 }
 window.__wbUpsertComposerStep = upsertComposerStep;
+window.__wbShowComposerToast = showComposerToast;
+window.__wbProposeCodePatches = proposeCodePatches;
+window.__wbOpenDiffReviewForCurrentTask = openDiffReviewForCurrentTask;
 window.__wbOnComposerDiffApplied = function onComposerDiffApplied() {
   upsertComposerStep("write_code", "done");
   upsertComposerStep("await_diff", "done");
   composerPhase = "written";
   updateComposerUi("written");
-  showComposerToast("代码已写入，可运行验证或完成任务", { type: "success" });
+  showComposerToast("代码已写入，并已创建备份。", { type: "success" });
 };
 
 function renderProjectColSessions() {

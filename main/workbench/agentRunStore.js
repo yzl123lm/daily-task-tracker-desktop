@@ -49,7 +49,26 @@ function rowToSession(row) {
   };
 }
 
+/**
+ * Runs that still hold the task mutex (LLM/tools in flight).
+ * WAITING_APPROVAL is a terminal hand-off to the user — it must NOT block regen/patch.
+ */
 function getActiveRunForTask(getUserDataPath, userId, projectId, taskId) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const row = db
+    .prepare(
+      `SELECT * FROM agent_run_sessions
+       WHERE user_id = ? AND project_id = ? AND task_id = ?
+         AND status IN ('PENDING', 'RUNNING')
+       ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(uid, projectId, taskId);
+  return rowToSession(row);
+}
+
+/** Latest run still open for timeline UI (includes waiting-for-user). */
+function getOpenRunForTask(getUserDataPath, userId, projectId, taskId) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
   const row = db
@@ -61,6 +80,32 @@ function getActiveRunForTask(getUserDataPath, userId, projectId, taskId) {
     )
     .get(uid, projectId, taskId);
   return rowToSession(row);
+}
+
+function releaseStaleRunsForTask(getUserDataPath, userId, projectId, taskId, { reason = "superseded" } = {}) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const rows = db
+    .prepare(
+      `SELECT * FROM agent_run_sessions
+       WHERE user_id = ? AND project_id = ? AND task_id = ?
+         AND status IN ('PENDING', 'RUNNING', 'WAITING_APPROVAL')`
+    )
+    .all(uid, projectId, taskId);
+  const ts = nowIso();
+  for (const row of rows) {
+    const live = cancelControllers.has(row.id);
+    if (row.status === RUN_STATUS.WAITING_APPROVAL || !live) {
+      const nextStatus =
+        row.status === RUN_STATUS.WAITING_APPROVAL ? RUN_STATUS.COMPLETED : RUN_STATUS.CANCELED;
+      db.prepare(
+        `UPDATE agent_run_sessions
+         SET status = ?, error_message = COALESCE(error_message, ?), completed_at = COALESCE(completed_at, ?), updated_at = ?
+         WHERE id = ? AND user_id = ?`
+      ).run(nextStatus, String(reason || "superseded"), ts, ts, row.id, uid);
+      clearCancelController(row.id);
+    }
+  }
 }
 
 function getLatestRunForTask(getUserDataPath, userId, projectId, taskId) {
@@ -79,6 +124,10 @@ function getLatestRunForTask(getUserDataPath, userId, projectId, taskId) {
 function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, inputText, timeoutMs }) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
+  // Close waiting-for-user / orphaned runs so regen & patch propose can proceed.
+  releaseStaleRunsForTask(getUserDataPath, uid, projectId, taskId, {
+    reason: "被新的 Agent 运行取代",
+  });
   const active = getActiveRunForTask(getUserDataPath, uid, projectId, taskId);
   if (active) {
     const err = new Error(`任务已有进行中的 Agent 运行 (${active.id})`);
@@ -141,7 +190,16 @@ function isCurrentRun(getUserDataPath, userId, projectId, taskId, agentRunId) {
   if (!run) {
     return false;
   }
+  // Tool traces may still append while waiting for user review.
   return [RUN_STATUS.PENDING, RUN_STATUS.RUNNING, RUN_STATUS.WAITING_APPROVAL].includes(run.status);
+}
+
+function isMutexHeld(getUserDataPath, userId, projectId, taskId, agentRunId) {
+  const run = getAgentRun(getUserDataPath, userId, projectId, taskId, agentRunId);
+  if (!run) {
+    return false;
+  }
+  return [RUN_STATUS.PENDING, RUN_STATUS.RUNNING].includes(run.status) && cancelControllers.has(agentRunId);
 }
 
 function assertCurrentRun(getUserDataPath, userId, projectId, taskId, agentRunId) {
@@ -254,8 +312,11 @@ module.exports = {
   startAgentRun,
   getAgentRun,
   getActiveRunForTask,
+  getOpenRunForTask,
   getLatestRunForTask,
+  releaseStaleRunsForTask,
   isCurrentRun,
+  isMutexHeld,
   assertCurrentRun,
   appendToolTrace,
   completeAgentRun,

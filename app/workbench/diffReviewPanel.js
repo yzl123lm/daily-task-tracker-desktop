@@ -27,8 +27,16 @@ function statusLabel(status) {
 }
 
 function changeTypeLabel(type) {
-  const map = { add: "新增", delete: "删除", modify: "修改" };
+  const map = { add: "新增文件", delete: "删除", modify: "修改" };
   return map[type] || type;
+}
+
+function toast(message, type = "warn") {
+  if (typeof window.__wbShowComposerToast === "function") {
+    window.__wbShowComposerToast(message, { type });
+    return;
+  }
+  window.alert?.(message);
 }
 
 async function syncPatchReviewStatus(projectId, taskId, changeId, uiStatus) {
@@ -114,26 +122,95 @@ function ensureDiffReviewMount() {
   return panel;
 }
 
+function resolveEmptyState({ projectId, taskId, state, task }) {
+  if (!projectId || !taskId) {
+    return {
+      title: "请选择任务",
+      desc: "选择或创建开发任务后，AI 会生成可审阅的代码变更。",
+      primaryAction: null,
+      primaryLabel: null,
+    };
+  }
+  if (state?.loadError || state?.emptyReason === "load_error") {
+    return {
+      title: "Diff 加载失败",
+      desc: state.loadError || "当前任务存在 staged patch，但 Diff 数据加载失败，请刷新或重新生成。",
+      primaryAction: "reload",
+      primaryLabel: "重新加载",
+    };
+  }
+  const step = String(task?.currentStep || "");
+  const status = String(task?.status || "");
+  if (step.includes("失败") || status === "FAILED") {
+    return {
+      title: "代码变更生成失败",
+      desc: step || "生成代码变更失败，请重新生成。",
+      primaryAction: "regen-patch",
+      primaryLabel: "重新生成代码变更",
+    };
+  }
+  if (step.includes("方案待确认") || status === "PLANNING") {
+    return {
+      title: "尚未生成代码变更",
+      desc: "当前任务已生成开发方案，请点击「生成代码变更」生成 Diff。",
+      primaryAction: "regen-patch",
+      primaryLabel: "生成代码变更",
+    };
+  }
+  return {
+    title: "当前没有可审阅的代码变更",
+    desc: "请先点击「生成代码变更」，AI 会生成 Diff 后再进入审阅。",
+    primaryAction: "regen-patch",
+    primaryLabel: "生成代码变更",
+  };
+}
+
+function renderEmptyDiffState(panel, empty) {
+  panel.hidden = false;
+  panel.innerHTML = `
+    <header class="wb-diff-review__head">
+      <div><h3>Diff 审阅</h3><p class="wb-diff-review__meta">暂无待审阅变更</p></div>
+    </header>
+    <div class="wb-diff-review__empty-card">
+      <h4 class="wb-diff-review__empty-title">${escapeHtml(empty.title)}</h4>
+      <p class="wb-diff-review__empty-desc">${escapeHtml(empty.desc)}</p>
+      ${
+        empty.primaryLabel
+          ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-empty-action" data-action="${escapeHtml(
+              empty.primaryAction || ""
+            )}">${escapeHtml(empty.primaryLabel)}</button>`
+          : ""
+      }
+    </div>
+  `;
+  panel.querySelector(".wb-diff-empty-action")?.addEventListener("click", () => {
+    const action = empty.primaryAction;
+    if (action === "reload") {
+      void window.__wbOpenDiffReviewForCurrentTask?.({ forceReload: true });
+      return;
+    }
+    if (action === "regen-patch") {
+      void window.__wbProposeCodePatches?.();
+    }
+  });
+}
+
 function renderDiffReviewPanel() {
   const panel = ensureDiffReviewMount();
   if (!panel) {
     return;
   }
   const { projectId, taskId } = getContext();
+  const reviewStore = window.__wbCodeReviewStore;
+  const tasks = window.__wbStore?.getState?.().tasks || [];
+  const task = tasks.find((t) => t.id === taskId) || null;
   if (!projectId || !taskId) {
-    panel.hidden = true;
+    renderEmptyDiffState(panel, resolveEmptyState({ projectId, taskId, state: null, task: null }));
     return;
   }
-  const reviewStore = window.__wbCodeReviewStore;
   const state = reviewStore.getState(projectId, taskId);
   if (!state.changes.length) {
-    panel.hidden = false;
-    panel.innerHTML = `
-      <header class="wb-diff-review__head">
-        <div><h3>Diff 审阅</h3><p class="wb-diff-review__meta">暂无待审阅变更</p></div>
-      </header>
-      <p class="wb-diff-review__empty">生成开发方案后，AI 建议的 Diff 将在此显示。</p>
-    `;
+    renderEmptyDiffState(panel, resolveEmptyState({ projectId, taskId, state, task }));
     return;
   }
   panel.hidden = false;
@@ -176,13 +253,13 @@ function renderDiffReviewPanel() {
         </div>
         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-all">全部接受</button>
         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-all">全部拒绝</button>
-        <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch" ${acceptedCount ? "" : "disabled"}>写入已接受 (${acceptedCount})</button>
+        <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch">写入已接受 (${acceptedCount})</button>
       </div>
     </header>
     <div class="wb-diff-review__body">
       <ul class="wb-diff-review__files">${fileRows}</ul>
       <div class="wb-diff-review__detail">
-        ${selected ? `<p class="wb-diff-review__summary">${escapeHtml(selected.summary || "")}</p>` : ""}
+        ${selected ? `<p class="wb-diff-review__summary">${escapeHtml(selected.summary || (selected.changeType === "add" ? "新增文件" : ""))}</p>` : ""}
         <div class="wb-diff-review__diff scroll-tech">${selected ? renderDiffLines(selected.diff, state.viewMode) : ""}</div>
       </div>
     </div>
@@ -205,6 +282,7 @@ function renderDiffReviewPanel() {
         btn.dataset.changeId,
         reviewStore.REVIEW_STATUS.ACCEPTED
       );
+      toast("已接受该文件变更", "success");
     });
   });
   panel.querySelectorAll(".wb-diff-reject-one").forEach((btn) => {
@@ -216,6 +294,7 @@ function renderDiffReviewPanel() {
         btn.dataset.changeId,
         reviewStore.REVIEW_STATUS.REJECTED
       );
+      toast("已拒绝该文件变更", "info");
     });
   });
   panel.querySelectorAll(".wb-diff-revise-one").forEach((btn) => {
@@ -247,24 +326,35 @@ function renderDiffReviewPanel() {
           await reviewStore.syncFromStagedPatches(projectId, taskId);
         }
         renderDiffReviewPanel();
+        toast("已提交修改意见，正在重新生成变更", "info");
       })();
     });
   });
   panel.querySelector(".wb-diff-accept-all")?.addEventListener("click", () => {
+    if (!state.changes.length) {
+      toast("当前没有可写入的代码变更。", "warn");
+      return;
+    }
     reviewStore.acceptAll(projectId, taskId);
     state.changes.forEach((c) => {
       if (c.stagedPatchId) {
         void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.ACCEPTED);
       }
     });
+    toast("已选择变更，请点击「写入已接受」。", "success");
   });
   panel.querySelector(".wb-diff-reject-all")?.addEventListener("click", () => {
+    if (!state.changes.length) {
+      toast("当前没有可审阅的代码变更。", "warn");
+      return;
+    }
     reviewStore.rejectAll(projectId, taskId);
     state.changes.forEach((c) => {
       if (c.stagedPatchId) {
         void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.REJECTED);
       }
     });
+    toast("已拒绝全部变更", "info");
   });
   panel.querySelectorAll(".wb-diff-view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -272,6 +362,15 @@ function renderDiffReviewPanel() {
     });
   });
   panel.querySelector(".wb-diff-apply-batch")?.addEventListener("click", () => {
+    const accepted = reviewStore.getAcceptedChanges(projectId, taskId);
+    if (!state.changes.length) {
+      toast("当前没有可写入的代码变更。", "warn");
+      return;
+    }
+    if (!accepted.length) {
+      toast("请选择要审阅的文件，或点击「全部接受」。", "warn");
+      return;
+    }
     void window.__wbApplyAcceptedDiffs?.();
   });
   window.__wbBindDiffResizer?.();

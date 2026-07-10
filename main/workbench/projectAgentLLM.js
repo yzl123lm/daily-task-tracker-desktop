@@ -186,12 +186,13 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       }
       output.toolTrace = toolTrace;
       output.mode = mode;
+      // Mark COMPLETED so task mutex is released; user review is tracked on the task status.
       completeAgentRun(ctx.getUserDataPath, ctx.userId, {
         projectId: ctx.projectId,
         taskId: ctx.taskId,
         agentRunId: ctx.agentRunId,
         output,
-        status: mode === "PATCH_PROPOSE" ? "WAITING_APPROVAL" : "COMPLETED",
+        status: "COMPLETED",
       });
       return output;
     }

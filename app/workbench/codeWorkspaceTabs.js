@@ -73,6 +73,9 @@ function switchTab(tabId, { persist = true } = {}) {
   if (persist) {
     saveActiveTab(active);
   }
+  if (active === "diff") {
+    window.__wbRenderDiffReviewPanel?.();
+  }
 }
 
 function bindCodeWorkspaceTabs() {
@@ -89,7 +92,11 @@ function bindCodeWorkspaceTabs() {
     }
     switchTab(btn.dataset.tab);
     if (btn.dataset.tab === "diff") {
-      window.__wbRenderDiffReviewPanel?.();
+      if (typeof window.__wbOpenDiffReviewForCurrentTask === "function") {
+        void window.__wbOpenDiffReviewForCurrentTask({ forceReload: true });
+      } else {
+        window.__wbRenderDiffReviewPanel?.();
+      }
     }
     if (btn.dataset.tab === "test") {
       window.__wbRenderTestResultPanel?.();

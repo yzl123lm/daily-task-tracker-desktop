@@ -101,15 +101,23 @@ function getStagedPatch(getUserDataPath, userId, projectId, taskId, patchId) {
   return rowToPatch(row);
 }
 
-function listStagedPatches(getUserDataPath, userId, projectId, taskId, { status } = {}) {
+function listStagedPatches(getUserDataPath, userId, projectId, taskId, { status, statuses } = {}) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
   let sql = `SELECT * FROM staged_patches
              WHERE user_id = ? AND project_id = ? AND task_id = ?`;
   const params = [uid, projectId, taskId];
-  if (status) {
+  const statusList = Array.isArray(statuses)
+    ? statuses.map((s) => String(s || "").toUpperCase()).filter(Boolean)
+    : status
+      ? [String(status).toUpperCase()]
+      : [];
+  if (statusList.length === 1) {
     sql += " AND status = ?";
-    params.push(String(status).toUpperCase());
+    params.push(statusList[0]);
+  } else if (statusList.length > 1) {
+    sql += ` AND status IN (${statusList.map(() => "?").join(", ")})`;
+    params.push(...statusList);
   }
   sql += " ORDER BY updated_at DESC";
   const rows = db.prepare(sql).all(...params);

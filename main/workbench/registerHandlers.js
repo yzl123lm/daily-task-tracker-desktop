@@ -120,14 +120,12 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
         agentRunId
       );
     }
-    const active = agentRunStore.getActiveRunForTask(
-      getUserDataPath,
-      payload?.userId,
-      projectId,
-      taskId
-    );
-    if (active) {
-      return listTimelineEventsFromRun(active);
+    const open =
+      typeof agentRunStore.getOpenRunForTask === "function"
+        ? agentRunStore.getOpenRunForTask(getUserDataPath, payload?.userId, projectId, taskId)
+        : agentRunStore.getActiveRunForTask(getUserDataPath, payload?.userId, projectId, taskId);
+    if (open) {
+      return listTimelineEventsFromRun(open);
     }
     const latest = agentRunStore.getLatestRunForTask(
       getUserDataPath,
@@ -166,7 +164,9 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
   ipcMain.handle("wb-project-agent-cancel", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
-    const agentRunId = assertSafeId(payload?.agentRunId, "agentRunId");
+    const agentRunId = payload?.agentRunId
+      ? assertSafeId(payload.agentRunId, "agentRunId")
+      : null;
     return agentOrchestrator.cancelProjectAgent(getUserDataPath, payload?.userId, {
       projectId,
       taskId,
@@ -177,12 +177,13 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
   ipcMain.handle("wb-project-patches-list", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
+    const statuses = Array.isArray(payload?.statuses) ? payload.statuses : undefined;
     const patches = patchStagingService.listStagedPatches(
       getUserDataPath,
       payload?.userId,
       projectId,
       taskId,
-      { status: payload?.status }
+      { status: payload?.status, statuses }
     );
     return patches.map(patchStagingService.patchToDiffPreview);
   });
