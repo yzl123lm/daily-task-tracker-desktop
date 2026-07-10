@@ -1,8 +1,8 @@
-const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v3";
+const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v4";
 
 const DEFAULT_PREFS = {
   projectWidthPx: 300,
-  agentWidthPx: 360,
+  agentWidthPx: 560,
   terminalHeightPx: 220,
   diffHeightPct: 42,
 };
@@ -10,8 +10,8 @@ const DEFAULT_PREFS = {
 const LIMITS = {
   projectMinPx: 260,
   projectMaxPx: 380,
-  agentMinPx: 320,
-  agentMaxPx: 420,
+  agentMinPx: 440,
+  agentMaxPx: 720,
   terminalMinPx: 120,
   terminalMaxPx: 480,
   diffMinPct: 20,
@@ -192,6 +192,7 @@ function bindWorkspaceResizers() {
   agentHandle?.setAttribute("aria-label", "调整 AI 助手栏宽度");
   bindDragHandle(agentHandle, (ev, prefs) => {
     const rect = layout.getBoundingClientRect();
+    // Agent 列为 runview 主区：相对 layout 左缘计算宽度
     prefs.agentWidthPx = clamp(
       ev.clientX - rect.left,
       LIMITS.agentMinPx,

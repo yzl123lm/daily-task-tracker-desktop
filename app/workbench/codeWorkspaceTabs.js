@@ -54,7 +54,7 @@ function ensureTabBar() {
   return bar;
 }
 
-function switchTab(tabId, { persist = true } = {}) {
+function switchTab(tabId, { persist = true, loadDiff = true } = {}) {
   const valid = TABS.some((t) => t.id === tabId);
   const active = valid ? tabId : "code";
   const panels = getPanels();
@@ -73,15 +73,19 @@ function switchTab(tabId, { persist = true } = {}) {
   if (persist) {
     saveActiveTab(active);
   }
-  if (active === "diff") {
-    window.__wbRenderDiffReviewPanel?.();
+  if (active === "diff" && loadDiff) {
+    if (typeof window.__wbOpenDiffReviewForCurrentTask === "function") {
+      void window.__wbOpenDiffReviewForCurrentTask({ forceReload: true });
+    } else {
+      window.__wbRenderDiffReviewPanel?.();
+    }
   }
 }
 
 function bindCodeWorkspaceTabs() {
   const bar = ensureTabBar();
   if (!bar || bar.dataset.bound === "1") {
-    switchTab(loadActiveTab(), { persist: false });
+    switchTab(loadActiveTab(), { persist: false, loadDiff: loadActiveTab() === "diff" });
     return;
   }
   bar.dataset.bound = "1";
@@ -90,14 +94,7 @@ function bindCodeWorkspaceTabs() {
     if (!btn?.dataset?.tab) {
       return;
     }
-    switchTab(btn.dataset.tab);
-    if (btn.dataset.tab === "diff") {
-      if (typeof window.__wbOpenDiffReviewForCurrentTask === "function") {
-        void window.__wbOpenDiffReviewForCurrentTask({ forceReload: true });
-      } else {
-        window.__wbRenderDiffReviewPanel?.();
-      }
-    }
+    switchTab(btn.dataset.tab, { loadDiff: btn.dataset.tab === "diff" });
     if (btn.dataset.tab === "test") {
       window.__wbRenderTestResultPanel?.();
     }
@@ -105,7 +102,7 @@ function bindCodeWorkspaceTabs() {
       void window.__wbRefreshGitChangePanel?.();
     }
   });
-  switchTab(loadActiveTab(), { persist: false });
+  switchTab(loadActiveTab(), { persist: false, loadDiff: loadActiveTab() === "diff" });
 }
 
 window.__wbBindCodeWorkspaceTabs = bindCodeWorkspaceTabs;

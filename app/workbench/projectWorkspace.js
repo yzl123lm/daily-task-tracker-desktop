@@ -60,9 +60,9 @@ function syncSelectedTaskId(taskId, { emitStore = true } = {}) {
   return id;
 }
 
-function taskStatusLabel(status) {
+function taskStatusLabel(status, currentStep = "") {
   if (window.__wbTaskStatus?.labelForTaskStatus) {
-    return window.__wbTaskStatus.labelForTaskStatus(status);
+    return window.__wbTaskStatus.labelForTaskStatus(status, currentStep);
   }
   const labels = window.__wbTaskStatus?.TASK_STATUS_LABELS || {};
   return labels[status] || status;
@@ -152,7 +152,7 @@ function renderPlanCard(output) {
       "plan"
     );
     window.__wbRenderDiffReviewPanel?.();
-    window.__wbSwitchCodeTab?.("diff");
+    window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
   }
 }
 
@@ -721,13 +721,13 @@ function resolveTaskDisplayStatus(task, phase = composerPhase) {
   if (phase === "written") {
     return "已写入";
   }
-  if (step.includes("等待写入")) {
-    return "等待写入审批";
+  if (step.includes("等待写入") || step.includes("已接受")) {
+    return "等待写入";
   }
   if (step.includes("验证")) {
     return "测试中";
   }
-  return taskStatusLabel(task?.status);
+  return taskStatusLabel(task?.status, step);
 }
 
 function resolveComposerActionConfig(phase = composerPhase) {
@@ -1199,7 +1199,8 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
     syncSelectedTaskId(taskId);
   }
   const reviewStore = window.__wbCodeReviewStore;
-  window.__wbSwitchCodeTab?.("diff");
+  // 先切 Tab，避免 switchTab 再递归调用本函数
+  window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
   if (!projectId || !taskId) {
     // 再尝试从任务列表唯一/待审阅任务回退一次
     const tasks = window.__wbStore?.getState?.().tasks || [];
@@ -1224,7 +1225,10 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
   syncSelectedTaskId(taskId);
   let patches = [];
   try {
-    patches = (await reviewStore?.syncFromStagedPatches?.(projectId, taskId)) || [];
+    patches =
+      (await reviewStore?.syncFromStagedPatches?.(projectId, taskId, {
+        statuses: ["STAGED", "ACCEPTED", "REVISION_REQUESTED", "APPLIED"],
+      })) || [];
   } catch (err) {
     reviewStore?.setLoadError?.(projectId, taskId, err?.message || "Diff 加载失败");
     window.__wbRenderDiffReviewPanel?.();
@@ -1248,7 +1252,12 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
     showComposerToast("当前任务还没有可审阅的 Diff", { type: "warn" });
     return [];
   }
-  updateComposerUi("diff_ready");
+  const accepted = reviewStore?.getAcceptedChanges?.(projectId, taskId) || [];
+  if (accepted.length > 0) {
+    updateComposerUi("diff_accepted");
+  } else {
+    updateComposerUi("diff_ready");
+  }
   if (!forceReload) {
     showComposerToast(`已加载 ${patches.length} 个代码变更，请审阅`, { type: "success" });
   }
@@ -1301,12 +1310,11 @@ async function proposeCodePatches({ mutexRetry = false } = {}) {
     if (diffCount > 0) {
       composerPhase = "diff_ready";
       window.__wbActivityFeed?.pushDiffSummary?.(synced || []);
-      window.__wbSwitchCodeTab?.("diff");
-      window.__wbRenderDiffReviewPanel?.();
+      await openDiffReviewForCurrentTask({ forceReload: true });
       showComposerToast(`已生成 ${diffCount} 个代码变更，请审阅 Diff`, { type: "success" });
     } else {
       composerPhase = "patch_empty";
-      window.__wbSwitchCodeTab?.("diff");
+      window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
       window.__wbRenderDiffReviewPanel?.();
       showComposerToast(result.output?.note || "AI 未生成代码变更，请重新生成", { type: "error" });
     }
@@ -1385,8 +1393,7 @@ async function runComposerVerification() {
       upsertComposerStep("run_verify", "error", "验证失败，已生成修复 Diff");
       upsertComposerStep("fix_failure", "pending");
       await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-      window.__wbRenderDiffReviewPanel?.();
-      window.__wbSwitchCodeTab?.("diff");
+      await openDiffReviewForCurrentTask({ forceReload: true });
       updateComposerUi("diff_ready");
       showComposerToast("验证失败，请审阅修复 Diff", { type: "warn" });
     } else {
@@ -1613,6 +1620,11 @@ async function loadTaskContext(projectId, taskId) {
   updateComposerUi(composerPhase);
   renderTaskDetail(latestTask);
   window.__wbRenderDiffReviewPanel?.();
+  // 有 staged patch 时自动把详情区切到 Diff 并确保 store 已绑定
+  if (synced?.length && (composerPhase === "diff_ready" || composerPhase === "diff_accepted")) {
+    window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
+    window.__wbRenderDiffReviewPanel?.();
+  }
   await window.__wbRefreshCodePanel?.(projectId, resolvedTaskId);
 }
 
@@ -1649,7 +1661,7 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
     item.className = "wb-task-item";
     item.dataset.taskId = task.id;
     item.classList.toggle("is-active", task.id === activeId);
-    const statusLabel = taskStatusLabel(task.status);
+    const statusLabel = taskStatusLabel(task.status, task.currentStep);
     item.innerHTML = `
       <div class="wb-task-item__main">
         <span class="wb-task-item__title">${escapeHtml(task.title)}</span>

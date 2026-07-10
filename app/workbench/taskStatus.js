@@ -32,7 +32,7 @@ const TASK_STATUS_LABELS = {
   DRAFT: "草稿",
   REQUIREMENT: "需求确认",
   PLANNING: "方案生成",
-  WAITING_APPROVAL: "等待写入审批",
+  WAITING_APPROVAL: "变更待审阅",
   REVIEWING: "变更待审阅",
   DEVELOPING: "开发中",
   APPLYING: "写入中",
@@ -52,8 +52,28 @@ function normalizeTaskStatus(status) {
   return LEGACY_STATUS_MAP[s] || s || TASK_STATUS.CREATED;
 }
 
-function labelForTaskStatus(status) {
+/**
+ * Prefer currentStep when it clarifies WAITING_APPROVAL (Diff 审阅 vs 写入审批).
+ */
+function labelForTaskStatus(status, currentStep = "") {
   const normalized = normalizeTaskStatus(status);
+  const step = String(currentStep || "");
+  if (normalized === TASK_STATUS.WAITING_APPROVAL) {
+    if (step.includes("写入") || step.includes("已接受")) {
+      return "等待写入";
+    }
+    if (step.includes("变更待审阅") || step.includes("审阅") || !step) {
+      return "变更待审阅";
+    }
+  }
+  if (normalized === TASK_STATUS.PLANNING) {
+    if (step.includes("方案待确认")) {
+      return "方案待确认";
+    }
+    if (step.includes("未生成变更")) {
+      return "未生成变更";
+    }
+  }
   return TASK_STATUS_LABELS[normalized] || TASK_STATUS_LABELS[status] || status;
 }
 

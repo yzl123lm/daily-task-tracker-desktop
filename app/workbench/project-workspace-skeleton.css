@@ -387,9 +387,9 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   padding: 0;
   align-content: stretch;
   align-items: stretch;
-  --wb-pws-agent-width: 360px;
+  --wb-pws-agent-width: 560px;
   --wb-pws-terminal-height: 220px;
-  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, var(--wb-pws-agent-width)) minmax(420px, 0.9fr);
   grid-template-rows: minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "assistant main"
@@ -399,7 +399,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 body.wb-pws-sidebar-mounted .wb-pws-layout,
 body.wb-pws-sidebar-mounted .wb-ai-workbench-layout {
-  grid-template-columns: var(--wb-pws-agent-width) minmax(0, 1fr);
+  grid-template-columns: minmax(440px, var(--wb-pws-agent-width)) minmax(420px, 0.9fr);
   grid-template-areas:
     "assistant main"
     "terminal terminal";
@@ -968,7 +968,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 @media (min-width: 1024px) and (max-width: 1279px) {
   .wb-pws-layout,
   .wb-ai-workbench-layout {
-    --wb-pws-agent-width: 340px;
+    --wb-pws-agent-width: 480px;
     grid-template-rows: minmax(0, 1fr) 210px;
   }
 

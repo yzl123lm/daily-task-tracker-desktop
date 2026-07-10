@@ -155,6 +155,22 @@
   background: #ffffff;
 }
 
+.wb-activity-item--compact {
+  padding: 6px 8px;
+  gap: 6px;
+}
+
+.wb-activity-item--compact .wb-activity-item__summary {
+  margin-top: 0;
+  font-size: 11px;
+}
+
+.wb-activity-item__summary--one {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .wb-activity-item.is-running {
   border-color: #93c5fd;
   background: #f0f7ff;

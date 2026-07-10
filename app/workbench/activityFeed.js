@@ -3,8 +3,10 @@
  * Data comes from agent events / composer steps / staged patches.
  */
 (function () {
-  const MAX_FEED_ITEMS = 120;
-  let feedItems = [];
+  const MAX_FEED_ITEMS = 80;
+  const DIFF_CARD_ID = "diff_card_current";
+  /** @type {Map<string, object>} */
+  const agentEventMap = new Map();
   let feedBound = false;
 
   function escapeHtml(text) {
@@ -46,7 +48,7 @@
     const map = {
       success: "完成",
       failed: "失败",
-      waiting: "等待确认",
+      waiting: "等待审阅",
       running: "进行中",
       queued: "等待中",
       canceled: "已取消",
@@ -69,9 +71,9 @@
       return "–";
     }
     if (cls === "running") {
-      return "…";
+      return "●";
     }
-    return "·";
+    return "○";
   }
 
   function formatTime(isoOrMs) {
@@ -87,6 +89,17 @@
       minute: "2-digit",
       second: "2-digit",
     });
+  }
+
+  function formatDuration(ms) {
+    if (ms == null || Number.isNaN(Number(ms))) {
+      return "";
+    }
+    const n = Number(ms);
+    if (n < 1000) {
+      return `${Math.max(0, Math.round(n))}ms`;
+    }
+    return `${(n / 1000).toFixed(1)}s`;
   }
 
   function toolSummary(toolName, inputSummary, outputSummary, fallback) {
@@ -116,13 +129,57 @@
     return labels[name] || (name ? `调用 ${name}` : "");
   }
 
+  function isDiffWaitingPayload(payload) {
+    if (!payload) {
+      return false;
+    }
+    const stepKey = payload.stepKey || "";
+    const phase = payload.phase || "";
+    const tool = payload.toolName || "";
+    if (payload.kind === "diff") {
+      return true;
+    }
+    if (stepKey === "await_diff" || (stepKey === "generate_patch" && payload.status === "waiting")) {
+      return true;
+    }
+    if (phase === "WAITING_REVIEW") {
+      return true;
+    }
+    if (tool === "stage_patch" && (payload.status === "success" || payload.status === "waiting")) {
+      return true;
+    }
+    return false;
+  }
+
+  function getAgentEventKey(event) {
+    if (!event) {
+      return `anon_${Date.now()}`;
+    }
+    if (isDiffWaitingPayload(event) || event.kind === "diff") {
+      return DIFF_CARD_ID;
+    }
+    if (event.eventId) {
+      return String(event.eventId);
+    }
+    if (event.patchId || event.stagedPatchId) {
+      return `patch_${event.patchId || event.stagedPatchId}`;
+    }
+    if (event.id && String(event.id).startsWith("composer_")) {
+      // composer steps: stable by step id (strip status so running→success updates)
+      return String(event.id);
+    }
+    const step = event.stepKey || event.toolName || event.phase || "step";
+    // Same phase/tool within a run merges; status changes update in place
+    return `${event.agentRunId || "local"}:${event.phase || ""}:${step}`;
+  }
+
   function inferKind(payload) {
+    if (isDiffWaitingPayload(payload)) {
+      return "diff";
+    }
     const stepKey = payload.stepKey || "";
     const tool = payload.toolName || "";
     const phase = payload.phase || "";
-    if (tool === "stage_patch" || stepKey === "generate_patch" || stepKey === "await_diff") {
-      return "diff";
-    }
     if (stepKey === "plan_ready" || stepKey === "generate_plan" || phase === "PLANNING") {
       return "plan";
     }
@@ -140,9 +197,6 @@
       payload.stepKey ||
       payload.phase ||
       (payload.toolName ? `tool_${payload.toolName}` : "step");
-    const eventId =
-      payload.eventId ||
-      `${payload.agentRunId || "local"}_${stepKey}_${payload.status || ""}_${payload.startedAt || payload.at || Date.now()}`;
     const kind = inferKind(payload);
     const title = strip(payload.title || payload.label || stepKey);
     const summary = toolSummary(
@@ -151,8 +205,9 @@
       payload.toolOutputSummary,
       payload.summary || payload.detail || payload.error || ""
     );
+    const id = getAgentEventKey({ ...payload, kind, stepKey });
     return {
-      id: eventId,
+      id,
       kind,
       stepKey,
       phase: payload.phase || "",
@@ -170,48 +225,61 @@
       durationMs: payload.durationMs || null,
       files: Array.isArray(payload.files) ? payload.files : [],
       diffCount: payload.diffCount || 0,
+      agentRunId: payload.agentRunId || null,
+      patchId: payload.patchId || payload.stagedPatchId || null,
+      eventId: payload.eventId || null,
     };
   }
 
-  function upsertFeedItem(item) {
+  function feedItemsFromMap() {
+    return [...agentEventMap.values()];
+  }
+
+  function upsertAgentEvent(event) {
+    const item = event?.id ? event : normalizeFeedItem(event);
     if (!item?.id) {
       return;
     }
-    const idx = feedItems.findIndex((x) => x.id === item.id);
-    if (idx >= 0) {
-      feedItems[idx] = { ...feedItems[idx], ...item };
+    const key = item.id;
+    const old = agentEventMap.get(key);
+    if (old) {
+      agentEventMap.set(key, {
+        ...old,
+        ...item,
+        // Keep earliest timestamp for stable sort; refresh status/summary
+        at: old.at || item.at,
+        files: item.files?.length ? item.files : old.files,
+        diffCount: item.diffCount || old.diffCount,
+        title: item.title || old.title,
+        summary: item.summary || old.summary,
+      });
     } else {
-      feedItems.push(item);
-      if (feedItems.length > MAX_FEED_ITEMS) {
-        feedItems = feedItems.slice(-MAX_FEED_ITEMS);
+      agentEventMap.set(key, item);
+      if (agentEventMap.size > MAX_FEED_ITEMS) {
+        const keys = [...agentEventMap.keys()];
+        keys.slice(0, keys.length - MAX_FEED_ITEMS).forEach((k) => {
+          if (k !== DIFF_CARD_ID) {
+            agentEventMap.delete(k);
+          }
+        });
       }
     }
   }
 
   function resetActivityFeed() {
-    feedItems = [];
+    agentEventMap.clear();
     renderActivityFeed();
   }
 
-  const DIFF_CARD_ID = "diff_card_current";
-
-  function isDiffWaitingItem(item) {
-    return (
-      item.kind === "diff" ||
-      item.stepKey === "await_diff" ||
-      (item.status === "waiting" && item.phase === "WAITING_REVIEW")
-    );
-  }
-
   function upsertDiffCard(partial) {
-    const existing = feedItems.find((x) => x.id === DIFF_CARD_ID);
+    const existing = agentEventMap.get(DIFF_CARD_ID);
     const next = {
       id: DIFF_CARD_ID,
       kind: "diff",
       stepKey: "await_diff",
       phase: "WAITING_REVIEW",
       status: "waiting",
-      title: partial.title || existing?.title || "代码变更待审阅",
+      title: partial.title || existing?.title || "已生成代码变更",
       summary: partial.summary || existing?.summary || "请在 Diff 审阅面板确认变更",
       toolName: null,
       toolInputSummary: "",
@@ -224,11 +292,12 @@
       durationMs: partial.durationMs || existing?.durationMs || null,
       files: Array.isArray(partial.files) && partial.files.length ? partial.files : existing?.files || [],
       diffCount: partial.diffCount || existing?.diffCount || (partial.files?.length || 0),
+      patchId: partial.patchId || existing?.patchId || null,
     };
     if (partial.status) {
       next.status = partial.status === "running" ? "waiting" : partial.status;
     }
-    upsertFeedItem(next);
+    upsertAgentEvent(next);
   }
 
   function pushAgentEvent(payload) {
@@ -236,21 +305,21 @@
     if (!item) {
       return;
     }
-    // Diff 待审阅：合并为唯一卡片，避免时间戳 ID 重复堆叠
-    if (isDiffWaitingItem(item)) {
+    if (item.kind === "diff" || isDiffWaitingPayload(payload)) {
       upsertDiffCard({
-        title: item.title,
+        title: item.title?.includes("变更") ? item.title : `已生成代码变更`,
         summary: item.summary,
-        status: item.status,
+        status: item.status === "success" ? "waiting" : item.status,
         files: item.files,
         diffCount: item.diffCount,
         at: item.at,
         detail: item.detail,
+        patchId: item.patchId,
       });
       renderActivityFeed();
       return;
     }
-    upsertFeedItem(item);
+    upsertAgentEvent(item);
     renderActivityFeed();
   }
 
@@ -258,8 +327,7 @@
     if (!step?.id) {
       return;
     }
-    // await_diff 步骤只更新唯一 Diff 卡，不另插步骤行
-    if (step.id === "await_diff") {
+    if (step.id === "await_diff" || (step.id === "generate_patch" && step.status === "waiting")) {
       upsertDiffCard({
         title: step.label || "等待用户审阅 Diff",
         summary: step.detail || "",
@@ -290,6 +358,11 @@
         c.changeType === "add" ? "新增" : c.changeType === "delete" ? "删除" : "修改";
       return `${c.path || "file"} · ${type} (+${c.additions || 0}/-${c.deletions || 0})`;
     });
+    const patchKey = list
+      .map((c) => c.stagedPatchId || c.id)
+      .filter(Boolean)
+      .sort()
+      .join("_");
     upsertDiffCard({
       title: `已生成 ${list.length} 个代码变更`,
       summary: lines.join("\n"),
@@ -303,6 +376,7 @@
         id: c.id,
       })),
       diffCount: list.length,
+      patchId: patchKey || null,
       at: new Date().toISOString(),
     });
     renderActivityFeed();
@@ -314,19 +388,20 @@
       if (!item) {
         return;
       }
-      if (isDiffWaitingItem(item)) {
+      if (item.kind === "diff" || isDiffWaitingPayload(ev)) {
         upsertDiffCard({
           title: item.title,
           summary: item.summary,
-          status: item.status,
+          status: item.status === "success" ? "waiting" : item.status,
           files: item.files,
           diffCount: item.diffCount,
           at: item.at,
           detail: item.detail,
+          patchId: item.patchId,
         });
         return;
       }
-      upsertFeedItem(item);
+      upsertAgentEvent(item);
     });
     renderActivityFeed();
   }
@@ -358,19 +433,20 @@
             </li>`;
           })
           .join("")
-      : `<li class="wb-activity-diff__file"><span>${escapeHtml(item.summary || "有可审阅 Diff")}</span></li>`;
+      : "";
     return `
-      <article class="wb-activity-item wb-activity-item--diff is-${escapeHtml(statusClass(item.status))}" data-feed-id="${escapeHtml(item.id)}">
+      <article class="wb-activity-item wb-activity-item--diff wb-activity-item--compact is-${escapeHtml(statusClass(item.status))}" data-feed-id="${escapeHtml(item.id)}">
         <div class="wb-activity-item__rail"><span class="wb-activity-item__dot">${statusIcon(statusClass(item.status))}</span></div>
         <div class="wb-activity-item__body">
           <header class="wb-activity-item__head">
-            <strong class="wb-activity-item__title">${escapeHtml(item.title)}</strong>
+            <strong class="wb-activity-item__title">${escapeHtml(item.title || "已生成代码变更")}</strong>
             <span class="wb-activity-item__status">${escapeHtml(statusLabel(statusClass(item.status)))}</span>
             <time class="wb-activity-item__time">${escapeHtml(formatTime(item.at))}</time>
           </header>
-          <ul class="wb-activity-diff__files">${fileRows}</ul>
+          ${fileRows ? `<ul class="wb-activity-diff__files">${fileRows}</ul>` : item.summary ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>` : ""}
           <div class="wb-activity-diff__actions">
-            <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-open-diff">查看完整 Diff</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-open-diff">查看 Diff</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-revise-diff">需修改</button>
           </div>
         </div>
       </article>
@@ -380,26 +456,39 @@
   function renderStepCard(item) {
     const cls = statusClass(item.status);
     const hasDetail = Boolean(item.toolInputSummary || item.toolOutputSummary || item.detail || item.error);
-    const toolBadge = item.toolName
-      ? `<span class="wb-activity-item__tool">${escapeHtml(item.toolName)}</span>`
-      : "";
+    const expandDefault = cls === "running" || cls === "waiting" || cls === "failed";
+    const dur = formatDuration(item.durationMs);
+    const toolLine =
+      item.kind === "tool" && item.toolName
+        ? `<span class="wb-activity-item__tool">${escapeHtml(item.toolName)}</span>`
+        : "";
+    const compactSummary =
+      item.kind === "tool" && cls === "success"
+        ? `<p class="wb-activity-item__summary wb-activity-item__summary--one">${escapeHtml(
+            `调用 ${item.toolName}${dur ? ` · ${dur}` : ""}${item.summary ? ` · ${item.summary}` : ""}`
+          )}</p>`
+        : item.summary && cls !== "success"
+          ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>`
+          : item.summary && item.kind !== "tool"
+            ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>`
+            : "";
     return `
-      <article class="wb-activity-item wb-activity-item--${escapeHtml(item.kind)} is-${escapeHtml(cls)}" data-feed-id="${escapeHtml(item.id)}">
+      <article class="wb-activity-item wb-activity-item--${escapeHtml(item.kind)} wb-activity-item--compact is-${escapeHtml(cls)}" data-feed-id="${escapeHtml(item.id)}">
         <div class="wb-activity-item__rail">
           <span class="wb-activity-item__dot ${cls === "running" ? "is-spin" : ""}">${statusIcon(cls)}</span>
         </div>
         <div class="wb-activity-item__body">
           <header class="wb-activity-item__head">
             <strong class="wb-activity-item__title">${escapeHtml(item.title)}</strong>
-            ${toolBadge}
-            <span class="wb-activity-item__status">${escapeHtml(statusLabel(cls))}</span>
+            ${toolLine}
+            <span class="wb-activity-item__status">${escapeHtml(statusLabel(cls))}${dur && cls === "success" ? ` · ${escapeHtml(dur)}` : ""}</span>
             <time class="wb-activity-item__time">${escapeHtml(formatTime(item.at))}</time>
           </header>
-          ${item.summary ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>` : ""}
+          ${item.kind === "tool" && cls === "success" ? compactSummary : item.kind !== "tool" ? compactSummary : ""}
           ${
             hasDetail
-              ? `<details class="wb-activity-item__details">
-                  <summary>查看详情</summary>
+              ? `<details class="wb-activity-item__details"${expandDefault ? " open" : ""}>
+                  <summary>详情</summary>
                   <pre class="wb-activity-item__pre">${escapeHtml(
                     [item.toolInputSummary, item.toolOutputSummary, item.detail, item.error]
                       .filter(Boolean)
@@ -423,13 +512,18 @@
     if (!mount) {
       return;
     }
+    const feedItems = feedItemsFromMap();
     if (!feedItems.length) {
       renderEmpty(mount);
       return;
     }
     const sorted = [...feedItems].sort((a, b) => String(a.at).localeCompare(String(b.at)));
     mount.innerHTML = sorted
-      .map((item) => (item.kind === "diff" && (item.files?.length || item.diffCount) ? renderDiffCard(item) : renderStepCard(item)))
+      .map((item) =>
+        item.kind === "diff" && (item.files?.length || item.diffCount || item.status === "waiting")
+          ? renderDiffCard(item)
+          : renderStepCard(item)
+      )
       .join("");
     bindFeedActions(mount);
     mount.scrollTop = mount.scrollHeight;
@@ -438,7 +532,13 @@
   function bindFeedActions(mount) {
     mount.querySelectorAll(".wb-activity-open-diff").forEach((btn) => {
       btn.addEventListener("click", () => {
-        void window.__wbOpenDiffReviewForCurrentTask?.();
+        void window.__wbOpenDiffReviewForCurrentTask?.({ forceReload: true });
+      });
+    });
+    mount.querySelectorAll(".wb-activity-revise-diff").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        void window.__wbOpenDiffReviewForCurrentTask?.({ forceReload: true });
+        window.__wbShowComposerToast?.("请在 Diff 审阅面板标记「需修改」", { type: "info" });
       });
     });
     mount.querySelectorAll(".wb-activity-diff__file").forEach((row) => {
@@ -450,7 +550,7 @@
         if (changeId && projectId && taskId) {
           window.__wbCodeReviewStore?.setSelectedChange?.(projectId, taskId, changeId);
         }
-        void window.__wbOpenDiffReviewForCurrentTask?.();
+        void window.__wbOpenDiffReviewForCurrentTask?.({ forceReload: true });
       });
     });
     mount.querySelectorAll(".wb-activity-open-plan").forEach((btn) => {
@@ -487,7 +587,7 @@
     }
     feedBound = true;
     const mount = getFeedMount();
-    if (mount && !feedItems.length) {
+    if (mount && !agentEventMap.size) {
       renderEmpty(mount);
     }
   }
@@ -501,6 +601,7 @@
     render: renderActivityFeed,
     updateHeader: updateRunHeader,
     bind: bindActivityFeed,
-    getItems: () => [...feedItems],
+    getItems: () => feedItemsFromMap(),
+    getAgentEventKey,
   };
 })();

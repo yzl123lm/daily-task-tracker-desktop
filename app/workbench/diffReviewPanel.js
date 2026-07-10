@@ -195,7 +195,10 @@ function renderEmptyDiffState(panel, empty) {
   panel.hidden = false;
   panel.innerHTML = `
     <header class="wb-diff-review__head">
-      <div><h3>Diff 审阅</h3><p class="wb-diff-review__meta">暂无待审阅变更</p></div>
+      <div>
+        <h3>Diff 审阅</h3>
+        <p class="wb-diff-review__meta">${escapeHtml(empty.title || "暂无待审阅变更")}</p>
+      </div>
     </header>
     <div class="wb-diff-review__empty-card">
       <h4 class="wb-diff-review__empty-title">${escapeHtml(empty.title)}</h4>
@@ -236,6 +239,8 @@ function renderDiffReviewPanel() {
   }
   const state = reviewStore.getState(projectId, taskId);
   if (!state.changes.length) {
+    // 有任务但 store 空：区分「未加载」与「确实无 patch」——优先尝试一次静默同步由 openTaskDiff 负责；
+    // 此处只渲染明确空态，避免误报「请选择任务」
     renderEmptyDiffState(panel, resolveEmptyState({ projectId, taskId, state, task }));
     return;
   }
