@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "18";
+const WB_PWS_LAYOUT_VERSION = "19";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -70,20 +70,28 @@ const WB_PWS_LAYOUT_HTML = `
       <button type="button" id="wbPwsLayoutResetBtn" tabindex="-1"></button>
       <button type="button" id="wbCompressBtn" tabindex="-1"></button>
     </div>
-    <section class="wb-pws-agent-col wb-pws-assistant-col" id="wbPwsAgentCol" aria-label="AI 助手">
-      <header class="wb-pws-agent-header">
-        <div id="wbTaskDetail" class="wb-pws-agent-header__task" hidden>
-          <h4 class="wb-pws-user-card__title">当前任务</h4>
-          <p id="wbTaskDetailDesc" class="wb-pws-user-card__desc"></p>
-          <p id="wbTaskDetailStep" class="wb-pws-user-card__step"></p>
+    <section class="wb-pws-agent-col wb-pws-assistant-col wb-agent-run-view" id="wbPwsAgentCol" aria-label="AI 助手">
+      <header class="wb-pws-agent-header wb-agent-run-header">
+        <div id="wbTaskDetail" class="wb-pws-agent-header__task wb-agent-run-header__task" hidden>
+          <div class="wb-agent-run-header__top">
+            <h4 id="wbAgentRunTitle" class="wb-agent-run-header__title">当前任务</h4>
+            <span id="wbAgentRunMode" class="wb-agent-run-header__mode" hidden></span>
+          </div>
+          <p id="wbAgentRunStatus" class="wb-agent-run-header__status" hidden></p>
+          <p id="wbTaskDetailDesc" class="wb-pws-user-card__desc wb-agent-run-header__desc"></p>
+          <p id="wbTaskDetailStep" class="wb-pws-user-card__step" hidden></p>
         </div>
+        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">输入下方 AI 指令并开始执行，执行过程将在此以 Activity Feed 展示。</p>
       </header>
-      <div class="wb-pws-agent-scroll">
-        <div class="wb-pws-panel wb-pws-panel--timeline">
-          <header class="wb-pws-panel__head">
-            <h3>Agent 执行 Timeline</h3>
+      <div class="wb-pws-agent-scroll wb-agent-activity-scroll">
+        <div class="wb-agent-activity-panel" aria-label="Agent 执行流">
+          <header class="wb-agent-activity-panel__head">
+            <h3>Agent 执行流</h3>
+            <button type="button" id="wbActivityOpenLogBtn" class="wb-pws-btn wb-pws-btn--ghost" title="打开执行日志">日志</button>
           </header>
-          <ol id="wbAgentRuns" class="wb-pws-timeline" role="list"></ol>
+          <div id="wbAgentActivityFeed" class="wb-agent-activity-feed" role="log" aria-live="polite"></div>
+          <!-- 兼容旧 Timeline 挂载点：隐藏但保留 ID，供历史逻辑写入 -->
+          <ol id="wbAgentRuns" class="wb-pws-timeline wb-agent-runs-legacy" hidden aria-hidden="true"></ol>
         </div>
         <div id="wbPwsApprovalMount" class="wb-pws-approval-mount"></div>
         <div id="wbPlanCard" class="wb-plan-card wb-pws-plan-card" hidden></div>
@@ -96,7 +104,7 @@ const WB_PWS_LAYOUT_HTML = `
           <div id="wbSnapshotHistory" class="wb-snapshot-history-panel"></div>
         </details>
       </div>
-      <div class="wb-pws-agent-composer wb-ai-command">
+      <div class="wb-pws-agent-composer wb-ai-command wb-agent-run-actions">
         <div class="wb-ai-command__header">
           <span class="wb-ai-command__title">AI 指令</span>
           <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" title="上下文健康度，点击查看快照历史" aria-label="上下文健康度"></button>
