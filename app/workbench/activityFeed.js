@@ -193,32 +193,80 @@
     renderActivityFeed();
   }
 
+  const DIFF_CARD_ID = "diff_card_current";
+
+  function isDiffWaitingItem(item) {
+    return (
+      item.kind === "diff" ||
+      item.stepKey === "await_diff" ||
+      (item.status === "waiting" && item.phase === "WAITING_REVIEW")
+    );
+  }
+
+  function upsertDiffCard(partial) {
+    const existing = feedItems.find((x) => x.id === DIFF_CARD_ID);
+    const next = {
+      id: DIFF_CARD_ID,
+      kind: "diff",
+      stepKey: "await_diff",
+      phase: "WAITING_REVIEW",
+      status: "waiting",
+      title: partial.title || existing?.title || "代码变更待审阅",
+      summary: partial.summary || existing?.summary || "请在 Diff 审阅面板确认变更",
+      toolName: null,
+      toolInputSummary: "",
+      toolOutputSummary: "",
+      detail: partial.detail || existing?.detail || "",
+      error: "",
+      at: existing?.at || partial.at || new Date().toISOString(),
+      startedAt: existing?.startedAt || partial.startedAt || null,
+      endedAt: partial.endedAt || existing?.endedAt || null,
+      durationMs: partial.durationMs || existing?.durationMs || null,
+      files: Array.isArray(partial.files) && partial.files.length ? partial.files : existing?.files || [],
+      diffCount: partial.diffCount || existing?.diffCount || (partial.files?.length || 0),
+    };
+    if (partial.status) {
+      next.status = partial.status === "running" ? "waiting" : partial.status;
+    }
+    upsertFeedItem(next);
+  }
+
   function pushAgentEvent(payload) {
     const item = normalizeFeedItem(payload);
     if (!item) {
       return;
     }
-    upsertFeedItem(item);
-    // Diff waiting: ensure a dedicated card exists
-    if (
-      item.kind === "diff" ||
-      item.stepKey === "await_diff" ||
-      (item.status === "waiting" && item.phase === "WAITING_REVIEW")
-    ) {
-      upsertFeedItem({
-        ...item,
-        id: `diff_card_${item.stepKey}_${item.at}`,
-        kind: "diff",
-        title: item.title || "代码变更待审阅",
-        summary: item.summary || "请在 Diff 审阅面板确认变更",
-        status: item.status === "running" ? "waiting" : item.status,
+    // Diff 待审阅：合并为唯一卡片，避免时间戳 ID 重复堆叠
+    if (isDiffWaitingItem(item)) {
+      upsertDiffCard({
+        title: item.title,
+        summary: item.summary,
+        status: item.status,
+        files: item.files,
+        diffCount: item.diffCount,
+        at: item.at,
+        detail: item.detail,
       });
+      renderActivityFeed();
+      return;
     }
+    upsertFeedItem(item);
     renderActivityFeed();
   }
 
   function pushComposerStep(step) {
     if (!step?.id) {
+      return;
+    }
+    // await_diff 步骤只更新唯一 Diff 卡，不另插步骤行
+    if (step.id === "await_diff") {
+      upsertDiffCard({
+        title: step.label || "等待用户审阅 Diff",
+        summary: step.detail || "",
+        status: step.status === "done" ? "success" : "waiting",
+        at: step.at,
+      });
+      renderActivityFeed();
       return;
     }
     pushAgentEvent({
@@ -242,13 +290,10 @@
         c.changeType === "add" ? "新增" : c.changeType === "delete" ? "删除" : "修改";
       return `${c.path || "file"} · ${type} (+${c.additions || 0}/-${c.deletions || 0})`;
     });
-    pushAgentEvent({
-      eventId: `diff_summary_${list.map((c) => c.stagedPatchId || c.id).join("_")}`,
-      stepKey: "await_diff",
-      phase: "WAITING_REVIEW",
-      status: "waiting",
+    upsertDiffCard({
       title: `已生成 ${list.length} 个代码变更`,
       summary: lines.join("\n"),
+      status: "waiting",
       files: list.map((c) => ({
         path: c.path,
         changeType: c.changeType,
@@ -260,14 +305,28 @@
       diffCount: list.length,
       at: new Date().toISOString(),
     });
+    renderActivityFeed();
   }
 
   function hydrateFromEvents(events) {
     (events || []).forEach((ev) => {
       const item = normalizeFeedItem(ev);
-      if (item) {
-        upsertFeedItem(item);
+      if (!item) {
+        return;
       }
+      if (isDiffWaitingItem(item)) {
+        upsertDiffCard({
+          title: item.title,
+          summary: item.summary,
+          status: item.status,
+          files: item.files,
+          diffCount: item.diffCount,
+          at: item.at,
+          detail: item.detail,
+        });
+        return;
+      }
+      upsertFeedItem(item);
     });
     renderActivityFeed();
   }
