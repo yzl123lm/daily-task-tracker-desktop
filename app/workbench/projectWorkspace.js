@@ -10,18 +10,30 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
-/** 统一解析当前任务 ID：store > DOM dataset > 激活项 > 唯一任务回退 */
+/** 统一解析当前任务 ID：store > DOM dataset > 激活项 > 执行流头部 > 唯一任务回退 */
 function resolveCurrentTaskId({ preferTaskId = null } = {}) {
   const store = window.__wbStore?.getState?.() || {};
   const list = document.getElementById("wbTaskList");
+  const detail = document.getElementById("wbTaskDetail");
+  const agentCol = document.getElementById("wbPwsAgentCol");
   const fromPrefer = preferTaskId ? String(preferTaskId) : "";
   const fromStore = store.selectedTaskId ? String(store.selectedTaskId) : "";
   const fromDataset = list?.dataset?.selectedTaskId ? String(list.dataset.selectedTaskId) : "";
   const fromActive = list?.querySelector?.(".wb-task-item.is-active")?.dataset?.taskId || "";
+  const fromHeader =
+    detail?.dataset?.taskId ||
+    agentCol?.dataset?.taskId ||
+    document.getElementById("wbAgentRunTitle")?.dataset?.taskId ||
+    "";
   const tasks = Array.isArray(store.tasks) ? store.tasks : [];
-  const candidates = [fromPrefer, fromStore, fromDataset, fromActive].filter(Boolean);
+  const candidates = [fromPrefer, fromStore, fromDataset, fromActive, fromHeader].filter(Boolean);
   for (const id of candidates) {
+    // 即使 tasks 暂未加载，也信任已同步的选中 ID（避免 Diff 打开瞬间被清空）
     if (!tasks.length || tasks.some((t) => t && t.id === id)) {
+      return id;
+    }
+    // tasks 已加载但不含该 id：仍返回候选，交给调用方再校验（防止误报无任务）
+    if (fromPrefer === id || fromHeader === id) {
       return id;
     }
   }
@@ -38,9 +50,26 @@ function resolveCurrentTaskId({ preferTaskId = null } = {}) {
   return waiting?.id ? String(waiting.id) : null;
 }
 
-function syncSelectedTaskId(taskId, { emitStore = true } = {}) {
+function resolveCurrentProjectId({ preferProjectId = null } = {}) {
+  const store = window.__wbStore?.getState?.() || {};
+  const detail = document.getElementById("wbTaskDetail");
+  const agentCol = document.getElementById("wbPwsAgentCol");
+  const fromPrefer = preferProjectId ? String(preferProjectId) : "";
+  const fromStore = store.selectedProjectId ? String(store.selectedProjectId) : "";
+  const fromHeader = detail?.dataset?.projectId || agentCol?.dataset?.projectId || "";
+  return fromPrefer || fromStore || fromHeader || null;
+}
+
+function syncSelectedTaskId(taskId, { emitStore = true, projectId = null } = {}) {
   const id = taskId ? String(taskId) : null;
   const list = document.getElementById("wbTaskList");
+  const detail = document.getElementById("wbTaskDetail");
+  const agentCol = document.getElementById("wbPwsAgentCol");
+  const pid =
+    projectId ||
+    window.__wbStore?.getState?.().selectedProjectId ||
+    detail?.dataset?.projectId ||
+    null;
   if (list) {
     if (id) {
       list.dataset.selectedTaskId = id;
@@ -52,10 +81,38 @@ function syncSelectedTaskId(taskId, { emitStore = true } = {}) {
       list.querySelectorAll(".wb-task-item").forEach((el) => el.classList.remove("is-active"));
     }
   }
+  if (detail) {
+    if (id) {
+      detail.dataset.taskId = id;
+      if (pid) {
+        detail.dataset.projectId = String(pid);
+      }
+    } else {
+      delete detail.dataset.taskId;
+      delete detail.dataset.projectId;
+    }
+  }
+  if (agentCol) {
+    if (id) {
+      agentCol.dataset.taskId = id;
+      if (pid) {
+        agentCol.dataset.projectId = String(pid);
+      }
+    } else {
+      delete agentCol.dataset.taskId;
+      delete agentCol.dataset.projectId;
+    }
+  }
+  const titleEl = document.getElementById("wbAgentRunTitle");
+  if (titleEl) {
+    if (id) {
+      titleEl.dataset.taskId = id;
+    } else {
+      delete titleEl.dataset.taskId;
+    }
+  }
   if (emitStore && typeof window.__wbStore?.selectTask === "function") {
     window.__wbStore.selectTask(id);
-  } else if (emitStore && window.__wbStore?.getState) {
-    /* store 未暴露 selectTask 时至少写 DOM */
   }
   return id;
 }
@@ -178,6 +235,9 @@ function renderTaskDetail(task, planOutput = null) {
   if (emptyHint) {
     emptyHint.hidden = true;
   }
+  syncSelectedTaskId(task.id, {
+    projectId: task.projectId || window.__wbStore?.getState?.().selectedProjectId,
+  });
   const safePlan = planOutput ? window.__wbSanitizeAgentOutputForUi?.(planOutput) || planOutput : null;
   const statusText = resolveTaskDisplayStatus(task);
   const modeText =
@@ -1193,10 +1253,10 @@ async function startAgentExecution(projectId, { mutexRetry = false } = {}) {
 }
 
 async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
-  const projectId = window.__wbStore?.getState?.().selectedProjectId;
+  let projectId = resolveCurrentProjectId();
   let taskId = resolveCurrentTaskId();
   if (taskId) {
-    syncSelectedTaskId(taskId);
+    syncSelectedTaskId(taskId, { projectId });
   }
   const reviewStore = window.__wbCodeReviewStore;
   // 先切 Tab，避免 switchTab 再递归调用本函数
@@ -1204,7 +1264,9 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
   if (!projectId || !taskId) {
     // 再尝试从任务列表唯一/待审阅任务回退一次
     const tasks = window.__wbStore?.getState?.().tasks || [];
+    const projects = window.__wbStore?.getState?.().projects || [];
     taskId =
+      taskId ||
       tasks.find(
         (t) =>
           t?.status === "WAITING_APPROVAL" ||
@@ -1212,17 +1274,31 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
       )?.id ||
       (tasks.length === 1 ? tasks[0]?.id : null) ||
       null;
+    if (!projectId && taskId) {
+      projectId =
+        tasks.find((t) => t.id === taskId)?.projectId ||
+        window.__wbStore?.getState?.().selectedProjectId ||
+        projects[0]?.id ||
+        null;
+    }
     if (taskId) {
-      syncSelectedTaskId(taskId);
+      syncSelectedTaskId(taskId, { projectId });
     }
   }
+  projectId = resolveCurrentProjectId({ preferProjectId: projectId });
   taskId = resolveCurrentTaskId({ preferTaskId: taskId });
   if (!projectId || !taskId) {
     window.__wbRenderDiffReviewPanel?.();
-    showComposerToast("请先选择或创建开发任务", { type: "warn" });
+    showComposerToast(
+      !projectId ? "请先选择项目" : "请先选择或创建开发任务",
+      { type: "warn" }
+    );
+    appendAgentLogLine(
+      `DiffReview open blocked: projectId=${projectId || "(empty)"} taskId=${taskId || "(empty)"}`
+    );
     return [];
   }
-  syncSelectedTaskId(taskId);
+  syncSelectedTaskId(taskId, { projectId });
   let patches = [];
   try {
     patches =

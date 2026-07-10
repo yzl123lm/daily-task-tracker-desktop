@@ -209,10 +209,14 @@ function upsertChat(chat) {
 }
 
 function setTasks(tasks) {
-  state.tasks = Array.isArray(tasks) ? tasks : [];
+  const next = Array.isArray(tasks) ? tasks : [];
+  state.tasks = next;
+  // 仅在「已加载到任务列表」且选中项不在列表中时清除；空数组刷新时不要清掉选中，
+  // 否则 Diff 面板会误判「请选择任务」
   if (
+    next.length > 0 &&
     state.selectedTaskId &&
-    !state.tasks.some((t) => t && t.id === state.selectedTaskId)
+    !next.some((t) => t && t.id === state.selectedTaskId)
   ) {
     state.selectedTaskId = null;
     persistSelectedTaskId(null);

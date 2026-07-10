@@ -9,18 +9,22 @@ function escapeHtml(text) {
 function getContext() {
   const store = window.__wbStore?.getState?.() || {};
   const list = document.getElementById("wbTaskList");
+  const detail = document.getElementById("wbTaskDetail");
+  const agentCol = document.getElementById("wbPwsAgentCol");
   const fromStore = store.selectedTaskId ? String(store.selectedTaskId) : "";
   const fromDataset = list?.dataset?.selectedTaskId ? String(list.dataset.selectedTaskId) : "";
   const fromActive = list?.querySelector?.(".wb-task-item.is-active")?.dataset?.taskId || "";
+  const fromHeader =
+    detail?.dataset?.taskId ||
+    agentCol?.dataset?.taskId ||
+    document.getElementById("wbAgentRunTitle")?.dataset?.taskId ||
+    "";
   const tasks = Array.isArray(store.tasks) ? store.tasks : [];
-  let taskId = fromStore || fromDataset || fromActive || null;
+  let taskId = fromStore || fromDataset || fromActive || fromHeader || null;
   if (!taskId && tasks.length === 1) {
     taskId = tasks[0]?.id || null;
   }
-  if (
-    !taskId &&
-    tasks.length
-  ) {
+  if (!taskId && tasks.length) {
     taskId =
       tasks.find(
         (t) =>
@@ -28,6 +32,12 @@ function getContext() {
           String(t?.currentStep || "").includes("变更待审阅")
       )?.id || null;
   }
+  let projectId =
+    store.selectedProjectId ||
+    detail?.dataset?.projectId ||
+    agentCol?.dataset?.projectId ||
+    tasks.find((t) => t.id === taskId)?.projectId ||
+    null;
   if (taskId && typeof window.__wbStore?.selectTask === "function") {
     if (store.selectedTaskId !== taskId) {
       window.__wbStore.selectTask(taskId);
@@ -35,9 +45,15 @@ function getContext() {
     if (list && list.dataset.selectedTaskId !== taskId) {
       list.dataset.selectedTaskId = taskId;
     }
+    if (detail) {
+      detail.dataset.taskId = taskId;
+      if (projectId) {
+        detail.dataset.projectId = String(projectId);
+      }
+    }
   }
   return {
-    projectId: store.selectedProjectId,
+    projectId,
     taskId,
   };
 }
@@ -149,7 +165,15 @@ function ensureDiffReviewMount() {
 }
 
 function resolveEmptyState({ projectId, taskId, state, task }) {
-  if (!projectId || !taskId) {
+  if (!projectId) {
+    return {
+      title: "请选择项目",
+      desc: "先在左侧选择项目，再打开 Diff 审阅。",
+      primaryAction: null,
+      primaryLabel: null,
+    };
+  }
+  if (!taskId) {
     return {
       title: "请选择任务",
       desc: "选择或创建开发任务后，AI 会生成可审阅的代码变更。",
@@ -184,7 +208,7 @@ function resolveEmptyState({ projectId, taskId, state, task }) {
     };
   }
   return {
-    title: "当前没有可审阅的代码变更",
+    title: "当前任务没有可审阅的代码变更",
     desc: "请先点击「生成代码变更」，AI 会生成 Diff 后再进入审阅。",
     primaryAction: "regen-patch",
     primaryLabel: "生成代码变更",
