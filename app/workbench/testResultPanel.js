@@ -9,7 +9,9 @@ function escapeHtml(text) {
 function getContext() {
   const store = window.__wbStore?.getState?.() || {};
   const taskId =
-    document.getElementById("wbTaskList")?.dataset?.selectedTaskId || null;
+    store.selectedTaskId ||
+    document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
+    null;
   return { projectId: store.selectedProjectId, taskId };
 }
 

@@ -8,8 +8,34 @@ function escapeHtml(text) {
 
 function getContext() {
   const store = window.__wbStore?.getState?.() || {};
-  const taskId =
-    document.getElementById("wbTaskList")?.dataset?.selectedTaskId || null;
+  const list = document.getElementById("wbTaskList");
+  const fromStore = store.selectedTaskId ? String(store.selectedTaskId) : "";
+  const fromDataset = list?.dataset?.selectedTaskId ? String(list.dataset.selectedTaskId) : "";
+  const fromActive = list?.querySelector?.(".wb-task-item.is-active")?.dataset?.taskId || "";
+  const tasks = Array.isArray(store.tasks) ? store.tasks : [];
+  let taskId = fromStore || fromDataset || fromActive || null;
+  if (!taskId && tasks.length === 1) {
+    taskId = tasks[0]?.id || null;
+  }
+  if (
+    !taskId &&
+    tasks.length
+  ) {
+    taskId =
+      tasks.find(
+        (t) =>
+          t?.status === "WAITING_APPROVAL" ||
+          String(t?.currentStep || "").includes("变更待审阅")
+      )?.id || null;
+  }
+  if (taskId && typeof window.__wbStore?.selectTask === "function") {
+    if (store.selectedTaskId !== taskId) {
+      window.__wbStore.selectTask(taskId);
+    }
+    if (list && list.dataset.selectedTaskId !== taskId) {
+      list.dataset.selectedTaskId = taskId;
+    }
+  }
   return {
     projectId: store.selectedProjectId,
     taskId,

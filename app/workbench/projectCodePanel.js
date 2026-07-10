@@ -28,8 +28,10 @@ let panelState = {
 };
 
 function getTaskId() {
+  const store = window.__wbStore?.getState?.() || {};
   return (
     panelState.taskId ||
+    store.selectedTaskId ||
     document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
     null
   );

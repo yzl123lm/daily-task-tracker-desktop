@@ -10,6 +10,56 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+/** 统一解析当前任务 ID：store > DOM dataset > 激活项 > 唯一任务回退 */
+function resolveCurrentTaskId({ preferTaskId = null } = {}) {
+  const store = window.__wbStore?.getState?.() || {};
+  const list = document.getElementById("wbTaskList");
+  const fromPrefer = preferTaskId ? String(preferTaskId) : "";
+  const fromStore = store.selectedTaskId ? String(store.selectedTaskId) : "";
+  const fromDataset = list?.dataset?.selectedTaskId ? String(list.dataset.selectedTaskId) : "";
+  const fromActive = list?.querySelector?.(".wb-task-item.is-active")?.dataset?.taskId || "";
+  const tasks = Array.isArray(store.tasks) ? store.tasks : [];
+  const candidates = [fromPrefer, fromStore, fromDataset, fromActive].filter(Boolean);
+  for (const id of candidates) {
+    if (!tasks.length || tasks.some((t) => t && t.id === id)) {
+      return id;
+    }
+  }
+  if (tasks.length === 1 && tasks[0]?.id) {
+    return String(tasks[0].id);
+  }
+  const waiting = tasks.find(
+    (t) =>
+      t &&
+      (t.status === "WAITING_APPROVAL" ||
+        String(t.currentStep || "").includes("变更待审阅") ||
+        String(t.currentStep || "").includes("方案待确认"))
+  );
+  return waiting?.id ? String(waiting.id) : null;
+}
+
+function syncSelectedTaskId(taskId, { emitStore = true } = {}) {
+  const id = taskId ? String(taskId) : null;
+  const list = document.getElementById("wbTaskList");
+  if (list) {
+    if (id) {
+      list.dataset.selectedTaskId = id;
+      list.querySelectorAll(".wb-task-item").forEach((el) => {
+        el.classList.toggle("is-active", el.dataset.taskId === id);
+      });
+    } else {
+      delete list.dataset.selectedTaskId;
+      list.querySelectorAll(".wb-task-item").forEach((el) => el.classList.remove("is-active"));
+    }
+  }
+  if (emitStore && typeof window.__wbStore?.selectTask === "function") {
+    window.__wbStore.selectTask(id);
+  } else if (emitStore && window.__wbStore?.getState) {
+    /* store 未暴露 selectTask 时至少写 DOM */
+  }
+  return id;
+}
+
 function taskStatusLabel(status) {
   if (window.__wbTaskStatus?.labelForTaskStatus) {
     return window.__wbTaskStatus.labelForTaskStatus(status);
@@ -92,8 +142,9 @@ function renderPlanCard(output) {
   `;
   window.__wbRenderPlanCodeExtras?.(safe);
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (output.diffPreviews?.length && projectId && taskId) {
+    syncSelectedTaskId(taskId);
     window.__wbCodeReviewStore?.setFromDiffPreviews?.(
       projectId,
       taskId,
@@ -247,7 +298,7 @@ function applyAgentEventToUi(payload) {
     return;
   }
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (payload.projectId && projectId && payload.projectId !== projectId) {
     return;
   }
@@ -879,9 +930,9 @@ function mapAgentOutputToSteps(output, mode) {
 }
 
 async function ensureComposerTask(projectId, userInput) {
-  const list = document.getElementById("wbTaskList");
-  let taskId = list?.dataset?.selectedTaskId;
+  let taskId = resolveCurrentTaskId();
   if (taskId) {
+    syncSelectedTaskId(taskId);
     return taskId;
   }
   const api = wbApi();
@@ -908,6 +959,7 @@ async function ensureComposerTask(projectId, userInput) {
     upsertComposerStep("create_task", "done", title);
     const tasks = await api.wbProjectTasksList({ projectId });
     window.__wbStore?.setTasks?.(tasks);
+    syncSelectedTaskId(task.id);
     renderTasks(tasks, task.id);
     renderTaskDetail(tasks.find((t) => t.id === task.id) || task);
     return task.id;
@@ -1075,14 +1127,34 @@ async function startAgentExecution(projectId, { mutexRetry = false } = {}) {
 
 async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  let taskId = resolveCurrentTaskId();
+  if (taskId) {
+    syncSelectedTaskId(taskId);
+  }
   const reviewStore = window.__wbCodeReviewStore;
   window.__wbSwitchCodeTab?.("diff");
+  if (!projectId || !taskId) {
+    // 再尝试从任务列表唯一/待审阅任务回退一次
+    const tasks = window.__wbStore?.getState?.().tasks || [];
+    taskId =
+      tasks.find(
+        (t) =>
+          t?.status === "WAITING_APPROVAL" ||
+          String(t?.currentStep || "").includes("变更待审阅")
+      )?.id ||
+      (tasks.length === 1 ? tasks[0]?.id : null) ||
+      null;
+    if (taskId) {
+      syncSelectedTaskId(taskId);
+    }
+  }
+  taskId = resolveCurrentTaskId({ preferTaskId: taskId });
   if (!projectId || !taskId) {
     window.__wbRenderDiffReviewPanel?.();
     showComposerToast("请先选择或创建开发任务", { type: "warn" });
     return [];
   }
+  syncSelectedTaskId(taskId);
   let patches = [];
   try {
     patches = (await reviewStore?.syncFromStagedPatches?.(projectId, taskId)) || [];
@@ -1093,7 +1165,7 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
     appendAgentLogLine(`DiffReviewPanel load failed: ${err?.message || err}`);
     return [];
   }
-  appendAgentLogLine(`DiffReviewPanel loaded patch count=${patches.length}`);
+  appendAgentLogLine(`DiffReviewPanel loaded patch count=${patches.length} taskId=${taskId}`);
   window.__wbRenderDiffReviewPanel?.();
   if (!patches.length) {
     const task = (window.__wbStore?.getState?.().tasks || []).find((t) => t.id === taskId);
@@ -1115,11 +1187,12 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
 
 async function proposeCodePatches({ mutexRetry = false } = {}) {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId || !taskId) {
     showComposerToast("请先输入指令并开始执行", { type: "error" });
     return;
   }
+  syncSelectedTaskId(taskId);
   const message =
     getComposerMessage() ||
     document.querySelector(".wb-plan-card__req")?.textContent?.trim() ||
@@ -1216,7 +1289,7 @@ async function proposeCodePatches({ mutexRetry = false } = {}) {
 
 async function runComposerVerification() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId || !taskId) {
     return;
   }
@@ -1263,7 +1336,7 @@ async function runComposerVerification() {
 
 async function completeComposerTask() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId || !taskId) {
     return;
   }
@@ -1317,7 +1390,7 @@ function initAutoVerifyCheckbox() {
 async function cancelActiveAgent() {
   const api = wbApi();
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId || !taskId) {
     return;
   }
@@ -1385,16 +1458,21 @@ function bindTaskFilters() {
       el.classList.toggle("is-active", el === btn);
     });
     const tasks = window.__wbStore?.getState?.().tasks || [];
-    const selectedId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+    const selectedId = resolveCurrentTaskId();
     renderTasks(tasks, selectedId);
   });
 }
 
 async function loadTaskContext(projectId, taskId) {
   const api = wbApi();
-  const namespace = `task:${projectId}:${taskId}`;
+  const resolvedTaskId = syncSelectedTaskId(taskId || resolveCurrentTaskId());
+  if (!projectId || !resolvedTaskId) {
+    window.__wbRenderDiffReviewPanel?.();
+    return;
+  }
+  const namespace = `task:${projectId}:${resolvedTaskId}`;
   const tasks = window.__wbStore?.getState?.().tasks || [];
-  const task = tasks.find((t) => t.id === taskId);
+  const task = tasks.find((t) => t.id === resolvedTaskId);
   if (task) {
     renderTaskDetail(task);
   }
@@ -1404,7 +1482,7 @@ async function loadTaskContext(projectId, taskId) {
     const memories = await api.wbMemorySearch({
       namespace,
       projectId,
-      taskId,
+      taskId: resolvedTaskId,
       limit: 12,
     });
     memList.replaceChildren();
@@ -1423,20 +1501,29 @@ async function loadTaskContext(projectId, taskId) {
     }
   }
   if (typeof api.wbProjectAgentRunsList === "function" && runsList) {
-    const runs = await api.wbProjectAgentRunsList({ projectId, taskId, limit: 8 });
+    const runs = await api.wbProjectAgentRunsList({
+      projectId,
+      taskId: resolvedTaskId,
+      limit: 8,
+    });
     renderComposerTimeline(runs);
   }
   await syncComposerPathState(projectId);
-  await refreshProjectContextHealth(projectId, taskId);
-  const synced = await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-  appendAgentLogLine(`DiffReviewPanel loaded patch count=${synced?.length || 0}`);
+  await refreshProjectContextHealth(projectId, resolvedTaskId);
+  const synced = await window.__wbCodeReviewStore?.syncFromStagedPatches?.(
+    projectId,
+    resolvedTaskId
+  );
+  appendAgentLogLine(
+    `DiffReviewPanel loaded patch count=${synced?.length || 0} taskId=${resolvedTaskId}`
+  );
   const latestTasks = window.__wbStore?.getState?.()?.tasks || tasks;
-  const latestTask = latestTasks.find((t) => t.id === taskId) || task || null;
-  composerPhase = detectComposerPhaseFromContext(projectId, taskId, latestTask);
+  const latestTask = latestTasks.find((t) => t.id === resolvedTaskId) || task || null;
+  composerPhase = detectComposerPhaseFromContext(projectId, resolvedTaskId, latestTask);
   updateComposerUi(composerPhase);
   renderTaskDetail(latestTask);
   window.__wbRenderDiffReviewPanel?.();
-  await window.__wbRefreshCodePanel?.(projectId, taskId);
+  await window.__wbRefreshCodePanel?.(projectId, resolvedTaskId);
 }
 
 function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
@@ -1444,6 +1531,10 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
   if (!list) {
     return;
   }
+  const preferred =
+    selectedTaskId ||
+    resolveCurrentTaskId() ||
+    null;
   const filtered = (tasks || []).filter(taskMatchesFilter);
   list.replaceChildren();
   if (!filtered.length) {
@@ -1454,15 +1545,20 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
         ? "当前筛选下暂无任务。"
         : "暂无任务，可直接在右侧 AI 指令窗口开始执行。";
     list.appendChild(empty);
+    // 筛选为空时不要清掉全局选中任务，避免 Diff 面板误判「请选择任务」
     renderTaskDetail(null);
     return;
+  }
+  let activeId = preferred && filtered.some((t) => t.id === preferred) ? preferred : null;
+  if (autoSelectFirst && !activeId) {
+    activeId = filtered[0]?.id || null;
   }
   filtered.forEach((task) => {
     const item = document.createElement("button");
     item.type = "button";
     item.className = "wb-task-item";
     item.dataset.taskId = task.id;
-    item.classList.toggle("is-active", task.id === selectedTaskId);
+    item.classList.toggle("is-active", task.id === activeId);
     const statusLabel = taskStatusLabel(task.status);
     item.innerHTML = `
       <div class="wb-task-item__main">
@@ -1475,9 +1571,7 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
       </div>
     `;
     item.addEventListener("click", () => {
-      list.querySelectorAll(".wb-task-item").forEach((el) => el.classList.remove("is-active"));
-      item.classList.add("is-active");
-      list.dataset.selectedTaskId = task.id;
+      syncSelectedTaskId(task.id);
       const projectId = window.__wbStore?.getState?.().selectedProjectId;
       if (projectId) {
         void loadTaskContext(projectId, task.id);
@@ -1485,21 +1579,10 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
     });
     list.appendChild(item);
   });
-  if (
-    autoSelectFirst &&
-    (!selectedTaskId || !filtered.some((t) => t.id === selectedTaskId))
-  ) {
-    const first = filtered[0];
-    if (first) {
-      list.dataset.selectedTaskId = first.id;
-      list.querySelector(`[data-task-id="${first.id}"]`)?.classList.add("is-active");
-      renderTaskDetail(first);
-    }
-  } else if (selectedTaskId) {
-    list.dataset.selectedTaskId = selectedTaskId;
-    renderTaskDetail(filtered.find((t) => t.id === selectedTaskId) || null);
+  if (activeId) {
+    syncSelectedTaskId(activeId);
+    renderTaskDetail(filtered.find((t) => t.id === activeId) || null);
   } else {
-    delete list.dataset.selectedTaskId;
     renderTaskDetail(null);
   }
 }
@@ -1738,11 +1821,12 @@ async function loadProjectWorkspace(projectId) {
     openDirBtn.dataset.path = projectPath || "";
   }
   const preferredTaskId =
-    document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
+    resolveCurrentTaskId() ||
     tasks.find((t) => t.status === "WAITING_APPROVAL" || String(t.currentStep || "").includes("变更待审阅"))
       ?.id ||
     tasks[0]?.id ||
     null;
+  syncSelectedTaskId(preferredTaskId);
   renderTasks(tasks, preferredTaskId, { autoSelectFirst: Boolean(preferredTaskId) });
   if (!isProjectViewActive(id, gen)) {
     return;
@@ -1796,7 +1880,7 @@ async function refreshProjectContextHealth(projectId, taskId) {
 
 async function manualCompressProject() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId || !taskId || !window.__wbContextHealth) {
     return;
   }
@@ -2173,7 +2257,7 @@ window.__wbAuditProjectLayout = function auditProjectLayout() {
 };
 window.__wbRefreshTaskList = async () => {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
-  const taskId = document.getElementById("wbTaskList")?.dataset?.selectedTaskId;
+  const taskId = resolveCurrentTaskId();
   if (!projectId) {
     return;
   }

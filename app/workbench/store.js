@@ -1,6 +1,7 @@
 const WB_EVENT = "wb:state-change";
 const WB_ACTIVE_MODULE_KEY = "wb_active_module_v1";
 const WB_SELECTED_PROJECT_KEY = "wb_selected_project_id_v1";
+const WB_SELECTED_TASK_KEY = "wb_selected_task_id_v1";
 
 function readPersistedActiveModule() {
   try {
@@ -47,12 +48,36 @@ function persistSelectedProjectId(projectId) {
   }
 }
 
+function readPersistedSelectedTaskId() {
+  try {
+    const saved = localStorage.getItem(WB_SELECTED_TASK_KEY);
+    return saved ? String(saved) : null;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function persistSelectedTaskId(taskId) {
+  try {
+    const id = taskId ? String(taskId) : "";
+    if (id) {
+      localStorage.setItem(WB_SELECTED_TASK_KEY, id);
+    } else {
+      localStorage.removeItem(WB_SELECTED_TASK_KEY);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 const initialModule = readPersistedActiveModule();
 
 const state = {
   activeModule: initialModule,
   mode: initialModule,
   selectedProjectId: readPersistedSelectedProjectId(),
+  selectedTaskId: readPersistedSelectedTaskId(),
   selectedChatId: null,
   projects: [],
   chats: [],
@@ -67,6 +92,7 @@ function emitChange() {
         activeModule: state.activeModule,
         mode: state.mode,
         selectedProjectId: state.selectedProjectId,
+        selectedTaskId: state.selectedTaskId,
         selectedChatId: state.selectedChatId,
       },
     })
@@ -95,13 +121,28 @@ function setActiveModule(module) {
 
 function selectProject(projectId) {
   const id = projectId ? String(projectId) : null;
+  const projectChanged = state.selectedProjectId !== id;
   state.selectedProjectId = id;
   persistSelectedProjectId(id);
+  if (projectChanged) {
+    state.selectedTaskId = null;
+    persistSelectedTaskId(null);
+  }
   if (id) {
     state.activeModule = "project";
     state.mode = "project";
     persistActiveModule("project");
   }
+  emitChange();
+}
+
+function selectTask(taskId) {
+  const id = taskId ? String(taskId) : null;
+  if (state.selectedTaskId === id) {
+    return;
+  }
+  state.selectedTaskId = id;
+  persistSelectedTaskId(id);
   emitChange();
 }
 
@@ -124,6 +165,8 @@ function selectChat(chatId) {
 function clearSelection() {
   state.selectedProjectId = null;
   persistSelectedProjectId(null);
+  state.selectedTaskId = null;
+  persistSelectedTaskId(null);
   state.selectedChatId = null;
   state.activeModule = "idle";
   state.mode = "idle";
@@ -167,6 +210,13 @@ function upsertChat(chat) {
 
 function setTasks(tasks) {
   state.tasks = Array.isArray(tasks) ? tasks : [];
+  if (
+    state.selectedTaskId &&
+    !state.tasks.some((t) => t && t.id === state.selectedTaskId)
+  ) {
+    state.selectedTaskId = null;
+    persistSelectedTaskId(null);
+  }
 }
 
 function setLoading(loading) {
@@ -179,6 +229,7 @@ window.__wbStore = {
   getActiveModule,
   setActiveModule,
   selectProject,
+  selectTask,
   setSelectedChatId,
   selectChat,
   clearSelection,
