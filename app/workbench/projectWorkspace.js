@@ -275,21 +275,25 @@ function renderTaskDetail(task, planOutput = null) {
   const nextHint =
     composerPhase === "plan_ready"
       ? "下一步：生成代码变更"
-      : composerPhase === "diff_ready"
-        ? "下一步：查看 Diff / 审阅变更"
-        : composerPhase === "diff_accepted"
-          ? "下一步：接受并写入"
-          : composerPhase === "written"
-            ? "下一步：运行验证或完成任务"
-            : composerPhase === "patch_empty"
-              ? "下一步：生成代码变更"
-              : composerPhase === "running" || agentRunStarting
-                ? "正在执行…"
-                : composerPhase === "done"
-                  ? "任务已完成"
-                  : isUnfinishedComposerTask(task)
-                    ? "下一步：继续执行未完成环节"
-                    : "下一步：开始执行";
+      : composerPhase === "clarifying"
+        ? "下一步：确认规格后继续"
+        : composerPhase === "diff_ready"
+          ? "下一步：查看 Diff / 审阅变更"
+          : composerPhase === "diff_accepted"
+            ? "下一步：接受并写入"
+            : composerPhase === "written"
+              ? "下一步：运行验证"
+              : composerPhase === "ready_confirm"
+                ? "下一步：确认完成后结束，或继续验证"
+                : composerPhase === "patch_empty"
+                  ? "下一步：生成代码变更"
+                  : composerPhase === "running" || agentRunStarting
+                    ? "正在执行…"
+                    : composerPhase === "done"
+                      ? "已完成 · 可新建任务推进下一需求"
+                      : isUnfinishedComposerTask(task)
+                        ? "下一步：继续执行未完成环节"
+                        : "下一步：开始执行";
   const titleEl = document.getElementById("wbAgentRunTitle");
   const statusEl = document.getElementById("wbAgentRunStatus");
   const modeEl = document.getElementById("wbAgentRunMode");
@@ -464,12 +468,41 @@ function applyAgentEventToUi(payload) {
   } else if (payload.status === "waiting") {
     if (payload.phase === "WAITING_REVIEW" || stepKey === "await_diff" || stepKey === "plan_ready") {
       const nextPhase = stepKey === "plan_ready" ? "plan_ready" : "diff_ready";
-      updateComposerUi(nextPhase);
+      advanceComposerPhase(nextPhase, {
+        toast:
+          nextPhase === "plan_ready"
+            ? "方案已就绪。是否继续生成代码变更？"
+            : "变更已生成。请审阅 Diff 后决定是否写入。",
+        toastType: "info",
+      });
     }
   } else if (payload.status === "failed" && stepKey === "failed") {
-    updateComposerUi("failed");
-  } else if (payload.status === "success" && stepKey === "complete") {
-    updateComposerUi("done");
+    advanceComposerPhase("failed");
+  } else if (
+    (payload.status === "success" || payload.status === "skipped") &&
+    (stepKey === "complete" || payload.phase === "COMPLETED")
+  ) {
+    // Agent 侧宣称完成：收口进行中步骤，进入「待用户确认」而非直接显示「完成任务」
+    finalizeOpenComposerSteps();
+    const task = getSelectedComposerTask();
+    const alreadyDone = ["COMPLETED", "DONE", "ARCHIVED"].includes(
+      String(window.__wbTaskStatus?.normalizeTaskStatus?.(task?.status) || task?.status || "").toUpperCase()
+    );
+    if (alreadyDone) {
+      advanceComposerPhase("done", {
+        toast: "任务已完成。可以新建任务继续下一需求。",
+        toastType: "success",
+        finalize: false,
+      });
+    } else {
+      advanceComposerPhase("ready_confirm", {
+        toast: summary
+          ? `${summary}。请确认后标记完成，或继续推进下一环节。`
+          : "当前阶段已结束。请确认是否标记任务完成。",
+        toastType: "info",
+        finalize: false,
+      });
+    }
   }
 
   if (summary && (payload.status === "success" || payload.status === "failed" || payload.status === "waiting")) {
@@ -674,6 +707,35 @@ function upsertComposerStep(id, status, detail = "") {
   renderComposerTimeline();
 }
 
+/** 收口仍停留在 running/pending 的步骤，避免「任务已完成」与「进行中」并存误导 */
+function finalizeOpenComposerSteps({
+  keepIds = [],
+  markAs = "done",
+  detail = "已随当前阶段结束",
+} = {}) {
+  const keep = new Set(keepIds);
+  const open = new Set(["running", "pending", "queued"]);
+  composerLiveSteps.forEach((step) => {
+    if (keep.has(step.id)) return;
+    if (!open.has(String(step.status || "").toLowerCase())) return;
+    upsertComposerStep(step.id, markAs, detail);
+  });
+}
+
+function advanceComposerPhase(phase, { toast, toastType = "info", finalize = true } = {}) {
+  if (finalize && phase && phase !== "running") {
+    finalizeOpenComposerSteps({
+      keepIds: phase === "failed" ? ["failed", "canceled"] : [],
+      markAs: phase === "failed" ? "error" : "done",
+      detail: phase === "failed" ? "已中止" : "本阶段已结束",
+    });
+  }
+  updateComposerUi(phase);
+  if (toast) {
+    showComposerToast(toast, { type: toastType });
+  }
+}
+
 function renderComposerTimeline(historicalRuns = null) {
   const runsList = document.getElementById("wbAgentRuns");
   if (!runsList) {
@@ -786,6 +848,15 @@ function detectComposerPhaseFromContext(projectId, taskId, task = null) {
   if (status === "FAILED" || status === "CANCELED") {
     return "failed";
   }
+  // 验证已跑过/跳过但尚未用户确认完成 → 待确认，禁止直接显示「完成任务」
+  if (
+    step.includes("已跳过验证") ||
+    step.includes("验证通过") ||
+    step.includes("待确认完成") ||
+    step.includes("请确认")
+  ) {
+    return "ready_confirm";
+  }
   if (
     status === "TESTING" ||
     status === "FIXING" ||
@@ -849,11 +920,23 @@ function getSelectedComposerTask() {
 }
 
 function resolveTaskDisplayStatus(task, phase = composerPhase) {
+  const status = String(
+    window.__wbTaskStatus?.normalizeTaskStatus?.(task?.status) || task?.status || ""
+  ).toUpperCase();
   const step = String(task?.currentStep || "");
+  if (status === "COMPLETED" || status === "DONE" || status === "ARCHIVED") {
+    return "已完成";
+  }
   if (phase === "running" || agentRunStarting) {
     return "运行中";
   }
-  if (phase === "plan_ready" || step.includes("方案待确认")) {
+  if (phase === "ready_confirm") {
+    return "待确认完成";
+  }
+  if (phase === "clarifying" || status === "CLARIFYING") {
+    return "需求澄清中";
+  }
+  if (phase === "plan_ready" || step.includes("方案待确认") || status === "SPEC_REVIEW") {
     return "方案待确认";
   }
   if (phase === "diff_accepted") {
@@ -866,13 +949,13 @@ function resolveTaskDisplayStatus(task, phase = composerPhase) {
     return "未生成变更";
   }
   if (phase === "written") {
-    return "已写入";
+    return "已写入 · 待验证";
   }
   if (step.includes("等待写入") || step.includes("已接受")) {
     return "等待写入";
   }
-  if (step.includes("验证")) {
-    return "测试中";
+  if (status === "TESTING" || status === "FIXING" || step.includes("验证")) {
+    return status === "FIXING" ? "修复中" : "测试中";
   }
   return taskStatusLabel(task?.status, step);
 }
@@ -897,9 +980,17 @@ function resolveComposerActionConfig(phase = composerPhase) {
         showMore: true,
       };
     case "written":
-      return { primary: "运行验证", secondary: "完成任务", showSecondary: true, showMore: true };
+      return { primary: "运行验证", secondary: "稍后确认", showSecondary: true, showMore: true };
+    case "ready_confirm":
+      return {
+        primary: "确认完成",
+        secondary: "继续验证",
+        showSecondary: true,
+        showMore: true,
+      };
     case "done":
-      return { primary: "完成任务", secondary: "", showSecondary: false, showMore: true };
+      // 仅在任务真正完成后展示「新建任务」，禁止未完成时显示「完成任务」
+      return { primary: "新建任务", secondary: "", showSecondary: false, showMore: true };
     case "failed":
       return { primary: "重新生成方案", secondary: "查看错误", showSecondary: true, showMore: true };
     default: {
@@ -1085,9 +1176,15 @@ async function handlePrimaryComposerAction() {
     case "written":
       await runComposerVerification();
       break;
-    case "done":
+    case "ready_confirm":
       await completeComposerTask();
       break;
+    case "done": {
+      if (projectId) {
+        void createTaskForProject(projectId);
+      }
+      break;
+    }
     case "failed":
       await startAgentExecution(projectId);
       break;
@@ -1120,7 +1217,14 @@ async function handleSecondaryComposerAction() {
       await openDiffReviewForCurrentTask();
       break;
     case "written":
-      await completeComposerTask();
+      showComposerToast("可稍后确认完成；建议先运行验证。", { type: "info" });
+      advanceComposerPhase("ready_confirm", {
+        toast: "已跳过验证环节。确认功能可用后，请点击「确认完成」。",
+        toastType: "info",
+      });
+      break;
+    case "ready_confirm":
+      await runComposerVerification();
       break;
     case "failed":
       window.__wbExpandTerminalDrawer?.("log");
@@ -1398,9 +1502,19 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
     agentRunStarting = false;
     const needsClarify =
       Boolean(result.output?.openQuestions?.length) && result.output?.executionReady === false;
-    updateComposerUi(needsClarify ? "clarifying" : "plan_ready");
-    if (autoContinueToPatch && result.output?.plan?.length && !needsClarify) {
-      await proposeCodePatches();
+    if (needsClarify) {
+      advanceComposerPhase("clarifying", {
+        toast: "需求存在待澄清项。请确认规格后再继续。",
+        toastType: "info",
+      });
+    } else {
+      advanceComposerPhase("plan_ready", {
+        toast: "方案已生成。是否继续生成代码变更？",
+        toastType: "success",
+      });
+      if (autoContinueToPatch && result.output?.plan?.length) {
+        await proposeCodePatches();
+      }
     }
   } catch (err) {
     upsertComposerStep("generate_plan", "error", err?.message || "Agent 执行失败");
@@ -1487,12 +1601,15 @@ async function resumeUnfinishedComposerTask(projectId, task) {
     case "written":
       await runComposerVerification();
       return;
+    case "ready_confirm":
+      showComposerToast("当前阶段已结束，请确认是否标记完成", { type: "info" });
+      return;
     case "plan_ready":
     case "patch_empty":
       await proposeCodePatches({ resumeMessage: resolveTaskResumeMessage(latestTask) });
       return;
     case "done":
-      showComposerToast("任务已完成", { type: "success" });
+      showComposerToast("任务已完成。可新建任务推进下一需求。", { type: "success" });
       return;
     case "failed":
       await startAgentExecution(projectId, {
@@ -1793,12 +1910,24 @@ async function runComposerVerification() {
         "done",
         skipped ? skipMsg || "已跳过验证" : "验证通过"
       );
-      upsertComposerStep("complete", "done");
-      updateComposerUi("done");
-      showComposerToast(
-        skipped ? skipMsg || "已跳过验证（无 npm 脚本）" : "验证通过，任务完成",
-        { type: "success" }
-      );
+      finalizeOpenComposerSteps({ keepIds: ["run_verify", "complete"] });
+      const api = wbApi();
+      if (typeof api.wbProjectTaskUpdate === "function") {
+        await api.wbProjectTaskUpdate({
+          projectId,
+          taskId,
+          currentStep: skipped
+            ? "已跳过验证，待确认完成"
+            : "验证通过，待确认完成",
+        });
+      }
+      advanceComposerPhase("ready_confirm", {
+        toast: skipped
+          ? `${skipMsg || "已跳过自动验证"}。请确认功能可用后，再标记完成；或继续推进其他环节。`
+          : "验证通过。是否确认完成任务？",
+        toastType: skipped ? "info" : "success",
+        finalize: false,
+      });
     } else if (result.output?.fixResult?.waitingApproval) {
       upsertComposerStep("run_verify", "error", "验证失败，已生成修复 Diff");
       upsertComposerStep("fix_failure", "pending");
@@ -1837,12 +1966,17 @@ async function completeComposerTask() {
       currentStep: "任务完成",
     });
   }
-  upsertComposerStep("complete", "done");
+  finalizeOpenComposerSteps();
+  upsertComposerStep("complete", "done", "用户已确认完成");
   const tasks = await api.wbProjectTasksList({ projectId });
   window.__wbStore?.setTasks?.(tasks);
   renderTasks(tasks, taskId);
-  updateComposerUi("done");
-  showComposerToast("任务已标记完成", { type: "success" });
+  advanceComposerPhase("done", {
+    toast: "任务已确认完成。是否新建任务推进下一需求？",
+    toastType: "success",
+    finalize: false,
+  });
+  renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
 }
 
 function setAgentRunning(running, agentRunId) {
@@ -2052,6 +2186,15 @@ async function loadTaskContext(projectId, taskId) {
   const latestTask = latestTasks.find((t) => t.id === resolvedTaskId) || task || null;
   if (!(agentRunStarting || composerPhase === "running")) {
     composerPhase = detectComposerPhaseFromContext(projectId, resolvedTaskId, latestTask);
+    if (composerPhase !== "running") {
+      finalizeOpenComposerSteps({
+        keepIds:
+          composerPhase === "diff_ready" || composerPhase === "diff_accepted"
+            ? ["await_diff", "generate_patch"]
+            : [],
+        detail: "已随当前阶段结束",
+      });
+    }
     updateComposerUi(composerPhase);
   } else {
     updateComposerUi("running");
@@ -2611,10 +2754,13 @@ window.__wbOpenDiffReviewForCurrentTask = openDiffReviewForCurrentTask;
 window.__wbOnComposerDiffApplied = function onComposerDiffApplied() {
   upsertComposerStep("write_code", "done");
   upsertComposerStep("await_diff", "done");
+  finalizeOpenComposerSteps({ keepIds: ["write_code", "await_diff", "run_verify"] });
   window.__wbActivityFeed?.markDiffWritten?.();
-  composerPhase = "written";
-  updateComposerUi("written");
-  showComposerToast("代码已写入，并已创建备份。", { type: "success" });
+  advanceComposerPhase("written", {
+    toast: "代码已写入。下一步：是否运行验证？",
+    toastType: "success",
+    finalize: false,
+  });
 };
 
 window.__wbSetComposerPhase = function setComposerPhase(phase) {
