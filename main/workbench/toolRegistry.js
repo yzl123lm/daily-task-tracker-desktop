@@ -71,7 +71,12 @@ const TOOL_DEFS = {
   },
   analyze_package: {
     permission: PERMISSION.READ,
-    description: "Analyze package.json scripts and entry points",
+    description: "Analyze package.json, RepoProfile, scripts and entry points",
+    parameters: { type: "object", properties: {} },
+  },
+  get_repo_profile: {
+    permission: PERMISSION.READ,
+    description: "Detect RepoProfile (languages, package manager, frameworks, containers)",
     parameters: { type: "object", properties: {} },
   },
   write_task_memory: {
@@ -358,7 +363,19 @@ const HANDLERS = {
   },
   analyze_package(ctx) {
     const info = projectStructureService.analyzeProjectStructure(ctx.root);
-    return { ok: true, ...info };
+    let repoProfile = null;
+    try {
+      const { detectRepoProfile } = require("./repoProfileService.js");
+      repoProfile = detectRepoProfile(ctx.root);
+    } catch {
+      repoProfile = null;
+    }
+    return { ok: true, ...info, repoProfile };
+  },
+  get_repo_profile(ctx) {
+    const { detectRepoProfile } = require("./repoProfileService.js");
+    const repoProfile = detectRepoProfile(ctx.root);
+    return { ok: Boolean(repoProfile?.ok), repoProfile };
   },
   write_task_memory(ctx, args) {
     const uid = resolveUserId(ctx.userId);

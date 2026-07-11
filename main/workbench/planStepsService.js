@@ -11,10 +11,13 @@ function normalizeSteps(plan, { criterionIds = [] } = {}) {
         status: item.status || "pending",
         dependencies: Array.isArray(item.dependencies) ? item.dependencies : [],
         expectedFiles: Array.isArray(item.expectedFiles) ? item.expectedFiles : [],
+        inputs: Array.isArray(item.inputs) ? item.inputs : [],
+        outputs: Array.isArray(item.outputs) ? item.outputs : [],
         tools: Array.isArray(item.tools) ? item.tools : [],
         risk: item.risk || "medium",
         rollback: item.rollback || "revert via file backup",
         verification: item.verification || "manual_or_verify",
+        permissions: item.permissions || { network: "deny", secrets: [], write: true },
         criterionIds: Array.isArray(item.criterionIds) ? item.criterionIds : criterionIds.slice(0, 1),
         idempotencyKey: item.idempotencyKey || `plan_step_${index + 1}`,
       };
@@ -25,10 +28,13 @@ function normalizeSteps(plan, { criterionIds = [] } = {}) {
       status: "pending",
       dependencies: index > 0 ? [`step_${index}`] : [],
       expectedFiles: [],
+      inputs: [],
+      outputs: [],
       tools: [],
       risk: "medium",
       rollback: "revert via file backup",
       verification: "manual_or_verify",
+      permissions: { network: "deny", secrets: [], write: true },
       criterionIds: criterionIds.slice(0, 1),
       idempotencyKey: `plan_step_${index + 1}`,
     };
@@ -58,6 +64,17 @@ function savePlanSteps(getUserDataPath, userId, projectId, taskId, plan, meta = 
   const uid = resolveUserId(userId);
   const ts = nowIso();
   const steps = normalizeSteps(plan, { criterionIds: meta.criterionIds || [] });
+  // BL-010: reject cyclic DAGs unless explicitly skipped (legacy repair)
+  if (!meta.skipDagValidation) {
+    const { validatePlanDag } = require("./planExecutionService.js");
+    const dag = validatePlanDag(steps);
+    if (!dag.ok) {
+      const err = new Error(dag.message);
+      err.code = dag.code || "PLAN_DAG_INVALID";
+      err.dag = dag;
+      throw err;
+    }
+  }
   const payload = {
     planId: meta.planId || newId("plan"),
     specVersion: meta.specVersion || null,

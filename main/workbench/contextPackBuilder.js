@@ -54,6 +54,24 @@ function buildContextPack({
   });
   remaining -= Math.min(structureTokens, 800);
 
+  try {
+    const { detectRepoProfile, formatRepoProfileForContext } = require("./repoProfileService.js");
+    const repoProfile = detectRepoProfile(root);
+    const repoText = formatRepoProfileForContext(repoProfile);
+    const repoTokens = estimateTokens(repoText);
+    const repoBudget = Math.min(700, remaining);
+    if (repoBudget > 40) {
+      sections.push({
+        type: "repoProfile",
+        trust: "system",
+        content: truncate(repoText, repoBudget),
+      });
+      remaining -= Math.min(repoTokens, repoBudget);
+    }
+  } catch {
+    /* optional */
+  }
+
   const symbols = symbolIndexService.findSymbols(root, message, { limit: 20 });
   const symText = JSON.stringify(symbols.slice(0, 15), null, 2);
   const symTokens = estimateTokens(symText);

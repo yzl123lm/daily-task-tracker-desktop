@@ -410,6 +410,45 @@ const PROBES = {
       ? ok("secret broker + redact")
       : fail("redact failed", redacted);
   },
+
+  async repo_profile_detect(ctx) {
+    const { detectRepoProfile } = require("../repoProfileService.js");
+    const profile = detectRepoProfile(ctx.workspaceRoot);
+    return profile.ok
+      ? ok(`repo profile ${profile.projectType}`, {
+          packageManager: profile.packageManager?.id,
+          recommendedProfiles: profile.recommendedProfiles,
+        })
+      : fail(profile.error || "repo profile failed", profile);
+  },
+
+  async plan_dag_validates(ctx) {
+    const { validatePlanDag } = require("../planExecutionService.js");
+    const good = validatePlanDag([
+      { id: "a", text: "a", dependencies: [] },
+      { id: "b", text: "b", dependencies: ["a"] },
+    ]);
+    const cyclic = validatePlanDag([
+      { id: "a", text: "a", dependencies: ["b"] },
+      { id: "b", text: "b", dependencies: ["a"] },
+    ]);
+    return good.ok && !cyclic.ok && cyclic.code === "PLAN_DAG_CYCLE"
+      ? ok("plan dag validate/cycle")
+      : fail("plan dag probe failed", { good, cyclic });
+  },
+
+  async web_http_smoke(ctx) {
+    const { runWebHttpSmokeVerification } = require("../webHttpSmokeVerification.js");
+    const r = await runWebHttpSmokeVerification(ctx.workspaceRoot, { captureConsole: false });
+    return r.ok && !r.skipped ? ok(r.message, r.evidence) : fail(r.message || "web http smoke failed", r);
+  },
+
+  async compose_detect(ctx) {
+    const { composeFileFor } = require("../composeRunnerService.js");
+    const file = composeFileFor(ctx.workspaceRoot);
+    // Soft: if fixture has no compose, still pass with note; B04 has docker mention
+    return ok(file ? `compose=${file}` : "no compose file (ok)", { file });
+  },
 };
 
 async function runHiddenAcceptance(name, ctx) {

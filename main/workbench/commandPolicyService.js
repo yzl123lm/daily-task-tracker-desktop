@@ -15,6 +15,14 @@ const DANGEROUS_PATTERNS = [
   /^npm install\b/i,
   /^npm i\b/i,
   /^npm ci\b/i,
+  /^pnpm install\b/i,
+  /^yarn install\b/i,
+  /^bun install\b/i,
+  /^python -m pip install\b/i,
+  /^pip install\b/i,
+  /^docker compose\b/i,
+  /^docker-compose\b/i,
+  /^docker build\b/i,
   /^rm\b/i,
   /^del\b/i,
   /^format\b/i,
@@ -61,6 +69,14 @@ function classifyCommand(command) {
   const npmRun = cmd.match(/^npm run ([a-z0-9:@._/-]+)$/i);
   if (npmRun && VERIFY_SCRIPT_NAMES.has(npmRun[1].toLowerCase())) {
     return { category: "verify", scriptName: npmRun[1], reason: "验证脚本" };
+  }
+  const pnpmRun = cmd.match(/^pnpm run ([a-z0-9:@._/-]+)$/i);
+  if (pnpmRun && VERIFY_SCRIPT_NAMES.has(pnpmRun[1].toLowerCase())) {
+    return { category: "verify", scriptName: pnpmRun[1], reason: "验证脚本" };
+  }
+  const yarnRun = cmd.match(/^yarn ([a-z0-9:@._/-]+)$/i);
+  if (yarnRun && VERIFY_SCRIPT_NAMES.has(yarnRun[1].toLowerCase())) {
+    return { category: "verify", scriptName: yarnRun[1], reason: "验证脚本" };
   }
   if (/^npm run build$/i.test(cmd) || /^npm test$/i.test(cmd)) {
     return { category: "verify", reason: "验证命令" };

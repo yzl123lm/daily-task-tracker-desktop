@@ -162,6 +162,19 @@ function persistPlanArtifacts(getUserDataPath, uid, projectId, taskId, { message
     specVersion: spec.version,
     criterionIds: (spec.acceptanceCriteria || []).filter((c) => c.must).map((c) => c.id),
   });
+  try {
+    const { validatePlanDag, appendPlanEvent } = require("./planExecutionService.js");
+    const dag = validatePlanDag(planPayload.steps || []);
+    appendPlanEvent(getUserDataPath, uid, projectId, taskId, {
+      type: "plan.saved",
+      phase: "PLAN_READY",
+      planId: planPayload.planId,
+      dagOk: dag.ok,
+      order: dag.order || [],
+    });
+  } catch {
+    /* non-fatal */
+  }
   saveCheckpoint(getUserDataPath, uid, projectId, taskId, {
     phase: spec.status === SPEC_STATUS.CLARIFYING ? "CLARIFYING" : "PLAN_READY",
     specId: spec.specId,
@@ -958,6 +971,12 @@ function cancelProjectAgent(getUserDataPath, userId, { projectId, taskId, agentR
     releaseStaleRunsForTask,
   } = require("./agentRunStore.js");
   cancelFixLoop(getUserDataPath, userId, projectId, taskId, "用户取消 Agent");
+  try {
+    const { cleanupTaskCompose } = require("./composeRunnerService.js");
+    cleanupTaskCompose(taskId).catch(() => {});
+  } catch {
+    /* optional */
+  }
   let runId = agentRunId ? String(agentRunId).trim() : "";
   if (!runId) {
     const active =

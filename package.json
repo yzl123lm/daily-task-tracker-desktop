@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.24.47",
+  "version": "1.24.48",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -37,7 +37,8 @@
     "icons:generate": "python scripts/generate-app-icon.py",
     "wb:eval": "node scripts/wb-eval-harness.js",
     "wb:eval:test": "node scripts/wb-eval-harness-test.js",
-    "wb:sandbox-test": "node scripts/wb-sandbox-security-test.js"
+    "wb:sandbox-test": "node scripts/wb-sandbox-security-test.js",
+    "wb:bl009-test": "node scripts/wb-bl009-012-test.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

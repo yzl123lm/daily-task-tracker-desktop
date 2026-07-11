@@ -10,6 +10,8 @@ const {
   recordToolOperation,
 } = require("./toolPermissionService.js");
 const { runStaticSmokeVerification } = require("./staticSmokeVerification.js");
+const { runWebHttpSmokeVerification } = require("./webHttpSmokeVerification.js");
+const { runFullstackSmokeVerification } = require("./fullstackSmokeVerification.js");
 
 async function runVerification(
   getUserDataPath,
@@ -34,6 +36,8 @@ async function runVerification(
 
   let resolvedName = scriptName;
   let useStaticSmoke = false;
+  let useWebHttpSmoke = false;
+  let useFullstackSmoke = false;
   if (profileId) {
     const { resolveProfileId, getProfile } = require("./verificationProfileRegistry.js");
     const id = resolveProfileId(profileId);
@@ -41,13 +45,20 @@ async function runVerification(
     if (profile.kind === "static_smoke" || id === "static-smoke") {
       useStaticSmoke = true;
       resolvedName = "static-smoke";
+    } else if (profile.kind === "web_http_smoke" || id === "web-http-smoke") {
+      useWebHttpSmoke = true;
+      resolvedName = "web-http-smoke";
+    } else if (profile.kind === "fullstack_smoke" || id === "fullstack-smoke") {
+      useFullstackSmoke = true;
+      resolvedName = "fullstack-smoke";
     } else {
       resolvedName = profile.scriptName;
     }
   }
-  if (String(resolvedName).toLowerCase() === "static-smoke") {
-    useStaticSmoke = true;
-  }
+  const lowerName = String(resolvedName).toLowerCase();
+  if (lowerName === "static-smoke") useStaticSmoke = true;
+  if (lowerName === "web-http-smoke") useWebHttpSmoke = true;
+  if (lowerName === "fullstack-smoke") useFullstackSmoke = true;
 
   if (useStaticSmoke) {
     const smoke = runStaticSmokeVerification(root);
@@ -58,6 +69,37 @@ async function runVerification(
       args: { profileId: "static-smoke", scriptName: "static-smoke" },
       resultText: smoke.message,
       riskLevel: "LOW",
+      approvedByUser: true,
+    });
+    return smoke;
+  }
+
+  if (useWebHttpSmoke) {
+    const smoke = await runWebHttpSmokeVerification(root);
+    recordToolOperation(getUserDataPath, uid, {
+      projectId,
+      taskId,
+      toolName: "run_tests",
+      args: { profileId: "web-http-smoke", scriptName: "web-http-smoke" },
+      resultText: smoke.message,
+      riskLevel: "LOW",
+      approvedByUser: true,
+    });
+    return smoke;
+  }
+
+  if (useFullstackSmoke) {
+    const smoke = await runFullstackSmokeVerification(root, {
+      taskId,
+      userApproved: true,
+    });
+    recordToolOperation(getUserDataPath, uid, {
+      projectId,
+      taskId,
+      toolName: "run_tests",
+      args: { profileId: "fullstack-smoke", scriptName: "fullstack-smoke" },
+      resultText: smoke.message,
+      riskLevel: "MEDIUM",
       approvedByUser: true,
     });
     return smoke;
@@ -150,18 +192,37 @@ function listAvailableVerifications(getUserDataPath, userId, projectId, { getDef
     return [];
   }
   const scripts = listVerificationScripts(root) || [];
-  if (scripts.length) {
-    return scripts;
-  }
-  // 无 npm 脚本时仍提供 static-smoke，避免走「跳过即完成」
-  return [
+  const extras = [
     {
       scriptName: "static-smoke",
       name: "static-smoke",
       profileId: "static-smoke",
       description: "静态入口冒烟",
     },
+    {
+      scriptName: "web-http-smoke",
+      name: "web-http-smoke",
+      profileId: "web-http-smoke",
+      description: "HTTP/DOM 冒烟",
+    },
+    {
+      scriptName: "fullstack-smoke",
+      name: "fullstack-smoke",
+      profileId: "fullstack-smoke",
+      description: "全栈/Compose 冒烟",
+    },
   ];
+  if (scripts.length) {
+    return [
+      ...scripts.map((s) => ({
+        ...s,
+        scriptName: s.scriptName || s.name,
+        profileId: s.profileId || s.name || s.scriptName,
+      })),
+      ...extras,
+    ];
+  }
+  return extras;
 }
 
 module.exports = {

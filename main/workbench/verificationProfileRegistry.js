@@ -42,17 +42,41 @@ const BUILTIN_PROFILES = [
     allowedExitCodes: [0],
     kind: "static_smoke",
   },
+  {
+    id: "web-http-smoke",
+    scriptName: "web-http-smoke",
+    description: "启动本地 HTTP 服务并做页面加载/DOM 冒烟（BL-011 / VER-004）",
+    timeoutMs: 60000,
+    network: "deny",
+    allowedExitCodes: [0],
+    kind: "web_http_smoke",
+  },
+  {
+    id: "fullstack-smoke",
+    scriptName: "fullstack-smoke",
+    description: "Compose/全栈冒烟：临时服务 + 健康检查（BL-011 / VER-005）",
+    timeoutMs: 300000,
+    network: "allowlist",
+    allowedExitCodes: [0],
+    kind: "fullstack_smoke",
+  },
 ];
 
 function listProfiles(root) {
   const available = new Set(
     (listVerificationScripts(root) || []).map((s) => String(s.scriptName || s.name || s).toLowerCase())
   );
-  return BUILTIN_PROFILES.map((p) => ({
-    ...p,
-    available: available.size === 0 ? true : available.has(p.scriptName),
-    version: 1,
-  }));
+  return BUILTIN_PROFILES.map((p) => {
+    const always =
+      p.kind === "static_smoke" ||
+      p.kind === "web_http_smoke" ||
+      p.kind === "fullstack_smoke";
+    return {
+      ...p,
+      available: always ? true : available.size === 0 ? true : available.has(p.scriptName),
+      version: 1,
+    };
+  });
 }
 
 function getProfile(profileId) {

@@ -284,11 +284,91 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       {
         projectId,
         taskId,
-        scriptName: payload?.scriptName || "build",
+        scriptName: payload?.scriptName || payload?.profileId || "build",
+        profileId: payload?.profileId || null,
         userApproved: Boolean(payload?.userApproved),
       },
       { getDefaultProjectRoot }
     );
+  });
+
+  ipcMain.handle("wb-project-repo-profile", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const { detectRepoProfile } = require("./repoProfileService.js");
+    const uid = resolveUserId(payload?.userId);
+    const project = getProject(getUserDataPath, uid, projectId);
+    if (!project) throw new Error("项目不存在");
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    if (!root) throw new Error("未配置项目代码目录");
+    return detectRepoProfile(root);
+  });
+
+  ipcMain.handle("wb-project-bootstrap-env", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const { bootstrapEnvironment } = require("./envBootstrapService.js");
+    const uid = resolveUserId(payload?.userId);
+    const project = getProject(getUserDataPath, uid, projectId);
+    if (!project) throw new Error("项目不存在");
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    if (!root) throw new Error("未配置项目代码目录");
+    return bootstrapEnvironment(root, {
+      userApproved: Boolean(payload?.userApproved),
+      timeoutMs: Number(payload?.timeoutMs) || 600000,
+    });
+  });
+
+  ipcMain.handle("wb-project-compose-up", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const { composeUp } = require("./composeRunnerService.js");
+    const uid = resolveUserId(payload?.userId);
+    const project = getProject(getUserDataPath, uid, projectId);
+    if (!project) throw new Error("项目不存在");
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    if (!root) throw new Error("未配置项目代码目录");
+    return composeUp(root, {
+      taskId,
+      userApproved: Boolean(payload?.userApproved),
+      file: payload?.file || null,
+    });
+  });
+
+  ipcMain.handle("wb-project-compose-down", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const { composeDown } = require("./composeRunnerService.js");
+    const uid = resolveUserId(payload?.userId);
+    const project = getProject(getUserDataPath, uid, projectId);
+    if (!project) throw new Error("项目不存在");
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    if (!root) throw new Error("未配置项目代码目录");
+    return composeDown(root, {
+      taskId,
+      userApproved: true,
+      volumes: Boolean(payload?.volumes),
+      file: payload?.file || null,
+    });
+  });
+
+  ipcMain.handle("wb-project-plan-dag", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getPlanSteps } = require("./planStepsService.js");
+    const { validatePlanDag, getReadySteps } = require("./planExecutionService.js");
+    const steps = getPlanSteps(getUserDataPath, payload?.userId, projectId, taskId);
+    const dag = validatePlanDag(steps);
+    return {
+      ...dag,
+      ready: getReadySteps(steps),
+    };
   });
 
   ipcMain.handle("wb-project-verify-scripts", (_event, payload) => {

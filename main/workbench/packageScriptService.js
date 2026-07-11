@@ -32,7 +32,22 @@ function resolveScriptCommand(rootDir, scriptName) {
       message: `当前项目未配置脚本 ${name}，已跳过验证`,
     };
   }
-  return { ok: true, command: `npm run ${name}`, scriptName: name, script: scripts[name] };
+  let pm = "npm";
+  try {
+    const { detectPackageManager } = require("./repoProfileService.js");
+    pm = detectPackageManager(rootDir).id || "npm";
+  } catch {
+    pm = "npm";
+  }
+  const command =
+    pm === "pnpm"
+      ? `pnpm run ${name}`
+      : pm === "yarn"
+        ? `yarn ${name}`
+        : pm === "bun"
+          ? `bun run ${name}`
+          : `npm run ${name}`;
+  return { ok: true, command, scriptName: name, script: scripts[name], packageManager: pm };
 }
 
 function listVerificationScripts(rootDir) {
