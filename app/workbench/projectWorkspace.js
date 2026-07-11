@@ -438,7 +438,29 @@ function applyAgentEventToUi(payload) {
   ) {
     return;
   }
-  if (payload.agentRunId && (agentRunStarting || !activeAgentRunId || payload.agentRunId === activeAgentRunId)) {
+  const handoffPhases = new Set([
+    "ready_confirm",
+    "done",
+    "failed",
+    "plan_ready",
+    "clarifying",
+    "diff_ready",
+    "diff_accepted",
+    "written",
+    "verify_ready",
+    "patch_empty",
+    "idle",
+  ]);
+  const inHandoff = handoffPhases.has(composerPhase) && !agentRunStarting;
+  // 交接后不要被历史 running 事件重新认领 runId / 拉回「停止任务」
+  if (
+    payload.agentRunId &&
+    (agentRunStarting ||
+      payload.agentRunId === activeAgentRunId ||
+      (!activeAgentRunId &&
+        !inHandoff &&
+        (payload.status === "running" || payload.status === "queued")))
+  ) {
     activeAgentRunId = payload.agentRunId;
   }
 
@@ -462,7 +484,9 @@ function applyAgentEventToUi(payload) {
   }
 
   if (payload.status === "running" || payload.status === "queued") {
-    if (composerPhase !== "running") {
+    if (inHandoff) {
+      // 仅更新时间线，不把主按钮打回「停止任务」
+    } else if (composerPhase !== "running") {
       updateComposerUi("running");
     }
   } else if (payload.status === "waiting") {
@@ -720,9 +744,27 @@ function finalizeOpenComposerSteps({
     if (!open.has(String(step.status || "").toLowerCase())) return;
     upsertComposerStep(step.id, markAs, detail);
   });
+  window.__wbActivityFeed?.finalizeOpenSteps?.({
+    keepStepKeys: [...keep],
+    markAs: markAs === "error" ? "failed" : "success",
+    detail,
+  });
+}
+
+/** 离开执行态时必须清锁，否则 updateComposerUi 会把 ready_confirm/done 等强制回写成 running */
+function clearAgentRunLock({ stopPolling = true } = {}) {
+  agentRunStarting = false;
+  activeAgentRunId = null;
+  if (stopPolling) {
+    stopAgentEventPolling();
+  }
 }
 
 function advanceComposerPhase(phase, { toast, toastType = "info", finalize = true } = {}) {
+  if (phase && phase !== "running") {
+    // 交接态优先于启动锁，避免「任务完成」事件到达时仍显示「停止任务」
+    clearAgentRunLock();
+  }
   if (finalize && phase && phase !== "running") {
     finalizeOpenComposerSteps({
       keepIds: phase === "failed" ? ["failed", "canceled"] : [],
@@ -822,8 +864,8 @@ function buildTimelineItem(title, status, detail, time, isStep) {
   return li;
 }
 
-function detectComposerPhaseFromContext(projectId, taskId, task = null) {
-  if (composerPhase === "running" || agentRunStarting) {
+function detectComposerPhaseFromContext(projectId, taskId, task = null, { ignoreRunningLock = false } = {}) {
+  if (!ignoreRunningLock && (composerPhase === "running" || agentRunStarting)) {
     return "running";
   }
   const reviewStore = window.__wbCodeReviewStore;
@@ -1068,8 +1110,21 @@ function ensureMoreActionsIcon(btn) {
 
 function updateComposerUi(phase = composerPhase) {
   const requested = phase == null || phase === "" ? composerPhase || "idle" : phase;
-  // 执行中禁止被 loadTaskContext 等回写成「生成代码变更」；终态调用方须先清 agentRunStarting
-  const running = requested === "running" || (agentRunStarting && requested !== "failed");
+  // 启动锁只挡住 loadTaskContext 等「软回写」(idle/plan_ready/…)；
+  // ready_confirm / done / failed 不在 softPhases，可正常落地。
+  // 交接前须由 advanceComposerPhase / clearAgentRunLock 清掉 agentRunStarting。
+  const softPhases = new Set([
+    "idle",
+    "plan_ready",
+    "clarifying",
+    "diff_ready",
+    "diff_accepted",
+    "written",
+    "verify_ready",
+    "patch_empty",
+  ]);
+  const running =
+    requested === "running" || (agentRunStarting && softPhases.has(requested));
   composerPhase = running ? "running" : requested;
   const primaryBtn = document.getElementById("wbPrimaryActionBtn");
   const secondaryBtn = document.getElementById("wbSecondaryActionBtn");
@@ -1933,16 +1988,19 @@ async function runComposerVerification() {
       upsertComposerStep("fix_failure", "pending");
       await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
       await openDiffReviewForCurrentTask({ forceReload: true });
+      clearAgentRunLock();
       updateComposerUi("diff_ready");
       showComposerToast("验证失败，请审阅修复 Diff", { type: "warn" });
     } else {
       upsertComposerStep("run_verify", "error", result.output?.summary || "验证失败");
       showComposerToast(result.output?.summary || "验证失败", { type: "error" });
+      clearAgentRunLock();
       updateComposerUi("written");
     }
   } catch (err) {
     upsertComposerStep("run_verify", "error", err?.message || "验证失败");
     showComposerToast(err?.message || "验证失败", { type: "error" });
+    clearAgentRunLock();
     updateComposerUi("written");
   } finally {
     agentRunStarting = false;
@@ -1986,7 +2044,15 @@ function setAgentRunning(running, agentRunId) {
     activeAgentRunId = null;
     agentRunStarting = false;
   }
-  updateComposerUi(running ? "running" : composerPhase);
+  // 结束运行时若仍卡在 running，交给调用方已设置的交接态；勿再次强制 running
+  if (running) {
+    updateComposerUi("running");
+  } else if (composerPhase === "running") {
+    // 调用方未推进阶段时保持 idle 提示，避免假「停止任务」
+    updateComposerUi("idle");
+  } else {
+    updateComposerUi(composerPhase);
+  }
 }
 
 function initAutoVerifyCheckbox() {
@@ -2090,6 +2156,54 @@ function bindTaskFilters() {
   });
 }
 
+/**
+ * UI 卡在「运行中/停止任务」但后端已无 PENDING/RUNNING 时，按任务上下文恢复交接态。
+ * @returns {Promise<boolean>} true 表示已执行恢复
+ */
+async function recoverStuckComposerRunning(projectId, taskId, task = null) {
+  if (!(composerPhase === "running" || agentRunStarting || activeAgentRunId)) {
+    return false;
+  }
+  // 正在发起 invoke：不要误恢复
+  if (agentRunStarting) {
+    return false;
+  }
+  const api = wbApi();
+  let hasLiveRun = false;
+  if (typeof api.wbProjectAgentRunsList === "function") {
+    try {
+      const runs = await api.wbProjectAgentRunsList({
+        projectId,
+        taskId,
+        limit: 8,
+      });
+      hasLiveRun = (runs || []).some((r) =>
+        ["PENDING", "RUNNING"].includes(String(r.status || "").toUpperCase())
+      );
+    } catch {
+      return false;
+    }
+  }
+  if (hasLiveRun) {
+    return false;
+  }
+  clearAgentRunLock();
+  finalizeOpenComposerSteps();
+  const next = detectComposerPhaseFromContext(projectId, taskId, task, {
+    ignoreRunningLock: true,
+  });
+  const phase = next === "running" ? "ready_confirm" : next;
+  advanceComposerPhase(phase, {
+    toast:
+      phase === "ready_confirm" || phase === "done"
+        ? "Agent 已结束。请确认是否标记完成，或继续推进下一环节。"
+        : "已恢复任务状态，可继续推进。",
+    toastType: "info",
+    finalize: false,
+  });
+  return true;
+}
+
 async function loadTaskContext(projectId, taskId) {
   const api = wbApi();
   const resolvedTaskId = syncSelectedTaskId(taskId || resolveCurrentTaskId());
@@ -2184,20 +2298,23 @@ async function loadTaskContext(projectId, taskId) {
   }
   const latestTasks = window.__wbStore?.getState?.()?.tasks || tasks;
   const latestTask = latestTasks.find((t) => t.id === resolvedTaskId) || task || null;
-  if (!(agentRunStarting || composerPhase === "running")) {
-    composerPhase = detectComposerPhaseFromContext(projectId, resolvedTaskId, latestTask);
-    if (composerPhase !== "running") {
-      finalizeOpenComposerSteps({
-        keepIds:
-          composerPhase === "diff_ready" || composerPhase === "diff_accepted"
-            ? ["await_diff", "generate_patch"]
-            : [],
-        detail: "已随当前阶段结束",
-      });
+  const stuckRunning = await recoverStuckComposerRunning(projectId, resolvedTaskId, latestTask);
+  if (!stuckRunning) {
+    if (!(agentRunStarting || composerPhase === "running")) {
+      composerPhase = detectComposerPhaseFromContext(projectId, resolvedTaskId, latestTask);
+      if (composerPhase !== "running") {
+        finalizeOpenComposerSteps({
+          keepIds:
+            composerPhase === "diff_ready" || composerPhase === "diff_accepted"
+              ? ["await_diff", "generate_patch"]
+              : [],
+          detail: "已随当前阶段结束",
+        });
+      }
+      updateComposerUi(composerPhase);
+    } else {
+      updateComposerUi("running");
     }
-    updateComposerUi(composerPhase);
-  } else {
-    updateComposerUi("running");
   }
   renderTaskDetail(latestTask);
   window.__wbRenderDiffReviewPanel?.();

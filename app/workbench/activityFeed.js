@@ -176,19 +176,28 @@
     if (isDiffWaitingPayload(event) || event.kind === "diff") {
       return DIFF_CARD_ID;
     }
-    if (event.eventId) {
-      return String(event.eventId);
-    }
-    if (event.patchId || event.stagedPatchId) {
-      return `patch_${event.patchId || event.stagedPatchId}`;
-    }
     if (event.id && String(event.id).startsWith("composer_")) {
       // composer steps: stable by step id (strip status so running→success updates)
       return String(event.id);
     }
-    const step = event.stepKey || event.toolName || event.phase || "step";
-    // Same phase/tool within a run merges; status changes update in place
-    return `${event.agentRunId || "local"}:${event.phase || ""}:${step}`;
+    if (event.patchId || event.stagedPatchId) {
+      return `patch_${event.patchId || event.stagedPatchId}`;
+    }
+    // 工具调用可多次：保留 eventId；纯步骤/阶段生命周期按 run+stepKey 合并，避免「进行中」与「完成」各占一行
+    const step = event.stepKey || event.phase || "";
+    if (event.toolName) {
+      if (event.eventId) {
+        return String(event.eventId);
+      }
+      return `${event.agentRunId || "local"}:tool:${event.toolName}:${event.eventId || event.at || Date.now()}`;
+    }
+    if (step) {
+      return `${event.agentRunId || "local"}:step:${step}`;
+    }
+    if (event.eventId) {
+      return String(event.eventId);
+    }
+    return `${event.agentRunId || "local"}:step:unknown`;
   }
 
   function inferKind(payload) {
@@ -253,17 +262,45 @@
     return [...agentEventMap.values()];
   }
 
+  function preferFeedStatus(oldStatus, newStatus) {
+    const rank = {
+      failed: 5,
+      success: 4,
+      waiting: 3,
+      running: 2,
+      queued: 1,
+      canceled: 1,
+    };
+    const o = rank[statusClass(oldStatus)] || 0;
+    const n = rank[statusClass(newStatus)] || 0;
+    return n >= o ? newStatus : oldStatus;
+  }
+
   function upsertAgentEvent(event) {
     const item = event?.id ? event : normalizeFeedItem(event);
     if (!item?.id) {
       return;
     }
-    const key = item.id;
+    let key = item.id;
+    // 非工具步骤按 stepKey 折叠，避免 hydrate(eventId) 与 composer_* 各留一行「进行中/完成」
+    if (item.stepKey && item.kind !== "tool" && item.kind !== "diff") {
+      const canonical = `step:${item.stepKey}`;
+      for (const [k, v] of [...agentEventMap.entries()]) {
+        if (k === DIFF_CARD_ID) continue;
+        if (v.kind === "tool" || v.kind === "diff") continue;
+        if (v.stepKey === item.stepKey && k !== canonical) {
+          agentEventMap.delete(k);
+        }
+      }
+      key = canonical;
+      item.id = canonical;
+    }
     const old = agentEventMap.get(key);
     if (old) {
       agentEventMap.set(key, {
         ...old,
         ...item,
+        status: preferFeedStatus(old.status, item.status),
         // Keep earliest timestamp for stable sort; refresh status/summary
         at: old.at || item.at,
         files: item.files?.length ? item.files : old.files,
@@ -416,6 +453,33 @@
       at: step.at,
       phase: "",
     });
+  }
+
+  /** 收口仍显示「进行中/等待中」的步骤行，与 composer 时间线对齐 */
+  function finalizeOpenSteps({
+    keepStepKeys = [],
+    markAs = "success",
+    detail = "",
+  } = {}) {
+    const keep = new Set(keepStepKeys);
+    let changed = false;
+    for (const [id, item] of agentEventMap) {
+      if (id === DIFF_CARD_ID) continue;
+      if (item.kind === "diff") continue;
+      if (keep.has(item.stepKey)) continue;
+      const cls = statusClass(item.status);
+      if (cls !== "running" && cls !== "queued") continue;
+      agentEventMap.set(id, {
+        ...item,
+        status: markAs,
+        summary: detail || item.summary,
+        endedAt: item.endedAt || new Date().toISOString(),
+      });
+      changed = true;
+    }
+    if (changed) {
+      renderActivityFeed();
+    }
   }
 
   function clearDiffCard() {
@@ -700,6 +764,7 @@
     reset: resetActivityFeed,
     pushEvent: pushAgentEvent,
     pushStep: pushComposerStep,
+    finalizeOpenSteps,
     pushDiffSummary,
     clearDiffCard,
     markDiffAccepted,
