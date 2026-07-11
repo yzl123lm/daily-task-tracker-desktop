@@ -1,0 +1,11 @@
+{
+  "id": "B03-express-api",
+  "title": "Express API 绿场",
+  "category": "greenfield",
+  "coverage": ["绿场", "API", "健康检查脚本"],
+  "input": "实现一个带 /health 的简易 Express API，并提供 npm test 脚本",
+  "repeats": 3,
+  "fixture": "express-api",
+  "hiddenAcceptances": ["npm_test_verify", "package_scripts_present", "evidence_package"],
+  "notes": "探针验证 package scripts 与 test 可跑"
+}

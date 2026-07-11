@@ -1,0 +1,11 @@
+{
+  "id": "B02-node-cli",
+  "title": "Node CLI 绿场",
+  "category": "greenfield",
+  "coverage": ["绿场", "Node", "构建验证"],
+  "input": "创建一个 Node CLI：支持 --help、错误码非 0，并带 package.json build 脚本",
+  "repeats": 3,
+  "fixture": "node-cli",
+  "hiddenAcceptances": ["npm_build_verify", "spec_approve_gate", "evidence_package"],
+  "notes": "隐藏验收：npm run build 必须真实 exit 0"
+}

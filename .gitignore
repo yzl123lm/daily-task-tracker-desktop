@@ -73,3 +73,7 @@ build/icon-source.png
 
 .tmp-*/
 .tmp-*
+
+# Workbench eval harness outputs
+eval-out/
+

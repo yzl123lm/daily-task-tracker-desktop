@@ -1,0 +1,11 @@
+{
+  "id": "B09-interrupt-recovery",
+  "title": "检查点与状态恢复",
+  "category": "recovery",
+  "coverage": ["恢复", "checkpoint"],
+  "input": "长任务中断后继续",
+  "repeats": 3,
+  "fixture": "static-web",
+  "hiddenAcceptances": ["checkpoint_roundtrip", "evidence_package"],
+  "notes": "探针：checkpoint 可读写；完整证据包可生成"
+}

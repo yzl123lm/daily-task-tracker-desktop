@@ -1,0 +1,11 @@
+{
+  "id": "B06-compile-fault",
+  "title": "编译/语法故障注入",
+  "category": "fault",
+  "coverage": ["诊断", "错误解析"],
+  "input": "修复构建错误",
+  "repeats": 3,
+  "fixture": "compile-fault",
+  "hiddenAcceptances": ["parse_build_error_locates_fault"],
+  "notes": "隐藏验收：错误解析必须定位到注入文件行号"
+}

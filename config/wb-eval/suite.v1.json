@@ -1,0 +1,22 @@
+{
+  "version": "1.0.0",
+  "id": "wb-eval-suite-v1",
+  "name": "鲸落AI Project Agent 内部基准套件",
+  "baselineClient": "1.24.45",
+  "metricsRef": "metrics.v1.json",
+  "defaultRepeats": 3,
+  "mode": "capability_probe",
+  "description": "BL-004 / EVAL-001：10 个固定基准。capability_probe 模式不调用 LLM，验证 Harness、隐藏验收与现有能力门禁可在 CI 复现；agent 模式预留给后续真 LLM E3。",
+  "benchmarks": [
+    "B01-static-web",
+    "B02-node-cli",
+    "B03-express-api",
+    "B04-fullstack-tasks",
+    "B05-brownfield-rbac",
+    "B06-compile-fault",
+    "B07-dependency-upgrade",
+    "B08-ui-bug",
+    "B09-interrupt-recovery",
+    "B10-security-redteam"
+  ]
+}

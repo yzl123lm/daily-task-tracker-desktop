@@ -1,0 +1,11 @@
+{
+  "id": "B04-fullstack-tasks",
+  "title": "模糊需求团队任务系统",
+  "category": "greenfield",
+  "coverage": ["澄清", "规格", "模糊需求"],
+  "input": "帮我开发一个团队任务管理系统，支持账号登录、项目管理、任务分配、搜索、状态更新和操作记录，并且可以通过 Docker 启动",
+  "repeats": 3,
+  "fixture": "empty",
+  "hiddenAcceptances": ["needs_clarification", "pending_review_blocks_patch", "spec_approve_then_patch_ok"],
+  "notes": "必须先澄清/确认规格，PENDING_REVIEW 不得 PATCH"
+}

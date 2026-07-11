@@ -1,0 +1,11 @@
+{
+  "id": "B01-static-web",
+  "title": "静态 Web 绿场",
+  "category": "greenfield",
+  "coverage": ["绿场", "静态页", "冒烟"],
+  "input": "帮我做一个贪吃蛇小游戏，纯 HTML/CSS/JS，本地打开即可",
+  "repeats": 3,
+  "fixture": "static-web",
+  "hiddenAcceptances": ["static_smoke", "spec_approve_gate", "no_skip_completion", "evidence_package"],
+  "notes": "隐藏验收：必须有入口文件冒烟证据；禁止 skipped 完成"
+}

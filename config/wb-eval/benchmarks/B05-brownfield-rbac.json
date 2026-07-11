@@ -1,0 +1,11 @@
+{
+  "id": "B05-brownfield-rbac",
+  "title": "现有仓跨文件补丁",
+  "category": "brownfield",
+  "coverage": ["棕场", "多文件", "暂存补丁"],
+  "input": "为现有系统增加组织级角色权限",
+  "repeats": 3,
+  "fixture": "mini-brownfield",
+  "hiddenAcceptances": ["multi_file_stage_patch", "spec_approve_gate", "staged_blocks_completion"],
+  "notes": "探针：多文件 stage_patch + 未审阅补丁阻断完成"
+}
