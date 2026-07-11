@@ -945,20 +945,33 @@ function setComposerButtonVisible(btn, visible, label = "") {
   if (!btn) {
     return;
   }
+  const isIconOnly = btn.id === "wbMoreActionsBtn" || btn.classList.contains("wb-ai-command__more");
   if (visible) {
     btn.hidden = false;
     btn.removeAttribute("hidden");
     btn.setAttribute("aria-hidden", "false");
-    if (label) {
+    if (isIconOnly) {
+      // 图标按钮：禁止用 textContent 覆盖，避免清空三点图标
+      ensureMoreActionsIcon(btn);
+    } else if (label) {
       btn.textContent = label;
     }
   } else {
     btn.hidden = true;
     btn.setAttribute("hidden", "");
     btn.setAttribute("aria-hidden", "true");
-    if (!label) {
+    if (!isIconOnly && !label) {
       btn.textContent = "";
     }
+  }
+}
+
+/** 更多操作按钮：水平三点（⋯），与知识库等处一致 */
+function ensureMoreActionsIcon(btn) {
+  if (!btn) return;
+  const icon = "⋯";
+  if (btn.textContent.trim() !== icon || btn.querySelector("svg")) {
+    btn.textContent = icon;
   }
 }
 

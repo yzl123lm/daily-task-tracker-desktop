@@ -514,6 +514,10 @@ body.jl-project-workspace-active #panel-ai {
   height: 34px;
   padding: 0;
   color: #475569;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.02em;
 }
 
 .wb-ai-command__more:hover {

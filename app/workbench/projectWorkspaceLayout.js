@@ -118,13 +118,7 @@ const WB_PWS_LAYOUT_HTML = `
           <div class="wb-ai-command__actions">
             <button type="button" id="wbSecondaryActionBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>调整需求</button>
             <button type="button" id="wbPrimaryActionBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
-            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded="false">
-              <svg class="wb-ai-command__more-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
-                <circle cx="3" cy="8" r="1.6" fill="currentColor" />
-                <circle cx="8" cy="8" r="1.6" fill="currentColor" />
-                <circle cx="13" cy="8" r="1.6" fill="currentColor" />
-              </svg>
-            </button>
+            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded="false">⋯</button>
             <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden role="menu" aria-label="更多操作">
               <button type="button" data-wb-more-action="regen-plan">重新生成方案</button>
               <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
