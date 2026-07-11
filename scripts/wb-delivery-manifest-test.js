@@ -15,15 +15,22 @@ const {
   saveDeliveryManifest,
   getDeliveryManifest,
 } = require("../main/workbench/deliveryManifestService.js");
-const { exportAgentTrace } = require("../main/workbench/agentTraceExport.js");
+const {
+  exportAgentTrace,
+  buildEvidencePackage,
+} = require("../main/workbench/agentTraceExport.js");
+const { runStaticSmokeVerification } = require("../main/workbench/staticSmokeVerification.js");
 
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "wb-del-"));
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "wb-del-ud-"));
 const getUserDataPath = () => userData;
 getDb(getUserDataPath);
 
+fs.writeFileSync(path.join(tmpRoot, "index.html"), "<!doctype html><title>s</title>");
+
 const project = createProject(getUserDataPath, "local-user", {
   name: "delivery",
-  localPath: userData,
+  localPath: tmpRoot,
 });
 const task = createTask(getUserDataPath, "local-user", project.id, {
   title: "snake",
@@ -46,15 +53,19 @@ if (spec.openQuestions?.length) {
     status: "APPROVED",
     executionReady: true,
   });
+  confirmTaskSpec(getUserDataPath, "local-user", project.id, task.id, {});
 }
 savePlanSteps(getUserDataPath, "local-user", project.id, task.id, ["创建 index.html"], {
   criterionIds: ["ac_1"],
 });
 
+const smoke = runStaticSmokeVerification(tmpRoot);
+assert.ok(smoke.ok && !smoke.skipped);
+
 const manifest = buildDeliveryManifest(getUserDataPath, "local-user", {
   projectId: project.id,
   taskId: task.id,
-  verifyResult: { ok: true, skipped: true, message: "skipped" },
+  verifyResult: smoke,
 });
 assert.ok(manifest.generatedAt);
 assert.ok(manifest.spec);
@@ -66,12 +77,24 @@ assert.ok(getDeliveryManifest(getUserDataPath, "local-user", project.id, task.id
 const trace = exportAgentTrace(getUserDataPath, "local-user", {
   projectId: project.id,
   taskId: task.id,
+  verifyResult: smoke,
 });
-assert.strictEqual(trace.version, 1);
+assert.ok(trace.version >= 2);
+assert.strictEqual(trace.kind, "evidence_package");
 assert.ok(trace.taskSpec);
 assert.ok(Array.isArray(trace.planSteps));
+assert.ok(trace.integrity?.hash);
+assert.ok(trace.completeness);
 
-// redaction smoke
+const persisted = buildEvidencePackage(getUserDataPath, "local-user", {
+  projectId: project.id,
+  taskId: task.id,
+  verifyResult: smoke,
+  persist: true,
+});
+assert.ok(persisted.savedPath);
+assert.ok(fs.existsSync(persisted.savedPath));
+
 const { deepRedact } = require("../main/workbench/agentTraceExport.js");
 const redacted = deepRedact({
   token: "sk-abcdefghijklmnopqrstuvwxyz123456",
@@ -80,6 +103,11 @@ const redacted = deepRedact({
 assert.ok(String(JSON.stringify(redacted)).includes("[REDACTED]"));
 
 console.log("wb-delivery-manifest-test: OK");
+try {
+  fs.rmSync(tmpRoot, { recursive: true, force: true });
+} catch {
+  /* ignore */
+}
 try {
   fs.rmSync(userData, { recursive: true, force: true });
 } catch {

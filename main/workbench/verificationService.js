@@ -9,6 +9,7 @@ const {
   assertProjectAgentTool,
   recordToolOperation,
 } = require("./toolPermissionService.js");
+const { runStaticSmokeVerification } = require("./staticSmokeVerification.js");
 
 async function runVerification(
   getUserDataPath,
@@ -30,21 +31,59 @@ async function runVerification(
   if (!root) {
     throw new Error("未配置项目代码目录");
   }
+
   let resolvedName = scriptName;
+  let useStaticSmoke = false;
   if (profileId) {
     const { resolveProfileId, getProfile } = require("./verificationProfileRegistry.js");
     const id = resolveProfileId(profileId);
-    resolvedName = getProfile(id).scriptName;
+    const profile = getProfile(id);
+    if (profile.kind === "static_smoke" || id === "static-smoke") {
+      useStaticSmoke = true;
+      resolvedName = "static-smoke";
+    } else {
+      resolvedName = profile.scriptName;
+    }
   }
+  if (String(resolvedName).toLowerCase() === "static-smoke") {
+    useStaticSmoke = true;
+  }
+
+  if (useStaticSmoke) {
+    const smoke = runStaticSmokeVerification(root);
+    recordToolOperation(getUserDataPath, uid, {
+      projectId,
+      taskId,
+      toolName: "run_tests",
+      args: { profileId: "static-smoke", scriptName: "static-smoke" },
+      resultText: smoke.message,
+      riskLevel: "LOW",
+      approvedByUser: true,
+    });
+    return smoke;
+  }
+
   const resolved = resolveScriptCommand(root, resolvedName);
   if (!resolved.ok) {
-    // 无 package.json / 无对应脚本：对静态页等项目视为可跳过，不算验证失败
+    // BL-003: 禁止把「无脚本」当成验证通过；自动降级为静态冒烟（真实证据）
+    const smoke = runStaticSmokeVerification(root);
+    recordToolOperation(getUserDataPath, uid, {
+      projectId,
+      taskId,
+      toolName: "run_tests",
+      args: {
+        profileId: "static-smoke",
+        scriptName: resolvedName,
+        fallbackFrom: resolved.message || "no_script",
+      },
+      resultText: smoke.message,
+      riskLevel: "LOW",
+      approvedByUser: true,
+    });
     return {
-      ok: true,
-      skipped: true,
-      message: resolved.message || "已跳过验证",
-      scriptName: resolvedName,
-      profileId: profileId || resolvedName,
+      ...smoke,
+      fallbackFrom: resolvedName,
+      originalSkipReason: resolved.message || "已跳过验证",
     };
   }
   assertCommandAllowed(resolved.command);
@@ -79,6 +118,7 @@ async function runVerification(
   }
   return {
     ok: result.success,
+    skipped: false,
     exitCode: result.exitCode,
     command: resolved.command,
     scriptName: resolvedName,
@@ -86,6 +126,16 @@ async function runVerification(
     stdout: result.stdout,
     stderr: result.stderr,
     parsed,
+    evidence: result.success
+      ? [
+          {
+            type: "command_exit",
+            command: resolved.command,
+            exitCode: result.exitCode,
+            at: new Date().toISOString(),
+          },
+        ]
+      : [],
   };
 }
 
@@ -99,7 +149,19 @@ function listAvailableVerifications(getUserDataPath, userId, projectId, { getDef
   if (!root) {
     return [];
   }
-  return listVerificationScripts(root);
+  const scripts = listVerificationScripts(root) || [];
+  if (scripts.length) {
+    return scripts;
+  }
+  // 无 npm 脚本时仍提供 static-smoke，避免走「跳过即完成」
+  return [
+    {
+      scriptName: "static-smoke",
+      name: "static-smoke",
+      profileId: "static-smoke",
+      description: "静态入口冒烟",
+    },
+  ];
 }
 
 module.exports = {

@@ -261,22 +261,22 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
     };
   }
   if (verify.skipped) {
-    // 兼容旧返回：skipped 且 ok=false
+    // BL-003: 跳过验证不得标记完成；守卫会返回 VERIFY_SKIPPED / BLOCKED
     clearFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId);
     const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
     const marked = tryMarkTaskCompleted(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-      verifyResult: { ...verify, ok: true, skipped: true },
-      currentStep: verify.message || "已跳过验证（无 npm 脚本）",
+      verifyResult: { ...verify, skipped: true },
+      currentStep: verify.message || "验证被跳过，未完成验收",
       getDefaultProjectRoot,
     });
     return {
-      ok: marked.completed,
+      ok: false,
       skipped: true,
-      message: verify.message,
+      message: verify.message || "验证被跳过，禁止标记完成",
       verify,
-      phase: marked.completed ? FIX_LOOP_PHASE.COMPLETED : FIX_LOOP_PHASE.FAILED,
+      phase: FIX_LOOP_PHASE.FAILED,
       completionGuard: marked.guard,
-      blocked: !marked.completed,
+      blocked: true,
     };
   }
   state = getFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId);

@@ -13,6 +13,7 @@ const {
 const { evaluateCompletion } = require("../main/workbench/completionGuardService.js");
 const { tryMarkTaskCompleted } = require("../main/workbench/taskCompletionService.js");
 const { createStagedPatch } = require("../main/workbench/patchStagingService.js");
+const { runStaticSmokeVerification } = require("../main/workbench/staticSmokeVerification.js");
 
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "wb-cg-"));
 const userData = fs.mkdtempSync(path.join(os.tmpdir(), "wb-cg-ud-"));
@@ -23,16 +24,37 @@ const project = createProject(getUserDataPath, "local-user", {
   name: "guard",
   localPath: tmpRoot,
 });
-const task = createTask(getUserDataPath, "local-user", project.id, {
-  title: "guard task",
-  description: "做一个贪吃蛇小游戏，纯 HTML/CSS/JS",
-});
 
-// Legacy path without spec: verify ok => complete
+// BL-003: legacy + skipped must NOT complete
 {
+  const task = createTask(getUserDataPath, "local-user", project.id, {
+    title: "legacy skip",
+    description: "x",
+  });
   const marked = tryMarkTaskCompleted(getUserDataPath, "local-user", project.id, task.id, {
     verifyResult: { ok: true, skipped: true, message: "skipped" },
     currentStep: "ok",
+    persistEvidence: false,
+  });
+  assert.strictEqual(marked.completed, false);
+  assert.ok(marked.guard.blockers.some((b) => b.code === "VERIFY_SKIPPED" || b.code === "VERIFY_REQUIRED"));
+  assert.strictEqual(getTask(getUserDataPath, "local-user", project.id, task.id).status, "BLOCKED");
+}
+
+// BL-003: legacy + real verify ok can complete
+{
+  const task = createTask(getUserDataPath, "local-user", project.id, {
+    title: "legacy ok",
+    description: "x",
+  });
+  const marked = tryMarkTaskCompleted(getUserDataPath, "local-user", project.id, task.id, {
+    verifyResult: {
+      ok: true,
+      skipped: false,
+      profileId: "build",
+      evidence: [{ type: "command_exit", exitCode: 0 }],
+    },
+    persistEvidence: false,
   });
   assert.ok(marked.completed);
   assert.strictEqual(getTask(getUserDataPath, "local-user", project.id, task.id).status, "COMPLETED");
@@ -52,17 +74,34 @@ saveTaskSpec(getUserDataPath, "local-user", project.id, task2.id, draft);
 const blockedClarify = evaluateCompletion(getUserDataPath, "local-user", {
   projectId: project.id,
   taskId: task2.id,
-  verifyResult: { ok: true, skipped: true },
+  verifyResult: { ok: true, skipped: false, evidence: [{ type: "x" }] },
 });
 assert.strictEqual(blockedClarify.ok, false);
-assert.ok(blockedClarify.blockers.some((b) => b.code === "OPEN_CLARIFICATION"));
+assert.ok(blockedClarify.blockers.some((b) => b.code === "OPEN_CLARIFICATION" || b.code === "SPEC_NOT_APPROVED"));
 
 const answers = {};
 for (const q of draft.openQuestions) answers[q.id] = "默认";
 draft = confirmTaskSpec(getUserDataPath, "local-user", project.id, task2.id, { answers });
 assert.strictEqual(draft.status, SPEC_STATUS.APPROVED);
 
-fs.writeFileSync(path.join(tmpRoot, "app.js"), "function main() {\n  // TODO: implement\n  return null;\n}\n");
+// skipped still blocked after approve
+{
+  const skipped = evaluateCompletion(getUserDataPath, "local-user", {
+    projectId: project.id,
+    taskId: task2.id,
+    verifyResult: { ok: true, skipped: true },
+  });
+  assert.strictEqual(skipped.ok, false);
+  assert.ok(skipped.blockers.some((b) => b.code === "VERIFY_SKIPPED"));
+}
+
+fs.writeFileSync(path.join(tmpRoot, "index.html"), "<!doctype html><html><body>ok</body></html>\n");
+fs.writeFileSync(path.join(tmpRoot, "app.js"), "function main() {\n  return 1;\n}\n");
+
+const smoke = runStaticSmokeVerification(tmpRoot);
+assert.ok(smoke.ok);
+assert.strictEqual(smoke.skipped, false);
+
 createStagedPatch(getUserDataPath, "local-user", {
   projectId: project.id,
   taskId: task2.id,
@@ -76,7 +115,7 @@ createStagedPatch(getUserDataPath, "local-user", {
 const blockedStaged = evaluateCompletion(getUserDataPath, "local-user", {
   projectId: project.id,
   taskId: task2.id,
-  verifyResult: { ok: true, skipped: true },
+  verifyResult: smoke,
 });
 assert.strictEqual(blockedStaged.ok, false);
 assert.ok(blockedStaged.blockers.some((b) => b.code === "STAGED_PATCHES_PENDING"));

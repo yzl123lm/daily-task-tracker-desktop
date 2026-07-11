@@ -1846,7 +1846,11 @@ async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } =
     if (result.agentRunId) {
       activeAgentRunId = result.agentRunId;
     }
-    if (result.output?.code === "SPEC_CLARIFYING" || result.output?.code === "SPEC_REQUIRED") {
+    if (
+      result.output?.code === "SPEC_CLARIFYING" ||
+      result.output?.code === "SPEC_REQUIRED" ||
+      result.output?.code === "SPEC_PENDING_REVIEW"
+    ) {
       showComposerToast(result.output?.note || result.output?.summary || "请先确认规格", {
         type: "warn",
       });
@@ -1854,10 +1858,12 @@ async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } =
         ...(result.output || {}),
         openQuestions: result.output?.openQuestions || [],
         executionReady: false,
-        note: "澄清",
+        note: result.output?.code === "SPEC_PENDING_REVIEW" ? "规格待确认" : "澄清",
       });
       agentRunStarting = false;
-      updateComposerUi("clarifying");
+      updateComposerUi(
+        result.output?.code === "SPEC_PENDING_REVIEW" ? "plan_ready" : "clarifying"
+      );
       return;
     }
     if (result.output?.plan?.length) {

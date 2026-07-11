@@ -142,7 +142,9 @@ function createDraftSpec({ message, project, task, plan = [], answers = {} }) {
     approvedBy: null,
     createdAt: nowIso(),
     updatedAt: nowIso(),
-    executionReady: status === SPEC_STATUS.PENDING_REVIEW || status === SPEC_STATUS.APPROVED,
+    // BL-002: 仅 APPROVED 视为可执行；PENDING_REVIEW 需用户确认
+    executionReady: status === SPEC_STATUS.APPROVED,
+    history: [],
   };
 }
 
@@ -184,9 +186,26 @@ function confirmTaskSpec(getUserDataPath, userId, projectId, taskId, { answers =
   }
   const nextAnswers = { ...(existing.userAnswers || {}), ...answers };
   const mergedQuestions = (existing.openQuestions || []).filter((q) => !nextAnswers[q.id]);
+  const stillBlocking = mergedQuestions.some((q) => q.blocking);
+  const history = Array.isArray(existing.history) ? [...existing.history] : [];
+  // BL-002: 重新批准时归档上一版不可变快照
+  if (existing.status === SPEC_STATUS.APPROVED && !stillBlocking) {
+    history.push({
+      specId: existing.specId,
+      version: existing.version || 1,
+      status: SPEC_STATUS.SUPERSEDED,
+      goal: existing.goal,
+      approvedAt: existing.approvedAt,
+      approvedBy: existing.approvedBy,
+      supersededAt: nowIso(),
+    });
+  }
   const next = {
     ...existing,
-    version: Number(existing.version || 1) + (existing.status === SPEC_STATUS.APPROVED ? 1 : 0),
+    version:
+      existing.status === SPEC_STATUS.APPROVED
+        ? Number(existing.version || 1) + 1
+        : Number(existing.version || 1),
     openQuestions: mergedQuestions,
     userAnswers: nextAnswers,
     assumptions: [
@@ -199,19 +218,23 @@ function confirmTaskSpec(getUserDataPath, userId, projectId, taskId, { answers =
         status: "confirmed",
       })),
     ],
-    status: mergedQuestions.some((q) => q.blocking) ? SPEC_STATUS.CLARIFYING : SPEC_STATUS.APPROVED,
-    approvedAt: mergedQuestions.some((q) => q.blocking) ? null : nowIso(),
-    approvedBy: mergedQuestions.some((q) => q.blocking) ? null : approver,
-    executionReady: !mergedQuestions.some((q) => q.blocking),
+    status: stillBlocking ? SPEC_STATUS.CLARIFYING : SPEC_STATUS.APPROVED,
+    approvedAt: stillBlocking ? null : nowIso(),
+    approvedBy: stillBlocking ? null : approver,
+    executionReady: !stillBlocking,
+    history,
     updatedAt: nowIso(),
   };
   if (next.status === SPEC_STATUS.APPROVED && existing.status === SPEC_STATUS.APPROVED) {
-    // new immutable version marker
-    next.specId = `${existing.specId}_v${next.version}`;
+    next.specId = `${String(existing.specId || "spec").replace(/_v\d+$/, "")}_v${next.version}`;
   }
   return saveTaskSpec(getUserDataPath, userId, projectId, taskId, next);
 }
 
+/**
+ * BL-002 硬门：仅 APPROVED 允许进入 PATCH_PROPOSE / 实施。
+ * PENDING_REVIEW 必须先经 confirmTaskSpec。
+ */
 function assertSpecAllowsPatch(spec) {
   if (!taskSpecEnabled()) return { ok: true };
   if (!spec) {
@@ -225,14 +248,21 @@ function assertSpecAllowsPatch(spec) {
       openQuestions: spec.openQuestions,
     };
   }
-  if (spec.status !== SPEC_STATUS.APPROVED && spec.status !== SPEC_STATUS.PENDING_REVIEW) {
+  if (spec.status === SPEC_STATUS.PENDING_REVIEW) {
+    return {
+      ok: false,
+      code: "SPEC_PENDING_REVIEW",
+      message: "规格待确认：请先批准 TaskSpec（APPROVED）后再生成代码变更",
+    };
+  }
+  if (spec.status !== SPEC_STATUS.APPROVED) {
     return { ok: false, code: "SPEC_NOT_READY", message: `规格状态不可执行: ${spec.status}` };
   }
   const must = (spec.acceptanceCriteria || []).filter((c) => c.must);
   if (!must.length) {
     return { ok: false, code: "SPEC_NO_ACCEPTANCE", message: "缺少 Must 验收项" };
   }
-  return { ok: true };
+  return { ok: true, specVersion: spec.version || 1, specId: spec.specId || null };
 }
 
 function updateAcceptanceStatus(spec, criterionId, status, evidence = null) {

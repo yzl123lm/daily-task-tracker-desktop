@@ -210,11 +210,12 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     const agentRunId = payload?.agentRunId
       ? assertSafeId(payload.agentRunId, "agentRunId")
       : null;
-    const { exportAgentTrace } = require("./agentTraceExport.js");
-    return exportAgentTrace(getUserDataPath, payload?.userId, {
+    const { buildEvidencePackage } = require("./agentTraceExport.js");
+    return buildEvidencePackage(getUserDataPath, payload?.userId, {
       projectId,
       taskId,
       agentRunId,
+      persist: payload?.persist !== false,
     });
   });
 

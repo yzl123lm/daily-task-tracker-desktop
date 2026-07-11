@@ -33,6 +33,15 @@ const BUILTIN_PROFILES = [
     network: "deny",
     allowedExitCodes: [0],
   },
+  {
+    id: "static-smoke",
+    scriptName: "static-smoke",
+    description: "静态页/无 npm 脚本项目的入口文件冒烟（BL-003，禁止 skip 当完成）",
+    timeoutMs: 30000,
+    network: "deny",
+    allowedExitCodes: [0],
+    kind: "static_smoke",
+  },
 ];
 
 function listProfiles(root) {
