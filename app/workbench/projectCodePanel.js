@@ -1397,13 +1397,35 @@ async function applyAcceptedDiffsLegacy(api, projectId, taskId, accepted, create
   return results;
 }
 
-async function applyAcceptedDiffs() {
+async function applyAcceptedDiffs(opts = {}) {
   const api = wbApi();
-  const projectId = panelState.projectId;
-  const taskId = getTaskId();
+  const store = window.__wbStore?.getState?.() || {};
+  const projectId =
+    opts.projectId ||
+    panelState.projectId ||
+    store.selectedProjectId ||
+    document.getElementById("wbTaskDetail")?.dataset?.projectId ||
+    document.getElementById("wbPwsAgentCol")?.dataset?.projectId ||
+    null;
+  const taskId =
+    opts.taskId ||
+    getTaskId() ||
+    store.selectedTaskId ||
+    document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
+    null;
   const reviewStore = window.__wbCodeReviewStore;
   if (!projectId || !taskId || !reviewStore) {
+    await wbAlert("无法定位当前项目或任务，请重新打开 Diff 后再试。", {
+      title: "写入中断",
+      detail: "缺少 projectId / taskId，无法继续受控写入。",
+    });
     return;
+  }
+  if (!panelState.projectId) {
+    panelState.projectId = projectId;
+  }
+  if (!panelState.taskId) {
+    panelState.taskId = taskId;
   }
   const accepted = reviewStore.getAcceptedChanges(projectId, taskId);
   if (!accepted.length) {
@@ -1413,30 +1435,164 @@ async function applyAcceptedDiffs() {
     });
     return;
   }
+
+  // 按库内真实状态分流：已 APPLIED 的跳过；STAGED 提升为 ACCEPTED；再写入
+  const patchIdsAll = accepted.map((c) => c.stagedPatchId).filter(Boolean);
+  let listed = [];
+  if (typeof api.wbProjectPatchesList === "function" && patchIdsAll.length) {
+    try {
+      listed =
+        (await api.wbProjectPatchesList({
+          projectId,
+          taskId,
+          statuses: ["STAGED", "ACCEPTED", "APPLIED", "REVISION_REQUESTED", "FAILED"],
+        })) || [];
+    } catch {
+      listed = [];
+    }
+  }
+  const byId = new Map(
+    (listed || []).map((p) => [String(p.stagedPatchId || p.id || ""), p]).filter(([k]) => k)
+  );
+  const alreadyApplied = [];
+  const readyToWrite = [];
+  const syncErrors = [];
+
+  for (const change of accepted) {
+    if (!change.stagedPatchId) {
+      syncErrors.push(`${change.path || "未知文件"}：缺少 stagedPatchId`);
+      continue;
+    }
+    const patch = byId.get(String(change.stagedPatchId));
+    const status = String(patch?.status || "").toUpperCase();
+    if (status === "APPLIED") {
+      alreadyApplied.push(change);
+      continue;
+    }
+    if (status === "ACCEPTED") {
+      readyToWrite.push(change);
+      continue;
+    }
+    if (status === "STAGED" || !status) {
+      // 列表未命中时先查单条，避免对已 APPLIED 误调 ACCEPTED
+      if (!status && typeof api.wbProjectPatchGet === "function") {
+        try {
+          const one = await api.wbProjectPatchGet({
+            projectId,
+            taskId,
+            patchId: change.stagedPatchId,
+          });
+          const oneStatus = String(one?.status || "").toUpperCase();
+          if (oneStatus === "APPLIED") {
+            alreadyApplied.push(change);
+            continue;
+          }
+          if (oneStatus === "ACCEPTED") {
+            readyToWrite.push(change);
+            continue;
+          }
+          if (oneStatus && oneStatus !== "STAGED") {
+            syncErrors.push(
+              `${change.path || change.stagedPatchId}：当前状态 ${oneStatus}，无法写入`
+            );
+            continue;
+          }
+        } catch {
+          /* fall through to promote */
+        }
+      }
+      if (typeof api.wbProjectPatchStatus !== "function") {
+        syncErrors.push(`${change.path || change.stagedPatchId}：无法同步补丁状态`);
+        continue;
+      }
+      try {
+        await api.wbProjectPatchStatus({
+          projectId,
+          taskId,
+          patchId: change.stagedPatchId,
+          status: "ACCEPTED",
+        });
+        readyToWrite.push(change);
+      } catch (err) {
+        const msg = String(err?.message || err || "");
+        if (/APPLIED\s*→\s*ACCEPTED/.test(msg) || msg.includes("APPLIED → ACCEPTED")) {
+          alreadyApplied.push(change);
+        } else {
+          syncErrors.push(`${change.path || change.stagedPatchId}：${msg}`);
+        }
+      }
+      continue;
+    }
+    syncErrors.push(
+      `${change.path || change.stagedPatchId}：当前状态 ${status || "未知"}，无法写入`
+    );
+  }
+
+  if (syncErrors.length && !readyToWrite.length && !alreadyApplied.length) {
+    await wbAlert(syncErrors.slice(0, 5).join("\n"), {
+      title: "补丁状态同步失败",
+      detail: "界面已接受，但未能写入库内 ACCEPTED 状态。请重新接受 Diff，或重新生成变更后再试。",
+    });
+    window.__wbActivityFeed?.markDiffAccepted?.({ autoWrite: false });
+    return;
+  }
+
+  // 全部早已写入：清理 Diff UI，推进到已写入/验证，避免重复写
+  if (!readyToWrite.length && alreadyApplied.length) {
+    reviewStore.clearChanges(projectId, taskId);
+    window.__wbRenderDiffReviewPanel?.({ projectId, taskId });
+    window.__wbSwitchCodeTab?.("code");
+    window.__wbOnComposerDiffApplied?.(projectId, taskId);
+    window.__wbShowComposerToast?.("这些变更此前已写入，无需重复写入", { type: "success" });
+    if (syncErrors.length) {
+      window.__wbShowComposerToast?.(syncErrors[0], { type: "warn" });
+    }
+    return;
+  }
+
+  if (!readyToWrite.length) {
+    await wbAlert(syncErrors.slice(0, 5).join("\n") || "没有可写入的补丁", {
+      title: "无可写入变更",
+      detail: "请重新生成代码变更后再试。",
+    });
+    return;
+  }
+
   const createGitBranch = getCreateGitBranchChecked();
   const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  // Diff 面板已完成文件级确认：写入审批自动通过（仍走 approvalStore 记账）
+  const autoApprove = opts.autoApprove !== false;
   const approved = await window.__wbRequestApproval?.({
     taskId,
     projectId,
     actionType: "write_batch",
-    title: `批量写入 ${accepted.length} 个文件`,
-    summary: "将应用 Diff 审阅中已接受的变更。",
-    scope: accepted.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
+    title: `批量写入 ${readyToWrite.length} 个文件`,
+    summary: autoApprove
+      ? "Diff 审阅已确认，正在写入项目目录。"
+      : "将应用 Diff 审阅中已接受的变更。",
+    scope: readyToWrite.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
     riskLevel: "MEDIUM",
+    autoApprove,
     details: {
       requestId,
-      stagedPatchIds: accepted.map((c) => c.stagedPatchId).filter(Boolean),
+      stagedPatchIds: readyToWrite.map((c) => c.stagedPatchId).filter(Boolean),
+      source: "diff_review",
+      alreadyAppliedCount: alreadyApplied.length,
     },
   });
   if (!approved) {
+    window.__wbShowComposerToast?.("写入审批未通过或被占用，请稍后重试", { type: "warn" });
     return;
   }
-  const patchIds = accepted.map((c) => c.stagedPatchId).filter(Boolean);
+  const patchIds = readyToWrite.map((c) => c.stagedPatchId).filter(Boolean);
   const useBatchApply = window.__wbApplyBatchEnabled !== false;
   try {
     let applyOutput = null;
-    const autoVerify = Boolean(document.getElementById("wbAutoVerifyAfterWrite")?.checked);
+    const autoVerifyEl = document.getElementById("wbAutoVerifyAfterWrite");
+    const autoVerify = autoVerifyEl ? Boolean(autoVerifyEl.checked) : true;
     const orchAutoVerify = window.__wbOrchAutoVerifyEnabled !== false;
+    window.__wbActivityFeed?.markDiffWriting?.();
+    window.__wbUpsertComposerStep?.("write_code", "running", "正在写入已接受的变更…");
     if (useBatchApply && typeof api.wbProjectAgentRun === "function" && patchIds.length) {
       const result = await api.wbProjectAgentRun({
         projectId,
@@ -1458,7 +1614,7 @@ async function applyAcceptedDiffs() {
         throw new Error(result.output?.applyResult?.error || result.output?.summary || "批量写入失败");
       }
     } else {
-      await applyAcceptedDiffsLegacy(api, projectId, taskId, accepted, createGitBranch);
+      await applyAcceptedDiffsLegacy(api, projectId, taskId, readyToWrite, createGitBranch);
     }
     reviewStore.clearChanges(projectId, taskId);
     window.__wbExpandTerminalDrawer?.("log");
@@ -1467,7 +1623,8 @@ async function applyAcceptedDiffs() {
     await refreshBackupList();
     await refreshToolOps();
     window.__wbRefreshTaskList?.();
-    window.__wbRenderDiffReviewPanel?.();
+    window.__wbRenderDiffReviewPanel?.({ projectId, taskId });
+    window.__wbSwitchCodeTab?.("code");
     await window.__wbLoadTaskContext?.(projectId, taskId);
     window.__wbOnComposerDiffApplied?.(projectId, taskId);
 
@@ -1480,7 +1637,7 @@ async function applyAcceptedDiffs() {
         window.__wbUpsertComposerStep?.("run_verify", "error", "验证失败，已生成修复 Diff");
         window.__wbUpsertComposerStep?.("fix_failure", "pending");
         await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-        window.__wbRenderDiffReviewPanel?.();
+        window.__wbRenderDiffReviewPanel?.({ projectId, taskId });
         window.__wbSwitchCodeTab?.("diff");
       } else if (fixResult?.failed) {
         window.__wbUpsertComposerStep?.(
@@ -1494,7 +1651,7 @@ async function applyAcceptedDiffs() {
       } else if (fixResult && !fixResult.ok && !fixResult.skipped) {
         window.__wbUpsertComposerStep?.("run_verify", "error", fixResult.message || "验证未通过");
         await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-        window.__wbRenderDiffReviewPanel?.();
+        window.__wbRenderDiffReviewPanel?.({ projectId, taskId });
       }
     } else if (!orchAutoVerify && autoVerify && typeof api.wbProjectAgentRun === "function") {
       // WB_ORCH_AUTO_VERIFY=0 回退：渲染层二次审批后 VERIFY_FIX
@@ -1505,6 +1662,7 @@ async function applyAcceptedDiffs() {
         title: "写入后自动验证 build",
         summary: "运行 npm run build 验证写入结果",
         riskLevel: "MEDIUM",
+        autoApprove: true,
         details: { auto_verify: true, requestId: `verify_${requestId}` },
       });
       if (approvedVerify) {
@@ -1518,7 +1676,7 @@ async function applyAcceptedDiffs() {
           source: "diff_review",
         });
         await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, taskId);
-        window.__wbRenderDiffReviewPanel?.();
+        window.__wbRenderDiffReviewPanel?.({ projectId, taskId });
       }
     }
   } catch (err) {
@@ -1527,6 +1685,7 @@ async function applyAcceptedDiffs() {
       detail: "请检查 Diff 是否仍有效，或重新生成后再试。",
     });
     window.__wbShowComposerToast?.(err?.message || "写入失败", { type: "error" });
+    window.__wbActivityFeed?.markDiffAccepted?.({ autoWrite: false });
   }
 }
 

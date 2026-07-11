@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -45,6 +45,10 @@ function ensureSchema(db) {
       priority INTEGER NOT NULL DEFAULT 3,
       current_step TEXT,
       fix_loop_json TEXT,
+      task_spec_json TEXT,
+      plan_steps_json TEXT,
+      checkpoint_json TEXT,
+      delivery_manifest_json TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -285,9 +289,17 @@ function ensureErrorLessonTables(db) {
 function ensureColumnMigrations(db) {
   try {
     const cols = db.prepare("PRAGMA table_info(project_tasks)").all();
-    const hasFixLoop = cols.some((c) => c.name === "fix_loop_json");
-    if (!hasFixLoop) {
-      db.exec("ALTER TABLE project_tasks ADD COLUMN fix_loop_json TEXT DEFAULT NULL");
+    const taskCols = [
+      "fix_loop_json",
+      "task_spec_json",
+      "plan_steps_json",
+      "checkpoint_json",
+      "delivery_manifest_json",
+    ];
+    for (const name of taskCols) {
+      if (!cols.some((c) => c.name === name)) {
+        db.exec(`ALTER TABLE project_tasks ADD COLUMN ${name} TEXT DEFAULT NULL`);
+      }
     }
   } catch {
     /* column may already exist */
@@ -311,6 +323,9 @@ function migrateSchema(db, fromVersion) {
     ensureErrorLessonTables(db);
   }
   if (fromVersion < 8) {
+    ensureColumnMigrations(db);
+  }
+  if (fromVersion < 9) {
     ensureColumnMigrations(db);
   }
 }
@@ -371,6 +386,14 @@ function rowToTask(row) {
       fixLoopState = null;
     }
   }
+  function parseJsonCol(raw) {
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
   return {
     id: row.id,
     projectId: row.project_id,
@@ -381,6 +404,10 @@ function rowToTask(row) {
     priority: row.priority,
     currentStep: row.current_step || "",
     fixLoopState,
+    taskSpec: parseJsonCol(row.task_spec_json),
+    planSteps: parseJsonCol(row.plan_steps_json),
+    checkpoint: parseJsonCol(row.checkpoint_json),
+    deliveryManifest: parseJsonCol(row.delivery_manifest_json),
     namespace: `task:${row.project_id}:${row.id}`,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

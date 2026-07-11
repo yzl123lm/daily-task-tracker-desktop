@@ -23,11 +23,18 @@ function buildVerifySummary(verify) {
   const firstIssue = parsed?.issues?.[0];
   return {
     ok: Boolean(verify?.ok),
+    skipped: Boolean(verify?.skipped),
     exitCode: verify?.exitCode,
-    errorType: parsed?.summary?.slice(0, 80) || "build_error",
+    errorType: verify?.skipped
+      ? "verify_skipped"
+      : parsed?.summary?.slice(0, 80) || "build_error",
     file: firstIssue?.file || null,
     line: firstIssue?.line || null,
-    summary: parsed?.summary || verify?.stderr?.slice(0, 200) || "",
+    summary:
+      verify?.message ||
+      parsed?.summary ||
+      verify?.stderr?.slice(0, 200) ||
+      "",
   };
 }
 
@@ -63,12 +70,33 @@ async function runVerifyStep(getUserDataPath, uid, ctx, state, { getDefaultProje
   state.lastVerifySummary = buildVerifySummary(verify);
   saveFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId, state);
   appendFixLoopEvent(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-    action: verify.ok ? "verify_pass" : "verify_fail",
+    action: verify.skipped ? "verify_skip" : verify.ok ? "verify_pass" : "verify_fail",
     phase: FIX_LOOP_PHASE.VERIFYING,
     round: state.round,
     verifyAttemptId,
-    message: verify.ok ? "验证通过" : state.lastVerifySummary.summary,
+    message: verify.skipped
+      ? state.lastVerifySummary.summary || "已跳过验证"
+      : verify.ok
+        ? "验证通过"
+        : state.lastVerifySummary.summary,
   });
+  try {
+    const { emitAgentEvent, PHASE, STATUS } = require("./agentEventEmitter.js");
+    emitAgentEvent(ctx, {
+      phase: verify.skipped || verify.ok ? PHASE.COMPLETED : PHASE.VERIFYING,
+      status: verify.skipped ? STATUS.skipped : verify.ok ? STATUS.success : STATUS.failed,
+      title: "运行验证",
+      summary: verify.skipped
+        ? state.lastVerifySummary.summary || "已跳过验证"
+        : verify.ok
+          ? "验证通过"
+          : state.lastVerifySummary.summary || "验证失败",
+      stepKey: "run_verify",
+      error: verify.ok || verify.skipped ? null : state.lastVerifySummary.summary || "验证失败",
+    });
+  } catch {
+    /* optional */
+  }
   if (!verify.ok && !verify.skipped) {
     try {
       const { recordVerifyFailureLesson } = require("./errorLessonService.js");
@@ -190,31 +218,66 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
   const verify = await runVerifyStep(getUserDataPath, uid, ctx, state, { getDefaultProjectRoot });
   if (verify.ok) {
     clearFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId);
-    updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-      status: TASK_STATUS.COMPLETED,
-      currentStep: "验证通过",
+    const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
+    const marked = tryMarkTaskCompleted(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+      verifyResult: verify,
+      currentStep: verify.skipped
+        ? verify.message || "已跳过验证（无 npm 脚本）"
+        : "验证通过",
+      getDefaultProjectRoot,
     });
     appendFixLoopEvent(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-      action: "fix_loop_completed",
-      phase: FIX_LOOP_PHASE.COMPLETED,
+      action: verify.skipped ? "fix_loop_skipped" : "fix_loop_completed",
+      phase: marked.completed ? FIX_LOOP_PHASE.COMPLETED : FIX_LOOP_PHASE.FAILED,
       round: state.round,
-      message: "fixLoop 验证通过",
+      message: marked.completed
+        ? verify.skipped
+          ? verify.message || "已跳过验证"
+          : "fixLoop 验证通过"
+        : `完成守卫未通过: ${marked.guard?.blockers?.[0]?.message || ""}`,
     });
-    try {
-      const { markVerifiedForTask } = require("./error-lessons/lessonStatusUpdater.js");
-      markVerifiedForTask(getUserDataPath, uid, {
-        projectId: ctx.projectId,
-        taskId: ctx.taskId,
-        verifyCommand: state.scriptName,
-        verifiedBy: "fix_loop",
-      });
-    } catch {
-      /* optional */
+    if (marked.completed) {
+      try {
+        const { markVerifiedForTask } = require("./error-lessons/lessonStatusUpdater.js");
+        markVerifiedForTask(getUserDataPath, uid, {
+          projectId: ctx.projectId,
+          taskId: ctx.taskId,
+          verifyCommand: state.scriptName,
+          verifiedBy: verify.skipped ? "verify_skipped" : "fix_loop",
+        });
+      } catch {
+        /* optional */
+      }
     }
-    return { ok: true, rounds: state.round + 1, verify, phase: FIX_LOOP_PHASE.COMPLETED };
+    return {
+      ok: marked.completed,
+      skipped: Boolean(verify.skipped),
+      rounds: state.round + 1,
+      verify,
+      message: verify.message || null,
+      phase: marked.completed ? FIX_LOOP_PHASE.COMPLETED : FIX_LOOP_PHASE.FAILED,
+      completionGuard: marked.guard,
+      blocked: !marked.completed,
+    };
   }
   if (verify.skipped) {
-    return { ok: false, skipped: true, message: verify.message, verify };
+    // 兼容旧返回：skipped 且 ok=false
+    clearFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId);
+    const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
+    const marked = tryMarkTaskCompleted(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+      verifyResult: { ...verify, ok: true, skipped: true },
+      currentStep: verify.message || "已跳过验证（无 npm 脚本）",
+      getDefaultProjectRoot,
+    });
+    return {
+      ok: marked.completed,
+      skipped: true,
+      message: verify.message,
+      verify,
+      phase: marked.completed ? FIX_LOOP_PHASE.COMPLETED : FIX_LOOP_PHASE.FAILED,
+      completionGuard: marked.guard,
+      blocked: !marked.completed,
+    };
   }
   state = getFixLoopState(getUserDataPath, uid, ctx.projectId, ctx.taskId);
   state.round += 1;
@@ -335,14 +398,39 @@ async function runFixLoopLegacy(getUserDataPath, uid, ctx, { scriptName, getDefa
       { getDefaultProjectRoot }
     );
     if (lastVerify.ok) {
-      updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-        status: TASK_STATUS.COMPLETED,
-        currentStep: "验证通过",
+      const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
+      const marked = tryMarkTaskCompleted(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+        verifyResult: lastVerify,
+        currentStep: lastVerify.skipped
+          ? lastVerify.message || "已跳过验证（无 npm 脚本）"
+          : "验证通过",
+        getDefaultProjectRoot,
       });
-      return { ok: true, rounds: round + 1, verify: lastVerify };
+      return {
+        ok: marked.completed,
+        skipped: Boolean(lastVerify.skipped),
+        rounds: round + 1,
+        verify: lastVerify,
+        message: lastVerify.message || null,
+        completionGuard: marked.guard,
+        blocked: !marked.completed,
+      };
     }
     if (lastVerify.skipped) {
-      return { ok: false, skipped: true, message: lastVerify.message, verify: lastVerify };
+      const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
+      const marked = tryMarkTaskCompleted(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+        verifyResult: { ...lastVerify, ok: true, skipped: true },
+        currentStep: lastVerify.message || "已跳过验证（无 npm 脚本）",
+        getDefaultProjectRoot,
+      });
+      return {
+        ok: marked.completed,
+        skipped: true,
+        message: lastVerify.message,
+        verify: lastVerify,
+        completionGuard: marked.guard,
+        blocked: !marked.completed,
+      };
     }
     round += 1;
     if (round >= MAX_FIX_ROUNDS) {

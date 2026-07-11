@@ -380,6 +380,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("wb-project-agent-events-list", payload || {}),
   wbProjectAgentRun: (payload) => ipcRenderer.invoke("wb-project-agent-run", payload || {}),
   wbProjectAgentCancel: (payload) => ipcRenderer.invoke("wb-project-agent-cancel", payload || {}),
+  wbProjectTaskSpecGet: (payload) => ipcRenderer.invoke("wb-project-task-spec-get", payload || {}),
+  wbProjectTaskSpecConfirm: (payload) =>
+    ipcRenderer.invoke("wb-project-task-spec-confirm", payload || {}),
+  wbProjectAgentTraceExport: (payload) =>
+    ipcRenderer.invoke("wb-project-agent-trace-export", payload || {}),
+  wbProjectDeliveryManifestGet: (payload) =>
+    ipcRenderer.invoke("wb-project-delivery-manifest-get", payload || {}),
   onWbProjectAgentEvent: (callback) => {
     if (typeof callback !== "function") {
       return () => {};

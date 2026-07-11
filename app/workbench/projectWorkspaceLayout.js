@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "21";
+const WB_PWS_LAYOUT_VERSION = "22";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -47,10 +47,6 @@ const WB_PWS_PROJECT_COL_HTML = `
         <div class="wb-pws-sidebar-pane" data-pane="git" role="tabpanel" hidden>
           <div id="wbPwsSidebarGitMount" class="wb-pws-sidebar-git-mount"></div>
         </div>
-      </div>
-      <div class="wb-pws-project-col__foot">
-        <button type="button" id="wbPwsBackToChat" class="wb-pws-btn wb-pws-btn--ghost">返回会话区</button>
-        <button type="button" id="wbPwsOpenProjectDir" class="wb-pws-btn wb-pws-btn--ghost" hidden>打开目录</button>
       </div>
     </aside>
 `;
@@ -107,7 +103,7 @@ const WB_PWS_LAYOUT_HTML = `
       <div class="wb-pws-agent-composer wb-ai-command wb-agent-run-actions">
         <div class="wb-ai-command__header">
           <span class="wb-ai-command__title">AI 指令</span>
-          <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" title="上下文健康度，点击查看快照历史" aria-label="上下文健康度"></button>
+          <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" hidden aria-hidden="true" title="上下文健康度"></button>
           <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
         </div>
         <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>
@@ -115,15 +111,21 @@ const WB_PWS_LAYOUT_HTML = `
         <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
         <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
         <div class="wb-ai-command__footer">
-          <label class="wb-auto-verify-switch wb-pws-auto-verify" for="wbAutoVerifyAfterWrite">
-            <input type="checkbox" id="wbAutoVerifyAfterWrite" />
+          <label class="wb-auto-verify-switch wb-pws-auto-verify" for="wbAutoVerifyAfterWrite" hidden aria-hidden="true">
+            <input type="checkbox" id="wbAutoVerifyAfterWrite" checked />
             自动验证
           </label>
           <div class="wb-ai-command__actions">
             <button type="button" id="wbSecondaryActionBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>调整需求</button>
             <button type="button" id="wbPrimaryActionBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
-            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作">⋯</button>
-            <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden>
+            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded="false">
+              <svg class="wb-ai-command__more-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <circle cx="3" cy="8" r="1.6" fill="currentColor" />
+                <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+                <circle cx="13" cy="8" r="1.6" fill="currentColor" />
+              </svg>
+            </button>
+            <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden role="menu" aria-label="更多操作">
               <button type="button" data-wb-more-action="regen-plan">重新生成方案</button>
               <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
               <button type="button" data-wb-more-action="open-log">查看执行日志</button>

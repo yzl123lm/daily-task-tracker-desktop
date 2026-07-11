@@ -13,7 +13,7 @@ const {
 async function runVerification(
   getUserDataPath,
   userId,
-  { projectId, taskId, scriptName = "build", userApproved },
+  { projectId, taskId, scriptName = "build", profileId, userApproved },
   { getDefaultProjectRoot } = {}
 ) {
   if (!userApproved) {
@@ -30,13 +30,21 @@ async function runVerification(
   if (!root) {
     throw new Error("未配置项目代码目录");
   }
-  const resolved = resolveScriptCommand(root, scriptName);
+  let resolvedName = scriptName;
+  if (profileId) {
+    const { resolveProfileId, getProfile } = require("./verificationProfileRegistry.js");
+    const id = resolveProfileId(profileId);
+    resolvedName = getProfile(id).scriptName;
+  }
+  const resolved = resolveScriptCommand(root, resolvedName);
   if (!resolved.ok) {
+    // 无 package.json / 无对应脚本：对静态页等项目视为可跳过，不算验证失败
     return {
-      ok: false,
+      ok: true,
       skipped: true,
-      message: resolved.message,
-      scriptName,
+      message: resolved.message || "已跳过验证",
+      scriptName: resolvedName,
+      profileId: profileId || resolvedName,
     };
   }
   assertCommandAllowed(resolved.command);
@@ -47,7 +55,7 @@ async function runVerification(
     projectId,
     taskId,
     toolName: "run_tests",
-    args: { command: resolved.command, scriptName },
+    args: { command: resolved.command, scriptName: resolvedName, profileId: profileId || resolvedName },
     resultText: result.success ? "验证通过" : parsed.summary,
     riskLevel: "MEDIUM",
     approvedByUser: true,
@@ -73,7 +81,8 @@ async function runVerification(
     ok: result.success,
     exitCode: result.exitCode,
     command: resolved.command,
-    scriptName,
+    scriptName: resolvedName,
+    profileId: profileId || resolvedName,
     stdout: result.stdout,
     stderr: result.stderr,
     parsed,

@@ -23,13 +23,13 @@
 
   function statusClass(status) {
     const s = String(status || "pending").toLowerCase();
-    if (s === "done" || s === "completed" || s === "success") {
+    if (s === "done" || s === "completed" || s === "success" || s === "accepted" || s === "skipped") {
       return "success";
     }
     if (s === "error" || s === "failed") {
       return "failed";
     }
-    if (s === "waiting") {
+    if (s === "waiting" || s === "await_write") {
       return "waiting";
     }
     if (s === "canceled" || s === "cancelled") {
@@ -44,9 +44,23 @@
     return s || "queued";
   }
 
-  function statusLabel(cls) {
+  function statusLabel(cls, item) {
+    if (item?.kind === "diff") {
+      if (item.writing) {
+        return "写入中";
+      }
+      if (item.writePending) {
+        return "待写入";
+      }
+      if (cls === "success") {
+        return item.title?.includes("写入") ? "已写入" : "已接受";
+      }
+      if (cls === "waiting") {
+        return "等待审阅";
+      }
+    }
     const map = {
-      success: "完成",
+      success: item?.status === "skipped" || String(item?.summary || "").includes("跳过") ? "已跳过" : "完成",
       failed: "失败",
       waiting: "等待审阅",
       running: "进行中",
@@ -139,10 +153,14 @@
     if (payload.kind === "diff") {
       return true;
     }
-    if (stepKey === "await_diff" || (stepKey === "generate_patch" && payload.status === "waiting")) {
+    // 仅 Diff 审阅等待；方案待确认（plan_ready）不是 Diff 卡
+    if (stepKey === "await_diff") {
       return true;
     }
-    if (phase === "WAITING_REVIEW") {
+    if (stepKey === "generate_patch" && payload.status === "waiting") {
+      return true;
+    }
+    if (phase === "WAITING_REVIEW" && stepKey !== "plan_ready") {
       return true;
     }
     if (tool === "stage_patch" && (payload.status === "success" || payload.status === "waiting")) {
@@ -293,11 +311,63 @@
       files: Array.isArray(partial.files) && partial.files.length ? partial.files : existing?.files || [],
       diffCount: partial.diffCount || existing?.diffCount || (partial.files?.length || 0),
       patchId: partial.patchId || existing?.patchId || null,
+      writePending: partial.writePending != null ? partial.writePending : existing?.writePending || false,
+      writing: partial.writing != null ? partial.writing : existing?.writing || false,
     };
     if (partial.status) {
-      next.status = partial.status === "running" ? "waiting" : partial.status;
+      // Diff 写入中保留 running；其它 running 仍映射为 waiting（审阅态）
+      next.status =
+        partial.status === "running" && !next.writing ? "waiting" : partial.status;
     }
     upsertAgentEvent(next);
+  }
+
+  function markDiffAccepted({ autoWrite = false } = {}) {
+    const existing = agentEventMap.get(DIFF_CARD_ID);
+    upsertDiffCard({
+      title: existing?.title || "代码变更已接受",
+      summary: autoWrite ? "正在写入项目目录…" : "下一步：写入项目目录",
+      status: autoWrite ? "running" : "accepted",
+      writePending: true,
+      writing: Boolean(autoWrite),
+      files: existing?.files,
+      diffCount: existing?.diffCount,
+      at: existing?.at,
+    });
+    renderActivityFeed();
+  }
+
+  function markDiffWriting() {
+    const existing = agentEventMap.get(DIFF_CARD_ID);
+    upsertDiffCard({
+      title: existing?.title || "代码变更已接受",
+      summary: "正在写入项目目录…",
+      status: "running",
+      writePending: true,
+      writing: true,
+      files: existing?.files,
+      diffCount: existing?.diffCount,
+      at: existing?.at,
+    });
+    renderActivityFeed();
+  }
+
+  function markDiffWritten() {
+    const existing = agentEventMap.get(DIFF_CARD_ID);
+    if (!existing) {
+      return;
+    }
+    upsertDiffCard({
+      title: "代码已写入",
+      summary: "变更已写入项目目录，任务继续执行",
+      status: "success",
+      writePending: false,
+      writing: false,
+      files: existing.files,
+      diffCount: existing.diffCount,
+      at: existing.at,
+    });
+    renderActivityFeed();
   }
 
   function pushAgentEvent(payload) {
@@ -348,9 +418,19 @@
     });
   }
 
+  function clearDiffCard() {
+    if (!agentEventMap.has(DIFF_CARD_ID)) {
+      return;
+    }
+    agentEventMap.delete(DIFF_CARD_ID);
+    renderActivityFeed();
+  }
+
   function pushDiffSummary(changes) {
     const list = Array.isArray(changes) ? changes : [];
     if (!list.length) {
+      // 无 STAGED/ACCEPTED/REVISION 可审阅补丁时，强制去掉「等待审阅」Diff 卡
+      clearDiffCard();
       return;
     }
     const lines = list.slice(0, 6).map((c) => {
@@ -389,6 +469,14 @@
         return;
       }
       if (item.kind === "diff" || isDiffWaitingPayload(ev)) {
+        // hydrate 时不凭历史 WAITING_REVIEW 造 Diff 卡；有真实文件/补丁信息才保留
+        const hasFiles =
+          (Array.isArray(item.files) && item.files.length > 0) ||
+          item.diffCount > 0 ||
+          Boolean(item.patchId);
+        if (!hasFiles) {
+          return;
+        }
         upsertDiffCard({
           title: item.title,
           summary: item.summary,
@@ -421,6 +509,7 @@
 
   function renderDiffCard(item) {
     const files = item.files || [];
+    const cls = statusClass(item.status);
     const fileRows = files.length
       ? files
           .map((f) => {
@@ -434,20 +523,25 @@
           })
           .join("")
       : "";
+    const primaryAction = item.writing
+      ? `<span class="wb-activity-diff__writing">正在写入…</span>`
+      : item.writePending
+        ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-apply-diff">写入并继续</button>`
+        : cls === "success"
+          ? ""
+          : `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-open-diff">查看 Diff</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-revise-diff">需修改</button>`;
     return `
-      <article class="wb-activity-item wb-activity-item--diff wb-activity-item--compact is-${escapeHtml(statusClass(item.status))}" data-feed-id="${escapeHtml(item.id)}">
-        <div class="wb-activity-item__rail"><span class="wb-activity-item__dot">${statusIcon(statusClass(item.status))}</span></div>
+      <article class="wb-activity-item wb-activity-item--diff wb-activity-item--compact is-${escapeHtml(cls)}" data-feed-id="${escapeHtml(item.id)}">
+        <div class="wb-activity-item__rail"><span class="wb-activity-item__dot">${statusIcon(cls)}</span></div>
         <div class="wb-activity-item__body">
           <header class="wb-activity-item__head">
             <strong class="wb-activity-item__title">${escapeHtml(item.title || "已生成代码变更")}</strong>
-            <span class="wb-activity-item__status">${escapeHtml(statusLabel(statusClass(item.status)))}</span>
+            <span class="wb-activity-item__status">${escapeHtml(statusLabel(cls, item))}</span>
             <time class="wb-activity-item__time">${escapeHtml(formatTime(item.at))}</time>
           </header>
           ${fileRows ? `<ul class="wb-activity-diff__files">${fileRows}</ul>` : item.summary ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>` : ""}
-          <div class="wb-activity-diff__actions">
-            <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-open-diff">查看 Diff</button>
-            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-revise-diff">需修改</button>
-          </div>
+          ${primaryAction ? `<div class="wb-activity-diff__actions">${primaryAction}</div>` : ""}
         </div>
       </article>
     `;
@@ -520,7 +614,7 @@
     const sorted = [...feedItems].sort((a, b) => String(a.at).localeCompare(String(b.at)));
     mount.innerHTML = sorted
       .map((item) =>
-        item.kind === "diff" && (item.files?.length || item.diffCount || item.status === "waiting")
+        item.kind === "diff"
           ? renderDiffCard(item)
           : renderStepCard(item)
       )
@@ -533,6 +627,16 @@
     mount.querySelectorAll(".wb-activity-open-diff").forEach((btn) => {
       btn.addEventListener("click", () => {
         void window.__wbOpenDiffReviewForCurrentTask?.({ forceReload: true });
+      });
+    });
+    mount.querySelectorAll(".wb-activity-apply-diff").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const store = window.__wbStore?.getState?.() || {};
+        void window.__wbApplyAcceptedDiffs?.({
+          projectId: store.selectedProjectId,
+          taskId: store.selectedTaskId,
+          autoApprove: true,
+        });
       });
     });
     mount.querySelectorAll(".wb-activity-revise-diff").forEach((btn) => {
@@ -597,6 +701,10 @@
     pushEvent: pushAgentEvent,
     pushStep: pushComposerStep,
     pushDiffSummary,
+    clearDiffCard,
+    markDiffAccepted,
+    markDiffWriting,
+    markDiffWritten,
     hydrateFromEvents,
     render: renderActivityFeed,
     updateHeader: updateRunHeader,

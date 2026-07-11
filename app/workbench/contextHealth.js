@@ -23,31 +23,18 @@ function statusClass(status) {
 }
 
 function renderHealthBadge(container, health) {
-  if (!container || !health) {
+  if (!container) {
     return;
   }
-  const pct = Math.round((health.usedRatio || 0) * 100);
-  const status = health.status || "normal";
+  // 上下文压缩在后台自动执行，不再向用户展示「上下文充足 x%」徽章
   container.replaceChildren();
-  const badge = document.createElement("div");
-  badge.className = `wb-ctx-health ${statusClass(status)}`;
-  badge.innerHTML = `
-    <span class="wb-ctx-health__label">${STATUS_LABELS[status] || status}</span>
-    <span class="wb-ctx-health__ratio">${pct}%</span>
-  `;
-  container.appendChild(badge);
-  container.classList.add("wb-ctx-health-mount--ready");
-  container.dataset.healthStatus = status;
-  container.dataset.healthPct = String(pct);
-  if (!container.dataset.boundClick) {
-    container.dataset.boundClick = "1";
-    container.addEventListener("click", () => {
-      const panel = document.querySelector(".wb-pws-panel--snapshots");
-      if (panel) {
-        panel.open = true;
-        panel.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
-    });
+  container.hidden = true;
+  container.setAttribute("hidden", "");
+  container.setAttribute("aria-hidden", "true");
+  container.classList.remove("wb-ctx-health-mount--ready");
+  if (health?.status) {
+    container.dataset.healthStatus = health.status;
+    container.dataset.healthPct = String(Math.round((health.usedRatio || 0) * 100));
   }
 }
 

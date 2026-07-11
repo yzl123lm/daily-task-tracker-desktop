@@ -44,6 +44,11 @@ const BLOCKED_GIT_WRITE = /^git\s+(push|commit|reset|checkout|merge|rebase|clean
 const TEST_WHITELIST_PATTERNS = [
   /^npm run wb-[a-z0-9:-]+$/i,
   /^npm run test\b/i,
+  /^npm run build$/i,
+  /^npm run lint$/i,
+  /^npm run typecheck$/i,
+  /^npm run type-check$/i,
+  /^npm run check$/i,
   /^npm run kb-[a-z0-9:-]+$/i,
   /^node scripts\/wb-[a-z0-9-]+-test\.js$/i,
   /^node scripts\/wb-namespace-test\.js$/i,

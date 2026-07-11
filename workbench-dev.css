@@ -1925,13 +1925,26 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-preview {
   max-height: none !important;
 }
 
-body.jl-project-workspace-active .wb-pws-resize-handle::after {
-  background: transparent;
+body.jl-project-workspace-active .wb-pws-resize-handle--col::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--project::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--col:hover::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--project:hover::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--col.is-dragging::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--project.is-dragging::after {
+  content: none !important;
+  display: none !important;
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
-body.jl-project-workspace-active .wb-pws-resize-handle:hover::after,
-body.jl-project-workspace-active .wb-pws-resize-handle.is-dragging::after {
-  background: #3b82f6;
+body.jl-project-workspace-active .wb-pws-resize-handle--terminal::after {
+  background: transparent !important;
+  opacity: 0;
+}
+
+body.jl-project-workspace-active .wb-pws-resize-handle--terminal:hover::after,
+body.jl-project-workspace-active .wb-pws-resize-handle--terminal.is-dragging::after {
+  background: #3b82f6 !important;
   opacity: 0.55;
 }
 

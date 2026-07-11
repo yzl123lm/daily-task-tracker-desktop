@@ -18,6 +18,8 @@ const PROJECT_AGENT_TOOLS = new Set([
   "read_project_file",
   "search_project_code",
   "run_tests",
+  "list_verification_profiles",
+  "run_verification",
   "compress_context",
   "write_project_file",
   "restore_file_backup",

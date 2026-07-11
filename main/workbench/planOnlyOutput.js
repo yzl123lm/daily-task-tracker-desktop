@@ -148,6 +148,8 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
         }
       : null,
     diffPreviews,
+    executionReady: false,
+    note: "规则回退方案：仅供参考规划，未生成可执行 Diff；请配置模型后重新生成。",
     meta: {
       projectId,
       taskId,
@@ -155,6 +157,7 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
       taskTitle: task?.title || "",
       generatedAt: new Date().toISOString(),
       codeRoot: codeAnalysis?.codeRoot || project?.localPath || null,
+      ruleFallback: true,
     },
     contextPreview: promptContext?.text ? promptContext.text.slice(0, 600) : "",
   };

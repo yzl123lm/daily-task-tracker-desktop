@@ -6,6 +6,49 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+/** 最近一次成功打开 Diff 的上下文，防止后续空态重绘盖掉已加载内容 */
+const lastDiffContext = { projectId: null, taskId: null };
+
+function rememberDiffContext(projectId, taskId) {
+  if (projectId && taskId) {
+    lastDiffContext.projectId = String(projectId);
+    lastDiffContext.taskId = String(taskId);
+  }
+}
+
+function findLoadedReviewContext() {
+  const reviewStore = window.__wbCodeReviewStore;
+  if (!reviewStore?.getState) {
+    return null;
+  }
+  const store = window.__wbStore?.getState?.() || {};
+  const tasks = Array.isArray(store.tasks) ? store.tasks : [];
+  const projects = Array.isArray(store.projects) ? store.projects : [];
+  const projectIds = [
+    store.selectedProjectId,
+    lastDiffContext.projectId,
+    document.getElementById("wbTaskDetail")?.dataset?.projectId,
+    ...projects.map((p) => p?.id),
+    ...tasks.map((t) => t?.projectId),
+  ].filter(Boolean);
+  const taskIds = [
+    store.selectedTaskId,
+    lastDiffContext.taskId,
+    document.getElementById("wbTaskDetail")?.dataset?.taskId,
+    document.getElementById("wbTaskList")?.dataset?.selectedTaskId,
+    ...tasks.map((t) => t?.id),
+  ].filter(Boolean);
+  for (const pid of [...new Set(projectIds.map(String))]) {
+    for (const tid of [...new Set(taskIds.map(String))]) {
+      const st = reviewStore.getState(pid, tid);
+      if (st?.changes?.length) {
+        return { projectId: pid, taskId: tid, state: st };
+      }
+    }
+  }
+  return null;
+}
+
 function getContext() {
   const store = window.__wbStore?.getState?.() || {};
   const list = document.getElementById("wbTaskList");
@@ -19,8 +62,9 @@ function getContext() {
     agentCol?.dataset?.taskId ||
     document.getElementById("wbAgentRunTitle")?.dataset?.taskId ||
     "";
+  const fromLast = lastDiffContext.taskId ? String(lastDiffContext.taskId) : "";
   const tasks = Array.isArray(store.tasks) ? store.tasks : [];
-  let taskId = fromStore || fromDataset || fromActive || fromHeader || null;
+  let taskId = fromStore || fromDataset || fromActive || fromHeader || fromLast || null;
   if (!taskId && tasks.length === 1) {
     taskId = tasks[0]?.id || null;
   }
@@ -32,10 +76,16 @@ function getContext() {
           String(t?.currentStep || "").includes("变更待审阅")
       )?.id || null;
   }
+  const loaded = !taskId ? findLoadedReviewContext() : null;
+  if (loaded) {
+    taskId = loaded.taskId;
+  }
   let projectId =
     store.selectedProjectId ||
     detail?.dataset?.projectId ||
     agentCol?.dataset?.projectId ||
+    lastDiffContext.projectId ||
+    loaded?.projectId ||
     tasks.find((t) => t.id === taskId)?.projectId ||
     null;
   if (taskId && typeof window.__wbStore?.selectTask === "function") {
@@ -52,6 +102,7 @@ function getContext() {
       }
     }
   }
+  rememberDiffContext(projectId, taskId);
   return {
     projectId,
     taskId,
@@ -87,11 +138,16 @@ async function syncPatchReviewStatus(projectId, taskId, changeId, uiStatus) {
   reviewStore.setReviewStatus(projectId, taskId, changeId, uiStatus);
   const change = reviewStore.getChanges(projectId, taskId).find((c) => c.id === changeId);
   if (!change?.stagedPatchId || typeof api.wbProjectPatchStatus !== "function") {
-    return;
+    return { ok: !change?.stagedPatchId, skipped: !change?.stagedPatchId };
   }
   const patchStatus = uiStatus === "accepted" ? "ACCEPTED" : uiStatus === "rejected" ? "REJECTED" : null;
   if (!patchStatus) {
-    return;
+    return { ok: true, skipped: true };
+  }
+  // 已写入的补丁不可再标 ACCEPTED/REJECTED
+  const backendStatus = String(change.raw?.status || change.patchStatus || "").toUpperCase();
+  if (backendStatus === "APPLIED") {
+    return { ok: true, skipped: true, alreadyApplied: true };
   }
   try {
     await api.wbProjectPatchStatus({
@@ -100,8 +156,54 @@ async function syncPatchReviewStatus(projectId, taskId, changeId, uiStatus) {
       patchId: change.stagedPatchId,
       status: patchStatus,
     });
-  } catch {
-    /* UI state already updated */
+    return { ok: true };
+  } catch (err) {
+    const msg = String(err?.message || err || "");
+    // 幂等 / 已写入：不打断后续写入或续跑
+    if (
+      msg.includes("ACCEPTED → ACCEPTED") ||
+      msg.includes("APPLIED → ACCEPTED") ||
+      msg.includes("APPLIED → REJECTED") ||
+      /APPLIED\s*→\s*ACCEPTED/.test(msg)
+    ) {
+      return { ok: true, skipped: true, alreadyApplied: msg.includes("APPLIED") };
+    }
+    if (uiStatus === "accepted" || uiStatus === "rejected") {
+      throw err;
+    }
+    return { ok: false, error: msg };
+  }
+}
+
+/** 接受后推进：更新 Feed/主按钮；全部接受则自动进入写入 */
+async function progressAfterAccept(projectId, taskId, { autoWrite = false } = {}) {
+  const reviewStore = window.__wbCodeReviewStore;
+  if (!reviewStore) {
+    return;
+  }
+  const changes = reviewStore.getChanges(projectId, taskId) || [];
+  const accepted = reviewStore.getAcceptedChanges(projectId, taskId) || [];
+  const allAccepted = changes.length > 0 && accepted.length === changes.length;
+  window.__wbActivityFeed?.markDiffAccepted?.({ autoWrite: Boolean(autoWrite && allAccepted) });
+  window.__wbUpsertComposerStep?.(
+    "await_diff",
+    allAccepted ? "done" : "pending",
+    allAccepted
+      ? "变更已全部接受，准备写入"
+      : `已接受 ${accepted.length}/${changes.length}，请继续审阅或写入`
+  );
+  window.__wbSetComposerPhase?.("diff_accepted");
+  window.__wbSyncComposerPhaseFromReview?.();
+  renderDiffReviewPanel({ projectId, taskId, writing: Boolean(autoWrite && allAccepted) });
+  if (autoWrite && allAccepted) {
+    toast("变更已全部接受，正在写入项目…", "success");
+    await window.__wbApplyAcceptedDiffs?.({
+      projectId,
+      taskId,
+      autoApprove: true,
+    });
+  } else if (allAccepted) {
+    toast("变更已全部接受，请点击「写入并接受」", "success");
   }
 }
 
@@ -189,6 +291,14 @@ function resolveEmptyState({ projectId, taskId, state, task }) {
       primaryLabel: "重新加载",
     };
   }
+  if (state?.emptyReason === "rejected") {
+    return {
+      title: "上次变更已拒绝",
+      desc: state.emptyHint || "当前没有可审阅的 Diff。请重新生成代码变更后再审阅。",
+      primaryAction: "regen-patch",
+      primaryLabel: "生成代码变更",
+    };
+  }
   const step = String(task?.currentStep || "");
   const status = String(task?.status || "");
   if (step.includes("失败") || status === "FAILED") {
@@ -248,23 +358,37 @@ function renderEmptyDiffState(panel, empty) {
   });
 }
 
-function renderDiffReviewPanel() {
+function renderDiffReviewPanel(explicit = null) {
   const panel = ensureDiffReviewMount();
   if (!panel) {
     return;
   }
-  const { projectId, taskId } = getContext();
   const reviewStore = window.__wbCodeReviewStore;
+  let projectId = explicit?.projectId || null;
+  let taskId = explicit?.taskId || null;
+  if (!projectId || !taskId) {
+    const ctx = getContext();
+    projectId = projectId || ctx.projectId;
+    taskId = taskId || ctx.taskId;
+  }
+  // 已加载过 Diff 时，禁止被空 context 的重绘盖回「请选择任务」
+  if (!projectId || !taskId) {
+    const loaded = findLoadedReviewContext();
+    if (loaded) {
+      projectId = loaded.projectId;
+      taskId = loaded.taskId;
+      rememberDiffContext(projectId, taskId);
+    }
+  }
   const tasks = window.__wbStore?.getState?.().tasks || [];
   const task = tasks.find((t) => t.id === taskId) || null;
   if (!projectId || !taskId) {
     renderEmptyDiffState(panel, resolveEmptyState({ projectId, taskId, state: null, task: null }));
     return;
   }
+  rememberDiffContext(projectId, taskId);
   const state = reviewStore.getState(projectId, taskId);
   if (!state.changes.length) {
-    // 有任务但 store 空：区分「未加载」与「确实无 patch」——优先尝试一次静默同步由 openTaskDiff 负责；
-    // 此处只渲染明确空态，避免误报「请选择任务」
     renderEmptyDiffState(panel, resolveEmptyState({ projectId, taskId, state, task }));
     return;
   }
@@ -275,54 +399,81 @@ function renderDiffReviewPanel() {
     (c) => c.reviewStatus === "pending" || c.reviewStatus === "revision"
   ).length;
   const acceptedCount = state.changes.filter((c) => c.reviewStatus === "accepted").length;
-  const fileRows = state.changes
+  const allAccepted = state.changes.length > 0 && acceptedCount === state.changes.length;
+  const writing = Boolean(explicit?.writing);
+  const reviewLocked = writing || allAccepted;
+  const viewMode = state.viewMode === "split" ? "split" : "unified";
+  const fileCards = state.changes
     .map((c) => {
       const active = c.id === selected?.id ? " is-active" : "";
+      const collapsed = c.id !== selected?.id ? " is-collapsed" : "";
+      const typeBadge =
+        c.changeType === "add" ? "新增" : c.changeType === "delete" ? "删除" : "修改";
+      const statusText = writing && c.reviewStatus === "accepted" ? "写入中" : statusLabel(c.reviewStatus);
+      const actionsHtml = reviewLocked
+        ? ""
+        : `<div class="wb-diff-card__actions">
+              <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-one" data-change-id="${escapeHtml(c.id)}">接受</button>
+              <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-one" data-change-id="${escapeHtml(c.id)}">拒绝</button>
+              <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-revise-one" data-change-id="${escapeHtml(c.id)}">需修改</button>
+            </div>`;
       return `
-        <li class="wb-diff-review__file${active}" data-change-id="${escapeHtml(c.id)}">
-          <button type="button" class="wb-diff-review__file-btn">
-            <code class="wb-diff-review__path">${escapeHtml(c.path)}</code>
-            <span class="wb-diff-review__stats">+${c.additions} -${c.deletions}</span>
-            <span class="wb-diff-review__type">${escapeHtml(changeTypeLabel(c.changeType))}</span>
-            <span class="wb-diff-review__status wb-diff-review__status--${escapeHtml(c.reviewStatus)}">${escapeHtml(statusLabel(c.reviewStatus))}</span>
-          </button>
-          <div class="wb-diff-review__file-actions">
-            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-one" data-change-id="${escapeHtml(c.id)}">接受</button>
-            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-one" data-change-id="${escapeHtml(c.id)}">拒绝</button>
-            <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-revise-one" data-change-id="${escapeHtml(c.id)}">需修改</button>
+        <article class="wb-diff-card${active}${collapsed}${writing ? " is-writing" : ""}" data-change-id="${escapeHtml(c.id)}">
+          <header class="wb-diff-card__head">
+            <button type="button" class="wb-diff-card__toggle" aria-expanded="${c.id === selected?.id ? "true" : "false"}">
+              <span class="wb-diff-card__file-icon" aria-hidden="true"></span>
+              <code class="wb-diff-card__path">${escapeHtml(c.path)}</code>
+              <span class="wb-diff-review__status wb-diff-review__status--${escapeHtml(writing ? "accepted" : c.reviewStatus)}">${escapeHtml(statusText)}</span>
+              <span class="wb-diff-card__type">${escapeHtml(typeBadge)}</span>
+              <span class="wb-diff-card__stats"><span class="is-add">+${c.additions}</span> <span class="is-del">-${c.deletions}</span></span>
+            </button>
+            ${actionsHtml}
+          </header>
+          ${c.summary ? `<p class="wb-diff-card__summary">${escapeHtml(c.summary)}</p>` : ""}
+          <div class="wb-diff-card__body">
+            <div class="wb-diff-card__diff scroll-tech">${renderDiffLines(c.diff, viewMode)}</div>
           </div>
-        </li>
+        </article>
       `;
     })
     .join("");
+  const toolbarLeft = reviewLocked
+    ? `<div class="wb-diff-review__view-toggle" role="group" aria-label="Diff 视图">
+            <button type="button" class="wb-diff-view-btn ${viewMode === "unified" ? "is-active" : ""}" data-view="unified">逐文件查看</button>
+            <button type="button" class="wb-diff-view-btn ${viewMode === "split" ? "is-active" : ""}" data-view="split">并排视图</button>
+          </div>`
+    : `<button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-all">全部接受</button>
+          <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-all">全部拒绝</button>
+          <div class="wb-diff-review__view-toggle" role="group" aria-label="Diff 视图">
+            <button type="button" class="wb-diff-view-btn ${viewMode === "unified" ? "is-active" : ""}" data-view="unified">逐文件查看</button>
+            <button type="button" class="wb-diff-view-btn ${viewMode === "split" ? "is-active" : ""}" data-view="split">并排视图</button>
+          </div>`;
+  const toolbarRight = writing
+    ? `<span class="wb-diff-review__meta">正在写入 ${acceptedCount} 个已接受文件…</span>`
+    : allAccepted
+      ? `<span class="wb-diff-review__meta">${state.changes.length} 个文件 · 已全部接受</span>
+          <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch">写入并继续</button>`
+      : `<span class="wb-diff-review__meta">${state.changes.length} 个文件 · 待审 ${pendingCount} · 已接受 ${acceptedCount}</span>
+          <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch">写入并接受 (${acceptedCount})</button>`;
   panel.innerHTML = `
-    <header class="wb-diff-review__head">
-      <div>
-        <h3>Diff 审阅</h3>
-        <p class="wb-diff-review__meta">${state.changes.length} 个文件 · 待审 ${pendingCount} · 已接受 ${acceptedCount}</p>
-      </div>
-      <div class="wb-diff-review__toolbar">
-        <div class="wb-diff-review__view-toggle" role="group" aria-label="Diff 视图">
-          <button type="button" class="wb-diff-view-btn ${state.viewMode === "unified" ? "is-active" : ""}" data-view="unified">统一视图</button>
-          <button type="button" class="wb-diff-view-btn ${state.viewMode === "split" ? "is-active" : ""}" data-view="split">并排视图</button>
+    <header class="wb-diff-review__head wb-diff-review__head--codex">
+      <div class="wb-diff-review__toolbar wb-diff-review__toolbar--codex">
+        <div class="wb-diff-review__toolbar-left">
+          ${toolbarLeft}
         </div>
-        <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-accept-all">全部接受</button>
-        <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-diff-reject-all">全部拒绝</button>
-        <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-diff-apply-batch">写入已接受 (${acceptedCount})</button>
+        <div class="wb-diff-review__toolbar-right">
+          ${toolbarRight}
+        </div>
       </div>
     </header>
-    <div class="wb-diff-review__body">
-      <ul class="wb-diff-review__files">${fileRows}</ul>
-      <div class="wb-diff-review__detail">
-        ${selected ? `<p class="wb-diff-review__summary">${escapeHtml(selected.summary || (selected.changeType === "add" ? "新增文件" : ""))}</p>` : ""}
-        <div class="wb-diff-review__diff scroll-tech">${selected ? renderDiffLines(selected.diff, state.viewMode) : ""}</div>
-      </div>
+    <div class="wb-diff-review__stack scroll-tech" role="list">
+      ${fileCards}
     </div>
   `;
-  panel.querySelectorAll(".wb-diff-review__file-btn").forEach((btn) => {
+  panel.querySelectorAll(".wb-diff-card__toggle").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const li = btn.closest("[data-change-id]");
-      const id = li?.dataset?.changeId;
+      const card = btn.closest("[data-change-id]");
+      const id = card?.dataset?.changeId;
       if (id) {
         reviewStore.setSelectedChange(projectId, taskId, id);
       }
@@ -331,25 +482,38 @@ function renderDiffReviewPanel() {
   panel.querySelectorAll(".wb-diff-accept-one").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      void syncPatchReviewStatus(
-        projectId,
-        taskId,
-        btn.dataset.changeId,
-        reviewStore.REVIEW_STATUS.ACCEPTED
-      );
-      toast("已接受该文件变更", "success");
+      void (async () => {
+        try {
+          await syncPatchReviewStatus(
+            projectId,
+            taskId,
+            btn.dataset.changeId,
+            reviewStore.REVIEW_STATUS.ACCEPTED
+          );
+          await progressAfterAccept(projectId, taskId, { autoWrite: true });
+        } catch (err) {
+          toast(err?.message || "接受补丁失败，请重试", "error");
+          renderDiffReviewPanel({ projectId, taskId });
+        }
+      })();
     });
   });
   panel.querySelectorAll(".wb-diff-reject-one").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      void syncPatchReviewStatus(
-        projectId,
-        taskId,
-        btn.dataset.changeId,
-        reviewStore.REVIEW_STATUS.REJECTED
-      );
-      toast("已拒绝该文件变更", "info");
+      void (async () => {
+        try {
+          await syncPatchReviewStatus(
+            projectId,
+            taskId,
+            btn.dataset.changeId,
+            reviewStore.REVIEW_STATUS.REJECTED
+          );
+          toast("已拒绝该文件变更", "info");
+        } catch (err) {
+          toast(err?.message || "拒绝补丁失败", "error");
+        }
+      })();
     });
   });
   panel.querySelectorAll(".wb-diff-revise-one").forEach((btn) => {
@@ -380,7 +544,7 @@ function renderDiffReviewPanel() {
           });
           await reviewStore.syncFromStagedPatches(projectId, taskId);
         }
-        renderDiffReviewPanel();
+        renderDiffReviewPanel({ projectId, taskId });
         toast("已提交修改意见，正在重新生成变更", "info");
       })();
     });
@@ -390,26 +554,39 @@ function renderDiffReviewPanel() {
       toast("当前没有可写入的代码变更。", "warn");
       return;
     }
-    reviewStore.acceptAll(projectId, taskId);
-    state.changes.forEach((c) => {
-      if (c.stagedPatchId) {
-        void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.ACCEPTED);
+    void (async () => {
+      try {
+        reviewStore.acceptAll(projectId, taskId);
+        for (const c of state.changes) {
+          if (c.stagedPatchId) {
+            await syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.ACCEPTED);
+          }
+        }
+        await progressAfterAccept(projectId, taskId, { autoWrite: true });
+      } catch (err) {
+        toast(err?.message || "接受补丁失败，请重试", "error");
+        renderDiffReviewPanel({ projectId, taskId });
       }
-    });
-    toast("已选择变更，请点击「写入已接受」。", "success");
+    })();
   });
   panel.querySelector(".wb-diff-reject-all")?.addEventListener("click", () => {
     if (!state.changes.length) {
       toast("当前没有可审阅的代码变更。", "warn");
       return;
     }
-    reviewStore.rejectAll(projectId, taskId);
-    state.changes.forEach((c) => {
-      if (c.stagedPatchId) {
-        void syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.REJECTED);
+    void (async () => {
+      try {
+        reviewStore.rejectAll(projectId, taskId);
+        for (const c of state.changes) {
+          if (c.stagedPatchId) {
+            await syncPatchReviewStatus(projectId, taskId, c.id, reviewStore.REVIEW_STATUS.REJECTED);
+          }
+        }
+        toast("已拒绝全部变更", "info");
+      } catch (err) {
+        toast(err?.message || "拒绝补丁失败", "error");
       }
-    });
-    toast("已拒绝全部变更", "info");
+    })();
   });
   panel.querySelectorAll(".wb-diff-view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -426,9 +603,15 @@ function renderDiffReviewPanel() {
       toast("请选择要审阅的文件，或点击「全部接受」。", "warn");
       return;
     }
-    void window.__wbApplyAcceptedDiffs?.();
+    renderDiffReviewPanel({ projectId, taskId, writing: true });
+    void window.__wbApplyAcceptedDiffs?.({
+      projectId,
+      taskId,
+      autoApprove: true,
+    });
   });
   window.__wbBindDiffResizer?.();
+  window.__wbRefreshDiffTabBadge?.();
 }
 
 function bindDiffReviewPanel() {

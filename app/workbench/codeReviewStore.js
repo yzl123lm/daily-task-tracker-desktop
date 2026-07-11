@@ -21,6 +21,7 @@ function emptyState() {
     source: null,
     loadError: null,
     emptyReason: null,
+    emptyHint: "",
   };
 }
 
@@ -60,11 +61,13 @@ function normalizeChange(preview, index, taskId) {
   const reviewStatus =
     preview.status === "ACCEPTED"
       ? REVIEW_STATUS.ACCEPTED
-      : preview.status === "REJECTED"
-        ? REVIEW_STATUS.REJECTED
-        : preview.status === "REVISION_REQUESTED"
-          ? REVIEW_STATUS.REVISION
-          : REVIEW_STATUS.PENDING;
+      : preview.status === "APPLIED"
+        ? REVIEW_STATUS.ACCEPTED
+        : preview.status === "REJECTED"
+          ? REVIEW_STATUS.REJECTED
+          : preview.status === "REVISION_REQUESTED"
+            ? REVIEW_STATUS.REVISION
+            : REVIEW_STATUS.PENDING;
   return {
     id: stagedPatchId || `chg_${taskId || "t"}_${index}_${path.replace(/[^\w.-]/g, "_")}`,
     stagedPatchId,
@@ -79,6 +82,8 @@ function normalizeChange(preview, index, taskId) {
       .join("\n")}` : ""),
     summary: preview.summary || (isNewFile ? "新增文件" : ""),
     reviewStatus,
+    patchStatus: preview.status || null,
+    alreadyApplied: preview.status === "APPLIED" || Boolean(preview.writeApplied),
     proposedContent,
     originalContent,
     raw: preview,
@@ -102,11 +107,21 @@ async function syncFromStagedPatches(projectId, taskId, options = {}) {
 
 function setFromDiffPreviews(projectId, taskId, diffPreviews, source = "plan") {
   const state = getTaskState(projectId, taskId);
-  state.changes = (diffPreviews || []).map((d, i) => normalizeChange(d, i, taskId));
+  // 已 APPLIED 的补丁不再进入 Diff 待审列表（避免 APPLIED→ACCEPTED 报错）
+  const reviewable = (diffPreviews || []).filter((d) => {
+    const s = String(d?.status || "").toUpperCase();
+    return s !== "APPLIED" && !d?.writeApplied;
+  });
+  state.changes = reviewable.map((d, i) => normalizeChange(d, i, taskId));
   state.selectedChangeId = state.changes[0]?.id || null;
   state.source = source;
   state.loadError = null;
   state.emptyReason = state.changes.length ? null : "no_patches";
+  state.emptyHint = state.changes.length
+    ? ""
+    : (diffPreviews || []).some((d) => String(d?.status || "").toUpperCase() === "APPLIED" || d?.writeApplied)
+      ? "变更此前已写入，无需再次审阅。"
+      : state.emptyHint || "";
   emitChange(projectId, taskId);
   return state.changes;
 }
@@ -115,6 +130,14 @@ function setLoadError(projectId, taskId, message) {
   const state = getTaskState(projectId, taskId);
   state.loadError = message || "Diff 加载失败";
   state.emptyReason = "load_error";
+  emitChange(projectId, taskId);
+}
+
+function setEmptyReason(projectId, taskId, reason, hint = "") {
+  const state = getTaskState(projectId, taskId);
+  state.emptyReason = reason || "no_patches";
+  state.emptyHint = hint || "";
+  state.loadError = null;
   emitChange(projectId, taskId);
 }
 
@@ -209,6 +232,7 @@ function getState(projectId, taskId) {
     source: state.source,
     loadError: state.loadError,
     emptyReason: state.emptyReason,
+    emptyHint: state.emptyHint || "",
   };
 }
 
@@ -218,6 +242,7 @@ window.__wbCodeReviewStore = {
   setFromDiffPreviews,
   syncFromStagedPatches,
   setLoadError,
+  setEmptyReason,
   setReviewStatus,
   setSelectedChange,
   setViewMode,

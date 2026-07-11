@@ -42,15 +42,64 @@ function applyAcceptedPatches(
   const uid = resolveUserId(userId);
   const patchStagingService = require("./patchStagingService.js");
   const { PATCH_STATUS } = patchStagingService;
-  const idSet = new Set((patchIds || []).map(String));
+  const idSet = new Set((patchIds || []).map(String).filter(Boolean));
+
+  // Diff 已确认且带了明确 patchIds：先把仍为 STAGED 的补丁提升为 ACCEPTED，避免 UI/库不同步
+  if (idSet.size && userApproved) {
+    const candidates = patchStagingService.listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+      statuses: [PATCH_STATUS.STAGED, PATCH_STATUS.ACCEPTED],
+    });
+    for (const patch of candidates) {
+      if (!idSet.has(String(patch.id))) {
+        continue;
+      }
+      if (patch.status === PATCH_STATUS.STAGED) {
+        patchStagingService.updatePatchStatus(
+          getUserDataPath,
+          uid,
+          projectId,
+          taskId,
+          patch.id,
+          PATCH_STATUS.ACCEPTED
+        );
+      }
+    }
+  }
+
   let accepted = patchStagingService.listStagedPatches(getUserDataPath, uid, projectId, taskId, {
     status: PATCH_STATUS.ACCEPTED,
   });
   if (idSet.size) {
-    accepted = accepted.filter((p) => idSet.has(p.id));
+    accepted = accepted.filter((p) => idSet.has(String(p.id)));
   }
   if (!accepted.length) {
-    const err = new Error("没有可写入的 ACCEPTED 补丁");
+    // 指定 patchIds 已全部 APPLIED：视为幂等成功，避免 UI 重复写入报错
+    if (idSet.size) {
+      const applied = patchStagingService
+        .listStagedPatches(getUserDataPath, uid, projectId, taskId, {
+          status: PATCH_STATUS.APPLIED,
+        })
+        .filter((p) => idSet.has(String(p.id)));
+      if (applied.length && applied.length === idSet.size) {
+        return {
+          ok: true,
+          alreadyApplied: true,
+          results: applied.map((p) => ({
+            patchId: p.id,
+            path: p.filePath,
+            ok: true,
+            alreadyApplied: true,
+          })),
+          appliedIds: applied.map((p) => p.id),
+          count: applied.length,
+        };
+      }
+    }
+    const err = new Error(
+      idSet.size
+        ? "没有可写入的 ACCEPTED 补丁（指定补丁可能仍为 STAGED/已失效，请重新接受 Diff）"
+        : "没有可写入的 ACCEPTED 补丁"
+    );
     err.code = "NO_ACCEPTED_PATCHES";
     throw err;
   }

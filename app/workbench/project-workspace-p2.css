@@ -5,12 +5,31 @@
   z-index: 6;
   touch-action: none;
   background: transparent;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+}
+
+.wb-pws-resize-handle:focus,
+.wb-pws-resize-handle:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .wb-pws-resize-handle--project,
 .wb-pws-resize-handle--col {
-  width: 6px;
+  width: 5px;
   cursor: col-resize;
+}
+
+/* Agent 列右缘手柄：挂在列内，永不穿进内容中线 */
+.wb-pws-resize-handle--agent-edge {
+  top: 0 !important;
+  bottom: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  width: 5px;
+  z-index: 8;
 }
 
 .wb-pws-resize-handle--terminal {
@@ -19,17 +38,14 @@
   cursor: row-resize;
 }
 
+/*
+ * 分栏竖向指示条已取消：常态/悬停都不画蓝线，避免误定位成「内容中线」。
+ * 拖拽仍靠 cursor:col-resize；列间分隔用 agent-col 的 border-right。
+ */
 .wb-pws-resize-handle--project::after,
 .wb-pws-resize-handle--col::after {
-  content: "";
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 2px;
-  width: 2px;
-  border-radius: 999px;
-  background: transparent;
-  transition: background 0.12s ease, opacity 0.12s ease;
+  content: none !important;
+  display: none !important;
 }
 
 .wb-pws-resize-handle--terminal::after {
@@ -41,15 +57,9 @@
   height: 2px;
   border-radius: 999px;
   background: transparent;
+  opacity: 0;
+  pointer-events: none;
   transition: background 0.12s ease, opacity 0.12s ease;
-}
-
-.wb-pws-resize-handle--project:hover::after,
-.wb-pws-resize-handle--col:hover::after,
-.wb-pws-resize-handle--project.is-dragging::after,
-.wb-pws-resize-handle--col.is-dragging::after {
-  background: #3b82f6;
-  opacity: 0.55;
 }
 
 .wb-pws-resize-handle--terminal:hover::after,

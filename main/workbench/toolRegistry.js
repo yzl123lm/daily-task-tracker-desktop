@@ -22,9 +22,9 @@ const MEMORY_WRITE_MODES = new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISS
 
 const MODE_ALLOWED = {
   PLAN_ONLY: new Set([PERMISSION.READ, PERMISSION.MEMORY_WRITE]),
-  PATCH_PROPOSE: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE]),
+  PATCH_PROPOSE: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE, PERMISSION.VERIFY]),
   APPLY_APPROVED: new Set([]),
-  VERIFY_FIX: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE]),
+  VERIFY_FIX: new Set([PERMISSION.READ, PERMISSION.PROPOSE, PERMISSION.MEMORY_WRITE, PERMISSION.VERIFY]),
 };
 
 const TOOL_ALIASES = {
@@ -163,6 +163,23 @@ const TOOL_DEFS = {
       },
     },
   },
+  list_verification_profiles: {
+    permission: PERMISSION.VERIFY,
+    description: "List allowed verification profiles (build/test/lint/typecheck). Use profileId only.",
+    parameters: { type: "object", properties: {} },
+  },
+  run_verification: {
+    permission: PERMISSION.VERIFY,
+    description:
+      "Run a whitelisted verification profile by profileId (not arbitrary shell). Requires auto-verify grant.",
+    parameters: {
+      type: "object",
+      properties: {
+        profileId: { type: "string", description: "build | test | lint | typecheck" },
+      },
+      required: ["profileId"],
+    },
+  },
 };
 
 function normalizeToolName(name) {
@@ -178,11 +195,21 @@ function compressContextToolEnabled() {
   return String(process.env.WB_AGENT_COMPRESS_CONTEXT || "1") !== "0";
 }
 
+function llmVerifyToolEnabled() {
+  return String(process.env.WB_AGENT_LLM_VERIFY || "1") !== "0";
+}
+
 function listToolSchemas(mode = "PLAN_ONLY") {
   const allowed = MODE_ALLOWED[String(mode).toUpperCase()] || MODE_ALLOWED.PLAN_ONLY;
   return Object.entries(TOOL_DEFS)
     .filter(([name, def]) => {
       if (name === "compress_context" && !compressContextToolEnabled()) {
+        return false;
+      }
+      if (
+        (name === "run_verification" || name === "list_verification_profiles") &&
+        !llmVerifyToolEnabled()
+      ) {
         return false;
       }
       return allowed.has(def.permission);
@@ -221,6 +248,14 @@ function assertToolAllowed(toolName, mode) {
     err.code = "TOOL_FORBIDDEN";
     throw err;
   }
+  if (
+    (name === "run_verification" || name === "list_verification_profiles") &&
+    !llmVerifyToolEnabled()
+  ) {
+    const err = new Error("LLM VERIFY 工具已禁用");
+    err.code = "TOOL_FORBIDDEN";
+    throw err;
+  }
   return def;
 }
 
@@ -250,9 +285,11 @@ async function dispatchTool(ctx, toolName, args = {}) {
     riskLevel:
       def.permission === PERMISSION.PROPOSE
         ? "MEDIUM"
-        : def.permission === PERMISSION.MEMORY_WRITE
-          ? "LOW"
-          : "LOW",
+        : def.permission === PERMISSION.VERIFY
+          ? "MEDIUM"
+          : def.permission === PERMISSION.MEMORY_WRITE
+            ? "LOW"
+            : "LOW",
   });
   return result;
 }
@@ -270,8 +307,46 @@ const HANDLERS = {
     return { ok: true, entries: filtered.slice(0, 200) };
   },
   read_file(ctx, args) {
-    const file = projectCodeService.readProjectFile(ctx.root, args.path);
-    return { ok: true, ...file };
+    const rawPath = String(args.path || "").replace(/\\/g, "/").trim();
+    const lower = rawPath.toLowerCase();
+    // 禁止探测系统临时路径 / 虚构错误日志；引导空项目直接 stage_patch
+    if (
+      !rawPath ||
+      lower === "tmp/last_error.txt" ||
+      lower.endsWith("/tmp/last_error.txt") ||
+      /^\/?tmp\//i.test(rawPath) ||
+      /(^|\/)last_error\.txt$/i.test(rawPath)
+    ) {
+      return {
+        ok: false,
+        code: "PATH_NOT_USEFUL",
+        error:
+          `不要读取「${rawPath || "(空路径)"}」。该路径不是项目源码。` +
+          "若项目为空或不存在目标文件，请直接用 stage_patch（changeType=add）创建新文件；工具错误信息已在返回结果中，无需另读日志。",
+        hint: "use_stage_patch",
+      };
+    }
+    try {
+      const file = projectCodeService.readProjectFile(ctx.root, args.path);
+      return { ok: true, ...file };
+    } catch (e) {
+      const msg = String(e?.message || e || "");
+      const missing =
+        e?.code === "ENOENT" ||
+        /ENOENT|no such file|不是文件|无效相对路径|路径超出/i.test(msg);
+      if (missing) {
+        return {
+          ok: false,
+          code: "FILE_NOT_FOUND",
+          path: rawPath,
+          error:
+            `文件不存在：${rawPath}。` +
+            "若要新建该文件，请用 stage_patch（changeType=add）直接提议完整内容，不要反复 read_file。",
+          hint: "use_stage_patch",
+        };
+      }
+      return { ok: false, code: e?.code || "TOOL_ERROR", error: msg };
+    }
   },
   search_code(ctx, args) {
     const hits = projectCodeService.searchProjectCode(ctx.root, args.query);
@@ -355,6 +430,50 @@ const HANDLERS = {
       error: result.message || null,
     };
   },
+  list_verification_profiles(ctx) {
+    const { listProfiles } = require("./verificationProfileRegistry.js");
+    return { ok: true, profiles: listProfiles(ctx.root), trust: "system" };
+  },
+  async run_verification(ctx, args) {
+    if (!ctx.autoVerifyGranted) {
+      return {
+        ok: false,
+        code: "USER_APPROVAL_REQUIRED",
+        error: "run_verification 需要任务级自动验证授权（autoVerify / task_once）",
+      };
+    }
+    const { resolveProfileId } = require("./verificationProfileRegistry.js");
+    const { runVerification } = require("./verificationService.js");
+    let profileId;
+    try {
+      profileId = resolveProfileId(args.profileId || args.scriptName);
+    } catch (e) {
+      return { ok: false, code: e.code || "VERIFY_PROFILE_INVALID", error: e.message };
+    }
+    const result = await runVerification(
+      ctx.getUserDataPath,
+      ctx.userId,
+      {
+        projectId: ctx.projectId,
+        taskId: ctx.taskId,
+        profileId,
+        scriptName: profileId,
+        userApproved: true,
+      },
+      { getDefaultProjectRoot: ctx.getDefaultProjectRoot }
+    );
+    return {
+      ok: Boolean(result.ok),
+      skipped: Boolean(result.skipped),
+      profileId,
+      scriptName: result.scriptName,
+      exitCode: result.exitCode,
+      message: result.message || result.parsed?.summary || null,
+      stdoutTail: String(result.stdout || "").slice(-4000),
+      stderrTail: String(result.stderr || "").slice(-4000),
+      trust: "system",
+    };
+  },
 };
 
 module.exports = {
@@ -366,4 +485,5 @@ module.exports = {
   listToolSchemas,
   assertToolAllowed,
   dispatchTool,
+  llmVerifyToolEnabled,
 };

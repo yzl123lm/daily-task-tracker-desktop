@@ -1,8 +1,8 @@
-const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v4";
+const WB_PWS_LAYOUT_PREFS_KEY = "wb_pws_layout_prefs_v5";
 
 const DEFAULT_PREFS = {
   projectWidthPx: 300,
-  agentWidthPx: 560,
+  agentWidthPx: 420,
   terminalHeightPx: 220,
   diffHeightPct: 42,
 };
@@ -10,8 +10,8 @@ const DEFAULT_PREFS = {
 const LIMITS = {
   projectMinPx: 260,
   projectMaxPx: 380,
-  agentMinPx: 440,
-  agentMaxPx: 720,
+  agentMinPx: 300,
+  agentMaxPx: 560,
   terminalMinPx: 120,
   terminalMaxPx: 480,
   diffMinPct: 20,
@@ -21,10 +21,19 @@ const LIMITS = {
 function loadPrefs() {
   try {
     const raw = localStorage.getItem(WB_PWS_LAYOUT_PREFS_KEY);
-    if (!raw) {
-      return { ...DEFAULT_PREFS };
-    }
-    return { ...DEFAULT_PREFS, ...JSON.parse(raw) };
+    const merged = raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_PREFS };
+    merged.agentWidthPx = clamp(Number(merged.agentWidthPx) || DEFAULT_PREFS.agentWidthPx, LIMITS.agentMinPx, LIMITS.agentMaxPx);
+    merged.projectWidthPx = clamp(
+      Number(merged.projectWidthPx) || DEFAULT_PREFS.projectWidthPx,
+      LIMITS.projectMinPx,
+      LIMITS.projectMaxPx
+    );
+    merged.terminalHeightPx = clamp(
+      Number(merged.terminalHeightPx) || DEFAULT_PREFS.terminalHeightPx,
+      LIMITS.terminalMinPx,
+      LIMITS.terminalMaxPx
+    );
+    return merged;
   } catch {
     return { ...DEFAULT_PREFS };
   }
@@ -59,12 +68,16 @@ function clamp(n, min, max) {
   return Math.min(max, Math.max(min, n));
 }
 
-function ensureOverlayHandle(id, className) {
-  const layout = getLayoutEl();
-  if (!layout) {
+function ensureOverlayHandle(id, className, parentEl) {
+  const parent = parentEl || getLayoutEl();
+  if (!parent) {
     return null;
   }
   let handle = document.getElementById(id);
+  if (handle && parentEl && handle.parentElement !== parentEl) {
+    handle.remove();
+    handle = null;
+  }
   if (handle) {
     return handle;
   }
@@ -72,7 +85,21 @@ function ensureOverlayHandle(id, className) {
   handle.id = id;
   handle.className = `wb-pws-resize-handle ${className}`;
   handle.setAttribute("role", "separator");
-  layout.appendChild(handle);
+  parent.appendChild(handle);
+  return handle;
+}
+
+function ensureAgentEdgeHandle() {
+  const agentCol = document.getElementById("wbPwsAgentCol");
+  if (!agentCol) {
+    return null;
+  }
+  const handle = ensureOverlayHandle(
+    "wbPwsResizeAgent",
+    "wb-pws-resize-handle--col wb-pws-resize-handle--agent-edge",
+    agentCol
+  );
+  handle?.setAttribute("aria-label", "调整 AI 助手栏宽度");
   return handle;
 }
 
@@ -86,12 +113,15 @@ function isProjectColInSidebar() {
 function positionResizeHandles(prefs = loadPrefs()) {
   const layout = getLayoutEl();
   const projectHandle = document.getElementById("wbPwsResizeProject");
-  const agentHandle = document.getElementById("wbPwsResizeAgent");
+  const agentHandle = document.getElementById("wbPwsResizeAgent") || ensureAgentEdgeHandle();
   const terminalHandle = document.getElementById("wbPwsResizeTerminal");
   if (!layout) {
     return;
   }
-  const top = 48;
+  const layoutRect = layout.getBoundingClientRect();
+  const agentCol = document.getElementById("wbPwsAgentCol");
+  const agentRect = agentCol?.getBoundingClientRect?.();
+  const top = agentRect ? Math.max(0, Math.round(agentRect.top - layoutRect.top)) : 0;
   const terminalH =
     layout.dataset.terminalCollapsed === "1" ? 40 : prefs.terminalHeightPx;
   const sidebarProject = isProjectColInSidebar();
@@ -104,22 +134,32 @@ function positionResizeHandles(prefs = loadPrefs()) {
       projectHandle.style.bottom = `${terminalH}px`;
       projectHandle.style.left = `calc(${railWidth}px + ${prefs.projectWidthPx}px - 3px)`;
       projectHandle.style.right = "auto";
+      projectHandle.classList.remove("is-dragging");
     } else {
       projectHandle.hidden = true;
       projectHandle.style.display = "none";
+      projectHandle.classList.remove("is-dragging");
     }
   }
   if (agentHandle) {
+    // 手柄挂在 agent 列内部右缘，由 CSS 固定；禁止再用 left 像素定位（会穿进内容中线）
     agentHandle.hidden = false;
     agentHandle.style.display = "";
-    agentHandle.style.top = `${top}px`;
-    agentHandle.style.bottom = `${terminalH}px`;
-    agentHandle.style.right = "auto";
-    agentHandle.style.left = `calc(${prefs.agentWidthPx}px - 3px)`;
+    agentHandle.style.top = "0";
+    agentHandle.style.bottom = "0";
+    agentHandle.style.right = "0";
+    agentHandle.style.left = "auto";
+    agentHandle.style.width = "5px";
+    if (!document.body.classList.contains("wb-pws-resizing")) {
+      agentHandle.classList.remove("is-dragging");
+    }
   }
   if (terminalHandle) {
     terminalHandle.style.height = "8px";
     terminalHandle.style.bottom = `calc(${terminalH}px - 4px)`;
+    if (!document.body.classList.contains("wb-pws-resizing-terminal")) {
+      terminalHandle.classList.remove("is-dragging");
+    }
   }
 }
 
@@ -139,8 +179,10 @@ function bindDragHandle(handle, onMove) {
     handle.classList.remove("is-dragging");
     document.body.classList.remove("wb-pws-resizing");
     savePrefs(prefs);
+    positionResizeHandles(prefs);
     window.removeEventListener("pointermove", onPointerMove);
     window.removeEventListener("pointerup", stop);
+    window.removeEventListener("pointercancel", stop);
   };
 
   const onPointerMove = (ev) => {
@@ -160,6 +202,7 @@ function bindDragHandle(handle, onMove) {
     applyPrefs(prefs);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
   });
 }
 
@@ -168,6 +211,28 @@ function bindWorkspaceResizers() {
   const layout = getLayoutEl();
   if (!layout) {
     return;
+  }
+
+  if (layout.dataset.resizeBound !== "1") {
+    layout.dataset.resizeBound = "1";
+    const scheduleReposition = () => {
+      window.requestAnimationFrame(() => positionResizeHandles(loadPrefs()));
+    };
+    window.addEventListener("resize", scheduleReposition);
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver(scheduleReposition);
+      ro.observe(layout);
+      const agentCol = document.getElementById("wbPwsAgentCol");
+      if (agentCol) {
+        ro.observe(agentCol);
+      }
+    }
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        document.body.classList.remove("wb-pws-resizing", "wb-pws-resizing-terminal", "wb-pws-resizing-diff");
+        positionResizeHandles(loadPrefs());
+      }
+    });
   }
 
   const projectHandle = ensureOverlayHandle(
@@ -185,14 +250,9 @@ function bindWorkspaceResizers() {
     );
   });
 
-  const agentHandle = ensureOverlayHandle(
-    "wbPwsResizeAgent",
-    "wb-pws-resize-handle--col"
-  );
-  agentHandle?.setAttribute("aria-label", "调整 AI 助手栏宽度");
+  const agentHandle = ensureAgentEdgeHandle();
   bindDragHandle(agentHandle, (ev, prefs) => {
     const rect = layout.getBoundingClientRect();
-    // Agent 列为 runview 主区：相对 layout 左缘计算宽度
     prefs.agentWidthPx = clamp(
       ev.clientX - rect.left,
       LIMITS.agentMinPx,

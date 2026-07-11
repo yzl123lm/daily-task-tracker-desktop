@@ -1,0 +1,365 @@
+/* Codex-style Diff Review — full-width stacked file cards (overrides approval.css) */
+
+body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel:not([hidden]),
+.wb-diff-review-panel:not([hidden]) {
+  flex: 1 1 auto !important;
+  flex-shrink: 1 !important;
+  display: flex !important;
+  flex-direction: column;
+  max-height: none !important;
+  min-height: 0 !important;
+  height: 100%;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.wb-diff-review__head--codex {
+  padding: 8px 12px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #dcebfa;
+  flex: 0 0 auto;
+}
+
+.wb-diff-review__toolbar--codex {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wb-diff-review__toolbar-left,
+.wb-diff-review__toolbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.wb-diff-review__toolbar--codex .wb-diff-review__meta {
+  margin: 0;
+  font-size: 12px;
+  color: #5b6b82;
+}
+
+.wb-diff-review__stack {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #eef6ff;
+}
+
+/* Active card fills remaining viewport; collapsed cards stay compact */
+.wb-diff-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dcebfa;
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(30, 107, 255, 0.04);
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.wb-diff-card.is-active {
+  flex: 1 1 auto;
+  min-height: 220px;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(30, 107, 255, 0.08);
+}
+
+.wb-diff-card.is-collapsed {
+  flex: 0 0 auto;
+}
+
+.wb-diff-card__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #ffffff !important;
+  border-bottom: 1px solid #e8f1fc;
+  flex: 0 0 auto;
+}
+
+.wb-diff-card__toggle {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  text-align: left;
+  cursor: pointer;
+  color: #243447 !important;
+  font-family: inherit;
+  min-height: 0 !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+
+.wb-diff-card__toggle:hover {
+  background: transparent !important;
+  color: #1e293b !important;
+  border: none !important;
+}
+
+.wb-diff-card__file-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border-radius: 3px;
+  border: 1px solid #cfe2f8;
+  background:
+    linear-gradient(180deg, #eaf4ff 0 40%, transparent 40%),
+    #ffffff;
+}
+
+.wb-diff-card__path {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e6bff;
+  font-family: inherit;
+}
+
+.wb-diff-card__type {
+  font-size: 11px;
+  color: #5b6b82;
+  font-family: inherit;
+}
+
+.wb-diff-card__stats {
+  margin-left: auto;
+  font-size: 12px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.wb-diff-card__stats .is-add {
+  color: #0f9f6e;
+}
+
+.wb-diff-card__stats .is-del {
+  color: #e11d48;
+  margin-left: 4px;
+}
+
+.wb-diff-card__actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.wb-diff-card__actions .wb-pws-btn {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  box-shadow: none;
+}
+
+.wb-diff-card__summary {
+  margin: 0;
+  padding: 8px 12px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #5b6b82;
+  font-family: inherit;
+  flex: 0 0 auto;
+}
+
+.wb-diff-card__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 12px 12px;
+}
+
+.wb-diff-card__diff {
+  flex: 1 1 auto;
+  min-height: 180px;
+  max-height: none;
+  overflow: auto;
+  border: 1px solid #dcebfa;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.wb-diff-card.is-collapsed .wb-diff-card__body {
+  display: none;
+}
+
+.wb-diff-card.is-collapsed .wb-diff-card__summary {
+  padding-bottom: 8px;
+}
+
+.wb-diff-card .wb-diff-review__status {
+  margin-top: 0;
+}
+
+/* Diff text: match workbench type, not harsh terminal gray */
+.wb-diff-card .wb-diff-unified,
+.wb-diff-card .wb-diff-split__col {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #243447;
+  background: transparent;
+}
+
+.wb-diff-card .wb-diff-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  min-height: 100%;
+}
+
+.wb-diff-card .wb-diff-split__col {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+  border: 1px solid #e8f1fc;
+  overflow: auto;
+}
+
+.wb-diff-card .wb-diff-line {
+  display: block;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.wb-diff-card .wb-diff-line--add {
+  color: #0b7a52;
+  background: #ecfdf5;
+}
+
+.wb-diff-card .wb-diff-line--del {
+  color: #be123c;
+  background: #fff1f2;
+}
+
+.wb-diff-card .wb-diff-line--meta {
+  color: #1e6bff;
+  background: #eaf4ff;
+  font-weight: 600;
+}
+
+.wb-diff-card .wb-diff-line--ctx {
+  color: #243447;
+  background: transparent;
+}
+
+@media (max-width: 1024px) {
+  .wb-diff-card__head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wb-diff-card__stats {
+    margin-left: 0;
+  }
+
+  .wb-diff-review__toolbar--codex {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .wb-diff-card.is-active {
+    min-height: 160px;
+  }
+}
+
+/* 覆盖 theme-nebula 全局 button 深色污染：Diff 卡片头 / 并排视图 */
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__head,
+body.jl-project-workspace-active .wb-diff-card__head {
+  background: #ffffff !important;
+  color: #243447 !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__toggle,
+body.jl-project-workspace-active .wb-diff-card__toggle {
+  background: transparent !important;
+  border: none !important;
+  color: #243447 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  font-weight: 600 !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__toggle:hover,
+body.jl-project-workspace-active .wb-diff-card__toggle:hover {
+  background: transparent !important;
+  color: #1e293b !important;
+  border: none !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__path,
+body.jl-project-workspace-active .wb-diff-card__path {
+  color: #1e293b !important;
+  background: transparent !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__type,
+body.jl-project-workspace-active.theme-nebula .wb-diff-card__stats,
+body.jl-project-workspace-active .wb-diff-card__type,
+body.jl-project-workspace-active .wb-diff-card__stats {
+  color: #64748b !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-review__view-toggle,
+body.jl-project-workspace-active .wb-diff-review__view-toggle {
+  background: #ffffff !important;
+  border: 1px solid #dcebfa !important;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-view-btn,
+body.jl-project-workspace-active .wb-diff-view-btn {
+  background: #f7fbff !important;
+  color: #64748b !important;
+  border: none !important;
+  box-shadow: none !important;
+  min-height: 26px !important;
+  padding: 3px 10px !important;
+  font-weight: 500 !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-view-btn:hover,
+body.jl-project-workspace-active .wb-diff-view-btn:hover {
+  background: #eaf4ff !important;
+  color: #1e6bff !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-view-btn.is-active,
+body.jl-project-workspace-active .wb-diff-view-btn.is-active {
+  background: #eaf4ff !important;
+  color: #1e6bff !important;
+  font-weight: 600 !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-diff-card .wb-diff-review__status--accepted,
+body.jl-project-workspace-active .wb-diff-card .wb-diff-review__status--accepted {
+  color: #15803d !important;
+  background: #ecfdf3 !important;
+  border-color: #bbf7d0 !important;
+}

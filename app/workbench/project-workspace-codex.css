@@ -118,14 +118,13 @@ body.jl-project-workspace-active #panel-ai {
 }
 
 .wb-ctx-health-mount {
-  display: inline-flex;
-  align-items: center;
-  margin-left: auto;
+  display: none !important;
+  margin: 0;
   padding: 0;
   border: none;
   background: transparent;
-  cursor: pointer;
-  min-height: 26px;
+  min-height: 0;
+  pointer-events: none;
 }
 
 .wb-ctx-health {
@@ -492,7 +491,7 @@ body.jl-project-workspace-active #panel-ai {
 .wb-ai-command__footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
   margin-top: 8px;
 }
@@ -500,13 +499,36 @@ body.jl-project-workspace-active #panel-ai {
 .wb-ai-command__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  margin-left: auto;
   position: relative;
 }
 
 .wb-ai-command__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
   min-width: 34px;
-  padding-inline: 8px;
+  height: 34px;
+  padding: 0;
+  color: #475569;
+}
+
+.wb-ai-command__more:hover {
+  color: #1d4ed8;
+}
+
+.wb-ai-command__more-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.wb-ai-command__more[aria-expanded="true"] {
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  background: #eff6ff;
 }
 
 .wb-composer-more-menu {
@@ -576,6 +598,12 @@ body.jl-project-workspace-active #panel-ai {
   font-size: 11px;
   color: #64748b;
   white-space: nowrap;
+}
+
+/* 自动验证默认开启，不再在指令区展示开关 */
+.wb-pws-auto-verify,
+.wb-ai-command__footer .wb-auto-verify-switch {
+  display: none !important;
 }
 
 .wb-pws-composer__actions {

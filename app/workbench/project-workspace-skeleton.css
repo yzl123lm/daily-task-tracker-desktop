@@ -387,9 +387,10 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   padding: 0;
   align-content: stretch;
   align-items: stretch;
-  --wb-pws-agent-width: 560px;
+  --wb-pws-agent-width: 420px;
   --wb-pws-terminal-height: 220px;
-  grid-template-columns: minmax(440px, var(--wb-pws-agent-width)) minmax(420px, 0.9fr);
+  /* 右侧 Diff/详情必须能收缩到 0 再吃满剩余宽度，避免双 minmax 把右侧裁切成窄条 */
+  grid-template-columns: minmax(280px, var(--wb-pws-agent-width)) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) var(--wb-pws-terminal-height);
   grid-template-areas:
     "assistant main"
@@ -399,7 +400,7 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
 
 body.wb-pws-sidebar-mounted .wb-pws-layout,
 body.wb-pws-sidebar-mounted .wb-ai-workbench-layout {
-  grid-template-columns: minmax(440px, var(--wb-pws-agent-width)) minmax(420px, 0.9fr);
+  grid-template-columns: minmax(280px, var(--wb-pws-agent-width)) minmax(0, 1fr);
   grid-template-areas:
     "assistant main"
     "terminal terminal";
@@ -490,12 +491,30 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   display: none !important;
 }
 
+.wb-pws-code-col,
+.wb-pws-main-col {
+  grid-area: main;
+  height: 100%;
+  width: 100%;
+  align-self: stretch;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border-left: none;
+  background: rgba(255, 255, 255, 0.9);
+}
+
 .wb-pws-agent-col,
 .wb-pws-assistant-col {
   grid-area: assistant;
+  position: relative;
   height: 100%;
   align-self: stretch;
   min-width: 0;
+  max-width: 100%;
   min-height: 0;
   overflow: hidden !important;
   display: flex;
@@ -503,21 +522,6 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
   border-left: none;
   border-right: 1px solid #dcebfa;
   background: rgba(255, 255, 255, 0.82);
-  max-width: none !important;
-}
-
-.wb-pws-code-col,
-.wb-pws-main-col {
-  grid-area: main;
-  height: 100%;
-  align-self: stretch;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  border-left: none;
-  background: rgba(255, 255, 255, 0.9);
 }
 
 .wb-pws-terminal-drawer {
@@ -562,6 +566,11 @@ body.wb-pws-sidebar-mounted .jl-workbench-sidepanel {
 .wb-pws-project-col__foot {
   flex-shrink: 0;
   padding: 10px 12px;
+}
+
+/* 侧栏底部「返回会话区 / 打开目录」已移除：入口与更多菜单重复 */
+.wb-pws-project-col__foot {
+  display: none !important;
 }
 
 .wb-pws-project-col__head {
@@ -968,7 +977,8 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-git-change-panel {
 @media (min-width: 1024px) and (max-width: 1279px) {
   .wb-pws-layout,
   .wb-ai-workbench-layout {
-    --wb-pws-agent-width: 480px;
+    --wb-pws-agent-width: 360px;
+    grid-template-columns: minmax(280px, var(--wb-pws-agent-width)) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) 210px;
   }
 

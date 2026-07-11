@@ -38,6 +38,7 @@ function buildContextPack({
     const ctxTokens = estimateTokens(promptContext.text);
     sections.push({
       type: "compressed_context",
+      trust: "memory",
       content: truncate(promptContext.text, Math.min(ctxTokens, remaining)),
     });
     remaining -= Math.min(ctxTokens, remaining);
@@ -46,13 +47,21 @@ function buildContextPack({
   const structure = projectStructureService.analyzeProjectStructure(root);
   const structureText = JSON.stringify(structure, null, 2);
   const structureTokens = estimateTokens(structureText);
-  sections.push({ type: "structure", content: truncate(structureText, Math.min(structureTokens, 800)) });
+  sections.push({
+    type: "structure",
+    trust: "untrusted_code",
+    content: truncate(structureText, Math.min(structureTokens, 800)),
+  });
   remaining -= Math.min(structureTokens, 800);
 
   const symbols = symbolIndexService.findSymbols(root, message, { limit: 20 });
   const symText = JSON.stringify(symbols.slice(0, 15), null, 2);
   const symTokens = estimateTokens(symText);
-  sections.push({ type: "symbols", content: truncate(symText, Math.min(symTokens, 600)) });
+  sections.push({
+    type: "symbols",
+    trust: "untrusted_code",
+    content: truncate(symText, Math.min(symTokens, 600)),
+  });
   remaining -= Math.min(symTokens, 600);
 
   if (getUserDataPath && userId && projectId && taskId) {
@@ -70,6 +79,7 @@ function buildContextPack({
         const budget = Math.min(targetBudget, remaining);
         sections.push({
           type: "historicalErrorLessons",
+          trust: "lesson",
           content: truncate(lessonPack.formattedText, budget),
         });
         remaining -= Math.min(lessonTokens, budget);
@@ -80,6 +90,7 @@ function buildContextPack({
         if (prevBudget > 40) {
           sections.push({
             type: "prevention_rules",
+            trust: "system",
             content: truncate(lessonPack.preventionText, prevBudget),
           });
           remaining -= Math.min(prevTokens, prevBudget);
@@ -96,6 +107,7 @@ function buildContextPack({
         const lessonText = lessons.map((m) => `- ${m.content}`).join("\n");
         sections.push({
           type: "historicalErrorLessons",
+          trust: "lesson",
           content: truncate(lessonText, Math.min(estimateTokens(lessonText), 400)),
         });
         remaining -= Math.min(estimateTokens(lessonText), 400);

@@ -48,9 +48,23 @@ function requestApproval({
   stagedPatchId,
   onApprove,
   onReject,
+  autoApprove = false,
 }) {
   if (pending) {
-    return Promise.resolve(false);
+    // Diff 审阅已确认后的写入：若卡着同任务的写入审批，先清掉以免静默失败
+    if (
+      autoApprove &&
+      pending.actionType === "write_batch" &&
+      pending.taskId &&
+      taskId &&
+      String(pending.taskId) === String(taskId)
+    ) {
+      clearPending();
+    } else if (!autoApprove) {
+      return Promise.resolve(false);
+    } else {
+      return Promise.resolve(false);
+    }
   }
   const id = `apr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const req = {
@@ -65,11 +79,22 @@ function requestApproval({
     stagedPatchId: stagedPatchId || details.stagedPatchId || null,
     riskLevel: riskLevel || inferRiskLevel(actionType, details),
     rollbackHint: rollbackHint || "受控写入前会自动创建备份，可在备份面板还原。",
-    status: "waiting",
+    status: autoApprove ? "approved" : "waiting",
     createdAt: new Date().toISOString(),
     onApprove,
     onReject,
+    autoApproved: Boolean(autoApprove),
   };
+  // Diff 已确认等场景：静默记入审批历史，不弹出二次审批卡
+  if (autoApprove) {
+    history.unshift(req);
+    try {
+      req.onApprove?.();
+    } catch {
+      /* ignore */
+    }
+    return Promise.resolve(true);
+  }
   pending = req;
   emitChange();
   return new Promise((resolve) => {

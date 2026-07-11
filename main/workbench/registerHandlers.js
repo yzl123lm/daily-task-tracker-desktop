@@ -174,6 +174,60 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     });
   });
 
+  ipcMain.handle("wb-project-task-spec-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getTaskSpec } = require("./taskSpecService.js");
+    return getTaskSpec(getUserDataPath, payload?.userId, projectId, taskId);
+  });
+
+  ipcMain.handle("wb-project-task-spec-confirm", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { confirmTaskSpec } = require("./taskSpecService.js");
+    const { TASK_STATUS } = require("./taskStatus.js");
+    const spec = confirmTaskSpec(getUserDataPath, payload?.userId, projectId, taskId, {
+      answers: payload?.answers || {},
+      approver: payload?.approver || "user",
+    });
+    if (spec.status === "APPROVED") {
+      projectService.updateTask(getUserDataPath, payload?.userId, projectId, taskId, {
+        status: TASK_STATUS.PLANNING,
+        currentStep: "方案待确认",
+      });
+    } else if (spec.status === "CLARIFYING") {
+      projectService.updateTask(getUserDataPath, payload?.userId, projectId, taskId, {
+        status: TASK_STATUS.CLARIFYING,
+        currentStep: "需求澄清中",
+      });
+    }
+    return spec;
+  });
+
+  ipcMain.handle("wb-project-agent-trace-export", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const agentRunId = payload?.agentRunId
+      ? assertSafeId(payload.agentRunId, "agentRunId")
+      : null;
+    const { exportAgentTrace } = require("./agentTraceExport.js");
+    return exportAgentTrace(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      agentRunId,
+    });
+  });
+
+  ipcMain.handle("wb-project-delivery-manifest-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getDeliveryManifest, buildDeliveryManifest } = require("./deliveryManifestService.js");
+    return (
+      getDeliveryManifest(getUserDataPath, payload?.userId, projectId, taskId) ||
+      buildDeliveryManifest(getUserDataPath, payload?.userId, { projectId, taskId })
+    );
+  });
+
   ipcMain.handle("wb-project-patches-list", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");

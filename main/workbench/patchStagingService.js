@@ -132,6 +132,10 @@ function updatePatchStatus(getUserDataPath, userId, projectId, taskId, patchId, 
     throw new Error("补丁不存在");
   }
   const target = String(nextStatus || "").toUpperCase();
+  // 幂等：已是目标状态则直接返回，避免 UI 重复「接受」时报错
+  if (patch.status === target) {
+    return patch;
+  }
   const allowed = VALID_TRANSITIONS[patch.status] || [];
   if (!allowed.includes(target)) {
     const err = new Error(`不允许状态流转 ${patch.status} → ${target}`);

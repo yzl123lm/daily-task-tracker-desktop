@@ -76,6 +76,9 @@ function summarizeToolOutput(toolName, result) {
     return "";
   }
   if (result.ok === false) {
+    if (result.code === "FILE_NOT_FOUND" || result.code === "PATH_NOT_USEFUL") {
+      return result.error || "文件不存在，请改用 stage_patch 新建";
+    }
     return `失败：${result.error || result.code || "unknown"}`;
   }
   if (toolName === "list_files" && Array.isArray(result.entries)) {

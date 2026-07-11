@@ -19,12 +19,20 @@ function resolveScriptCommand(rootDir, scriptName) {
   const name = String(scriptName || "").trim();
   const { scripts, hasPackageJson } = readPackageScripts(rootDir);
   if (!hasPackageJson) {
-    return { ok: false, message: "当前项目未配置 package.json" };
+    return {
+      ok: false,
+      skipped: true,
+      message: "当前为非 Node 项目（无 package.json），已跳过 npm 验证",
+    };
   }
   if (!scripts[name]) {
-    return { ok: false, message: `当前项目未配置该脚本: ${name}` };
+    return {
+      ok: false,
+      skipped: true,
+      message: `当前项目未配置脚本 ${name}，已跳过验证`,
+    };
   }
-  return { ok: true, command: `npm run ${name}`, scriptName, script: scripts[name] };
+  return { ok: true, command: `npm run ${name}`, scriptName: name, script: scripts[name] };
 }
 
 function listVerificationScripts(rootDir) {

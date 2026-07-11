@@ -54,6 +54,27 @@ function ensureTabBar() {
   return bar;
 }
 
+function refreshDiffTabBadge() {
+  const btn = document.querySelector('#wbPwsCodeTabs .wb-pws-code-tab[data-tab="diff"]');
+  if (!btn) {
+    return;
+  }
+  const store = window.__wbStore?.getState?.() || {};
+  const projectId = store.selectedProjectId;
+  const taskId =
+    store.selectedTaskId ||
+    document.getElementById("wbTaskList")?.dataset?.selectedTaskId ||
+    null;
+  const changes =
+    projectId && taskId
+      ? window.__wbCodeReviewStore?.getChanges?.(projectId, taskId) || []
+      : [];
+  const pending = changes.filter(
+    (c) => c.reviewStatus === "pending" || c.reviewStatus === "revision"
+  ).length;
+  btn.textContent = pending > 0 ? `Diff 审阅 ${pending}` : changes.length ? `Diff 审阅 ${changes.length}` : "Diff 审阅";
+}
+
 function switchTab(tabId, { persist = true, loadDiff = true } = {}) {
   const valid = TABS.some((t) => t.id === tabId);
   const active = valid ? tabId : "code";
@@ -73,6 +94,7 @@ function switchTab(tabId, { persist = true, loadDiff = true } = {}) {
   if (persist) {
     saveActiveTab(active);
   }
+  refreshDiffTabBadge();
   if (active === "diff" && loadDiff) {
     if (typeof window.__wbOpenDiffReviewForCurrentTask === "function") {
       void window.__wbOpenDiffReviewForCurrentTask({ forceReload: true });
@@ -107,3 +129,4 @@ function bindCodeWorkspaceTabs() {
 
 window.__wbBindCodeWorkspaceTabs = bindCodeWorkspaceTabs;
 window.__wbSwitchCodeTab = switchTab;
+window.__wbRefreshDiffTabBadge = refreshDiffTabBadge;

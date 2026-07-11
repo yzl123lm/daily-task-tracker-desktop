@@ -33,6 +33,16 @@ const {
   PHASE,
   STATUS,
 } = require("./agentEventEmitter.js");
+const {
+  taskSpecEnabled,
+  createDraftSpec,
+  saveTaskSpec,
+  getTaskSpec,
+  assertSpecAllowsPatch,
+  SPEC_STATUS,
+} = require("./taskSpecService.js");
+const { savePlanSteps } = require("./planStepsService.js");
+const { saveCheckpoint } = require("./taskCompletionService.js");
 
 let getDefaultProjectRootFn = null;
 
@@ -127,6 +137,52 @@ function taskStatusForMode(mode, phase) {
   return null;
 }
 
+function persistPlanArtifacts(getUserDataPath, uid, projectId, taskId, { message, project, task, output }) {
+  if (!taskSpecEnabled()) {
+    return { spec: null, planPayload: null };
+  }
+  const plan = output?.plan || [];
+  const existing = getTaskSpec(getUserDataPath, uid, projectId, taskId);
+  let spec =
+    existing && existing.status === SPEC_STATUS.APPROVED
+      ? existing
+      : createDraftSpec({ message, project, task, plan });
+  if (existing && existing.status === SPEC_STATUS.APPROVED) {
+    // keep approved spec; refresh plan mapping only
+    spec = {
+      ...existing,
+      acceptanceCriteria: existing.acceptanceCriteria?.length
+        ? existing.acceptanceCriteria
+        : spec.acceptanceCriteria,
+    };
+  } else {
+    spec = saveTaskSpec(getUserDataPath, uid, projectId, taskId, spec);
+  }
+  const planPayload = savePlanSteps(getUserDataPath, uid, projectId, taskId, plan, {
+    specVersion: spec.version,
+    criterionIds: (spec.acceptanceCriteria || []).filter((c) => c.must).map((c) => c.id),
+  });
+  saveCheckpoint(getUserDataPath, uid, projectId, taskId, {
+    phase: spec.status === SPEC_STATUS.CLARIFYING ? "CLARIFYING" : "PLAN_READY",
+    specId: spec.specId,
+    specVersion: spec.version,
+    planId: planPayload.planId,
+    nextAction: spec.status === SPEC_STATUS.CLARIFYING ? "answer_clarifications" : "confirm_spec_or_patch",
+  });
+  if (spec.status === SPEC_STATUS.CLARIFYING) {
+    updateTask(getUserDataPath, uid, projectId, taskId, {
+      status: TASK_STATUS.CLARIFYING,
+      currentStep: "需求澄清中",
+    });
+  } else if (spec.status === SPEC_STATUS.PENDING_REVIEW) {
+    updateTask(getUserDataPath, uid, projectId, taskId, {
+      status: TASK_STATUS.SPEC_REVIEW,
+      currentStep: "规格待确认",
+    });
+  }
+  return { spec, planPayload };
+}
+
 async function runProjectAgent(getUserDataPath, userId, payload) {
   const uid = resolveUserId(userId);
   const projectId = payload.projectId;
@@ -142,6 +198,30 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   const task = getTask(getUserDataPath, uid, projectId, taskId);
   if (!task) {
     throw new Error("任务不存在");
+  }
+
+  if (mode === "PATCH_PROPOSE" && taskSpecEnabled()) {
+    const gate = assertSpecAllowsPatch(getTaskSpec(getUserDataPath, uid, projectId, taskId));
+    if (!gate.ok) {
+      updateTask(getUserDataPath, uid, projectId, taskId, {
+        status:
+          gate.code === "SPEC_CLARIFYING" ? TASK_STATUS.CLARIFYING : TASK_STATUS.SPEC_REVIEW,
+        currentStep: gate.message,
+      });
+      return {
+        agentRunId: null,
+        status: RUN_STATUS.FAILED,
+        mode,
+        output: {
+          summary: gate.message,
+          note: gate.message,
+          openQuestions: gate.openQuestions || [],
+          code: gate.code,
+          needUserConfirm: true,
+          executionReady: false,
+        },
+      };
+    }
   }
 
   if (mode === "APPLY_APPROVED") {
@@ -190,9 +270,12 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
     let verifyResult = null;
     let verifySkipped = null;
     const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+    const policy = String(payload.verifyApprovalPolicy || "").toLowerCase();
     const wantAutoVerify =
       orchAutoVerifyEnabled() &&
-      (Boolean(payload.autoVerify) || Boolean(fixState?.autoVerifyGranted));
+      (Boolean(payload.autoVerify) ||
+        policy === "task_once" ||
+        Boolean(fixState?.autoVerifyGranted));
     const verifyScripts = Array.isArray(payload.verifyScripts) && payload.verifyScripts.length
       ? payload.verifyScripts.map(String)
       : [String(payload.fixContext?.scriptName || fixState?.scriptName || "build")];
@@ -243,7 +326,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       if (!available || !available.length) {
         verifySkipped = {
           skipped: true,
-          message: "未配置验证脚本，已跳过自动验证",
+          message: "当前为非 Node 项目或未配置验证脚本，已跳过自动验证",
           scriptName,
         };
         emitAgentEvent(
@@ -408,6 +491,21 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       inputText: message,
     });
     agentRunId = started.runId;
+    const fixStateForGrant = getFixLoopState(getUserDataPath, uid, projectId, taskId);
+    const policy = String(payload.verifyApprovalPolicy || "").toLowerCase();
+    if (
+      orchAutoVerifyEnabled() &&
+      (Boolean(payload.autoVerify) || policy === "task_once") &&
+      !fixStateForGrant?.autoVerifyGranted
+    ) {
+      grantAutoVerify(getUserDataPath, uid, projectId, taskId, {
+        scriptName: String(payload.fixContext?.scriptName || "build"),
+      });
+    }
+    const granted =
+      Boolean(getFixLoopState(getUserDataPath, uid, projectId, taskId)?.autoVerifyGranted) ||
+      Boolean(payload.autoVerify) ||
+      policy === "task_once";
     const ctx = {
       getUserDataPath,
       userId: uid,
@@ -421,6 +519,8 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
       task,
       promptContext: prepared.promptContext,
       webContents,
+      autoVerifyGranted: granted,
+      getDefaultProjectRoot: getDefaultProjectRootFn,
     };
 
     emitAgentEvent(ctx, {
@@ -439,7 +539,34 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         summary: `执行 ${payload.fixContext.scriptName}`,
         stepKey: "run_verify",
       });
-      if (payload.fixContext?.resume && fixLoopV2Enabled()) {
+      const available = listAvailableVerifications(getUserDataPath, uid, projectId, {
+        getDefaultProjectRoot: getDefaultProjectRootFn,
+      });
+      if (!available || !available.length) {
+        const skipMsg = "当前为非 Node 项目或未配置验证脚本，已跳过验证";
+        output = {
+          summary: skipMsg,
+          fixResult: { ok: true, skipped: true, message: skipMsg },
+          verifySkipped: { skipped: true, message: skipMsg },
+          toolTrace: [],
+          mode,
+        };
+        runStatus = RUN_STATUS.COMPLETED;
+        emitAgentEvent(ctx, {
+          phase: PHASE.COMPLETED,
+          status: STATUS.skipped,
+          title: "运行验证",
+          summary: skipMsg,
+          stepKey: "run_verify",
+        });
+        emitAgentEvent(ctx, {
+          phase: PHASE.COMPLETED,
+          status: STATUS.success,
+          title: "任务完成",
+          summary: skipMsg,
+          stepKey: "complete",
+        });
+      } else if (payload.fixContext?.resume && fixLoopV2Enabled()) {
         const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
         if (fixState?.active) {
           const fixResult = await resumeFixLoopAfterApply(getUserDataPath, uid, ctx, {
@@ -447,12 +574,19 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
             getDefaultProjectRoot: getDefaultProjectRootFn,
           });
           output = {
-            summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程继续",
+            summary: fixResult.ok
+              ? fixResult.skipped
+                ? fixResult.message || "已跳过验证"
+                : "验证通过"
+              : fixResult.message || "修复流程继续",
             fixResult,
             toolTrace: [],
             mode,
           };
-          runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+          runStatus =
+            fixResult.ok || fixResult.skipped
+              ? RUN_STATUS.COMPLETED
+              : RUN_STATUS.WAITING_APPROVAL;
         }
       }
       if (!output) {
@@ -461,20 +595,29 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           getDefaultProjectRoot: getDefaultProjectRootFn,
         });
         output = {
-          summary: fixResult.ok ? "验证通过" : fixResult.message || "修复流程结束",
+          summary: fixResult.ok
+            ? fixResult.skipped
+              ? fixResult.message || "已跳过验证"
+              : "验证通过"
+            : fixResult.message || "修复流程结束",
           fixResult,
           toolTrace: [],
           mode,
         };
-        runStatus = fixResult.ok ? RUN_STATUS.COMPLETED : RUN_STATUS.WAITING_APPROVAL;
+        runStatus =
+          fixResult.ok || fixResult.skipped
+            ? RUN_STATUS.COMPLETED
+            : RUN_STATUS.WAITING_APPROVAL;
       }
-      emitAgentEvent(ctx, {
-        phase: runStatus === RUN_STATUS.COMPLETED ? PHASE.COMPLETED : PHASE.WAITING_REVIEW,
-        status: runStatus === RUN_STATUS.COMPLETED ? STATUS.success : STATUS.waiting,
-        title: runStatus === RUN_STATUS.COMPLETED ? "任务完成" : "等待用户审阅",
-        summary: output?.summary || "",
-        stepKey: runStatus === RUN_STATUS.COMPLETED ? "complete" : "await_diff",
-      });
+      if (available?.length) {
+        emitAgentEvent(ctx, {
+          phase: runStatus === RUN_STATUS.COMPLETED ? PHASE.COMPLETED : PHASE.WAITING_REVIEW,
+          status: runStatus === RUN_STATUS.COMPLETED ? STATUS.success : STATUS.waiting,
+          title: runStatus === RUN_STATUS.COMPLETED ? "任务完成" : "等待用户审阅",
+          summary: output?.summary || "",
+          stepKey: runStatus === RUN_STATUS.COMPLETED ? "complete" : "await_diff",
+        });
+      }
     } else if (agentLlmEnabled() && root) {
       if (mode === "PLAN_ONLY") {
         emitAgentEvent(ctx, {
@@ -654,6 +797,35 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           currentStep: "未生成变更",
         });
         output.note = output.note || "AI 未生成代码变更，请重新生成";
+      }
+    } else if (mode === "PLAN_ONLY") {
+      const artifacts = persistPlanArtifacts(getUserDataPath, uid, projectId, taskId, {
+        message,
+        project,
+        task,
+        output,
+      });
+      output = output || {};
+      output.taskSpec = artifacts.spec;
+      output.planSteps = artifacts.planPayload?.steps || [];
+      output.executionReady = Boolean(artifacts.spec?.executionReady);
+      output.openQuestions = artifacts.spec?.openQuestions || [];
+      if (artifacts.spec?.status === SPEC_STATUS.CLARIFYING) {
+        output.summary = "需求存在阻塞性缺失信息，请先回答澄清问题";
+        output.needUserConfirm = true;
+        output.note = "规格处于澄清中，确认前不会进入代码变更阶段";
+      } else if (artifacts.spec?.status === SPEC_STATUS.PENDING_REVIEW) {
+        output.needUserConfirm = true;
+        const doneStatus = taskStatusForMode(mode, "done");
+        // Prefer SPEC_REVIEW over generic plan_ready when TaskSpec is on
+        if (!taskSpecEnabled() && doneStatus) {
+          updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
+        }
+      } else {
+        const doneStatus = taskStatusForMode(mode, "done");
+        if (doneStatus) {
+          updateTask(getUserDataPath, uid, projectId, taskId, doneStatus);
+        }
       }
     } else {
       const doneStatus = taskStatusForMode(mode, "done");
@@ -877,4 +1049,5 @@ module.exports = {
   runProjectAgent,
   cancelProjectAgent,
   runChatAgent,
+  tryMarkTaskCompleted: require("./taskCompletionService.js").tryMarkTaskCompleted,
 };
