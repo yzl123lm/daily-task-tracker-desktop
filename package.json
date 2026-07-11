@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.24.46",
+  "version": "1.24.47",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -36,7 +36,8 @@
     "preload:kb-rerank-model": "node scripts/kb-preload-rerank-model.js",
     "icons:generate": "python scripts/generate-app-icon.py",
     "wb:eval": "node scripts/wb-eval-harness.js",
-    "wb:eval:test": "node scripts/wb-eval-harness-test.js"
+    "wb:eval:test": "node scripts/wb-eval-harness-test.js",
+    "wb:sandbox-test": "node scripts/wb-sandbox-security-test.js"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

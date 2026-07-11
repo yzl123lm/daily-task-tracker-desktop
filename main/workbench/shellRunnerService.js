@@ -1,4 +1,14 @@
-const { spawn } = require("child_process");
+/**
+ * Controlled shell runner — argv spawn via SandboxAdapter (BL-005~008).
+ * Keeps legacy string-command API; execution is shell:false + network deny by default.
+ */
+const {
+  runInSandbox,
+  assertCommandNetworkAllowed,
+  redactForLog,
+  parseCommandToArgv,
+  toSpawnSpec,
+} = require("./sandbox/index.js");
 
 const MAX_COMMAND_LEN = 240;
 
@@ -59,6 +69,8 @@ const TEST_WHITELIST_PATTERNS = [
   /^node scripts\/wb-backup-restore-test\.js$/i,
   /^node scripts\/wb-manage-test\.js$/i,
   /^node scripts\/wb-shell-test\.js$/i,
+  /^node scripts\/wb-eval-harness-test\.js$/i,
+  /^node scripts\/wb-sandbox-security-test\.js$/i,
 ];
 
 const CONTROLLED_SHELL_PATTERNS = [
@@ -99,16 +111,19 @@ function assertSafeCommandShape(command) {
   if (BLOCKED_GIT_WRITE.test(cmd)) {
     throw new Error("Git 写操作请使用专用 Git 工具（status/diff/log/branch 可用 shell）");
   }
+  // argv parse early — reject meta
+  parseCommandToArgv(cmd);
+  assertCommandNetworkAllowed(cmd, { network: "deny" });
   return cmd;
 }
 
 function classifyCommand(command) {
   const cmd = assertSafeCommandShape(command);
   if (TEST_WHITELIST_PATTERNS.some((re) => re.test(cmd))) {
-    return { cmd, tier: "test" };
+    return { cmd, tier: "test", argv: toSpawnSpec(cmd).argv };
   }
   if (CONTROLLED_SHELL_PATTERNS.some((re) => re.test(cmd))) {
-    return { cmd, tier: "controlled" };
+    return { cmd, tier: "controlled", argv: toSpawnSpec(cmd).argv };
   }
   const err = new Error(`命令不在受控 shell 白名单：${cmd}`);
   err.code = "COMMAND_NOT_ALLOWED";
@@ -130,42 +145,29 @@ function isControlledShellCommand(command) {
   }
 }
 
-function runCommand(cwd, command, { timeoutMs = 120000 } = {}) {
+function runCommand(cwd, command, options = {}) {
   const { cmd } = classifyCommand(command);
-  return new Promise((resolve, reject) => {
-    const child = spawn(cmd, {
-      cwd,
-      shell: true,
-      windowsHide: true,
-      env: { ...process.env, CI: "1" },
-    });
-    let stdout = "";
-    let stderr = "";
-    const timer = setTimeout(() => {
-      child.kill();
-      reject(new Error("命令执行超时"));
-    }, timeoutMs);
-    child.stdout.on("data", (buf) => {
-      stdout += String(buf);
-    });
-    child.stderr.on("data", (buf) => {
-      stderr += String(buf);
-    });
-    child.on("error", (err) => {
-      clearTimeout(timer);
-      reject(err);
-    });
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      resolve({
-        command: cmd,
-        exitCode: code,
-        stdout: stdout.slice(0, 16000),
-        stderr: stderr.slice(0, 16000),
-        success: code === 0,
-      });
-    });
-  });
+
+  return runInSandbox({
+    command: cmd,
+    cwd,
+    network: options.network || "deny",
+    secretAliases: options.secretAliases || [],
+    timeoutMs: options.timeoutMs,
+    mode: options.mode,
+  }).then((result) => ({
+    command: result.command || cmd,
+    argv: result.argv,
+    exitCode: result.exitCode,
+    stdout: redactForLog(result.stdout || "").slice(0, 16000),
+    stderr: redactForLog(result.stderr || "").slice(0, 16000),
+    success: result.success,
+    truncated: Boolean(result.truncated),
+    sandbox: result.sandbox,
+    network: result.network,
+    secretsInjected: result.secretsInjected || [],
+    observation: result.observation,
+  }));
 }
 
 module.exports = {

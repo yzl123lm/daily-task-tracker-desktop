@@ -377,6 +377,39 @@ const PROBES = {
         : fail(err.message, err);
     }
   },
+
+  async network_default_deny(ctx) {
+    const { assertCommandNetworkAllowed, assertUrlAllowed } = require("../sandbox/networkPolicyService.js");
+    try {
+      assertCommandNetworkAllowed("curl https://evil.example/x", { network: "deny" });
+      return fail("expected NETWORK_DENIED");
+    } catch (err) {
+      if (err.code !== "NETWORK_DENIED") return fail(err.message, err);
+    }
+    try {
+      assertUrlAllowed("https://evil.example", { network: "deny" });
+      return fail("expected url deny");
+    } catch (err) {
+      return err.code === "NETWORK_DENIED" ? ok("network default deny") : fail(err.message, err);
+    }
+  },
+
+  async secret_broker_redact(ctx) {
+    const {
+      putSecret,
+      resolveSecretEnv,
+      redactForLog,
+      _resetVaultForTests,
+    } = require("../sandbox/secretBrokerService.js");
+    _resetVaultForTests();
+    putSecret("eval_tok", "sk-evalsecretvalue0123456789abcd", { ttlMs: 30000 });
+    const { env } = resolveSecretEnv(["eval_tok"]);
+    if (!env.SECRET_EVAL_TOK) return fail("secret not injected");
+    const redacted = redactForLog(`token=${env.SECRET_EVAL_TOK}`);
+    return redacted.includes("[REDACTED]") && !redacted.includes("sk-evalsecret")
+      ? ok("secret broker + redact")
+      : fail("redact failed", redacted);
+  },
 };
 
 async function runHiddenAcceptance(name, ctx) {
