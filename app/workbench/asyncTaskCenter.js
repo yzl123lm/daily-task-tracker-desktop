@@ -25,7 +25,7 @@
     panel.dataset.center = "1";
     panel.innerHTML = `
       <summary class="wb-async-runs-panel__summary">
-        <span>异步任务中心</span>
+        <span class="wb-async-runs-panel__summary-title">异步任务中心</span>
         <span id="wbAsyncCenterMeta" class="wb-async-runs-panel__meta"></span>
       </summary>
       <div class="wb-async-center__toolbar">

@@ -103,7 +103,10 @@ const WB_PWS_LAYOUT_HTML = `
           <pre id="wbRunbookBody" class="wb-runbook-panel__body scroll-tech"></pre>
         </details>
         <details id="wbAsyncRunsPanel" class="wb-async-runs-panel">
-          <summary class="wb-async-runs-panel__summary">异步任务中心</summary>
+          <summary class="wb-async-runs-panel__summary">
+            <span class="wb-async-runs-panel__summary-title">异步任务中心</span>
+            <span id="wbAsyncCenterMeta" class="wb-async-runs-panel__meta"></span>
+          </summary>
           <div class="wb-async-runs-panel__toolbar">
             <button type="button" id="wbAsyncRunsRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
           </div>

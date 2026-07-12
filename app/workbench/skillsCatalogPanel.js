@@ -27,7 +27,7 @@
     panel.className = "wb-skills-catalog-panel";
     panel.innerHTML = `
       <summary class="wb-skills-catalog-panel__summary">
-        <span>指令 &amp; Skills</span>
+        <span class="wb-skills-catalog-panel__summary-title">指令 &amp; Skills</span>
         <span id="wbSkillsCatalogMeta" class="wb-skills-catalog-panel__meta"></span>
       </summary>
       <div class="wb-skills-catalog-panel__tabs" role="tablist">
