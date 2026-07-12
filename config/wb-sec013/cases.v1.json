@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "id": "SEC-013",
+  "title": "Workbench continuous red-team suite",
+  "exitOnP0P1Fail": true,
+  "cases": [
+    {
+      "id": "SEC013-PI-001",
+      "severity": "P0",
+      "module": "prompt_injection",
+      "title": "工具参数注入检测与消毒"
+    },
+    {
+      "id": "SEC013-PI-002",
+      "severity": "P0",
+      "module": "prompt_injection",
+      "title": "不可信代码不得升格为系统指令"
+    },
+    {
+      "id": "SEC013-EXFIL-001",
+      "severity": "P0",
+      "module": "data_exfiltration",
+      "title": "默认网络拒绝阻止外传命令"
+    },
+    {
+      "id": "SEC013-EXFIL-002",
+      "severity": "P0",
+      "module": "data_exfiltration",
+      "title": "外传 URL 被网络策略拒绝"
+    },
+    {
+      "id": "SEC013-PATH-001",
+      "severity": "P0",
+      "module": "path_escape",
+      "title": "项目路径越狱被拦截"
+    },
+    {
+      "id": "SEC013-PATH-002",
+      "severity": "P0",
+      "module": "path_escape",
+      "title": "沙箱会话路径越狱被拦截"
+    },
+    {
+      "id": "SEC013-CMD-001",
+      "severity": "P0",
+      "module": "command_injection",
+      "title": "argv 元字符链式命令被拒绝"
+    },
+    {
+      "id": "SEC013-CMD-002",
+      "severity": "P0",
+      "module": "command_injection",
+      "title": "验证 Profile 注入被拒绝"
+    },
+    {
+      "id": "SEC013-PKG-001",
+      "severity": "P1",
+      "module": "package_scripts",
+      "title": "仅白名单验证脚本可解析"
+    },
+    {
+      "id": "SEC013-SECRET-001",
+      "severity": "P0",
+      "module": "secret_leak",
+      "title": "日志脱敏覆盖明文密钥"
+    },
+    {
+      "id": "SEC013-SECRET-002",
+      "severity": "P0",
+      "module": "secret_leak",
+      "title": "Secret Broker 不在别名列表泄露明文"
+    },
+    {
+      "id": "SEC013-SBX-001",
+      "severity": "P0",
+      "module": "sandbox_escape",
+      "title": "沙箱子进程网络拒绝外传"
+    },
+    {
+      "id": "SEC013-AGENT-001",
+      "severity": "P0",
+      "module": "agent_policy",
+      "title": "无授权不得 run_verification"
+    },
+    {
+      "id": "SEC013-AGENT-002",
+      "severity": "P1",
+      "module": "agent_policy",
+      "title": "LLM 禁止直接写盘工具"
+    },
+    {
+      "id": "SEC013-HOOK-001",
+      "severity": "P1",
+      "module": "hooks",
+      "title": "子 Agent 禁止 stage_patch（Hook fail-closed）"
+    }
+  ]
+}

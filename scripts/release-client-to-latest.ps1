@@ -166,6 +166,18 @@ if (Test-Path -LiteralPath $iconScript) {
   }
 }
 
+# SEC-013: continuous red-team gate (P0/P1 fail blocks release)
+if ($env:SKIP_SEC013_GATE -ne "1") {
+  Write-Host "(release-client-to-latest) SEC-013 red-team gate..."
+  npm run wb:sec013-redteam
+  if ($LASTEXITCODE -ne 0) {
+    Write-Error "(release-client-to-latest) SEC-013 red-team gate failed; aborting release. Set SKIP_SEC013_GATE=1 to bypass (not for production)."
+    exit $LASTEXITCODE
+  }
+} else {
+  Write-Warning "(release-client-to-latest) SKIP_SEC013_GATE=1 — red-team gate skipped"
+}
+
 Write-Host "(release-client-to-latest) npm run build..."
 if ($buildOutName -eq "dist") {
   npm run build

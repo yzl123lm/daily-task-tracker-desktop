@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.24.52",
+  "version": "1.24.53",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -42,7 +42,9 @@
     "wb:bl013-test": "node scripts/wb-bl013-014-test.js",
     "wb:bl015-test": "node scripts/wb-bl015-018-test.js",
     "wb:bl019-test": "node scripts/wb-bl019-020-test.js",
-    "wb:bl021-test": "node scripts/wb-bl021-022-test.js"
+    "wb:bl021-test": "node scripts/wb-bl021-022-test.js",
+    "wb:sec013-redteam": "node scripts/wb-sec013-redteam-test.js",
+    "wb:security-gate": "npm run wb:sec013-redteam && npm run kb:security-eval"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
