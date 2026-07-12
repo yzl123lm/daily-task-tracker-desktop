@@ -1,0 +1,12 @@
+{
+  "id": "wb-eval-agent-v1",
+  "version": 1,
+  "mode": "agent",
+  "description": "真 E3 Agent 评测套件：默认 harness 模式产出可复现 Evidence Package；WB_EVAL_AGENT_MODE=live 时调用真实 LLM。",
+  "defaultRepeats": 1,
+  "benchmarks": ["B01-static-web", "B02-node-cli"],
+  "agentDefaults": {
+    "fixture": "empty",
+    "phases": ["PLAN_ONLY", "PATCH_PROPOSE", "APPLY_APPROVED"]
+  }
+}
