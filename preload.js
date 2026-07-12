@@ -394,6 +394,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke("wb-project-task-spec-confirm", payload || {}),
   wbProjectAgentTraceExport: (payload) =>
     ipcRenderer.invoke("wb-project-agent-trace-export", payload || {}),
+  wbProjectAgentReplayCompare: (payload) =>
+    ipcRenderer.invoke("wb-project-agent-replay-compare", payload || {}),
   wbProjectDeliveryManifestGet: (payload) =>
     ipcRenderer.invoke("wb-project-delivery-manifest-get", payload || {}),
   wbProjectRunbookGet: (payload) => ipcRenderer.invoke("wb-project-runbook-get", payload || {}),

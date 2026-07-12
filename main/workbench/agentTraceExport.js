@@ -57,6 +57,15 @@ function buildCompletenessChecklist(pkg) {
       message: "Agent Run 或工具审计",
     },
     {
+      id: "has_replay_or_legacy",
+      ok:
+        Boolean(pkg.replayTrace?.turns?.length) ||
+        Boolean(pkg.agentRun?.output?.replayTrace?.turns?.length) ||
+        pkg.completenessNotes?.includes("legacy") ||
+        pkg.completenessNotes?.includes("no_replay"),
+      message: "AGT-010 回放轨迹或遗留说明",
+    },
+    {
       id: "has_plan_or_manifest",
       ok: (pkg.planSteps || []).length > 0 || Boolean(pkg.deliveryManifest),
       message: "计划步骤或交付清单",
@@ -140,7 +149,12 @@ function buildEvidencePackage(
       specVersion: guard.specVersion,
       checkedAt: guard.checkedAt,
     },
-    completenessNotes: taskSpec ? [] : ["legacy"],
+    replayTrace: run?.output?.replayTrace || null,
+    completenessNotes: taskSpec
+      ? run?.output?.replayTrace
+        ? []
+        : ["no_replay"]
+      : ["legacy"],
   };
 
   const redacted = deepRedact(body);

@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "kind": "agent_replay_trace",
+  "agentRunId": "ars_fixture_agt010",
+  "mode": "PLAN_ONLY",
+  "toolNames": ["list_files", "stage_patch"],
+  "capturedAt": "2026-07-12T00:00:00.000Z",
+  "label": "baseline-fixture",
+  "turns": [
+    {
+      "turnIndex": 0,
+      "purpose": "planner",
+      "modelUsed": { "model": "stub-baseline", "label": "baseline", "role": "primary" },
+      "messagesHash": "abc",
+      "messages": [
+        { "role": "system", "content": "你是 Workbench 项目开发 Agent。" },
+        { "role": "user", "content": "写一个静态贪吃蛇页面" }
+      ],
+      "assistantContent": "方案：创建 index.html 与 app.js，实现基础蛇身移动。",
+      "toolCalls": [
+        { "id": "call_1", "name": "list_files", "arguments": { "prefix": "" } }
+      ],
+      "usage": {
+        "promptTokens": 120,
+        "completionTokens": 40,
+        "totalTokens": 160,
+        "durationMs": 80,
+        "provider": "fixture"
+      },
+      "toolResults": [
+        {
+          "toolCallId": "call_1",
+          "name": "list_files",
+          "ok": true,
+          "result": { "ok": true, "files": [] }
+        }
+      ]
+    },
+    {
+      "turnIndex": 1,
+      "purpose": "planner",
+      "modelUsed": { "model": "stub-baseline", "label": "baseline", "role": "primary" },
+      "messagesHash": "def",
+      "messages": [
+        { "role": "system", "content": "你是 Workbench 项目开发 Agent。" },
+        { "role": "user", "content": "写一个静态贪吃蛇页面" },
+        {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "id": "call_1",
+              "type": "function",
+              "function": { "name": "list_files", "arguments": "{\"prefix\":\"\"}" }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_1",
+          "name": "list_files",
+          "content": "{\"ok\":true,\"files\":[]}"
+        }
+      ],
+      "assistantContent": "{\"type\":\"plan\",\"summary\":\"贪吃蛇静态页\",\"plan\":[\"创建 index.html\",\"创建 app.js\"],\"needUserConfirm\":true}",
+      "toolCalls": [],
+      "usage": {
+        "promptTokens": 200,
+        "completionTokens": 60,
+        "totalTokens": 260,
+        "durationMs": 100,
+        "provider": "fixture"
+      },
+      "toolResults": []
+    }
+  ],
+  "totals": {
+    "turns": 2,
+    "toolCallCount": 1,
+    "durationMs": 180,
+    "promptTokens": 320,
+    "completionTokens": 100,
+    "totalTokens": 420
+  },
+  "integrity": {
+    "algorithm": "sha256",
+    "hash": "fixture"
+  }
+}

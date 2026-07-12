@@ -306,6 +306,44 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     });
   });
 
+  ipcMain.handle("wb-project-agent-replay-compare", async (_event, payload) => {
+    const { runOfflineReplay, extractReplayTraceFromInput, loadPricing } = require("./agentOfflineReplay.js");
+    const pathMod = require("path");
+    let trace = payload?.trace || null;
+    if (!trace && payload?.evidencePath) {
+      const fsMod = require("fs");
+      const raw = JSON.parse(fsMod.readFileSync(String(payload.evidencePath), "utf8"));
+      trace = extractReplayTraceFromInput(raw);
+    }
+    if (!trace && payload?.projectId && payload?.taskId) {
+      const projectId = assertSafeId(payload.projectId, "projectId");
+      const taskId = assertSafeId(payload.taskId, "taskId");
+      const agentRunId = payload?.agentRunId
+        ? assertSafeId(payload.agentRunId, "agentRunId")
+        : null;
+      const { buildEvidencePackage } = require("./agentTraceExport.js");
+      const pkg = buildEvidencePackage(getUserDataPath, payload?.userId, {
+        projectId,
+        taskId,
+        agentRunId,
+        persist: false,
+      });
+      trace = extractReplayTraceFromInput(pkg);
+    }
+    if (!trace) {
+      throw new Error("未找到可回放轨迹（replayTrace）");
+    }
+    const pricing = loadPricing(pathMod.join(__dirname, "../../config/wb-replay"));
+    return runOfflineReplay({
+      trace,
+      candidateTrace: payload?.candidateTrace || null,
+      models: Array.isArray(payload?.models) ? payload.models : [],
+      dryRun: payload?.dryRun !== false && !payload?.live,
+      live: Boolean(payload?.live),
+      pricing: pricing?.default || pricing,
+    });
+  });
+
   ipcMain.handle("wb-project-delivery-manifest-get", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");

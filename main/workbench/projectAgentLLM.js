@@ -21,6 +21,14 @@ const {
   summarizeToolOutput,
 } = require("./agentEventEmitter.js");
 const { sanitizeUntrustedToolPayload } = require("./instructionContextService.js");
+const {
+  replayCaptureEnabled,
+  createReplayTrace,
+  recordReplayTurn,
+  attachTurnToolResults,
+  finalizeReplayTrace,
+  extractUsageFromLlmResult,
+} = require("./agentReplayCapture.js");
 
 const MAX_TOOL_ROUNDS = 12;
 
@@ -161,6 +169,13 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     { role: "user", content: String(message || "") },
   ];
   const toolTrace = [];
+  const replayTrace = replayCaptureEnabled()
+    ? createReplayTrace({
+        mode,
+        toolNames: (tools || []).map((t) => t?.function?.name || t?.name).filter(Boolean),
+        agentRunId: ctx.agentRunId || null,
+      })
+    : null;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
     if (isRunCanceled(ctx.agentRunId)) {
@@ -179,8 +194,10 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     let assistantMsg;
     let toolCalls;
     let gatewayMeta = null;
+    let llmResult = null;
+    const llmStarted = Date.now();
     try {
-      const llmResult = await gatewayChatWithTools({
+      llmResult = await gatewayChatWithTools({
         messages,
         tools,
         mode,
@@ -210,6 +227,17 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       err.code = "AGENT_CANCELED";
       throw err;
     }
+
+    const usage = extractUsageFromLlmResult(llmResult, Date.now() - llmStarted);
+    const replayTurn = recordReplayTurn(replayTrace, {
+      messages,
+      assistantContent: assistantMsg?.content || "",
+      toolCalls,
+      gatewayMeta,
+      usage,
+      purpose: gatewayMeta?.purpose || null,
+    });
+
     if (!toolCalls.length) {
       let output =
         mode === "PLAN_ONLY"
@@ -228,6 +256,9 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       output.toolTrace = toolTrace;
       output.mode = mode;
       output.modelGateway = gatewayMeta;
+      if (replayTrace) {
+        output.replayTrace = finalizeReplayTrace(replayTrace);
+      }
       // Mark COMPLETED so task mutex is released; user review is tracked on the task status.
       completeAgentRun(ctx.getUserDataPath, ctx.userId, {
         projectId: ctx.projectId,
@@ -345,6 +376,7 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     for (const { tc, result } of executed) {
       messages.push(buildToolResultMessage(tc.id, tc.name, JSON.stringify(result)));
     }
+    attachTurnToolResults(replayTurn, executed);
   }
 
   const { runHooks } = require("./toolHookRegistry.js");
