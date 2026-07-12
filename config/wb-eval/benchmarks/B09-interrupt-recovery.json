@@ -6,6 +6,6 @@
   "input": "长任务中断后继续",
   "repeats": 3,
   "fixture": "static-web",
-  "hiddenAcceptances": ["checkpoint_roundtrip", "evidence_package"],
-  "notes": "探针：checkpoint 可读写；完整证据包可生成"
+  "hiddenAcceptances": ["checkpoint_roundtrip", "task_recover_probe", "idempotency_claim", "diagnosis_classify", "evidence_package"],
+  "notes": "BL-013/014：checkpoint merge、崩溃恢复探测、幂等键、诊断分类"
 }

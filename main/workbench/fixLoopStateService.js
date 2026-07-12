@@ -92,11 +92,55 @@ function createInitialFixLoopState({
     lastAppliedPatchIds: Array.isArray(lastPatchIds) ? lastPatchIds : [],
     lastPatchIds: Array.isArray(lastPatchIds) ? lastPatchIds : [],
     lastVerifySummary: null,
+    lastDiagnosis: null,
     lastErrorFingerprint: lastErrorFingerprint || null,
+    attempts: [],
     autoVerifyGranted: Boolean(autoVerifyGranted),
     startedAt: ts,
     updatedAt: ts,
   };
+}
+
+function appendFixLoopAttempt(state, attempt) {
+  const attempts = Array.isArray(state.attempts) ? state.attempts.slice() : [];
+  const entry = {
+    attemptId: attempt.attemptId || newId("fla"),
+    round: attempt.round ?? state.round ?? 0,
+    verifyAttemptId: attempt.verifyAttemptId || state.verifyAttemptId || null,
+    phase: attempt.phase || state.phase,
+    diagnosis: attempt.diagnosis || null,
+    patchIds: attempt.patchIds || [],
+    appliedPatchIds: attempt.appliedPatchIds || [],
+    backupIds: attempt.backupIds || [],
+    fingerprint: attempt.fingerprint || attempt.diagnosis?.fingerprint || null,
+    result: attempt.result || null,
+    startedAt: attempt.startedAt || new Date().toISOString(),
+    endedAt: attempt.endedAt || new Date().toISOString(),
+  };
+  attempts.push(entry);
+  state.attempts = attempts.slice(-30);
+  if (attempt.diagnosis) {
+    state.lastDiagnosis = attempt.diagnosis;
+  }
+  if (entry.fingerprint) {
+    state.lastErrorFingerprint = entry.fingerprint;
+  }
+  return entry;
+}
+
+/** Detect repeated identical failed patch fingerprint (VER-008). */
+function isDuplicateFailedAttempt(state, fingerprint, patchIds = []) {
+  const attempts = Array.isArray(state?.attempts) ? state.attempts : [];
+  if (!fingerprint && !(patchIds || []).length) return false;
+  return attempts.some(
+    (a) =>
+      a.result === "verify_fail" &&
+      ((fingerprint && a.fingerprint === fingerprint) ||
+        (patchIds.length &&
+          Array.isArray(a.patchIds) &&
+          a.patchIds.length === patchIds.length &&
+          a.patchIds.every((id, i) => id === patchIds[i])))
+  );
 }
 
 function grantAutoVerify(getUserDataPath, userId, projectId, taskId, { scriptName } = {}) {
@@ -190,6 +234,8 @@ module.exports = {
   saveFixLoopState,
   clearFixLoopState,
   createInitialFixLoopState,
+  appendFixLoopAttempt,
+  isDuplicateFailedAttempt,
   grantAutoVerify,
   appendFixLoopEvent,
   assertFixLoopResume,

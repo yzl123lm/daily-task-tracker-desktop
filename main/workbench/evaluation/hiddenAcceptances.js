@@ -299,24 +299,88 @@ const PROBES = {
   },
 
   async checkpoint_roundtrip(ctx) {
-    const payload = {
+    const { mergeCheckpoint, getCheckpoint, createGreenCheckpoint } = require("../checkpointService.js");
+    mergeCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, {
       step: "mid_task",
-      completed: ["a", "b"],
-      next: "c",
-      at: new Date().toISOString(),
-    };
-    saveCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, payload);
-    const db = getDb(ctx.getUserDataPath);
-    const row = db
-      .prepare(`SELECT checkpoint_json FROM project_tasks WHERE id = ?`)
-      .get(ctx.taskId);
-    let parsed = null;
-    try {
-      parsed = JSON.parse(row.checkpoint_json);
-    } catch {
-      parsed = null;
-    }
-    return parsed?.step === "mid_task" ? ok("checkpoint ok", parsed) : fail("checkpoint missing", row);
+      completedIds: ["a", "b"],
+      phase: "PLAN_RUNNING",
+    });
+    mergeCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, {
+      completedIds: ["c"],
+      fixLoop: { round: 1 },
+    });
+    const parsed = getCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId);
+    createGreenCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, {
+      label: "eval_green",
+      verify: { ok: true, scriptName: "static-smoke" },
+    });
+    const after = getCheckpoint(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId);
+    return parsed?.step === "mid_task" &&
+      Array.isArray(parsed.completedIds) &&
+      parsed.completedIds.includes("a") &&
+      parsed.completedIds.includes("c") &&
+      after?.lastGreen?.isGreen
+      ? ok("checkpoint merge+green ok", after)
+      : fail("checkpoint missing", { parsed, after });
+  },
+
+  async diagnosis_classify(ctx) {
+    const { buildDiagnosis, FAILURE_CATEGORY } = require("../diagnosisService.js");
+    const cases = [
+      { stderr: "TS2322: Type 'string' is not assignable", expect: FAILURE_CATEGORY.TYPE },
+      { stderr: "Cannot find module 'foo'", expect: FAILURE_CATEGORY.DEPENDENCY },
+      { stderr: "ECONNREFUSED 127.0.0.1", expect: FAILURE_CATEGORY.NETWORK },
+      { stderr: "eslint: error Unexpected var", expect: FAILURE_CATEGORY.LINT },
+      { stderr: "Expected true to be false\nAssertionError", expect: FAILURE_CATEGORY.TEST },
+    ];
+    const results = cases.map((c) => {
+      const d = buildDiagnosis({ source: "verify", stderr: c.stderr });
+      return { expect: c.expect, got: d.failureCategory, ok: d.failureCategory === c.expect, id: d.diagnosisId };
+    });
+    const pass = results.filter((r) => r.ok).length;
+    return pass >= 4
+      ? ok(`diagnosis classify ${pass}/${results.length}`, results)
+      : fail(`diagnosis classify only ${pass}/${results.length}`, results);
+  },
+
+  async task_recover_probe(ctx) {
+    const { recoverTaskState } = require("../taskRecoveryService.js");
+    const {
+      createInitialFixLoopState,
+      saveFixLoopState,
+      FIX_LOOP_PHASE,
+    } = require("../fixLoopStateService.js");
+    const state = createInitialFixLoopState({
+      projectId: ctx.projectId,
+      taskId: ctx.taskId,
+      scriptName: "build",
+    });
+    state.phase = FIX_LOOP_PHASE.WAITING_APPLY;
+    saveFixLoopState(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, state);
+    const r = recoverTaskState(ctx.getUserDataPath, ctx.userId, {
+      projectId: ctx.projectId,
+      taskId: ctx.taskId,
+    });
+    return r.action === "resume_waiting_apply"
+      ? ok("recover waiting_apply", r)
+      : fail("unexpected recover action", r);
+  },
+
+  async idempotency_claim(ctx) {
+    const { claimIdempotencyKey } = require("../idempotencyService.js");
+    const a = claimIdempotencyKey(ctx.getUserDataPath, ctx.userId, {
+      projectId: ctx.projectId,
+      taskId: ctx.taskId,
+      key: "eval-apply-1",
+      action: "apply",
+    });
+    const b = claimIdempotencyKey(ctx.getUserDataPath, ctx.userId, {
+      projectId: ctx.projectId,
+      taskId: ctx.taskId,
+      key: "eval-apply-1",
+      action: "apply",
+    });
+    return !a.duplicate && b.duplicate ? ok("idempotency works") : fail("idempotency failed", { a, b });
   },
 
   async trust_untrusted_in_prompt(ctx) {

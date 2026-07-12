@@ -1,4 +1,3 @@
-const { getDb, nowIso } = require("./db.js");
 const { resolveUserId, updateTask } = require("./projectService.js");
 const { TASK_STATUS } = require("./taskStatus.js");
 const { evaluateCompletion, syncAcceptanceEvidenceFromVerify } = require("./completionGuardService.js");
@@ -64,16 +63,17 @@ function tryMarkTaskCompleted(
 }
 
 function saveCheckpoint(getUserDataPath, userId, projectId, taskId, checkpoint) {
-  const db = getDb(getUserDataPath);
-  const resolved = resolveUserId(userId);
-  const ts = nowIso();
-  db.prepare(
-    `UPDATE project_tasks SET checkpoint_json = ?, updated_at = ?
-     WHERE id = ? AND project_id = ? AND user_id = ?`
-  ).run(JSON.stringify({ ...checkpoint, updatedAt: ts }), ts, taskId, projectId, resolved);
+  const { mergeCheckpoint } = require("./checkpointService.js");
+  return mergeCheckpoint(getUserDataPath, userId, projectId, taskId, checkpoint || {});
+}
+
+function getCheckpoint(getUserDataPath, userId, projectId, taskId) {
+  const { getCheckpoint: getCkpt } = require("./checkpointService.js");
+  return getCkpt(getUserDataPath, userId, projectId, taskId);
 }
 
 module.exports = {
   tryMarkTaskCompleted,
   saveCheckpoint,
+  getCheckpoint,
 };

@@ -154,7 +154,7 @@ function advancePlanStep(
   userId,
   projectId,
   taskId,
-  { stepId, status, result, error } = {}
+  { stepId, status, result, error, idempotencyKey } = {}
 ) {
   const steps = getPlanSteps(getUserDataPath, userId, projectId, taskId);
   const target = steps.find((s) => s.id === stepId);
@@ -162,6 +162,31 @@ function advancePlanStep(
     const err = new Error(`计划步骤不存在: ${stepId}`);
     err.code = "PLAN_STEP_NOT_FOUND";
     throw err;
+  }
+
+  const key = idempotencyKey || target.idempotencyKey || `plan_step:${stepId}:${status || "done"}`;
+  try {
+    const { claimIdempotencyKey } = require("./idempotencyService.js");
+    const claimed = claimIdempotencyKey(getUserDataPath, userId, {
+      projectId,
+      taskId,
+      key,
+      action: "plan_step_advance",
+      meta: { stepId, status },
+    });
+    if (claimed.duplicate && (target.status === "done" || target.status === "skipped")) {
+      return {
+        ok: true,
+        duplicate: true,
+        plan: { steps },
+        ready: getReadySteps(steps),
+        completedIds: steps
+          .filter((s) => s.status === "done" || s.status === "skipped")
+          .map((s) => s.id),
+      };
+    }
+  } catch {
+    /* non-fatal */
   }
 
   const nextStatus = status || PLAN_STEP_STATUS.DONE;
@@ -179,6 +204,7 @@ function advancePlanStep(
     to: nextStatus,
     result: result || null,
     error: error || null,
+    idempotencyKey: key,
   });
 
   saveCheckpoint(getUserDataPath, userId, projectId, taskId, {
@@ -187,6 +213,11 @@ function advancePlanStep(
     completedIds,
     failedId: failed?.id || null,
     planId: updated.planId,
+    plan: {
+      planId: updated.planId,
+      completedIds,
+      currentStepId: stepId,
+    },
   });
 
   return {

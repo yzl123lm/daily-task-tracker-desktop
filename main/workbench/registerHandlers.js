@@ -371,6 +371,52 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     };
   });
 
+  ipcMain.handle("wb-project-checkpoint-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getCheckpoint } = require("./checkpointService.js");
+    return getCheckpoint(getUserDataPath, payload?.userId, projectId, taskId);
+  });
+
+  ipcMain.handle("wb-project-task-recover", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { recoverTaskState, executeRecoveryAction } = require("./taskRecoveryService.js");
+    if (payload?.execute) {
+      return executeRecoveryAction(getUserDataPath, payload?.userId, {
+        projectId,
+        taskId,
+        action: payload?.action || null,
+        getDefaultProjectRoot,
+      });
+    }
+    return recoverTaskState(getUserDataPath, payload?.userId, { projectId, taskId });
+  });
+
+  ipcMain.handle("wb-project-fixloop-rollback", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { rollbackFixLoopRound } = require("./fixLoopRollbackService.js");
+    return rollbackFixLoopRound(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      round: payload?.round,
+      userApproved: Boolean(payload?.userApproved),
+      getDefaultProjectRoot,
+    });
+  });
+
+  ipcMain.handle("wb-project-diagnosis-build", (_event, payload) => {
+    const { buildDiagnosis } = require("./diagnosisService.js");
+    return buildDiagnosis({
+      source: payload?.source || "verify",
+      stdout: payload?.stdout,
+      stderr: payload?.stderr,
+      message: payload?.message,
+      verifyCommand: payload?.verifyCommand,
+    });
+  });
+
   ipcMain.handle("wb-project-verify-scripts", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     return verificationService.listAvailableVerifications(

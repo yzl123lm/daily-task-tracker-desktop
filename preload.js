@@ -410,6 +410,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectComposeUp: (payload) => ipcRenderer.invoke("wb-project-compose-up", payload || {}),
   wbProjectComposeDown: (payload) => ipcRenderer.invoke("wb-project-compose-down", payload || {}),
   wbProjectPlanDag: (payload) => ipcRenderer.invoke("wb-project-plan-dag", payload || {}),
+  wbProjectCheckpointGet: (payload) => ipcRenderer.invoke("wb-project-checkpoint-get", payload || {}),
+  wbProjectTaskRecover: (payload) => ipcRenderer.invoke("wb-project-task-recover", payload || {}),
+  wbProjectFixloopRollback: (payload) =>
+    ipcRenderer.invoke("wb-project-fixloop-rollback", payload || {}),
+  wbProjectDiagnosisBuild: (payload) =>
+    ipcRenderer.invoke("wb-project-diagnosis-build", payload || {}),
   wbProjectVerifyScripts: (payload) => ipcRenderer.invoke("wb-project-verify-scripts", payload || {}),
   wbProjectChooseRoot: () => ipcRenderer.invoke("wb-project-choose-root"),
   wbProjectOpenPath: (payload) => ipcRenderer.invoke("wb-project-open-path", payload || {}),
