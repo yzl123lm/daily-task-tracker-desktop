@@ -715,11 +715,14 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 /* UX-007 / REQ-011 / UX-006 panels — never flex-shrink in agent column */
 .wb-pws-agent-scroll > .wb-runbook-panel,
 .wb-pws-agent-scroll > .wb-async-runs-panel,
-.wb-pws-agent-scroll > .wb-skills-catalog-panel,
-.wb-pws-agent-scroll > .wb-pws-panel--context,
-.wb-pws-agent-scroll > .wb-pws-panel--snapshots {
+.wb-pws-agent-scroll > .wb-skills-catalog-panel {
   flex: 0 0 auto;
   align-self: stretch;
+}
+
+.wb-pws-agent-scroll > .wb-pws-panel--context,
+.wb-pws-agent-scroll > .wb-pws-panel--snapshots {
+  display: none !important;
 }
 
 .wb-async-center__toolbar,

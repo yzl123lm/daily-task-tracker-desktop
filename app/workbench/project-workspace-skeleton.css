@@ -943,6 +943,11 @@ body.jl-project-workspace-active .wb-list-card--compact .wb-project-card__open-d
   flex-shrink: 0;
 }
 
+.wb-pws-agent-scroll .wb-pws-panel--context,
+.wb-pws-agent-scroll .wb-pws-panel--snapshots {
+  display: none !important;
+}
+
 /* Hide shell/backup clutter from code flow — terminal drawer handles logs */
 body.jl-project-workspace-active .wb-code-panel .wb-shell-panel,
 body.jl-project-workspace-active .wb-code-panel .wb-tool-ops-panel {

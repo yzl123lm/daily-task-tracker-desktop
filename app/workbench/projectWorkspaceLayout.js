@@ -140,11 +140,12 @@ const WB_PWS_LAYOUT_HTML = `
             <pre id="wbSkillsCatalogPreview" class="scroll-tech"></pre>
           </details>
         </details>
-        <details class="wb-pws-panel wb-pws-panel--context">
+        <!-- 任务上下文记忆 / 压缩快照：仅后台记录，不在 Agent 列展示 -->
+        <details class="wb-pws-panel wb-pws-panel--context" hidden aria-hidden="true">
           <summary>任务上下文记忆</summary>
           <ul id="wbTaskMemories" class="wb-task-memories"></ul>
         </details>
-        <details class="wb-pws-panel wb-pws-panel--snapshots">
+        <details class="wb-pws-panel wb-pws-panel--snapshots" hidden aria-hidden="true">
           <summary>压缩快照历史</summary>
           <div id="wbSnapshotHistory" class="wb-snapshot-history-panel"></div>
         </details>

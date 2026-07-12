@@ -407,7 +407,7 @@ body.jl-project-workspace-active .wb-agent-runs-legacy {
 
 body.jl-project-workspace-active .wb-pws-agent-scroll .wb-pws-panel--context,
 body.jl-project-workspace-active .wb-pws-agent-scroll .wb-pws-panel--snapshots {
-  margin: 0 10px 8px;
+  display: none !important;
 }
 
 body.jl-project-workspace-active.theme-nebula .wb-activity-item button,
