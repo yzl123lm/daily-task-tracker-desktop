@@ -864,6 +864,34 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     );
   });
 
+  ipcMain.handle("wb-project-pr-draft-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { getDraftPrForTask } = require("./draftPrService.js");
+    return getDraftPrForTask(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      getDefaultProjectRoot,
+      verifyResult: payload?.verifyResult || null,
+    });
+  });
+
+  ipcMain.handle("wb-project-pr-draft-create", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { createDraftPr } = require("./draftPrService.js");
+    return createDraftPr(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      userApproved: Boolean(payload?.userApproved),
+      approvalId: payload?.approvalId || null,
+      requestId: payload?.requestId || null,
+      push: payload?.push !== false,
+      getDefaultProjectRoot,
+      verifyResult: payload?.verifyResult || null,
+    });
+  });
+
   ipcMain.handle("wb-project-backups-list", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = payload?.taskId ? assertSafeId(payload.taskId, "taskId") : null;

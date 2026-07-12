@@ -7,6 +7,7 @@ const {
   rowToTask,
 } = require("./db.js");
 const { buildProjectNamespace } = require("./namespace.js");
+const { normalizePermissionMode } = require("./projectPolicyService.js");
 
 const LOCAL_USER_ID = "local-user";
 
@@ -59,7 +60,7 @@ function createProject(getUserDataPath, userId, payload) {
     JSON.stringify(techStack),
     payload?.repoUrl ? String(payload.repoUrl).trim() : null,
     payload?.localPath ? String(payload.localPath).trim() : null,
-    String(payload?.permissionMode || "ASSISTED_DEV").trim(),
+    normalizePermissionMode(payload?.permissionMode),
     ts,
     ts
   );
@@ -96,7 +97,9 @@ function updateProject(getUserDataPath, userId, projectId, payload) {
     JSON.stringify(techStack),
     payload?.repoUrl !== undefined ? payload.repoUrl : existing.repoUrl,
     payload?.localPath !== undefined ? payload.localPath : existing.localPath,
-    typeof payload?.permissionMode === "string" ? payload.permissionMode : existing.permissionMode,
+    typeof payload?.permissionMode === "string"
+      ? normalizePermissionMode(payload.permissionMode)
+      : existing.permissionMode,
     typeof payload?.status === "string" ? payload.status : existing.status,
     ts,
     pid,

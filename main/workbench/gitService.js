@@ -137,6 +137,27 @@ function buildPrDraftMeta({ branch, title, body, agentRunId } = {}) {
   };
 }
 
+function gitPush(cwd, branch, { userApproved, setUpstream = true } = {}) {
+  if (!userApproved) {
+    const err = new Error("Git push 需要用户确认");
+    err.code = "USER_APPROVAL_REQUIRED";
+    err.status = 403;
+    throw err;
+  }
+  if (!isGitRepo(cwd)) {
+    return { pushed: false, reason: "not_a_git_repo" };
+  }
+  const b = String(branch || "").trim();
+  const args = setUpstream && b ? ["push", "-u", "origin", b] : b ? ["push", "origin", b] : ["push"];
+  const res = runGit(cwd, args, { timeoutMs: 120000 });
+  if (!res.success) {
+    const err = new Error(res.stderr || res.stdout || "git push 失败");
+    err.code = "GIT_PUSH_FAILED";
+    throw err;
+  }
+  return { pushed: true, branch: b || null, output: res.stdout || res.stderr };
+}
+
 module.exports = {
   READONLY_GIT,
   WRITE_GIT,
@@ -144,6 +165,7 @@ module.exports = {
   gitStatus,
   createTaskBranch,
   gitCommit,
+  gitPush,
   listBranches,
   getHeadMeta,
   buildPrDraftMeta,

@@ -64,6 +64,10 @@ function ensureNewProjectModal() {
             <button type="button" id="wbProjectPickPathBtn" class="secondary">选择目录</button>
           </div>
         </label>
+        <label class="wb-field wb-field--check">
+          <input id="wbProjectTrustedInput" type="checkbox" />
+          <span>受信工作区（A3：修复补丁可自动应用；默认仍人工审 Diff）</span>
+        </label>
         <p id="wbNewProjectError" class="wb-form-error" hidden></p>
         <footer class="wb-modal__foot">
           <button type="button" class="secondary" data-wb-close="1">取消</button>
@@ -118,6 +122,10 @@ function ensureEditProjectModal() {
             <button type="button" id="wbEditProjectPickPathBtn" class="secondary">选择</button>
           </div>
         </label>
+        <label class="wb-field wb-field--check">
+          <input id="wbEditProjectTrustedInput" type="checkbox" />
+          <span>受信工作区（A3：修复补丁可自动应用）</span>
+        </label>
         <p id="wbEditProjectError" class="wb-form-error" hidden></p>
         <footer class="wb-modal__foot">
           <button type="button" class="secondary" data-wb-close="1">取消</button>
@@ -158,6 +166,10 @@ async function openEditProjectModal(project) {
   document.getElementById("wbEditProjectDescInput").value = project.description || "";
   document.getElementById("wbEditProjectStackInput").value = (project.techStack || []).join(", ");
   document.getElementById("wbEditProjectPathInput").value = project.localPath || "";
+  const trustedEl = document.getElementById("wbEditProjectTrustedInput");
+  if (trustedEl) {
+    trustedEl.checked = String(project.permissionMode || "") === "TRUSTED_WORKSPACE";
+  }
   modal.hidden = false;
   document.getElementById("wbEditProjectNameInput")?.focus();
 }
@@ -175,9 +187,11 @@ async function submitNewProject(ev) {
     ? stackRaw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
     : [];
   const localPath = document.getElementById("wbProjectPathInput")?.value?.trim() || null;
+  const trusted = Boolean(document.getElementById("wbProjectTrustedInput")?.checked);
+  const permissionMode = trusted ? "TRUSTED_WORKSPACE" : "ASSISTED_DEV";
   const errEl = document.getElementById("wbNewProjectError");
   try {
-    const project = await api.wbProjectCreate({ name, description, techStack, localPath });
+    const project = await api.wbProjectCreate({ name, description, techStack, localPath, permissionMode });
     document.getElementById("wbNewProjectModal").hidden = true;
     await window.__wbRefreshProjects?.();
     if (project?.id) {
@@ -202,6 +216,8 @@ async function submitEditProject(ev) {
     ? stackRaw.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
     : [];
   const localPath = document.getElementById("wbEditProjectPathInput")?.value?.trim() || null;
+  const trusted = Boolean(document.getElementById("wbEditProjectTrustedInput")?.checked);
+  const permissionMode = trusted ? "TRUSTED_WORKSPACE" : "ASSISTED_DEV";
   const errEl = document.getElementById("wbEditProjectError");
   if (!projectId || !name) {
     if (errEl) {
@@ -211,7 +227,7 @@ async function submitEditProject(ev) {
     return;
   }
   try {
-    await api.wbProjectUpdate({ projectId, name, description, techStack, localPath });
+    await api.wbProjectUpdate({ projectId, name, description, techStack, localPath, permissionMode });
     document.getElementById("wbEditProjectModal").hidden = true;
     await window.__wbRefreshProjects?.();
     if (window.__wbStore?.getState?.().selectedProjectId === projectId) {

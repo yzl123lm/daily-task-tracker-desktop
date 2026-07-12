@@ -158,7 +158,7 @@ async function runVerifyStep(getUserDataPath, uid, ctx, state, { getDefaultProje
   return verify;
 }
 
-async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify) {
+async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify, { getDefaultProjectRoot } = {}) {
   const diagnosis =
     state.lastDiagnosis ||
     buildDiagnosisFromVerify(verify, { scriptName: state.scriptName });
@@ -258,10 +258,6 @@ async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify) {
       failureCategory: diagnosis.failureCategory,
     },
   });
-  updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
-    status: TASK_STATUS.WAITING_APPROVAL,
-    currentStep: `第 ${state.round} 轮修复补丁待审阅`,
-  });
   appendFixLoopEvent(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
     action: "agent_fix_staged",
     phase: FIX_LOOP_PHASE.WAITING_APPLY,
@@ -269,6 +265,54 @@ async function runAgentFixRound(getUserDataPath, uid, ctx, state, verify) {
     patchIds: state.lastStagedPatchIds,
     failureCategory: diagnosis.failureCategory,
     message: `已生成 ${state.lastStagedPatchIds.length} 个修复补丁，等待 Diff 审阅`,
+  });
+
+  // A3: trusted workspace may auto-apply in-scope fix patches (default still manual)
+  try {
+    const { tryTrustedAutoApplyFixPatches } = require("./trustedAutoApplyService.js");
+    const auto = tryTrustedAutoApplyFixPatches(getUserDataPath, uid, {
+      projectId: ctx.projectId,
+      taskId: ctx.taskId,
+      round: state.round,
+      getDefaultProjectRoot: getDefaultProjectRoot || ctx.getDefaultProjectRoot,
+      message: fixMessage,
+      allowedFiles: [
+        ...(diagnosis?.issues || []).map((i) => i.file).filter(Boolean),
+        ...(verify?.parsed?.issues || []).map((i) => i.file).filter(Boolean),
+      ],
+    });
+    if (auto.applied) {
+      updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+        status: TASK_STATUS.FIXING,
+        currentStep: `第 ${state.round} 轮修复已自动应用（受信工作区）`,
+      });
+      const resumed = await resumeFixLoopAfterApply(getUserDataPath, uid, ctx, {
+        patchIds: auto.patchIds,
+        appliedPatchIds: auto.patchIds,
+        getDefaultProjectRoot: getDefaultProjectRoot || ctx.getDefaultProjectRoot,
+      });
+      return {
+        ...resumed,
+        autoApplied: true,
+        round: state.round,
+        verify,
+        diagnosis,
+        patchIds: auto.patchIds,
+        message: resumed?.message || "受信工作区已自动应用修复补丁并继续验证",
+      };
+    }
+  } catch (err) {
+    appendFixLoopEvent(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+      action: "auto_apply_error",
+      phase: FIX_LOOP_PHASE.WAITING_APPLY,
+      round: state.round,
+      message: err?.message || String(err),
+    });
+  }
+
+  updateTask(getUserDataPath, uid, ctx.projectId, ctx.taskId, {
+    status: TASK_STATUS.WAITING_APPROVAL,
+    currentStep: `第 ${state.round} 轮修复补丁待审阅`,
   });
   return {
     ok: false,
@@ -441,7 +485,7 @@ async function continueFixLoopVerify(getUserDataPath, userId, ctx, { getDefaultP
       remainingReport,
     };
   }
-  return runAgentFixRound(getUserDataPath, uid, ctx, state, verify);
+  return runAgentFixRound(getUserDataPath, uid, ctx, state, verify, { getDefaultProjectRoot });
 }
 
 async function resumeFixLoopAfterApply(

@@ -19,7 +19,10 @@ function changeTypeLabel(type) {
 
 function getContext() {
   const store = window.__wbStore?.getState?.() || {};
-  return { projectId: store.selectedProjectId };
+  return {
+    projectId: store.selectedProjectId,
+    taskId: store.selectedTaskId || store.activeTaskId || null,
+  };
 }
 
 function ensureGitChangePanel() {
@@ -47,9 +50,13 @@ function ensureGitChangePanel() {
     <div id="wbGitSummary" class="wb-git-summary"></div>
     <ul id="wbGitChangeList" class="wb-git-change-list scroll-tech"></ul>
     <details id="wbGitPrDraft" class="wb-git-pr-draft" hidden>
-      <summary>Draft PR 命令（本机 gh）</summary>
+      <summary>Draft PR（本机 gh）</summary>
       <pre id="wbGitPrDraftBody" class="wb-git-pr-draft__body scroll-tech"></pre>
-      <button type="button" id="wbGitPrCopyBtn" class="wb-pws-btn wb-pws-btn--ghost">复制命令</button>
+      <div class="wb-git-pr-draft__actions">
+        <button type="button" id="wbGitPrCopyBtn" class="wb-pws-btn wb-pws-btn--ghost">复制命令</button>
+        <button type="button" id="wbGitPrCreateBtn" class="wb-pws-btn wb-pws-btn--primary">创建 Draft PR</button>
+      </div>
+      <p id="wbGitPrCreateStatus" class="wb-git-pr-draft__status" hidden></p>
     </details>
     <footer class="wb-git-change-panel__commit">
       <label class="wb-field">
@@ -224,7 +231,8 @@ function renderGitChangePanel(status) {
 
 async function refreshGitChangePanel(projectId) {
   const api = window.electronAPI || {};
-  const pid = projectId || getContext().projectId;
+  const ctx = getContext();
+  const pid = projectId || ctx.projectId;
   if (!pid || typeof api.wbProjectGitStatus !== "function") {
     return;
   }
@@ -236,17 +244,30 @@ async function refreshGitChangePanel(projectId) {
       try {
         const meta = await api.wbProjectGitHead({ projectId: pid });
         head = meta?.head || null;
-        if (head?.isRepo && head.branch) {
-          pr = {
-            commands: {
-              push: `git push -u origin ${head.branch}`,
-              createDraftPr: `gh pr create --draft --title "Workbench delivery" --body "Generated from Workbench Git panel"`,
-            },
-          };
+      } catch {
+        /* optional */
+      }
+    }
+    if (typeof api.wbProjectPrDraftGet === "function" && status?.isRepo && ctx.taskId) {
+      try {
+        const draftRes = await api.wbProjectPrDraftGet({ projectId: pid, taskId: ctx.taskId });
+        if (draftRes?.ok && draftRes.draft) {
+          pr = draftRes.draft;
+          if (!head && draftRes.head) head = draftRes.head;
         }
       } catch {
         /* optional */
       }
+    }
+    if (!pr && head?.isRepo && head.branch) {
+      pr = {
+        commands: {
+          push: `git push -u origin ${head.branch}`,
+          createDraftPr: `gh pr create --draft --title ${JSON.stringify(
+            "Workbench delivery"
+          )} --body ${JSON.stringify("Generated from Workbench Git panel")}`,
+        },
+      };
     }
     const enriched = { ...status, head, pr };
     const snap = window.__wbGitChangeStore?.setStatus?.(pid, enriched) || enriched;
@@ -287,6 +308,64 @@ function bindGitChangePanel() {
         /* ignore */
       }
     });
+    document.getElementById("wbGitPrCreateBtn")?.addEventListener("click", () => {
+      void createDraftPrFromPanel();
+    });
+  }
+}
+
+async function createDraftPrFromPanel() {
+  const api = window.electronAPI || {};
+  const { projectId, taskId } = getContext();
+  const statusEl = document.getElementById("wbGitPrCreateStatus");
+  if (!projectId || !taskId || typeof api.wbProjectPrDraftCreate !== "function") {
+    if (statusEl) {
+      statusEl.hidden = false;
+      statusEl.textContent = "需要选中任务后才能创建 Draft PR";
+    }
+    return;
+  }
+  const requestId = `draft-pr:${taskId}:${Date.now()}`;
+  let approved = true;
+  if (typeof window.__wbRequestApproval === "function") {
+    approved = await window.__wbRequestApproval({
+      title: "创建 Draft PR",
+      purpose: "push 当前分支并用 gh 创建 Draft PR（需本机已登录 gh）",
+      risk: "network",
+      requestId,
+      projectId,
+      taskId,
+    });
+  }
+  if (!approved) {
+    return;
+  }
+  if (statusEl) {
+    statusEl.hidden = false;
+    statusEl.textContent = "正在创建 Draft PR…";
+  }
+  try {
+    const result = await api.wbProjectPrDraftCreate({
+      projectId,
+      taskId,
+      userApproved: true,
+      requestId,
+      approvalId: requestId,
+      push: true,
+    });
+    if (result?.ok) {
+      const url = result.prUrl || "已创建";
+      if (statusEl) statusEl.textContent = `Draft PR: ${url}`;
+      window.__wbShowComposerToast?.("Draft PR 已创建", { type: "success" });
+    } else {
+      const msg = result?.message || result?.reason || "创建失败";
+      if (statusEl) statusEl.textContent = msg;
+      window.__wbShowComposerToast?.(msg, { type: "error" });
+    }
+  } catch (err) {
+    const msg = err?.message || "创建 Draft PR 失败";
+    if (statusEl) statusEl.textContent = msg;
+    window.__wbShowComposerToast?.(msg, { type: "error" });
   }
 }
 

@@ -399,6 +399,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectRunbookGet: (payload) => ipcRenderer.invoke("wb-project-runbook-get", payload || {}),
   wbProjectTaskComplete: (payload) => ipcRenderer.invoke("wb-project-task-complete", payload || {}),
   wbProjectGitHead: (payload) => ipcRenderer.invoke("wb-project-git-head", payload || {}),
+  wbProjectPrDraftGet: (payload) => ipcRenderer.invoke("wb-project-pr-draft-get", payload || {}),
+  wbProjectPrDraftCreate: (payload) =>
+    ipcRenderer.invoke("wb-project-pr-draft-create", payload || {}),
   onWbProjectAgentEvent: (callback) => {
     if (typeof callback !== "function") {
       return () => {};
