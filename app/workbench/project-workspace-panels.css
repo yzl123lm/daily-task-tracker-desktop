@@ -712,7 +712,16 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
   display: none;
 }
 
-/* UX-007 / REQ-011 / UX-006 panels */
+/* UX-007 / REQ-011 / UX-006 panels — never flex-shrink in agent column */
+.wb-pws-agent-scroll > .wb-runbook-panel,
+.wb-pws-agent-scroll > .wb-async-runs-panel,
+.wb-pws-agent-scroll > .wb-skills-catalog-panel,
+.wb-pws-agent-scroll > .wb-pws-panel--context,
+.wb-pws-agent-scroll > .wb-pws-panel--snapshots {
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
 .wb-async-center__toolbar,
 .wb-skills-catalog-panel__tabs,
 .wb-parallel-merge-panel__actions {
@@ -720,21 +729,25 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid #e8f1fc;
+  background: #fff;
+  box-sizing: border-box;
 }
 
 .wb-async-runs-list__main {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
 }
 
 .wb-async-runs-list__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
-  margin-top: 4px;
 }
 
 .wb-async-runs-list__status.is-paused {
@@ -746,6 +759,7 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 }
 
 .wb-skills-catalog-panel {
+  flex: 0 0 auto;
   margin: 0 10px 8px;
   border: 1px solid #dcebfa;
   border-radius: 10px;
@@ -807,9 +821,11 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 .wb-skills-catalog-list {
   list-style: none;
   margin: 0;
-  padding: 6px 10px 10px;
+  padding: 8px 10px 10px;
   max-height: 220px;
   overflow: auto;
+  background: #fff;
+  box-sizing: border-box;
 }
 
 .wb-skills-catalog-list__row {

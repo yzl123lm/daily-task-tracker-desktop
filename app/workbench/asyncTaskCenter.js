@@ -23,7 +23,9 @@
     if (!panel) return null;
     if (panel.dataset.center === "1") return panel;
     panel.dataset.center = "1";
-    panel.innerHTML = `
+    // Layout may already ship full toolbar; only hydrate if missing.
+    if (!document.getElementById("wbAsyncFilterStatus") || !document.getElementById("wbAsyncEnqueueBtn")) {
+      panel.innerHTML = `
       <summary class="wb-async-runs-panel__summary">
         <span class="wb-async-runs-panel__summary-title">异步任务中心</span>
         <span id="wbAsyncCenterMeta" class="wb-async-runs-panel__meta"></span>
@@ -43,6 +45,7 @@
       </div>
       <ul id="wbAsyncRunsList" class="wb-async-runs-list scroll-tech"></ul>
     `;
+    }
     return panel;
   }
 

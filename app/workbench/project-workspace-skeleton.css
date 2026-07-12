@@ -935,7 +935,11 @@ body.jl-project-workspace-active .wb-list-card--compact .wb-project-card__open-d
   max-height: none;
 }
 
-.wb-pws-agent-scroll .wb-pws-panel {
+.wb-pws-agent-scroll .wb-pws-panel,
+.wb-pws-agent-scroll .wb-runbook-panel,
+.wb-pws-agent-scroll .wb-async-runs-panel,
+.wb-pws-agent-scroll .wb-skills-catalog-panel {
+  flex: 0 0 auto;
   flex-shrink: 0;
 }
 

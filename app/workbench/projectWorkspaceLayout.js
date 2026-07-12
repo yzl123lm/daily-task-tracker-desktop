@@ -107,10 +107,38 @@ const WB_PWS_LAYOUT_HTML = `
             <span class="wb-async-runs-panel__summary-title">异步任务中心</span>
             <span id="wbAsyncCenterMeta" class="wb-async-runs-panel__meta"></span>
           </summary>
-          <div class="wb-async-runs-panel__toolbar">
+          <div class="wb-async-center__toolbar">
+            <select id="wbAsyncFilterStatus" class="wb-pws-template-select" aria-label="状态筛选">
+              <option value="">全部状态</option>
+              <option value="RUNNING">运行中</option>
+              <option value="PAUSED">已暂停</option>
+              <option value="COMPLETED">已完成</option>
+              <option value="FAILED">失败</option>
+              <option value="CANCELED">已取消</option>
+              <option value="BUDGET_EXCEEDED">超预算</option>
+            </select>
             <button type="button" id="wbAsyncRunsRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
+            <button type="button" id="wbAsyncEnqueueBtn" class="wb-pws-btn wb-pws-btn--ghost">后台运行当前指令</button>
           </div>
           <ul id="wbAsyncRunsList" class="wb-async-runs-list scroll-tech"></ul>
+        </details>
+        <details id="wbSkillsCatalogPanel" class="wb-skills-catalog-panel">
+          <summary class="wb-skills-catalog-panel__summary">
+            <span class="wb-skills-catalog-panel__summary-title">指令 &amp; Skills</span>
+            <span id="wbSkillsCatalogMeta" class="wb-skills-catalog-panel__meta"></span>
+          </summary>
+          <div class="wb-skills-catalog-panel__tabs" role="tablist">
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost is-active" data-skills-tab="all">全部</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost" data-skills-tab="project_instruction">项目指令</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost" data-skills-tab="mcp_extension">MCP</button>
+            <button type="button" class="wb-pws-btn wb-pws-btn--ghost" data-skills-tab="agent_skill">Skills</button>
+            <button type="button" id="wbSkillsCatalogRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
+          </div>
+          <ul id="wbSkillsCatalogList" class="wb-skills-catalog-list scroll-tech"></ul>
+          <details class="wb-skills-catalog-preview">
+            <summary>注入预览</summary>
+            <pre id="wbSkillsCatalogPreview" class="scroll-tech"></pre>
+          </details>
         </details>
         <details class="wb-pws-panel wb-pws-panel--context">
           <summary>任务上下文记忆</summary>

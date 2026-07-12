@@ -18,7 +18,7 @@
   function ensureSkillsCatalogPanel() {
     let panel = document.getElementById("wbSkillsCatalogPanel");
     if (panel) return panel;
-    // Place in agent column after async panel
+    // Fallback: insert after async panel if layout shell omitted it
     const asyncPanel = document.getElementById("wbAsyncRunsPanel");
     const parent = asyncPanel?.parentElement;
     if (!parent) return null;
