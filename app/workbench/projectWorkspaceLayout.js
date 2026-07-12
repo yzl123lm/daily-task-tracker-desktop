@@ -103,7 +103,7 @@ const WB_PWS_LAYOUT_HTML = `
           <pre id="wbRunbookBody" class="wb-runbook-panel__body scroll-tech"></pre>
         </details>
         <details id="wbAsyncRunsPanel" class="wb-async-runs-panel">
-          <summary class="wb-async-runs-panel__summary">异步 / 子 Agent 队列</summary>
+          <summary class="wb-async-runs-panel__summary">异步任务中心</summary>
           <div class="wb-async-runs-panel__toolbar">
             <button type="button" id="wbAsyncRunsRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
           </div>
@@ -147,6 +147,8 @@ const WB_PWS_LAYOUT_HTML = `
               <button type="button" data-wb-more-action="manual-compress">手动压缩</button>
               <button type="button" data-wb-more-action="open-path">打开项目路径</button>
               <button type="button" data-wb-more-action="edit-path">编辑项目路径</button>
+              <button type="button" data-wb-more-action="parallel-merge">并行合并面板</button>
+              <button type="button" data-wb-more-action="skills-catalog">指令 &amp; Skills</button>
               <button type="button" data-wb-more-action="complete">标记完成</button>
               <button type="button" data-wb-more-action="cancel">取消任务</button>
             </div>

@@ -119,6 +119,13 @@ function buildContextPack({
       formatInstructionsForContext,
     } = require("./instructionContextService.js");
     const instr = loadProjectInstructions(root);
+    try {
+      const { filterInstructionsByPrefs } = require("./instructionCatalogService.js");
+      instr.files = filterInstructionsByPrefs(getUserDataPath, instr.files || []);
+      instr.order = (instr.files || []).map((f) => f.path);
+    } catch {
+      /* optional */
+    }
     const instrText = formatInstructionsForContext(instr);
     const ib = Math.min(900, remaining);
     if (instrText && ib > 40) {

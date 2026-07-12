@@ -195,7 +195,107 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     return listAsyncJobs({
       projectId: payload?.projectId || null,
       taskId: payload?.taskId || null,
+      status: payload?.status || null,
     });
+  });
+
+  ipcMain.handle("wb-async-job-cancel", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const runId = assertSafeId(payload?.runId || payload?.agentRunId, "runId");
+    const { cancelAsyncJob } = require("./asyncAgentQueue.js");
+    return cancelAsyncJob(getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      runId,
+      reason: payload?.reason || "用户取消",
+    });
+  });
+
+  ipcMain.handle("wb-async-job-pause", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const runId = assertSafeId(payload?.runId || payload?.agentRunId, "runId");
+    const { pauseAsyncJob } = require("./asyncAgentQueue.js");
+    return pauseAsyncJob(getUserDataPath, payload?.userId, { projectId, taskId, runId });
+  });
+
+  ipcMain.handle("wb-parallel-group-create", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { createParallelGroup, allocateBranchWorkspaces } = require("./parallelBranchService.js");
+    const group = createParallelGroup({
+      projectId,
+      taskId,
+      branches: Array.isArray(payload?.branches) ? payload.branches : [{ branchId: "a" }, { branchId: "b" }],
+    });
+    if (payload?.allocateWorkspaces !== false) {
+      allocateBranchWorkspaces(getUserDataPath, payload?.userId, group.id, { getDefaultProjectRoot });
+    }
+    return group;
+  });
+
+  ipcMain.handle("wb-parallel-merge-preview", (_event, payload) => {
+    const groupId = String(payload?.groupId || "").trim();
+    if (!groupId) throw new Error("缺少 groupId");
+    const { previewParallelMerge } = require("./parallelBranchService.js");
+    return previewParallelMerge(getUserDataPath, payload?.userId, groupId);
+  });
+
+  ipcMain.handle("wb-parallel-merge-apply", (_event, payload) => {
+    const groupId = String(payload?.groupId || "").trim();
+    if (!groupId) throw new Error("缺少 groupId");
+    const { applyParallelMerge } = require("./parallelBranchService.js");
+    return applyParallelMerge(getUserDataPath, payload?.userId, {
+      groupId,
+      userApproved: Boolean(payload?.userApproved),
+      approvalId: payload?.approvalId || null,
+      requestId: payload?.requestId || null,
+      forcePreferBranchId: payload?.forcePreferBranchId || null,
+      getDefaultProjectRoot,
+    });
+  });
+
+  ipcMain.handle("wb-instruction-catalog-list", (_event, payload) => {
+    const { listInstructionCatalog } = require("./instructionCatalogService.js");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    let projectRoot = payload?.projectRoot || null;
+    if (!projectRoot && payload?.projectId) {
+      const uid = resolveUserId(payload?.userId);
+      const project = getProject(getUserDataPath, uid, assertSafeId(payload.projectId, "projectId"));
+      projectRoot = resolveProjectRoot(project, getDefaultProjectRoot);
+    }
+    let appRoot = process.cwd();
+    try {
+      appRoot = require("electron").app.getAppPath();
+    } catch {
+      /* cli */
+    }
+    return listInstructionCatalog(getUserDataPath, { projectRoot, appRoot });
+  });
+
+  ipcMain.handle("wb-instruction-catalog-set-enabled", (_event, payload) => {
+    const { setCatalogItemEnabled } = require("./instructionCatalogService.js");
+    return setCatalogItemEnabled(getUserDataPath, {
+      id: payload?.id,
+      path: payload?.path,
+      enabled: Boolean(payload?.enabled),
+      kind: payload?.kind,
+    });
+  });
+
+  ipcMain.handle("wb-instruction-catalog-preview", (_event, payload) => {
+    const { previewCatalogInjection } = require("./instructionCatalogService.js");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    let projectRoot = payload?.projectRoot || null;
+    if (!projectRoot && payload?.projectId) {
+      const uid = resolveUserId(payload?.userId);
+      const project = getProject(getUserDataPath, uid, assertSafeId(payload.projectId, "projectId"));
+      projectRoot = resolveProjectRoot(project, getDefaultProjectRoot);
+    }
+    return previewCatalogInjection(getUserDataPath, { projectRoot });
   });
 
   ipcMain.handle("wb-mcp-gateway-status", async () => {

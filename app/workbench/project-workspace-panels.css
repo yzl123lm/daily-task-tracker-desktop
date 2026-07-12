@@ -711,3 +711,116 @@ body.jl-project-workspace-active .wb-pws-code-col .wb-diff-review-panel[hidden] 
 .wb-pws-source-root-card {
   display: none;
 }
+
+/* UX-007 / REQ-011 / UX-006 panels */
+.wb-async-center__toolbar,
+.wb-skills-catalog-panel__tabs,
+.wb-parallel-merge-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e8f1fc;
+}
+.wb-async-runs-panel__meta,
+.wb-skills-catalog-panel__meta,
+.wb-parallel-merge-panel__meta {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #5b6b7c;
+}
+.wb-async-runs-list__main {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+.wb-async-runs-list__actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.wb-async-runs-list__status.is-paused { color: #b45309; }
+.wb-async-runs-list__status.is-running { color: #1d4ed8; }
+.wb-skills-catalog-panel {
+  margin: 8px 0 12px;
+  border: 1px solid #dcebfa;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  overflow: hidden;
+}
+.wb-skills-catalog-panel__summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2d3d;
+  background: #f7fbff;
+  list-style: none;
+}
+.wb-skills-catalog-panel__summary::-webkit-details-marker { display: none; }
+.wb-skills-catalog-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 10px 10px;
+  max-height: 220px;
+  overflow: auto;
+}
+.wb-skills-catalog-list__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.wb-skills-catalog-list__kind,
+.wb-skills-catalog-list__trust {
+  color: #5b6b7c;
+  font-size: 11px;
+}
+.wb-skills-catalog-preview {
+  border-top: 1px solid #e8f1fc;
+  padding: 6px 10px 10px;
+}
+.wb-skills-catalog-preview pre {
+  margin: 6px 0 0;
+  max-height: 140px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+.wb-parallel-merge-panel {
+  margin: 8px 0;
+  border: 1px solid #dcebfa;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.wb-parallel-merge-panel__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+.wb-parallel-merge-panel__head h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.wb-parallel-merge-panel__body {
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  background: #f7fbff;
+  border-radius: 8px;
+  padding: 8px;
+}
+.wb-pws-btn.is-active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}

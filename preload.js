@@ -382,6 +382,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectAgentRunAsync: (payload) =>
     ipcRenderer.invoke("wb-project-agent-run-async", payload || {}),
   wbAsyncRunsList: (payload) => ipcRenderer.invoke("wb-async-runs-list", payload || {}),
+  wbAsyncJobCancel: (payload) => ipcRenderer.invoke("wb-async-job-cancel", payload || {}),
+  wbAsyncJobPause: (payload) => ipcRenderer.invoke("wb-async-job-pause", payload || {}),
+  wbParallelGroupCreate: (payload) => ipcRenderer.invoke("wb-parallel-group-create", payload || {}),
+  wbParallelMergePreview: (payload) => ipcRenderer.invoke("wb-parallel-merge-preview", payload || {}),
+  wbParallelMergeApply: (payload) => ipcRenderer.invoke("wb-parallel-merge-apply", payload || {}),
+  wbInstructionCatalogList: (payload) =>
+    ipcRenderer.invoke("wb-instruction-catalog-list", payload || {}),
+  wbInstructionCatalogSetEnabled: (payload) =>
+    ipcRenderer.invoke("wb-instruction-catalog-set-enabled", payload || {}),
+  wbInstructionCatalogPreview: (payload) =>
+    ipcRenderer.invoke("wb-instruction-catalog-preview", payload || {}),
+  onWbAsyncJobChange: (callback) => {
+    if (typeof callback !== "function") return () => {};
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on("wb-async-job-change", handler);
+    return () => ipcRenderer.removeListener("wb-async-job-change", handler);
+  },
   wbMcpGatewayStatus: () => ipcRenderer.invoke("wb-mcp-gateway-status"),
   wbExtensionPacksList: () => ipcRenderer.invoke("wb-extension-packs-list"),
   wbExtensionPackSetEnabled: (payload) =>

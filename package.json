@@ -1,6 +1,6 @@
 {
   "name": "daily-task-tracker-desktop",
-  "version": "1.24.56",
+  "version": "1.24.57",
   "description": "鲸落AI 桌面客户端",
   "main": "main.js",
   "author": "local-user",
@@ -42,6 +42,9 @@
     "wb:a3-test": "node scripts/wb-a3-trusted-autoapply-test.js",
     "wb:replay": "node scripts/wb-agent-replay.js",
     "wb:replay:test": "node scripts/wb-agent-replay-test.js",
+    "wb:ux007-test": "node scripts/wb-ux007-req011-ux006-test.js",
+    "wb:req011-test": "node scripts/wb-ux007-req011-ux006-test.js",
+    "wb:ux006-test": "node scripts/wb-ux007-req011-ux006-test.js",
     "wb:sandbox-test": "node scripts/wb-sandbox-security-test.js",
     "wb:bl009-test": "node scripts/wb-bl009-012-test.js",
     "wb:bl013-test": "node scripts/wb-bl013-014-test.js",

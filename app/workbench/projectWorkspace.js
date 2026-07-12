@@ -1386,6 +1386,18 @@ function handleComposerMoreAction(action) {
     case "edit-path":
       window.__wbOpenEditProjectModal?.(projectId);
       break;
+    case "parallel-merge":
+      window.__wbBindParallelMergePanel?.();
+      window.__wbShowParallelMergePanel?.(true);
+      window.__wbSwitchCodeTab?.("code");
+      break;
+    case "skills-catalog": {
+      window.__wbBindSkillsCatalogPanel?.();
+      const skillsPanel = document.getElementById("wbSkillsCatalogPanel");
+      if (skillsPanel) skillsPanel.open = true;
+      void window.__wbRefreshSkillsCatalog?.(projectId);
+      break;
+    }
     default:
       break;
   }
@@ -2200,24 +2212,18 @@ async function refreshRunbookPanel(projectId, taskId) {
 }
 
 function bindAsyncRunsPanelOnce() {
-  const panel = document.getElementById("wbAsyncRunsPanel");
-  if (!panel || panel.dataset.bound === "1") {
-    return;
-  }
-  panel.dataset.bound = "1";
-  document.getElementById("wbAsyncRunsRefreshBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    const taskId = resolveCurrentTaskId();
-    void refreshAsyncRunsPanel(projectId, taskId);
-  });
+  window.__wbBindAsyncTaskCenter?.();
 }
 
 async function refreshAsyncRunsPanel(projectId, taskId) {
-  bindAsyncRunsPanelOnce();
-  const list = document.getElementById("wbAsyncRunsList");
-  if (!list) {
+  window.__wbBindAsyncTaskCenter?.();
+  if (typeof window.__wbRefreshAsyncTaskCenter === "function") {
+    await window.__wbRefreshAsyncTaskCenter(projectId, taskId);
     return;
   }
+  // fallback legacy
+  const list = document.getElementById("wbAsyncRunsList");
+  if (!list) return;
   const api = wbApi();
   if (typeof api.wbAsyncRunsList !== "function") {
     list.innerHTML = '<li class="wb-async-runs-list__empty">异步队列不可用</li>';
@@ -2225,26 +2231,15 @@ async function refreshAsyncRunsPanel(projectId, taskId) {
   }
   try {
     const jobs = (await api.wbAsyncRunsList({ projectId, taskId })) || [];
-    if (!jobs.length) {
-      list.innerHTML = '<li class="wb-async-runs-list__empty">暂无异步任务</li>';
-      return;
-    }
-    list.innerHTML = jobs
-      .slice(0, 12)
-      .map((j) => {
-        const st = String(j.status || "");
-        const cls =
-          st === "FAILED" || st === "CANCELED"
-            ? "is-failed"
-            : st === "COMPLETED"
-              ? "is-done"
-              : "";
-        return `<li class="wb-async-runs-list__item">
-          <span><code>${escapeHtml((j.runId || "").slice(0, 18))}</code> · ${escapeHtml(j.mode || "")}</span>
-          <span class="wb-async-runs-list__status ${cls}">${escapeHtml(st)}</span>
-        </li>`;
-      })
-      .join("");
+    list.innerHTML = jobs.length
+      ? jobs
+          .slice(0, 12)
+          .map(
+            (j) =>
+              `<li class="wb-async-runs-list__item"><span><code>${escapeHtml((j.runId || "").slice(0, 18))}</code></span><span>${escapeHtml(j.status || "")}</span></li>`
+          )
+          .join("")
+      : '<li class="wb-async-runs-list__empty">暂无异步任务</li>';
   } catch (err) {
     list.innerHTML = `<li class="wb-async-runs-list__empty">${escapeHtml(err?.message || "加载失败")}</li>`;
   }
@@ -2433,6 +2428,9 @@ async function loadTaskContext(projectId, taskId) {
   }
   void refreshRunbookPanel(projectId, resolvedTaskId);
   void refreshAsyncRunsPanel(projectId, resolvedTaskId);
+  window.__wbBindSkillsCatalogPanel?.();
+  void window.__wbRefreshSkillsCatalog?.(projectId);
+  window.__wbBindParallelMergePanel?.();
   const memList = document.getElementById("wbTaskMemories");
   const runsList = document.getElementById("wbAgentRuns");
   if (typeof api.wbMemorySearch === "function" && memList) {
@@ -3174,6 +3172,9 @@ function bindProjectWorkspace() {
   window.__wbBindGitChangePanel?.();
   bindRunbookPanelOnce();
   bindAsyncRunsPanelOnce();
+  window.__wbBindAsyncTaskCenter?.();
+  window.__wbBindSkillsCatalogPanel?.();
+  window.__wbBindParallelMergePanel?.();
   bindTaskFilters();
   const openLogBtn = document.getElementById("wbActivityOpenLogBtn");
   if (openLogBtn && openLogBtn.dataset.bound !== "1") {
