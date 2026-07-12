@@ -1,4 +1,4 @@
-const { llmChatWithTools } = require("./llmClient.js");
+const { gatewayChatWithTools, detectNoProgressLoop, parseStructuredAction } = require("./modelGateway.js");
 const { stripModelThinking, sanitizeAgentOutputForUi } = require("../../utils/wbModelOutputSanitizer.js");
 const { listToolSchemas, dispatchTool } = require("./toolRegistry.js");
 const { buildContextPackAsync } = require("./contextPackBuilder.js");
@@ -20,6 +20,7 @@ const {
   summarizeToolInput,
   summarizeToolOutput,
 } = require("./agentEventEmitter.js");
+const { sanitizeUntrustedToolPayload } = require("./instructionContextService.js");
 
 const MAX_TOOL_ROUNDS = 12;
 
@@ -55,6 +56,32 @@ function buildSystemPrompt(mode, contextPack) {
 }
 
 function parsePlanFromContent(content) {
+  // Prefer structured JSON Action/Plan (AGT-003)
+  const structured = parseStructuredAction(content, { schemaHint: "plan" });
+  if (structured.ok && structured.action && typeof structured.action === "object") {
+    const a = structured.action;
+    if (a.plan || a.steps || a.type === "plan" || a.kind === "plan") {
+      const plan = Array.isArray(a.plan)
+        ? a.plan
+        : Array.isArray(a.steps)
+          ? a.steps.map((s) => (typeof s === "string" ? s : s.text || s.title || ""))
+          : [];
+      return {
+        summary: String(a.summary || a.title || "Agent 方案").slice(0, 120),
+        requirementUnderstanding: String(a.requirementUnderstanding || a.objective || a.summary || "").slice(0, 500),
+        plan: plan.filter(Boolean).slice(0, 12),
+        affectedFiles: Array.isArray(a.affectedFiles) ? a.affectedFiles : [],
+        risks: Array.isArray(a.risks) ? a.risks : ["写入前会展示 Diff 并等待你确认"],
+        testPlan: Array.isArray(a.testPlan) ? a.testPlan : ["确认方案后点击「生成代码变更」，审阅 Diff 后再写入"],
+        needUserConfirm: a.needUserConfirm !== false,
+        nextAction: a.nextAction || "生成代码变更",
+        answer: stripModelThinking(content),
+        structured: true,
+        structuredRepaired: Boolean(structured.repaired),
+      };
+    }
+  }
+
   const text = stripModelThinking(content);
   const lines = text.split(/\r?\n/).filter(Boolean);
   const plan = [];
@@ -82,6 +109,7 @@ function parsePlanFromContent(content) {
     needUserConfirm: true,
     nextAction: "生成代码变更",
     answer: text,
+    structured: false,
   };
 }
 
@@ -150,13 +178,17 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     const signal = getRunAbortSignal(ctx.agentRunId) || ctx.signal;
     let assistantMsg;
     let toolCalls;
+    let gatewayMeta = null;
     try {
-      ({ message: assistantMsg, toolCalls } = await llmChatWithTools({
+      const llmResult = await gatewayChatWithTools({
         messages,
         tools,
         mode,
         signal,
-      }));
+      });
+      assistantMsg = llmResult.message;
+      toolCalls = llmResult.toolCalls;
+      gatewayMeta = llmResult.gateway || null;
     } catch (llmErr) {
       if (isRunCanceled(ctx.agentRunId) || llmErr?.name === "AbortError" || signal?.aborted) {
         emitAgentEvent(ctx, {
@@ -195,6 +227,7 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       }
       output.toolTrace = toolTrace;
       output.mode = mode;
+      output.modelGateway = gatewayMeta;
       // Mark COMPLETED so task mutex is released; user review is tracked on the task status.
       completeAgentRun(ctx.getUserDataPath, ctx.userId, {
         projectId: ctx.projectId,
@@ -206,12 +239,45 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
       return output;
     }
 
+    // AGT-007 no-progress loop
+    const loopCheck = detectNoProgressLoop(toolTrace);
+    if (loopCheck.looping) {
+      failAgentRun(ctx.getUserDataPath, ctx.userId, {
+        projectId: ctx.projectId,
+        taskId: ctx.taskId,
+        agentRunId: ctx.agentRunId,
+        errorMessage: `无进展循环已阻断: ${loopCheck.reason}`,
+      });
+      emitAgentEvent(ctx, {
+        phase: PHASE.FAILED,
+        status: STATUS.failed,
+        title: "无进展循环",
+        summary: loopCheck.reason,
+        stepKey: "blocked_loop",
+        error: loopCheck.reason,
+      });
+      const err = new Error(`检测到无进展循环（${loopCheck.reason}），已 BLOCKED`);
+      err.code = "AGENT_NO_PROGRESS";
+      err.evidence = loopCheck.evidence;
+      throw err;
+    }
+
     messages.push(buildAssistantToolCallMessage(toolCalls));
     for (const tc of toolCalls) {
       const toolName = tc.name;
       const phase = TOOL_PHASE_MAP[toolName] || PHASE.ANALYZING;
       const title = TOOL_TITLE_MAP[toolName] || `调用 ${toolName}`;
-      const inputSummary = summarizeToolInput(toolName, tc.arguments);
+      const sanitized = sanitizeUntrustedToolPayload(toolName, tc.arguments || {});
+      const safeArgs = sanitized.args;
+      if (sanitized.reported) {
+        toolTrace.push({
+          tool: "_security",
+          args: { reports: sanitized.reports },
+          result: { ok: true, injectionReported: true },
+          source: "sec006",
+        });
+      }
+      const inputSummary = summarizeToolInput(toolName, safeArgs);
       const startedAt = Date.now();
       emitAgentEvent(ctx, {
         phase,
@@ -223,13 +289,13 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
         stepKey: toolStepKey(toolName),
         startedAt,
       });
-      const result = await dispatchTool(ctx, tc.name, tc.arguments);
+      const result = await dispatchTool(ctx, tc.name, safeArgs);
       const outputSummary = summarizeToolOutput(toolName, result);
       const ok = result?.ok !== false;
-      toolTrace.push({ tool: tc.name, args: tc.arguments, result, source: tc.source });
+      toolTrace.push({ tool: tc.name, args: safeArgs, result, source: tc.source });
       appendToolTrace(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId, ctx.agentRunId, {
         tool: tc.name,
-        args: tc.arguments,
+        args: safeArgs,
         ok,
       });
       emitAgentEvent(ctx, {

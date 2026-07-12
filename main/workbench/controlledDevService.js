@@ -29,7 +29,7 @@ function applyBatchEnabled() {
 function applyAcceptedPatches(
   getUserDataPath,
   userId,
-  { projectId, taskId, patchIds, userApproved, approvalId, requestId, createGitBranch },
+  { projectId, taskId, patchIds, userApproved, approvalId, requestId, createGitBranch, userOverrideUnrelated },
   { getDefaultProjectRoot } = {}
 ) {
   requireUserApproval({ userApproved });
@@ -102,6 +102,30 @@ function applyAcceptedPatches(
     );
     err.code = "NO_ACCEPTED_PATCHES";
     throw err;
+  }
+
+  // BL-018: unrelated-change / sensitive path gate before write
+  try {
+    const { assertPatchesInScope } = require("./patchReviewerService.js");
+    let taskSpec = null;
+    let planSteps = [];
+    try {
+      taskSpec = require("./taskSpecService.js").getTaskSpec(getUserDataPath, uid, projectId, taskId);
+    } catch {
+      /* optional */
+    }
+    try {
+      planSteps = require("./planStepsService.js").getPlanSteps(getUserDataPath, uid, projectId, taskId);
+    } catch {
+      /* optional */
+    }
+    assertPatchesInScope(accepted, { taskSpec, planSteps }, {
+      userOverrideUnrelated: Boolean(userOverrideUnrelated),
+    });
+  } catch (err) {
+    if (err.code === "PATCH_REVIEW_REJECTED" || err.code === "PATCH_REVIEW_NEEDS_APPROVAL") {
+      throw err;
+    }
   }
   const results = [];
   const appliedIds = [];

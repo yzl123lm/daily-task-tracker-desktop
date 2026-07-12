@@ -79,6 +79,14 @@ const TOOL_DEFS = {
     description: "Detect RepoProfile (languages, package manager, frameworks, containers)",
     parameters: { type: "object", properties: {} },
   },
+  get_repo_map: {
+    permission: PERMISSION.READ,
+    description: "Build Repo Map and hybrid retrieval hits for a query",
+    parameters: {
+      type: "object",
+      properties: { query: { type: "string" } },
+    },
+  },
   write_task_memory: {
     permission: PERMISSION.READ,
     description: "Write a note to task memory (not disk)",
@@ -377,6 +385,16 @@ const HANDLERS = {
     const repoProfile = detectRepoProfile(ctx.root);
     return { ok: Boolean(repoProfile?.ok), repoProfile };
   },
+  get_repo_map(ctx, args) {
+    const { buildRepoMap, retrieveRepoContext } = require("./repoMapRetriever.js");
+    const repoMap = buildRepoMap(ctx.root);
+    const retrieval = retrieveRepoContext({
+      root: ctx.root,
+      message: args.query || args.q || "",
+      limit: 12,
+    });
+    return { ok: Boolean(repoMap?.ok), repoMap, retrieval };
+  },
   write_task_memory(ctx, args) {
     const uid = resolveUserId(ctx.userId);
     const ns = buildTaskNamespace(ctx.projectId, ctx.taskId);
@@ -407,6 +425,50 @@ const HANDLERS = {
   },
   stage_patch(ctx, args) {
     const proposal = patchProposalService.buildProposalFromArgs(ctx.root, args);
+    let review = null;
+    try {
+      const { reviewPatchProposal } = require("./patchReviewerService.js");
+      let taskSpec = null;
+      let planSteps = [];
+      try {
+        const { getTaskSpec } = require("./taskSpecService.js");
+        taskSpec = getTaskSpec(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId);
+      } catch {
+        /* optional */
+      }
+      try {
+        const { getPlanSteps } = require("./planStepsService.js");
+        planSteps = getPlanSteps(ctx.getUserDataPath, ctx.userId, ctx.projectId, ctx.taskId);
+      } catch {
+        /* optional */
+      }
+      review = reviewPatchProposal({
+        filePath: proposal.filePath,
+        unifiedDiff: proposal.unifiedDiff,
+        summary: proposal.summary,
+        patchQuality: proposal.patchQuality,
+        taskSpec,
+        planSteps,
+        message: args.summary || "",
+        allowUnscoped: true,
+      });
+      if (review.verdict === "reject") {
+        return {
+          ok: false,
+          code: "PATCH_REVIEW_REJECTED",
+          error: review.findings[0]?.message || "Patch Reviewer 拒绝",
+          review,
+        };
+      }
+    } catch (err) {
+      if (err.code === "PATCH_REVIEW_REJECTED") {
+        return { ok: false, code: err.code, error: err.message, review: err.review };
+      }
+    }
+    const patchQuality = {
+      ...proposal.patchQuality,
+      review: review || null,
+    };
     const patch = createStagedPatch(ctx.getUserDataPath, ctx.userId, {
       projectId: ctx.projectId,
       taskId: ctx.taskId,
@@ -417,14 +479,15 @@ const HANDLERS = {
       unifiedDiff: proposal.unifiedDiff,
       summary: proposal.summary,
       patchEdits: proposal.patchEdits,
-      patchQuality: proposal.patchQuality,
+      patchQuality,
     });
     return {
       ok: true,
       stagedPatchId: patch.id,
       status: patch.status,
       summary: patch.summary,
-      patchQuality: proposal.patchQuality,
+      patchQuality,
+      review,
     };
   },
   compress_context(ctx, args) {

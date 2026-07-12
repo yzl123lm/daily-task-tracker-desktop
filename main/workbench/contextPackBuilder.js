@@ -72,6 +72,67 @@ function buildContextPack({
     /* optional */
   }
 
+  try {
+    const {
+      buildRepoMap,
+      retrieveRepoContext,
+      formatRepoMapForContext,
+    } = require("./repoMapRetriever.js");
+    const repoMap = buildRepoMap(root);
+    const mapText = formatRepoMapForContext(repoMap);
+    const mapBudget = Math.min(700, remaining);
+    if (mapText && mapBudget > 40) {
+      sections.push({
+        type: "repoMap",
+        trust: "untrusted_code",
+        content: truncate(mapText, mapBudget),
+      });
+      remaining -= Math.min(estimateTokens(mapText), mapBudget);
+    }
+    const hybrid = retrieveRepoContext({ root, message, limit: 8 });
+    if (hybrid.hits?.length && remaining > 100) {
+      const hybridText = JSON.stringify(
+        hybrid.hits.map((h) => ({
+          path: h.path,
+          score: h.score,
+          reasons: h.reasons,
+          lines: h.lines,
+        })),
+        null,
+        2
+      );
+      const hb = Math.min(500, remaining);
+      sections.push({
+        type: "hybridRetrieval",
+        trust: "untrusted_code",
+        content: truncate(hybridText, hb),
+      });
+      remaining -= Math.min(estimateTokens(hybridText), hb);
+    }
+  } catch {
+    /* optional */
+  }
+
+  try {
+    const {
+      loadProjectInstructions,
+      formatInstructionsForContext,
+    } = require("./instructionContextService.js");
+    const instr = loadProjectInstructions(root);
+    const instrText = formatInstructionsForContext(instr);
+    const ib = Math.min(900, remaining);
+    if (instrText && ib > 40) {
+      sections.push({
+        type: "project_instructions",
+        trust: "system",
+        content: truncate(instrText, ib),
+      });
+      remaining -= Math.min(estimateTokens(instrText), ib);
+    }
+  } catch {
+    /* optional */
+  }
+
   const symbols = symbolIndexService.findSymbols(root, message, { limit: 20 });
   const symText = JSON.stringify(symbols.slice(0, 15), null, 2);
   const symTokens = estimateTokens(symText);
@@ -149,7 +210,11 @@ function buildContextPack({
       /* skip */
     }
   }
-  sections.push({ type: "snippets", content: JSON.stringify(snippets, null, 2) });
+  sections.push({
+    type: "snippets",
+    trust: "untrusted_code",
+    content: JSON.stringify(snippets, null, 2),
+  });
 
   return {
     sections,
@@ -174,6 +239,7 @@ async function buildContextPackAsync(options) {
       if (graphText) {
         pack.sections.unshift({
           type: "graphify",
+          trust: "untrusted_code",
           content: truncate(graphText, 500),
         });
         pack.graphify = graphify;

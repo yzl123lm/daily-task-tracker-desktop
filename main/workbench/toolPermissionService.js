@@ -10,6 +10,7 @@ const PROJECT_AGENT_TOOLS = new Set([
   "find_symbols",
   "analyze_package",
   "get_repo_profile",
+  "get_repo_map",
   "write_task_memory",
   "git_status",
   "preview_diff",
