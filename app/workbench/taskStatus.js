@@ -3,6 +3,8 @@ const TASK_STATUS = {
   CREATED: "CREATED",
   DRAFT: "DRAFT",
   REQUIREMENT: "REQUIREMENT",
+  CLARIFYING: "CLARIFYING",
+  SPEC_REVIEW: "SPEC_REVIEW",
   PLANNING: "PLANNING",
   WAITING_APPROVAL: "WAITING_APPROVAL",
   REVIEWING: "REVIEWING",
@@ -10,9 +12,11 @@ const TASK_STATUS = {
   APPLYING: "APPLYING",
   TESTING: "TESTING",
   FIXING: "FIXING",
+  BLOCKED: "BLOCKED",
   COMPLETED: "COMPLETED",
   DONE: "DONE",
   FAILED: "FAILED",
+  PARTIAL_FAILED: "PARTIAL_FAILED",
   PAUSED: "PAUSED",
   CANCELED: "CANCELED",
   ARCHIVED: "ARCHIVED",
@@ -31,6 +35,8 @@ const TASK_STATUS_LABELS = {
   CREATED: "已创建",
   DRAFT: "草稿",
   REQUIREMENT: "需求确认",
+  CLARIFYING: "需求澄清中",
+  SPEC_REVIEW: "规格待确认",
   PLANNING: "方案生成",
   WAITING_APPROVAL: "变更待审阅",
   REVIEWING: "变更待审阅",
@@ -38,9 +44,11 @@ const TASK_STATUS_LABELS = {
   APPLYING: "写入中",
   TESTING: "测试中",
   FIXING: "修复中",
+  BLOCKED: "已阻塞",
   COMPLETED: "已完成",
   DONE: "已完成",
   FAILED: "失败",
+  PARTIAL_FAILED: "部分失败",
   PAUSED: "已暂停",
   CANCELED: "已取消",
   ARCHIVED: "已归档",
@@ -81,6 +89,8 @@ function isActiveTaskStatus(status) {
   const s = normalizeTaskStatus(status);
   return [
     TASK_STATUS.CREATED,
+    TASK_STATUS.CLARIFYING,
+    TASK_STATUS.SPEC_REVIEW,
     TASK_STATUS.PLANNING,
     TASK_STATUS.WAITING_APPROVAL,
     TASK_STATUS.APPLYING,
@@ -88,6 +98,7 @@ function isActiveTaskStatus(status) {
     TASK_STATUS.FIXING,
     TASK_STATUS.RUNNING,
     TASK_STATUS.DEVELOPING,
+    TASK_STATUS.BLOCKED,
   ].includes(s);
 }
 

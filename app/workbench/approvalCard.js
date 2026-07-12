@@ -54,8 +54,24 @@ function renderApprovalCard(req) {
         <span class="wb-approval-card__risk ${riskClass(req.riskLevel)}">${escapeHtml(riskLabel)}</span>
       </header>
       ${req.summary ? `<p class="wb-approval-card__summary">${escapeHtml(req.summary)}</p>` : ""}
+      ${
+        Array.isArray(req.riskReasons) && req.riskReasons.length
+          ? `<ul class="wb-approval-card__reasons">${req.riskReasons
+              .map((r) => `<li>${escapeHtml(r)}</li>`)
+              .join("")}</ul>`
+          : ""
+      }
+      ${
+        req.purpose
+          ? `<p class="wb-approval-card__purpose"><strong>目的：</strong>${escapeHtml(req.purpose)}</p>`
+          : ""
+      }
       ${scopeItems ? `<ul class="wb-approval-card__scope">${scopeItems}</ul>` : ""}
-      <p class="wb-approval-card__rollback">${escapeHtml(req.rollbackHint || "")}</p>
+      <p class="wb-approval-card__rollback"><strong>撤销：</strong>${escapeHtml(req.rollbackHint || "")}</p>
+      <div class="wb-approval-card__scope-choice" role="group" aria-label="批准范围">
+        <label><input type="radio" name="wbApprovalScope" value="once" checked /> 仅本次</label>
+        <label><input type="radio" name="wbApprovalScope" value="task" /> 本任务</label>
+      </div>
       <div class="wb-approval-card__actions">
         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-approval-reject-btn">拒绝</button>
         <button type="button" class="wb-pws-btn wb-pws-btn--primary wb-approval-approve-btn">批准执行</button>
@@ -63,7 +79,9 @@ function renderApprovalCard(req) {
     </article>
   `;
   mount.querySelector(".wb-approval-approve-btn")?.addEventListener("click", () => {
-    store.approve(req.id);
+    const scope =
+      mount.querySelector('input[name="wbApprovalScope"]:checked')?.value || "once";
+    store.approve(req.id, { approvalScope: scope });
   });
   mount.querySelector(".wb-approval-reject-btn")?.addEventListener("click", () => {
     const reason = window.prompt("拒绝原因（可选）", "") || "";

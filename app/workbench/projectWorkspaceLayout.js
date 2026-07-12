@@ -91,6 +91,17 @@ const WB_PWS_LAYOUT_HTML = `
         </div>
         <div id="wbPwsApprovalMount" class="wb-pws-approval-mount"></div>
         <div id="wbPlanCard" class="wb-plan-card wb-pws-plan-card" hidden></div>
+        <details id="wbRunbookPanel" class="wb-runbook-panel" hidden>
+          <summary class="wb-runbook-panel__summary">
+            <span>交付 Runbook</span>
+            <span id="wbRunbookMeta" class="wb-runbook-panel__meta"></span>
+          </summary>
+          <div class="wb-runbook-panel__toolbar">
+            <button type="button" id="wbRunbookCopyBtn" class="wb-pws-btn wb-pws-btn--ghost">复制 Markdown</button>
+            <button type="button" id="wbRunbookRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
+          </div>
+          <pre id="wbRunbookBody" class="wb-runbook-panel__body scroll-tech"></pre>
+        </details>
         <details class="wb-pws-panel wb-pws-panel--context">
           <summary>任务上下文记忆</summary>
           <ul id="wbTaskMemories" class="wb-task-memories"></ul>

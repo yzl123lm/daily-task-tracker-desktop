@@ -1570,14 +1570,28 @@ async function applyAcceptedDiffs(opts = {}) {
     summary: autoApprove
       ? "Diff 审阅已确认，正在写入项目目录。"
       : "将应用 Diff 审阅中已接受的变更。",
+    purpose: "将 Diff 审阅中已接受的变更写入项目源码目录",
     scope: readyToWrite.map((c) => `${c.path} (+${c.additions}/-${c.deletions})`),
     riskLevel: "MEDIUM",
+    riskReasons: [
+      "将修改工作区文件（写入前自动备份）",
+      createGitBranch ? "可能创建任务分支" : "不创建 Git 分支",
+      ...(readyToWrite.some((c) => (c.reviewFindings || []).length)
+        ? ["部分文件含 Patch Reviewer 风险提示"]
+        : []),
+    ],
+    rollbackHint: "写入前会自动创建文件备份；可在备份面板还原，或使用 Git 回退。",
     autoApprove,
     details: {
       requestId,
       stagedPatchIds: readyToWrite.map((c) => c.stagedPatchId).filter(Boolean),
       source: "diff_review",
       alreadyAppliedCount: alreadyApplied.length,
+      riskReasons: [
+        "将修改工作区文件（写入前自动备份）",
+        createGitBranch ? "可能创建任务分支" : "不创建 Git 分支",
+      ],
+      purpose: "将 Diff 审阅中已接受的变更写入项目源码目录",
     },
   });
   if (!approved) {

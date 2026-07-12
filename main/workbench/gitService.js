@@ -84,6 +84,59 @@ function gitCommit(cwd, message, { userApproved } = {}) {
   };
 }
 
+function listBranches(cwd) {
+  if (!isGitRepo(cwd)) {
+    return { isRepo: false, branches: [], current: null };
+  }
+  const current = runGit(cwd, ["branch", "--show-current"]);
+  const list = runGit(cwd, ["branch", "--list", "--format=%(refname:short)"]);
+  const branches = list.success
+    ? list.stdout
+        .split(/\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  return {
+    isRepo: true,
+    current: current.success ? current.stdout || null : null,
+    branches,
+  };
+}
+
+function getHeadMeta(cwd) {
+  if (!isGitRepo(cwd)) {
+    return { isRepo: false, branch: null, shortHash: null, subject: null };
+  }
+  const branch = runGit(cwd, ["branch", "--show-current"]);
+  const hash = runGit(cwd, ["rev-parse", "--short", "HEAD"]);
+  const subject = runGit(cwd, ["log", "-1", "--pretty=%s"]);
+  return {
+    isRepo: true,
+    branch: branch.success ? branch.stdout || null : null,
+    shortHash: hash.success ? hash.stdout || null : null,
+    subject: subject.success ? subject.stdout || null : null,
+  };
+}
+
+/**
+ * Build Draft PR metadata + copy-paste commands (no network).
+ */
+function buildPrDraftMeta({ branch, title, body, agentRunId } = {}) {
+  const b = String(branch || "").trim() || "HEAD";
+  const t = String(title || "Workbench task").slice(0, 120);
+  const runLine = agentRunId ? `\n\nAgent run: ${agentRunId}` : "";
+  const prBody = `${String(body || "").trim()}${runLine}`.slice(0, 4000);
+  return {
+    branch: b,
+    title: t,
+    body: prBody,
+    commands: {
+      push: `git push -u origin ${b}`,
+      createDraftPr: `gh pr create --draft --title ${JSON.stringify(t)} --body ${JSON.stringify(prBody)}`,
+    },
+  };
+}
+
 module.exports = {
   READONLY_GIT,
   WRITE_GIT,
@@ -91,5 +144,8 @@ module.exports = {
   gitStatus,
   createTaskBranch,
   gitCommit,
+  listBranches,
+  getHeadMeta,
+  buildPrDraftMeta,
   runGit,
 };

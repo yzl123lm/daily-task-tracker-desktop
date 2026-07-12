@@ -6,6 +6,24 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+function renderRiskStrip(change) {
+  const findings = Array.isArray(change?.reviewFindings) ? change.reviewFindings : [];
+  if (!findings.length && !change?.reviewVerdict) {
+    return "";
+  }
+  const chips = findings
+    .map((f) => {
+      const sev = String(f.severity || "medium").toLowerCase();
+      return `<span class="wb-diff-risk__chip wb-diff-risk__chip--${escapeHtml(sev)}" title="${escapeHtml(f.message || "")}">${escapeHtml(f.code || sev)}</span>`;
+    })
+    .join("");
+  const msg = findings[0]?.message || (change.reviewVerdict === "needs_approval" ? "存在需确认的审查项" : "");
+  return `<div class="wb-diff-risk" data-verdict="${escapeHtml(change.reviewVerdict || "")}">
+    ${chips || `<span class="wb-diff-risk__chip">${escapeHtml(change.reviewVerdict || "review")}</span>`}
+    ${msg ? `<span class="wb-diff-risk__msg">${escapeHtml(msg)}</span>` : ""}
+  </div>`;
+}
+
 /** 最近一次成功打开 Diff 的上下文，防止后续空态重绘盖掉已加载内容 */
 const lastDiffContext = { projectId: null, taskId: null };
 
@@ -430,6 +448,7 @@ function renderDiffReviewPanel(explicit = null) {
             ${actionsHtml}
           </header>
           ${c.summary ? `<p class="wb-diff-card__summary">${escapeHtml(c.summary)}</p>` : ""}
+          ${renderRiskStrip(c)}
           <div class="wb-diff-card__body">
             <div class="wb-diff-card__diff scroll-tech">${renderDiffLines(c.diff, viewMode)}</div>
           </div>

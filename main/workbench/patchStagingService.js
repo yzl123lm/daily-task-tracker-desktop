@@ -154,6 +154,7 @@ function patchToDiffPreview(patch) {
   if (!patch) {
     return null;
   }
+  const review = patch.patchQuality?.review || null;
   return {
     stagedPatchId: patch.id,
     filePath: patch.filePath,
@@ -165,6 +166,10 @@ function patchToDiffPreview(patch) {
     linesAdded: (patch.unifiedDiff.match(/^\+[^+]/gm) || []).length,
     linesRemoved: (patch.unifiedDiff.match(/^-[^-]/gm) || []).length,
     writeApplied: patch.status === PATCH_STATUS.APPLIED,
+    patchQuality: patch.patchQuality || null,
+    review,
+    reviewFindings: review?.findings || [],
+    reviewVerdict: review?.verdict || null,
   };
 }
 

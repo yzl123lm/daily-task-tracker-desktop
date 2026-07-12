@@ -43,8 +43,14 @@ function ensureGitChangePanel() {
       </div>
       <button type="button" id="wbGitRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新状态</button>
     </header>
+    <div id="wbGitHeadMeta" class="wb-git-head-meta" hidden></div>
     <div id="wbGitSummary" class="wb-git-summary"></div>
     <ul id="wbGitChangeList" class="wb-git-change-list scroll-tech"></ul>
+    <details id="wbGitPrDraft" class="wb-git-pr-draft" hidden>
+      <summary>Draft PR 命令（本机 gh）</summary>
+      <pre id="wbGitPrDraftBody" class="wb-git-pr-draft__body scroll-tech"></pre>
+      <button type="button" id="wbGitPrCopyBtn" class="wb-pws-btn wb-pws-btn--ghost">复制命令</button>
+    </details>
     <footer class="wb-git-change-panel__commit">
       <label class="wb-field">
         <span>Commit 说明（需审批）</span>
@@ -107,6 +113,35 @@ function renderSidebarGitSummary(snap) {
   });
 }
 
+function renderGitHeadMeta(head, pr) {
+  const metaEl = document.getElementById("wbGitHeadMeta");
+  const prEl = document.getElementById("wbGitPrDraft");
+  const prBody = document.getElementById("wbGitPrDraftBody");
+  if (metaEl) {
+    if (head?.isRepo) {
+      metaEl.hidden = false;
+      metaEl.innerHTML = `
+        <span>HEAD <code>${escapeHtml(head.shortHash || "?")}</code></span>
+        <span>${escapeHtml(head.subject || "")}</span>
+      `;
+    } else {
+      metaEl.hidden = true;
+      metaEl.replaceChildren();
+    }
+  }
+  if (prEl && prBody) {
+    if (pr?.commands) {
+      const text = `${pr.commands.push}\n${pr.commands.createDraftPr}`;
+      prBody.textContent = text;
+      prEl.hidden = false;
+      prEl.dataset.commands = text;
+    } else {
+      prEl.hidden = true;
+      prBody.textContent = "";
+    }
+  }
+}
+
 function renderGitChangePanel(status) {
   ensureGitChangePanel();
   const { projectId } = getContext();
@@ -120,9 +155,12 @@ function renderGitChangePanel(status) {
     if (!snap?.isRepo) {
       label.textContent = "非 Git 仓库（受控写入的分支选项将跳过）";
     } else {
-      label.textContent = `分支 ${snap.branch || "detached"} · ${snap.clean ? "工作区干净" : `${snap.changeCount} 项变更`}`;
+      const headBit = snap.head?.shortHash ? ` · ${snap.head.shortHash}` : "";
+      label.textContent = `分支 ${snap.branch || "detached"}${headBit} · ${snap.clean ? "工作区干净" : `${snap.changeCount} 项变更`}`;
     }
   }
+
+  renderGitHeadMeta(snap?.head || (snap?.isRepo ? { isRepo: true, shortHash: null, subject: null } : null), snap?.pr);
 
   if (summary) {
     if (!snap?.isRepo) {
@@ -146,10 +184,14 @@ function renderGitChangePanel(status) {
     list.replaceChildren();
     if (!snap?.isRepo) {
       list.innerHTML = '<li class="wb-git-change-list__empty">—</li>';
+      renderSidebarGitSummary(snap);
+      window.__wbRenderSourceRootGitStatus?.(snap);
       return;
     }
     if (!snap.changes?.length) {
       list.innerHTML = '<li class="wb-git-change-list__empty">工作区干净，无变更文件</li>';
+      renderSidebarGitSummary(snap);
+      window.__wbRenderSourceRootGitStatus?.(snap);
       return;
     }
     snap.changes.forEach((chg) => {
@@ -188,7 +230,26 @@ async function refreshGitChangePanel(projectId) {
   }
   try {
     const status = await api.wbProjectGitStatus({ projectId: pid });
-    const snap = window.__wbGitChangeStore?.setStatus?.(pid, status);
+    let head = null;
+    let pr = null;
+    if (typeof api.wbProjectGitHead === "function" && status?.isRepo) {
+      try {
+        const meta = await api.wbProjectGitHead({ projectId: pid });
+        head = meta?.head || null;
+        if (head?.isRepo && head.branch) {
+          pr = {
+            commands: {
+              push: `git push -u origin ${head.branch}`,
+              createDraftPr: `gh pr create --draft --title "Workbench delivery" --body "Generated from Workbench Git panel"`,
+            },
+          };
+        }
+      } catch {
+        /* optional */
+      }
+    }
+    const enriched = { ...status, head, pr };
+    const snap = window.__wbGitChangeStore?.setStatus?.(pid, enriched) || enriched;
     renderGitChangePanel(snap);
     window.__wbRenderSourceRootGitStatus?.(status);
   } catch {
@@ -213,6 +274,18 @@ function bindGitChangePanel() {
     }
     document.getElementById("wbGitCommitBtn")?.addEventListener("click", () => {
       void window.__wbGitCommitConfirmed?.();
+    });
+    document.getElementById("wbGitPrCopyBtn")?.addEventListener("click", async () => {
+      const text = document.getElementById("wbGitPrDraft")?.dataset?.commands || "";
+      if (!text) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        window.__wbShowComposerToast?.("PR 命令已复制", { type: "success" });
+      } catch {
+        /* ignore */
+      }
     });
   }
 }

@@ -261,7 +261,8 @@ function renderTaskDetail(task, planOutput = null) {
     projectId: task.projectId || window.__wbStore?.getState?.().selectedProjectId,
   });
   const safePlan = planOutput ? window.__wbSanitizeAgentOutputForUi?.(planOutput) || planOutput : null;
-  const statusText = resolveTaskDisplayStatus(task);
+  const ui = resolveTaskUiState(task, composerPhase, safePlan);
+  const statusText = ui?.label || resolveTaskDisplayStatus(task);
   const modeText =
     composerPhase === "diff_ready" || composerPhase === "diff_accepted"
       ? "PATCH_PROPOSE"
@@ -272,8 +273,9 @@ function renderTaskDetail(task, planOutput = null) {
           : composerPhase === "written"
             ? "已写入"
             : "PLAN_ONLY / 受控写入";
-  const nextHint =
-    composerPhase === "plan_ready"
+  const nextHint = ui?.nextAction
+    ? `下一步：${ui.nextAction}`
+    : composerPhase === "plan_ready"
       ? "下一步：生成代码变更"
       : composerPhase === "clarifying"
         ? "下一步：确认规格后继续"
@@ -298,12 +300,15 @@ function renderTaskDetail(task, planOutput = null) {
   const statusEl = document.getElementById("wbAgentRunStatus");
   const modeEl = document.getElementById("wbAgentRunMode");
   const descEl = document.getElementById("wbTaskDetailDesc");
+  const stepEl = document.getElementById("wbTaskDetailStep");
   if (titleEl) {
     titleEl.textContent = task.title || "当前任务";
   }
   if (statusEl) {
     statusEl.hidden = false;
     statusEl.textContent = `${statusText} · ${nextHint}`;
+    statusEl.classList.toggle("is-blocked", Boolean(ui?.isBlocked));
+    statusEl.classList.toggle("is-success", Boolean(ui?.isSuccessVisual));
   }
   if (modeEl) {
     modeEl.hidden = false;
@@ -316,8 +321,24 @@ function renderTaskDetail(task, planOutput = null) {
     } else if (task.description) {
       descBits.push(window.__wbStripModelThinking?.(task.description) || task.description);
     }
+    if (ui?.risks?.length) {
+      descBits.push(`风险：${ui.risks[0]}`);
+    }
     descEl.textContent = descBits.join(" · ").slice(0, 160);
     descEl.hidden = !descBits.length;
+  }
+  if (stepEl) {
+    const ck = ui?.checkpointHint;
+    if (ck) {
+      stepEl.hidden = false;
+      stepEl.textContent = ck;
+    } else if (ui?.diff?.pending > 0) {
+      stepEl.hidden = false;
+      stepEl.textContent = `Diff 待审 ${ui.diff.pending}/${ui.diff.total}`;
+    } else {
+      stepEl.hidden = true;
+      stepEl.textContent = "";
+    }
   }
   window.__wbActivityFeed?.updateHeader?.({
     title: task.title || "当前任务",
@@ -337,7 +358,25 @@ let composerPhase = "idle";
 let composerLiveSteps = [];
 let unsubscribeAgentEvents = null;
 let agentEventPollTimer = null;
+/** BL-019: last checkpoint snapshot for selected task (single UI truth). */
+let taskCheckpointCache = null;
+/** BL-020: cached runbook markdown for copy. */
+let lastRunbookMarkdown = "";
 const WB_AUTO_VERIFY_KEY = "wb_auto_verify_v1";
+
+function resolveTaskUiState(task, phase = composerPhase, planOutput = null) {
+  const helper = window.__wbTaskUiState?.getTaskUiState;
+  if (typeof helper !== "function") {
+    return null;
+  }
+  return helper({
+    task,
+    composerPhase: phase,
+    agentRunStarting,
+    checkpoint: taskCheckpointCache,
+    planOutput,
+  });
+}
 
 const COMPOSER_STEP_LABELS = {
   create_task: "创建任务",
@@ -962,12 +1001,19 @@ function getSelectedComposerTask() {
 }
 
 function resolveTaskDisplayStatus(task, phase = composerPhase) {
+  const ui = resolveTaskUiState(task, phase);
+  if (ui?.label) {
+    return ui.label;
+  }
   const status = String(
     window.__wbTaskStatus?.normalizeTaskStatus?.(task?.status) || task?.status || ""
   ).toUpperCase();
   const step = String(task?.currentStep || "");
   if (status === "COMPLETED" || status === "DONE" || status === "ARCHIVED") {
     return "已完成";
+  }
+  if (status === "BLOCKED") {
+    return "已阻塞";
   }
   if (phase === "running" || agentRunStarting) {
     return "运行中";
@@ -2022,25 +2068,135 @@ async function completeComposerTask() {
     return;
   }
   const api = wbApi();
-  if (typeof api.wbProjectTaskUpdate === "function") {
+  let result = null;
+  if (typeof api.wbProjectTaskComplete === "function") {
+    result = await api.wbProjectTaskComplete({
+      projectId,
+      taskId,
+      currentStep: "用户确认完成",
+    });
+  } else if (typeof api.wbProjectTaskUpdate === "function") {
     await api.wbProjectTaskUpdate({
       projectId,
       taskId,
       status: "COMPLETED",
       currentStep: "任务完成",
     });
+    result = { completed: true };
   }
-  finalizeOpenComposerSteps();
-  upsertComposerStep("complete", "done", "用户已确认完成");
   const tasks = await api.wbProjectTasksList({ projectId });
   window.__wbStore?.setTasks?.(tasks);
   renderTasks(tasks, taskId);
+
+  if (result && result.completed === false) {
+    const blocker = result.guard?.blockers?.[0]?.message || "完成守卫未通过";
+    finalizeOpenComposerSteps();
+    upsertComposerStep("complete", "error", blocker);
+    showComposerToast(blocker, { type: "error" });
+    updateComposerUi("written");
+    renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
+    void refreshRunbookPanel(projectId, taskId);
+    return;
+  }
+
+  finalizeOpenComposerSteps();
+  upsertComposerStep("complete", "done", "用户已确认完成");
   advanceComposerPhase("done", {
     toast: "任务已确认完成。是否新建任务推进下一需求？",
     toastType: "success",
     finalize: false,
   });
   renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
+  void refreshRunbookPanel(projectId, taskId);
+}
+
+async function refreshCheckpointCache(projectId, taskId) {
+  const api = wbApi();
+  taskCheckpointCache = null;
+  if (!projectId || !taskId || typeof api.wbProjectCheckpointGet !== "function") {
+    return null;
+  }
+  try {
+    taskCheckpointCache = await api.wbProjectCheckpointGet({ projectId, taskId });
+  } catch {
+    taskCheckpointCache = null;
+  }
+  return taskCheckpointCache;
+}
+
+function bindRunbookPanelOnce() {
+  const panel = document.getElementById("wbRunbookPanel");
+  if (!panel || panel.dataset.bound === "1") {
+    return;
+  }
+  panel.dataset.bound = "1";
+  document.getElementById("wbRunbookCopyBtn")?.addEventListener("click", async () => {
+    const text = lastRunbookMarkdown || document.getElementById("wbRunbookBody")?.textContent || "";
+    if (!text) {
+      showComposerToast("暂无 Runbook 可复制", { type: "warn" });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      showComposerToast("Runbook 已复制", { type: "success" });
+    } catch {
+      showComposerToast("复制失败，请手动选择文本", { type: "warn" });
+    }
+  });
+  document.getElementById("wbRunbookRefreshBtn")?.addEventListener("click", () => {
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    const taskId = resolveCurrentTaskId();
+    void refreshRunbookPanel(projectId, taskId);
+  });
+}
+
+async function refreshRunbookPanel(projectId, taskId) {
+  bindRunbookPanelOnce();
+  const panel = document.getElementById("wbRunbookPanel");
+  const body = document.getElementById("wbRunbookBody");
+  const meta = document.getElementById("wbRunbookMeta");
+  if (!panel || !body) {
+    return;
+  }
+  const api = wbApi();
+  if (!projectId || !taskId || typeof api.wbProjectRunbookGet !== "function") {
+    panel.hidden = true;
+    lastRunbookMarkdown = "";
+    return;
+  }
+  try {
+    const data = await api.wbProjectRunbookGet({ projectId, taskId });
+    const md = data?.markdown || "";
+    lastRunbookMarkdown = md;
+    body.textContent = md || "（暂无交付内容）";
+    const m = data?.manifest;
+    const bits = [];
+    if (m?.git?.isRepo) {
+      bits.push(`${m.git.branch || "?"}@${m.git.shortHash || "?"}`);
+    }
+    if (m?.acceptance?.guardOk === false) {
+      bits.push("守卫未通过");
+    } else if (m?.complete) {
+      bits.push("Manifest 完整");
+    }
+    if (meta) {
+      meta.textContent = bits.join(" · ");
+    }
+    panel.hidden = false;
+    // 完成态或已有变更时默认展开
+    const status = String(
+      window.__wbTaskStatus?.normalizeTaskStatus?.(
+        (window.__wbStore?.getState?.().tasks || []).find((t) => t.id === taskId)?.status
+      ) || ""
+    ).toUpperCase();
+    if (status === "COMPLETED" || status === "DONE" || composerPhase === "done" || composerPhase === "ready_confirm") {
+      panel.open = true;
+    }
+  } catch (err) {
+    lastRunbookMarkdown = "";
+    body.textContent = err?.message || "加载 Runbook 失败";
+    panel.hidden = false;
+  }
 }
 
 function setAgentRunning(running, agentRunId) {
@@ -2220,9 +2376,11 @@ async function loadTaskContext(projectId, taskId) {
   const namespace = `task:${projectId}:${resolvedTaskId}`;
   const tasks = window.__wbStore?.getState?.().tasks || [];
   const task = tasks.find((t) => t.id === resolvedTaskId);
+  await refreshCheckpointCache(projectId, resolvedTaskId);
   if (task) {
     renderTaskDetail(task);
   }
+  void refreshRunbookPanel(projectId, resolvedTaskId);
   const memList = document.getElementById("wbTaskMemories");
   const runsList = document.getElementById("wbAgentRuns");
   if (typeof api.wbMemorySearch === "function" && memList) {
@@ -2365,7 +2523,8 @@ function renderTasks(tasks, selectedTaskId, { autoSelectFirst = true } = {}) {
     item.className = "wb-task-item";
     item.dataset.taskId = task.id;
     item.classList.toggle("is-active", task.id === activeId);
-    const statusLabel = taskStatusLabel(task.status, task.currentStep);
+    const statusLabel =
+      resolveTaskUiState(task)?.label || taskStatusLabel(task.status, task.currentStep);
     item.innerHTML = `
       <div class="wb-task-item__main">
         <span class="wb-task-item__title">${escapeHtml(task.title)}</span>
@@ -2961,6 +3120,7 @@ function bindProjectWorkspace() {
   window.__wbBindCodeWorkspaceTabs?.();
   window.__wbBindTestResultPanel?.();
   window.__wbBindGitChangePanel?.();
+  bindRunbookPanelOnce();
   bindTaskFilters();
   const openLogBtn = document.getElementById("wbActivityOpenLogBtn");
   if (openLogBtn && openLogBtn.dataset.bound !== "1") {

@@ -41,9 +41,11 @@ function requestApproval({
   actionType,
   title,
   summary,
+  purpose,
   scope = [],
   details = {},
   riskLevel,
+  riskReasons = [],
   rollbackHint,
   stagedPatchId,
   onApprove,
@@ -74,10 +76,16 @@ function requestApproval({
     actionType,
     title: title || ACTION_LABELS[actionType] || "操作审批",
     summary: summary || "",
+    purpose: purpose || details.purpose || "",
     scope: Array.isArray(scope) ? scope : [],
     details,
     stagedPatchId: stagedPatchId || details.stagedPatchId || null,
     riskLevel: riskLevel || inferRiskLevel(actionType, details),
+    riskReasons: Array.isArray(riskReasons)
+      ? riskReasons
+      : Array.isArray(details.riskReasons)
+        ? details.riskReasons
+        : [],
     rollbackHint: rollbackHint || "受控写入前会自动创建备份，可在备份面板还原。",
     status: autoApprove ? "approved" : "waiting",
     createdAt: new Date().toISOString(),
@@ -102,17 +110,18 @@ function requestApproval({
   });
 }
 
-function approve(id) {
+function approve(id, options = {}) {
   if (!pending || pending.id !== id) {
     return false;
   }
   const req = pending;
   pending = null;
   req.status = "approved";
+  req.approvalScope = options.approvalScope || "once";
   history.unshift(req);
   emitChange();
   try {
-    req.onApprove?.();
+    req.onApprove?.(req.approvalScope);
   } catch {
     /* ignore */
   }

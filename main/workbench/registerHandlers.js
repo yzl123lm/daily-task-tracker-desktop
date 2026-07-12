@@ -222,11 +222,76 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
   ipcMain.handle("wb-project-delivery-manifest-get", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
-    const { getDeliveryManifest, buildDeliveryManifest } = require("./deliveryManifestService.js");
-    return (
+    const {
+      getDeliveryManifest,
+      buildDeliveryManifest,
+      formatDeliveryRunbook,
+    } = require("./deliveryManifestService.js");
+    const manifest =
       getDeliveryManifest(getUserDataPath, payload?.userId, projectId, taskId) ||
-      buildDeliveryManifest(getUserDataPath, payload?.userId, { projectId, taskId })
-    );
+      buildDeliveryManifest(getUserDataPath, payload?.userId, {
+        projectId,
+        taskId,
+        getDefaultProjectRoot,
+      });
+    if (payload?.format === "markdown" || payload?.format === "runbook") {
+      return {
+        markdown: manifest.runbookMarkdown || formatDeliveryRunbook(manifest),
+        manifest,
+      };
+    }
+    return manifest;
+  });
+
+  ipcMain.handle("wb-project-runbook-get", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const {
+      getDeliveryManifest,
+      buildDeliveryManifest,
+      formatDeliveryRunbook,
+    } = require("./deliveryManifestService.js");
+    const manifest =
+      getDeliveryManifest(getUserDataPath, payload?.userId, projectId, taskId) ||
+      buildDeliveryManifest(getUserDataPath, payload?.userId, {
+        projectId,
+        taskId,
+        getDefaultProjectRoot,
+      });
+    return {
+      markdown: manifest.runbookMarkdown || formatDeliveryRunbook(manifest),
+      manifest,
+    };
+  });
+
+  ipcMain.handle("wb-project-task-complete", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { tryMarkTaskCompleted } = require("./taskCompletionService.js");
+    const { resolveUserId } = require("./projectService.js");
+    const uid = resolveUserId(payload?.userId);
+    return tryMarkTaskCompleted(getUserDataPath, uid, projectId, taskId, {
+      verifyResult: payload?.verifyResult || null,
+      currentStep: payload?.currentStep || "用户确认完成",
+      getDefaultProjectRoot,
+      persistEvidence: payload?.persistEvidence !== false,
+    });
+  });
+
+  ipcMain.handle("wb-project-git-head", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const { getProject, resolveUserId } = require("./projectService.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const { getHeadMeta, listBranches } = require("./gitService.js");
+    const uid = resolveUserId(payload?.userId);
+    const project = getProject(getUserDataPath, uid, projectId);
+    if (!project) throw new Error("项目不存在");
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    if (!root) throw new Error("未配置项目代码目录");
+    return {
+      head: getHeadMeta(root),
+      branches: listBranches(root),
+    };
   });
 
   ipcMain.handle("wb-project-patches-list", (_event, payload) => {

@@ -265,6 +265,53 @@
   flex-shrink: 0;
 }
 
+.wb-git-head-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 0 14px 8px;
+  font-size: 11px;
+  color: #6b7a90;
+  flex-shrink: 0;
+}
+
+.wb-git-head-meta code {
+  color: #1e6bff;
+}
+
+.wb-git-pr-draft {
+  margin: 0 12px 10px;
+  border: 1px solid #e8f1fc;
+  border-radius: 10px;
+  background: #f7fbff;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.wb-git-pr-draft[hidden] {
+  display: none !important;
+}
+
+.wb-git-pr-draft summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2d3d;
+}
+
+.wb-git-pr-draft__body {
+  margin: 8px 0;
+  padding: 8px;
+  max-height: 120px;
+  overflow: auto;
+  font-size: 11px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e8f1fc;
+}
+
 .wb-git-summary__empty,
 .wb-git-summary__clean {
   margin: 0;

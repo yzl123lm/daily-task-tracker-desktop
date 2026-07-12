@@ -86,6 +86,11 @@ function normalizeChange(preview, index, taskId) {
     alreadyApplied: preview.status === "APPLIED" || Boolean(preview.writeApplied),
     proposedContent,
     originalContent,
+    reviewFindings: Array.isArray(preview.reviewFindings)
+      ? preview.reviewFindings
+      : preview.review?.findings || [],
+    reviewVerdict: preview.reviewVerdict || preview.review?.verdict || null,
+    patchQuality: preview.patchQuality || null,
     raw: preview,
   };
 }
