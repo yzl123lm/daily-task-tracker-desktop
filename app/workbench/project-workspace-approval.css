@@ -247,6 +247,77 @@ body.wb-waiting-approval .wb-pws-panel--composer {
   background: #fff;
 }
 
+.wb-async-runs-panel {
+  margin: 8px 0 12px;
+  border: 1px solid #dcebfa;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  overflow: hidden;
+}
+
+.wb-async-runs-panel__summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2d3d;
+  background: #f7fbff;
+  list-style: none;
+}
+
+.wb-async-runs-panel__summary::-webkit-details-marker {
+  display: none;
+}
+
+.wb-async-runs-panel__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e8f1fc;
+}
+
+.wb-async-runs-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 10px;
+  max-height: 160px;
+  overflow: auto;
+  font-size: 11px;
+  color: #374151;
+}
+
+.wb-async-runs-list__empty {
+  margin: 0;
+  color: #6b7a90;
+}
+
+.wb-async-runs-list__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.wb-async-runs-list__item:last-child {
+  border-bottom: none;
+}
+
+.wb-async-runs-list__status {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: #1e6bff;
+}
+
+.wb-async-runs-list__status.is-failed {
+  color: #b91c1c;
+}
+
+.wb-async-runs-list__status.is-done {
+  color: #15803d;
+}
+
 .wb-agent-run-header__status.is-blocked {
   color: #b91c1c;
 }

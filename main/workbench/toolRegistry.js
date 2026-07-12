@@ -157,6 +157,23 @@ const TOOL_DEFS = {
       required: ["path"],
     },
   },
+  spawn_sub_agent: {
+    permission: PERMISSION.READ,
+    description:
+      "Spawn a controlled read-only sub-agent (explore|review|analyze_logs|generate_tests). Parent owns merge and final evidence.",
+    parameters: {
+      type: "object",
+      properties: {
+        purpose: {
+          type: "string",
+          description: "explore | review | analyze_logs | generate_tests",
+        },
+        message: { type: "string" },
+        maxRounds: { type: "number" },
+      },
+      required: ["message"],
+    },
+  },
   mock_echo: {
     permission: PERMISSION.READ,
     description: "Mock tool for tests",
@@ -212,9 +229,13 @@ function llmVerifyToolEnabled() {
   return String(process.env.WB_AGENT_LLM_VERIFY || "1") !== "0";
 }
 
-function listToolSchemas(mode = "PLAN_ONLY") {
+function subAgentToolEnabled() {
+  return String(process.env.WB_AGENT_SUBAGENT || "1") !== "0";
+}
+
+function listToolSchemas(mode = "PLAN_ONLY", ctx = null) {
   const allowed = MODE_ALLOWED[String(mode).toUpperCase()] || MODE_ALLOWED.PLAN_ONLY;
-  return Object.entries(TOOL_DEFS)
+  const schemas = Object.entries(TOOL_DEFS)
     .filter(([name, def]) => {
       if (name === "compress_context" && !compressContextToolEnabled()) {
         return false;
@@ -223,6 +244,12 @@ function listToolSchemas(mode = "PLAN_ONLY") {
         (name === "run_verification" || name === "list_verification_profiles") &&
         !llmVerifyToolEnabled()
       ) {
+        return false;
+      }
+      if (name === "spawn_sub_agent" && !subAgentToolEnabled()) {
+        return false;
+      }
+      if (ctx?.subAgent && name === "spawn_sub_agent") {
         return false;
       }
       return allowed.has(def.permission);
@@ -235,10 +262,51 @@ function listToolSchemas(mode = "PLAN_ONLY") {
         parameters: def.parameters,
       },
     }));
+
+  // BL-021: merge enabled MCP tools (independent permission domain)
+  if (!ctx?.subAgent) {
+    try {
+      const { mcpAgentEnabled, listMcpToolSchemas } = require("./mcpGatewayService.js");
+      if (mcpAgentEnabled() && typeof ctx?.getUserDataPath === "function") {
+        for (const t of listMcpToolSchemas(ctx.getUserDataPath)) {
+          schemas.push(t);
+        }
+      }
+    } catch {
+      /* optional */
+    }
+  } else {
+    // sub-agents may still use MCP READ tools
+    try {
+      const { mcpAgentEnabled, listMcpToolSchemas } = require("./mcpGatewayService.js");
+      if (mcpAgentEnabled() && typeof ctx?.getUserDataPath === "function") {
+        for (const t of listMcpToolSchemas(ctx.getUserDataPath)) {
+          schemas.push(t);
+        }
+      }
+    } catch {
+      /* optional */
+    }
+  }
+  return schemas;
 }
 
-function assertToolAllowed(toolName, mode) {
+function assertToolAllowed(toolName, mode, ctx = null) {
   const name = normalizeToolName(toolName);
+  if (name.startsWith("graphify_") || name.startsWith("mcp_")) {
+    const { findPackForTool, mcpAgentEnabled } = require("./mcpGatewayService.js");
+    if (!mcpAgentEnabled()) {
+      const err = new Error("MCP 工具已禁用");
+      err.code = "TOOL_FORBIDDEN";
+      throw err;
+    }
+    if (typeof ctx?.getUserDataPath === "function" && !findPackForTool(ctx.getUserDataPath, name)) {
+      const err = new Error(`MCP 工具未启用: ${name}`);
+      err.code = "TOOL_FORBIDDEN";
+      throw err;
+    }
+    return { permission: PERMISSION.READ, description: name, mcp: true };
+  }
   const def = getToolDef(name);
   if (!def) {
     const err = new Error(`未知工具: ${toolName}`);
@@ -269,24 +337,69 @@ function assertToolAllowed(toolName, mode) {
     err.code = "TOOL_FORBIDDEN";
     throw err;
   }
+  if (name === "spawn_sub_agent") {
+    if (!subAgentToolEnabled()) {
+      const err = new Error("spawn_sub_agent 已禁用");
+      err.code = "TOOL_FORBIDDEN";
+      throw err;
+    }
+    if (ctx?.subAgent) {
+      const err = new Error("子 Agent 不可再派生子 Agent");
+      err.code = "TOOL_FORBIDDEN";
+      throw err;
+    }
+  }
   return def;
 }
 
 async function dispatchTool(ctx, toolName, args = {}) {
   const name = normalizeToolName(toolName);
-  const def = assertToolAllowed(name, ctx.mode);
-  const handler = HANDLERS[name];
-  if (!handler) {
-    const err = new Error(`工具未实现: ${name}`);
-    err.code = "TOOL_NOT_IMPLEMENTED";
-    throw err;
+  const { runHooks } = require("./toolHookRegistry.js");
+
+  const pre = await runHooks("preToolUse", { ctx, toolName: name, args });
+  if (!pre.allowed) {
+    return {
+      ok: false,
+      code: "HOOK_DENIED",
+      error: pre.error || "preToolUse 拒绝",
+      hookDecisions: pre.decisions,
+      trust: "system",
+    };
   }
+
+  const def = assertToolAllowed(name, ctx.mode, ctx);
   let result;
   try {
-    result = await handler(ctx, args);
+    if (def.mcp || name.startsWith("graphify_") || name.startsWith("mcp_")) {
+      const { callMcpTool } = require("./mcpGatewayService.js");
+      result = await callMcpTool(ctx.getUserDataPath, name, args, { appRoot: ctx.appRoot });
+    } else {
+      const handler = HANDLERS[name];
+      if (!handler) {
+        const err = new Error(`工具未实现: ${name}`);
+        err.code = "TOOL_NOT_IMPLEMENTED";
+        throw err;
+      }
+      result = await handler(ctx, args);
+    }
   } catch (e) {
     result = { ok: false, error: e.message, code: e.code || "TOOL_ERROR" };
   }
+
+  const post = await runHooks("postToolUse", { ctx, toolName: name, args, result });
+  if (!post.allowed) {
+    result = {
+      ok: false,
+      code: "HOOK_DENIED",
+      error: post.error || "postToolUse 拒绝",
+      hookDecisions: post.decisions,
+      priorResult: result,
+      trust: "system",
+    };
+  } else if (post.decisions?.length) {
+    result = { ...result, hookDecisions: [...(pre.decisions || []), ...post.decisions] };
+  }
+
   const { recordToolOperation } = require("./toolPermissionService.js");
   recordToolOperation(ctx.getUserDataPath, ctx.userId, {
     agentRunId: ctx.agentRunId,
@@ -300,8 +413,8 @@ async function dispatchTool(ctx, toolName, args = {}) {
         ? "MEDIUM"
         : def.permission === PERMISSION.VERIFY
           ? "MEDIUM"
-          : def.permission === PERMISSION.MEMORY_WRITE
-            ? "LOW"
+          : def.mcp
+            ? "MEDIUM"
             : "LOW",
   });
   return result;
@@ -310,6 +423,15 @@ async function dispatchTool(ctx, toolName, args = {}) {
 const HANDLERS = {
   mock_echo(_ctx, args) {
     return { ok: true, echo: String(args.text || "") };
+  },
+  async spawn_sub_agent(ctx, args) {
+    const { runSubAgent } = require("./subAgentRunner.js");
+    const purpose = String(args.purpose || "explore").toLowerCase();
+    return runSubAgent(ctx, {
+      purpose,
+      message: args.message,
+      maxRounds: args.maxRounds,
+    });
   },
   list_files(ctx, args) {
     const entries = projectCodeService.listTreeEntries(ctx.root);

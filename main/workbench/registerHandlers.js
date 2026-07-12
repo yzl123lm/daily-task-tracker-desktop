@@ -29,7 +29,7 @@ const backupRestoreService = require("./backupRestoreService.js");
 const patchStagingService = require("./patchStagingService.js");
 const verificationService = require("./verificationService.js");
 
-function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProjectRoot }) {
+function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProjectRoot, getAppRoot }) {
   if (!ipcMain || typeof getUserDataPath !== "function") {
     throw new Error("registerWorkbenchHandlers 缺少参数");
   }
@@ -38,6 +38,16 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     getDefaultProjectRoot:
       typeof getDefaultProjectRoot === "function" ? getDefaultProjectRoot : null,
   });
+  try {
+    const { configureMcpGateway } = require("./mcpGatewayService.js");
+    if (typeof getAppRoot === "function") {
+      configureMcpGateway({ getAppRoot });
+    } else if (typeof getDefaultProjectRoot === "function") {
+      configureMcpGateway({ getAppRoot: getDefaultProjectRoot });
+    }
+  } catch {
+    /* optional */
+  }
 
   function resolveRootForProject(project) {
     return projectCodeService.resolveProjectRoot(project, getDefaultProjectRoot);
@@ -151,6 +161,7 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       patchIds: payload?.patchIds,
       createGitBranch: payload?.createGitBranch,
       agentRunId: payload?.agentRunId,
+      existingRunId: payload?.existingRunId,
       scene: payload?.scene,
       autoVerify: payload?.autoVerify,
       verifyScripts: payload?.verifyScripts,
@@ -159,6 +170,82 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
       basedOnLastPlan: payload?.basedOnLastPlan,
       webContents: event?.sender || null,
     });
+  });
+
+  ipcMain.handle("wb-project-agent-run-async", (event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { enqueueAgentRun } = require("./asyncAgentQueue.js");
+    return enqueueAgentRun(agentOrchestrator.runProjectAgent, getUserDataPath, payload?.userId, {
+      projectId,
+      taskId,
+      message: payload?.message,
+      mode: payload?.mode || "PLAN_ONLY",
+      fixContext: payload?.fixContext,
+      scene: payload?.scene,
+      autoVerify: payload?.autoVerify,
+      source: payload?.source || "async_queue",
+      purpose: payload?.purpose || "async",
+      webContents: event?.sender || null,
+    });
+  });
+
+  ipcMain.handle("wb-async-runs-list", (_event, payload) => {
+    const { listAsyncJobs } = require("./asyncAgentQueue.js");
+    return listAsyncJobs({
+      projectId: payload?.projectId || null,
+      taskId: payload?.taskId || null,
+    });
+  });
+
+  ipcMain.handle("wb-mcp-gateway-status", async () => {
+    const { getMcpGatewayStatus } = require("./mcpGatewayService.js");
+    return getMcpGatewayStatus(getUserDataPath);
+  });
+
+  ipcMain.handle("wb-extension-packs-list", () => {
+    const { loadExtensionPacks } = require("./mcpGatewayService.js");
+    return loadExtensionPacks(getUserDataPath);
+  });
+
+  ipcMain.handle("wb-extension-pack-set-enabled", (_event, payload) => {
+    const packId = String(payload?.packId || "").trim();
+    if (!packId) throw new Error("缺少 packId");
+    const { setPackEnabled } = require("./mcpGatewayService.js");
+    return setPackEnabled(getUserDataPath, packId, Boolean(payload?.enabled), {
+      adminApproved: Boolean(payload?.adminApproved),
+    });
+  });
+
+  ipcMain.handle("wb-tool-hooks-list", () => {
+    const { listHooks } = require("./toolHookRegistry.js");
+    return listHooks();
+  });
+
+  ipcMain.handle("wb-subagent-run", async (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { runSubAgent } = require("./subAgentRunner.js");
+    const { resolveProjectRoot } = require("./projectCodeService.js");
+    const project = projectService.getProject(getUserDataPath, payload?.userId, projectId);
+    const root = resolveProjectRoot(project, getDefaultProjectRoot);
+    return runSubAgent(
+      {
+        getUserDataPath,
+        userId: payload?.userId,
+        projectId,
+        taskId,
+        agentRunId: payload?.parentRunId || `manual_${Date.now()}`,
+        mode: "PLAN_ONLY",
+        root,
+        getDefaultProjectRoot,
+      },
+      {
+        purpose: payload?.purpose || "explore",
+        message: payload?.message,
+        maxRounds: payload?.maxRounds,
+      }
+    );
   });
 
   ipcMain.handle("wb-project-agent-cancel", (_event, payload) => {

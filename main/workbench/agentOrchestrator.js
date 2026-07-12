@@ -497,13 +497,23 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   let output;
   let runStatus = RUN_STATUS.COMPLETED;
   try {
-    const started = startAgentRun(getUserDataPath, uid, {
-      projectId,
-      taskId,
-      mode,
-      inputText: message,
-    });
-    agentRunId = started.runId;
+    if (payload.existingRunId) {
+      agentRunId = String(payload.existingRunId);
+      const existing = getAgentRun(getUserDataPath, uid, projectId, taskId, agentRunId);
+      if (!existing || !["PENDING", "RUNNING"].includes(existing.status)) {
+        const err = new Error("existingRunId 无效或已结束");
+        err.code = "AGENT_RUN_STALE";
+        throw err;
+      }
+    } else {
+      const started = startAgentRun(getUserDataPath, uid, {
+        projectId,
+        taskId,
+        mode,
+        inputText: message,
+      });
+      agentRunId = started.runId;
+    }
     const fixStateForGrant = getFixLoopState(getUserDataPath, uid, projectId, taskId);
     const policy = String(payload.verifyApprovalPolicy || "").toLowerCase();
     if (

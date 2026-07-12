@@ -24,6 +24,7 @@ function registerExtractedIpcHandlers(ipcMain, { app }) {
   registerWorkbenchHandlers(ipcMain, {
     getUserDataPath: () => app.getPath("userData"),
     getDefaultProjectRoot: () => path.resolve(__dirname, "..", ".."),
+    getAppRoot: () => path.resolve(__dirname, "..", ".."),
   });
   const mcp = registerMcpHandlers(ipcMain, {
     getAppRoot: () => path.resolve(__dirname, "..", ".."),

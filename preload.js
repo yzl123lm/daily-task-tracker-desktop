@@ -379,6 +379,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectAgentEventsList: (payload) =>
     ipcRenderer.invoke("wb-project-agent-events-list", payload || {}),
   wbProjectAgentRun: (payload) => ipcRenderer.invoke("wb-project-agent-run", payload || {}),
+  wbProjectAgentRunAsync: (payload) =>
+    ipcRenderer.invoke("wb-project-agent-run-async", payload || {}),
+  wbAsyncRunsList: (payload) => ipcRenderer.invoke("wb-async-runs-list", payload || {}),
+  wbMcpGatewayStatus: () => ipcRenderer.invoke("wb-mcp-gateway-status"),
+  wbExtensionPacksList: () => ipcRenderer.invoke("wb-extension-packs-list"),
+  wbExtensionPackSetEnabled: (payload) =>
+    ipcRenderer.invoke("wb-extension-pack-set-enabled", payload || {}),
+  wbToolHooksList: () => ipcRenderer.invoke("wb-tool-hooks-list"),
+  wbSubagentRun: (payload) => ipcRenderer.invoke("wb-subagent-run", payload || {}),
   wbProjectAgentCancel: (payload) => ipcRenderer.invoke("wb-project-agent-cancel", payload || {}),
   wbProjectTaskSpecGet: (payload) => ipcRenderer.invoke("wb-project-task-spec-get", payload || {}),
   wbProjectTaskSpecConfirm: (payload) =>

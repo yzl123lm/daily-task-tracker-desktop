@@ -42,6 +42,9 @@ function rowToSession(row) {
     output,
     toolTrace,
     errorMessage: row.error_message || "",
+    parentRunId: row.parent_run_id || null,
+    role: row.run_role || "primary",
+    purpose: row.purpose || null,
     startedAt: row.started_at,
     completedAt: row.completed_at,
     createdAt: row.created_at,
@@ -61,6 +64,8 @@ function getActiveRunForTask(getUserDataPath, userId, projectId, taskId) {
       `SELECT * FROM agent_run_sessions
        WHERE user_id = ? AND project_id = ? AND task_id = ?
          AND status IN ('PENDING', 'RUNNING')
+         AND (parent_run_id IS NULL OR parent_run_id = '')
+         AND COALESCE(run_role, 'primary') != 'subagent'
        ORDER BY created_at DESC LIMIT 1`
     )
     .get(uid, projectId, taskId);
@@ -121,19 +126,26 @@ function getLatestRunForTask(getUserDataPath, userId, projectId, taskId) {
   return rowToSession(row);
 }
 
-function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, inputText, timeoutMs }) {
+function startAgentRun(
+  getUserDataPath,
+  userId,
+  { projectId, taskId, mode, inputText, timeoutMs, parentRunId = null, role = "primary", purpose = null } = {}
+) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
-  // Close waiting-for-user / orphaned runs so regen & patch propose can proceed.
-  releaseStaleRunsForTask(getUserDataPath, uid, projectId, taskId, {
-    reason: "被新的 Agent 运行取代",
-  });
-  const active = getActiveRunForTask(getUserDataPath, uid, projectId, taskId);
-  if (active) {
-    const err = new Error(`任务已有进行中的 Agent 运行 (${active.id})`);
-    err.code = "AGENT_RUN_MUTEX";
-    err.activeRunId = active.id;
-    throw err;
+  const isSub = Boolean(parentRunId) || role === "subagent";
+  if (!isSub) {
+    // Close waiting-for-user / orphaned runs so regen & patch propose can proceed.
+    releaseStaleRunsForTask(getUserDataPath, uid, projectId, taskId, {
+      reason: "被新的 Agent 运行取代",
+    });
+    const active = getActiveRunForTask(getUserDataPath, uid, projectId, taskId);
+    if (active) {
+      const err = new Error(`任务已有进行中的 Agent 运行 (${active.id})`);
+      err.code = "AGENT_RUN_MUTEX";
+      err.activeRunId = active.id;
+      throw err;
+    }
   }
   const id = newId("ars");
   const ts = nowIso();
@@ -141,9 +153,24 @@ function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, input
     `INSERT INTO agent_run_sessions (
       id, user_id, project_id, task_id, mode, status, input_text,
       output_json, tool_trace_json, error_message,
+      parent_run_id, run_role, purpose,
       started_at, completed_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, '[]', NULL, ?, NULL, ?, ?)`
-  ).run(id, uid, projectId, taskId, String(mode || "PLAN_ONLY").toUpperCase(), RUN_STATUS.RUNNING, String(inputText || ""), ts, ts, ts);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, '[]', NULL, ?, ?, ?, ?, NULL, ?, ?)`
+  ).run(
+    id,
+    uid,
+    projectId,
+    taskId,
+    String(mode || "PLAN_ONLY").toUpperCase(),
+    RUN_STATUS.RUNNING,
+    String(inputText || ""),
+    parentRunId || null,
+    isSub ? "subagent" : role || "primary",
+    purpose || null,
+    ts,
+    ts,
+    ts
+  );
 
   const abortController = new AbortController();
   const controller = {
@@ -170,7 +197,35 @@ function startAgentRun(getUserDataPath, userId, { projectId, taskId, mode, input
     status: RUN_STATUS.RUNNING,
     cancelToken: controller,
     signal: abortController.signal,
+    parentRunId: parentRunId || null,
+    role: isSub ? "subagent" : "primary",
   };
+}
+
+function listChildRuns(getUserDataPath, userId, projectId, taskId, parentRunId) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const rows = db
+    .prepare(
+      `SELECT * FROM agent_run_sessions
+       WHERE user_id = ? AND project_id = ? AND task_id = ? AND parent_run_id = ?
+       ORDER BY created_at DESC`
+    )
+    .all(uid, projectId, taskId, parentRunId);
+  return rows.map(rowToSession);
+}
+
+function listRunsForTask(getUserDataPath, userId, projectId, taskId, { limit = 20 } = {}) {
+  const db = getDb(getUserDataPath);
+  const uid = resolveUserId(userId);
+  const rows = db
+    .prepare(
+      `SELECT * FROM agent_run_sessions
+       WHERE user_id = ? AND project_id = ? AND task_id = ?
+       ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(uid, projectId, taskId, Math.min(Number(limit) || 20, 100));
+  return rows.map(rowToSession);
 }
 
 function getAgentRun(getUserDataPath, userId, projectId, taskId, agentRunId) {
@@ -314,6 +369,8 @@ module.exports = {
   getActiveRunForTask,
   getOpenRunForTask,
   getLatestRunForTask,
+  listChildRuns,
+  listRunsForTask,
   releaseStaleRunsForTask,
   isCurrentRun,
   isMutexHeld,

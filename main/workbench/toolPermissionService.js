@@ -23,6 +23,7 @@ const PROJECT_AGENT_TOOLS = new Set([
   "list_verification_profiles",
   "run_verification",
   "compress_context",
+  "spawn_sub_agent",
   "write_project_file",
   "restore_file_backup",
   "git_commit",

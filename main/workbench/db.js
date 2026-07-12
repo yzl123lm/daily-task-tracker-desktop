@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { DatabaseSync } = require("node:sqlite");
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 let dbInstance = null;
 let dbPathUsed = "";
 
@@ -211,6 +211,9 @@ function ensureSchema(db) {
       output_json TEXT,
       tool_trace_json TEXT,
       error_message TEXT,
+      parent_run_id TEXT DEFAULT NULL,
+      run_role TEXT DEFAULT 'primary',
+      purpose TEXT DEFAULT NULL,
       started_at TEXT,
       completed_at TEXT,
       created_at TEXT NOT NULL,
@@ -313,6 +316,21 @@ function ensureColumnMigrations(db) {
   } catch {
     /* column may already exist */
   }
+  try {
+    const runCols = db.prepare("PRAGMA table_info(agent_run_sessions)").all();
+    const addRunCols = [
+      ["parent_run_id", "TEXT DEFAULT NULL"],
+      ["run_role", "TEXT DEFAULT 'primary'"],
+      ["purpose", "TEXT DEFAULT NULL"],
+    ];
+    for (const [name, decl] of addRunCols) {
+      if (!runCols.some((c) => c.name === name)) {
+        db.exec(`ALTER TABLE agent_run_sessions ADD COLUMN ${name} ${decl}`);
+      }
+    }
+  } catch {
+    /* column may already exist */
+  }
 }
 
 function migrateSchema(db, fromVersion) {
@@ -326,6 +344,9 @@ function migrateSchema(db, fromVersion) {
     ensureColumnMigrations(db);
   }
   if (fromVersion < 9) {
+    ensureColumnMigrations(db);
+  }
+  if (fromVersion < 10) {
     ensureColumnMigrations(db);
   }
 }

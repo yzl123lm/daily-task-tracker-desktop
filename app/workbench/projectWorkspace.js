@@ -2199,6 +2199,57 @@ async function refreshRunbookPanel(projectId, taskId) {
   }
 }
 
+function bindAsyncRunsPanelOnce() {
+  const panel = document.getElementById("wbAsyncRunsPanel");
+  if (!panel || panel.dataset.bound === "1") {
+    return;
+  }
+  panel.dataset.bound = "1";
+  document.getElementById("wbAsyncRunsRefreshBtn")?.addEventListener("click", () => {
+    const projectId = window.__wbStore?.getState?.().selectedProjectId;
+    const taskId = resolveCurrentTaskId();
+    void refreshAsyncRunsPanel(projectId, taskId);
+  });
+}
+
+async function refreshAsyncRunsPanel(projectId, taskId) {
+  bindAsyncRunsPanelOnce();
+  const list = document.getElementById("wbAsyncRunsList");
+  if (!list) {
+    return;
+  }
+  const api = wbApi();
+  if (typeof api.wbAsyncRunsList !== "function") {
+    list.innerHTML = '<li class="wb-async-runs-list__empty">异步队列不可用</li>';
+    return;
+  }
+  try {
+    const jobs = (await api.wbAsyncRunsList({ projectId, taskId })) || [];
+    if (!jobs.length) {
+      list.innerHTML = '<li class="wb-async-runs-list__empty">暂无异步任务</li>';
+      return;
+    }
+    list.innerHTML = jobs
+      .slice(0, 12)
+      .map((j) => {
+        const st = String(j.status || "");
+        const cls =
+          st === "FAILED" || st === "CANCELED"
+            ? "is-failed"
+            : st === "COMPLETED"
+              ? "is-done"
+              : "";
+        return `<li class="wb-async-runs-list__item">
+          <span><code>${escapeHtml((j.runId || "").slice(0, 18))}</code> · ${escapeHtml(j.mode || "")}</span>
+          <span class="wb-async-runs-list__status ${cls}">${escapeHtml(st)}</span>
+        </li>`;
+      })
+      .join("");
+  } catch (err) {
+    list.innerHTML = `<li class="wb-async-runs-list__empty">${escapeHtml(err?.message || "加载失败")}</li>`;
+  }
+}
+
 function setAgentRunning(running, agentRunId) {
   if (running && agentRunId) {
     activeAgentRunId = agentRunId;
@@ -2381,6 +2432,7 @@ async function loadTaskContext(projectId, taskId) {
     renderTaskDetail(task);
   }
   void refreshRunbookPanel(projectId, resolvedTaskId);
+  void refreshAsyncRunsPanel(projectId, resolvedTaskId);
   const memList = document.getElementById("wbTaskMemories");
   const runsList = document.getElementById("wbAgentRuns");
   if (typeof api.wbMemorySearch === "function" && memList) {
@@ -3121,6 +3173,7 @@ function bindProjectWorkspace() {
   window.__wbBindTestResultPanel?.();
   window.__wbBindGitChangePanel?.();
   bindRunbookPanelOnce();
+  bindAsyncRunsPanelOnce();
   bindTaskFilters();
   const openLogBtn = document.getElementById("wbActivityOpenLogBtn");
   if (openLogBtn && openLogBtn.dataset.bound !== "1") {

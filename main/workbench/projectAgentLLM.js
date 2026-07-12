@@ -155,7 +155,7 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     stepKey: "analyze_structure",
   });
 
-  const tools = listToolSchemas(mode);
+  const tools = listToolSchemas(mode, ctx);
   const messages = [
     { role: "system", content: buildSystemPrompt(mode, contextPack) },
     { role: "user", content: String(message || "") },
@@ -236,6 +236,12 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
         output,
         status: "COMPLETED",
       });
+      try {
+        const { runHooks } = require("./toolHookRegistry.js");
+        await runHooks("agentStop", { ctx, reason: "completed", output });
+      } catch {
+        /* ignore */
+      }
       return output;
     }
 
@@ -263,7 +269,19 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
     }
 
     messages.push(buildAssistantToolCallMessage(toolCalls));
-    for (const tc of toolCalls) {
+
+    const parallelRead =
+      String(process.env.WB_AGENT_PARALLEL_READ || "1") !== "0" &&
+      toolCalls.length > 1 &&
+      toolCalls.every((tc) => {
+        const n = String(tc.name || "");
+        return (
+          n.startsWith("graphify_") ||
+          ["list_files", "read_file", "search_code", "find_symbols", "analyze_package", "get_repo_profile", "get_repo_map", "git_status"].includes(n)
+        );
+      });
+
+    async function execOneTool(tc) {
       const toolName = tc.name;
       const phase = TOOL_PHASE_MAP[toolName] || PHASE.ANALYZING;
       const title = TOOL_TITLE_MAP[toolName] || `调用 ${toolName}`;
@@ -311,9 +329,26 @@ async function runProjectAgentLLM(ctx, { message, mode = "PLAN_ONLY" }) {
         endedAt: Date.now(),
         error: ok ? null : result?.error || "工具执行失败",
       });
+      return { tc, result };
+    }
+
+    const executed = parallelRead
+      ? await Promise.all(toolCalls.map((tc) => execOneTool(tc)))
+      : await (async () => {
+          const out = [];
+          for (const tc of toolCalls) {
+            out.push(await execOneTool(tc));
+          }
+          return out;
+        })();
+
+    for (const { tc, result } of executed) {
       messages.push(buildToolResultMessage(tc.id, tc.name, JSON.stringify(result)));
     }
   }
+
+  const { runHooks } = require("./toolHookRegistry.js");
+  await runHooks("agentStop", { ctx, reason: "max_rounds" });
 
   failAgentRun(ctx.getUserDataPath, ctx.userId, {
     projectId: ctx.projectId,
