@@ -910,6 +910,11 @@ body.jl-project-workspace-active .wb-list-card--compact .wb-project-card__open-d
   gap: 6px;
 }
 
+.wb-pws-agent-scroll > .wb-agent-activity-panel {
+  flex: 1 1 auto;
+  min-height: min(320px, 42vh);
+}
+
 .wb-pws-agent-composer {
   flex: 0 0 auto;
   position: relative;

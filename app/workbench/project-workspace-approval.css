@@ -237,7 +237,7 @@ body.wb-waiting-approval .wb-pws-panel--composer {
 .wb-runbook-panel__body {
   margin: 0;
   padding: 10px 12px;
-  max-height: 280px;
+  max-height: min(200px, 28vh);
   overflow: auto;
   font-size: 11px;
   line-height: 1.5;
