@@ -77,7 +77,9 @@ function summarizeToolOutput(toolName, result) {
   }
   if (result.ok === false) {
     if (result.code === "FILE_NOT_FOUND" || result.code === "PATH_NOT_USEFUL") {
-      return result.error || "文件不存在，请改用 stage_patch 新建";
+      return result.nextTool === "stage_patch"
+        ? `文件不存在，请 stage_patch 新建 ${result.path || ""}`.trim()
+        : result.error || "文件不存在，请改用 stage_patch 新建";
     }
     if (toolName === "stage_patch" && result.hint === "use_full_content") {
       return "补丁失败：建议 read_file 后用 proposedContent 提交完整文件";

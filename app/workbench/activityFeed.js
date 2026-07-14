@@ -654,9 +654,20 @@
               ? `<details class="wb-activity-item__details"${expandDefault ? " open" : ""}>
                   <summary>详情</summary>
                   <pre class="wb-activity-item__pre">${escapeHtml(
-                    [item.toolInputSummary, item.toolOutputSummary, item.detail, item.error]
-                      .filter(Boolean)
-                      .join("\n\n")
+                    (() => {
+                      const parts = [item.toolInputSummary, item.toolOutputSummary, item.detail, item.error]
+                        .map((s) => String(s || "").trim())
+                        .filter(Boolean);
+                      const uniq = [];
+                      for (const p of parts) {
+                        const norm = p.replace(/^失败：/, "").trim();
+                        if (uniq.some((u) => u.includes(norm) || norm.includes(u.replace(/^失败：/, "").trim()))) {
+                          continue;
+                        }
+                        uniq.push(p);
+                      }
+                      return uniq.join("\n\n");
+                    })()
                   )}</pre>
                 </details>`
               : ""

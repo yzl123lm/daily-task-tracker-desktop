@@ -332,12 +332,16 @@
       summary: "将为本步生成可审阅 Diff，请在右侧抽屉中确认后写入。",
       status: "running",
     });
+    const expected = Array.isArray(step.expectedFiles) ? step.expectedFiles.filter(Boolean) : [];
     const message = [
       "【项目推进 · 单步实施】",
       "仅实施以下步骤，不要越界完成后续步骤：",
       stepLabel(step),
-      step.expectedFiles?.length ? `目标文件：${step.expectedFiles.join(", ")}` : "",
-      "补丁指引：先 list_files/read_file 确认现状；新建文件用 changeType:add + proposedContent；修改失败时改用 full_content，勿重复无效 replace。",
+      expected.length ? `目标文件：${expected.join(", ")}` : "",
+      expected.length
+        ? `若目标文件尚不存在（尤其 ${expected.join(" / ")}）：禁止 read_file，直接 stage_patch changeType:add + proposedContent 新建。`
+        : "补丁指引：先 list_files 确认现状；不存在的文件禁止 read_file，直接 changeType:add 新建。",
+      "修改已存在文件失败时改用 full_content，勿重复无效 replace。",
       "Canvas/游戏逻辑写入 game.js，并在 index.html 引入 <script src=\"./game.js\"></script>。",
       "请用 stage_patch 产出本步所需变更。",
     ]

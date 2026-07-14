@@ -474,7 +474,21 @@ const HANDLERS = {
     const filtered = prefix
       ? entries.filter((e) => e.path.startsWith(prefix))
       : entries;
-    return { ok: true, entries: filtered.slice(0, 200) };
+    const paths = new Set(filtered.map((e) => String(e.path || "").replace(/\\/g, "/")));
+    const commonMissing = ["index.html", "style.css", "game.js", "main.js", "app.js"].filter(
+      (p) => !paths.has(p) && !paths.has(`./${p}`)
+    );
+    const out = { ok: true, entries: filtered.slice(0, 200) };
+    if (!filtered.length) {
+      out.hint = "empty_project";
+      out.guidance =
+        "项目目录为空或无可列文件。请直接 stage_patch 新建入口文件（如 index.html / style.css / game.js），不要 read_file 探测。";
+    } else if (commonMissing.includes("game.js") && (paths.has("index.html") || paths.has("style.css"))) {
+      out.missingSuggested = ["game.js"];
+      out.guidance =
+        "检测到 index.html/style.css 但缺少 game.js。请用 stage_patch changeType:add 新建 game.js，不要 read_file game.js。";
+    }
+    return out;
   },
   read_file(ctx, args) {
     const rawPath = String(args.path || "").replace(/\\/g, "/").trim();
@@ -494,6 +508,7 @@ const HANDLERS = {
           `不要读取「${rawPath || "(空路径)"}」。该路径不是项目源码。` +
           "若项目为空或不存在目标文件，请直接用 stage_patch：proposedContent 全文，或 edits:[{op:\"create_file\",content:\"...\"}]（亦可带 changeType=add）；工具错误信息已在返回结果中，无需另读日志。",
         hint: "use_stage_patch",
+        nextTool: "stage_patch",
       };
     }
     try {
@@ -505,14 +520,22 @@ const HANDLERS = {
         e?.code === "ENOENT" ||
         /ENOENT|no such file|不是文件|无效相对路径|路径超出/i.test(msg);
       if (missing) {
+        const { buildMissingFileCreateExample } = require("./patchRecoveryHints.js");
+        const example = buildMissingFileCreateExample(rawPath);
         return {
           ok: false,
           code: "FILE_NOT_FOUND",
           path: rawPath,
           error:
-            `文件不存在：${rawPath}。` +
-            "若要新建该文件，请用 stage_patch 直接提议完整内容（proposedContent 或 create_file），不要反复 read_file。",
+            `文件不存在：${rawPath}。禁止再次 read_file。` +
+            `请立即 stage_patch 新建：changeType:"add" + proposedContent（或 edits:[{op:"create_file",content:"..."}]）。`,
           hint: "use_stage_patch",
+          nextTool: "stage_patch",
+          createExample: {
+            path: example.path,
+            changeType: "add",
+            summary: example.summary,
+          },
         };
       }
       return { ok: false, code: e?.code || "TOOL_ERROR", error: msg };

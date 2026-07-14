@@ -42,14 +42,52 @@ const steps = enrichStepsWithExpectedFiles(
 );
 assert.deepStrictEqual(steps[1].expectedFiles, ["game.js", "index.html"]);
 
+const {
+  buildMissingFileRecoveryNudge,
+  buildPreemptiveMissingFilesNote,
+  listMissingProjectFiles,
+  pickRecoveryNudge,
+} = require("../main/workbench/patchRecoveryHints.js");
+
+const missingNudge = buildMissingFileRecoveryNudge([
+  {
+    tool: "read_file",
+    args: { path: "game.js" },
+    result: { ok: false, code: "FILE_NOT_FOUND", error: "文件不存在：game.js", hint: "use_stage_patch" },
+  },
+]);
+assert.ok(missingNudge.includes("【新建文件提示】"));
+assert.ok(missingNudge.includes("game.js"));
+assert.ok(missingNudge.includes("stage_patch"));
+
+const fs = require("fs");
+const path = require("path");
+const os = require("os");
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "wb-missing-"));
+fs.writeFileSync(path.join(tmpRoot, "index.html"), "<html></html>\n", "utf8");
+assert.deepStrictEqual(listMissingProjectFiles(tmpRoot, ["index.html", "game.js"]), ["game.js"]);
+const note = buildPreemptiveMissingFilesNote(tmpRoot, "目标文件：game.js, index.html\nCanvas 绘制");
+assert.ok(note.includes("game.js"));
+assert.ok(!note.includes("- index.html") || note.indexOf("game.js") >= 0);
+fs.rmSync(tmpRoot, { recursive: true, force: true });
+
+const picked = pickRecoveryNudge(
+  [
+    {
+      tool: "read_file",
+      args: { path: "game.js" },
+      result: { ok: false, code: "FILE_NOT_FOUND", hint: "use_stage_patch" },
+    },
+  ],
+  []
+);
+assert.ok(picked.includes("【新建文件提示】"));
+
 // HTML-as-edits misuse: first create_file + junk fragments → keep valid op only
 const {
   buildProposalFromArgs,
   normalizePatchEdits,
 } = require("../main/workbench/patchProposalService.js");
-const fs = require("fs");
-const path = require("path");
-const os = require("os");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wb-patch-rec-"));
 fs.writeFileSync(path.join(tmp, "index.html"), "<html></html>\n", "utf8");
 const junk = normalizePatchEdits([
