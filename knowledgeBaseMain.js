@@ -86,8 +86,16 @@ const {
   countDocumentsByDeleteStatus,
   sqliteDbPath,
 } = require("./utils/kbSqliteStore.js");
-const { isKbDeleteRepairEnabled, isKbSourceArchiveEnabled } = require("./utils/kbFeatureGates.js");
+const {
+  isKbDeleteRepairEnabled,
+  isKbSourceArchiveEnabled,
+  isKbPromptSafetyEnabled,
+} = require("./utils/kbFeatureGates.js");
 const { repairDocumentDelete, repairLibraryIndex, nextRetryAt } = require("./utils/kbDeleteRepair.js");
+const {
+  wrapEvidenceBlocks,
+  redactEvidenceForLog,
+} = require("./utils/kbPromptSafety.js");
 const {
   archiveSourceFile,
   resolveReadableDocumentPath,
@@ -432,17 +440,36 @@ async function lanceCountChunks(userDataPath, libraryId, fallbackStore) {
 async function lanceDeleteByDocId(userDataPath, libraryId, docId) {
   const table = await migrateLibraryChunksToLanceIfNeeded(userDataPath, libraryId);
   if (!table) {
-    return;
+    // 无 Lance 表且无可迁移向量：对空库幂等成功；有表却打不开应走 catch 抛错
+    return { ok: true, deleted: false, reason: "no_table" };
   }
-  await table.delete(`docId = ${sqlQuote(docId)}`);
+  try {
+    await table.delete(`docId = ${sqlQuote(docId)}`);
+    return { ok: true, deleted: true, reason: "" };
+  } catch (err) {
+    const lastError = err?.message || String(err);
+    const e = new Error(`LanceDB 按文档删除失败：${lastError}`);
+    e.cause = err;
+    e.reason = "lance_delete_failed";
+    throw e;
+  }
 }
 
 async function lanceDeleteByChunkId(userDataPath, libraryId, chunkId) {
   const table = await migrateLibraryChunksToLanceIfNeeded(userDataPath, libraryId);
   if (!table) {
-    return;
+    return { ok: true, deleted: false, reason: "no_table" };
   }
-  await table.delete(`id = ${sqlQuote(chunkId)}`);
+  try {
+    await table.delete(`id = ${sqlQuote(chunkId)}`);
+    return { ok: true, deleted: true, reason: "" };
+  } catch (err) {
+    const lastError = err?.message || String(err);
+    const e = new Error(`LanceDB 按分片删除失败：${lastError}`);
+    e.cause = err;
+    e.reason = "lance_delete_failed";
+    throw e;
+  }
 }
 
 async function lanceAppendChunks(userDataPath, libraryId, chunks) {
@@ -1089,6 +1116,28 @@ async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, ex
   } = options;
 
   const readable = resolveReadableDocumentPath(doc);
+  const sourcePath = String(doc?.sourcePath || "").trim();
+  const sourceMissing =
+    !sourcePath ||
+    sourcePath === "ai://" ||
+    !fs.existsSync(sourcePath);
+  if (sourceMissing && readable.kind !== "source") {
+    if (!doc.sourceMissingAt) {
+      doc.sourceMissingAt = new Date().toISOString();
+      try {
+        saveStore(userDataPath, libraryId, st);
+      } catch {
+        /* ignore persist failures */
+      }
+    }
+  } else if (!sourceMissing && doc.sourceMissingAt) {
+    delete doc.sourceMissingAt;
+    try {
+      saveStore(userDataPath, libraryId, st);
+    } catch {
+      /* ignore */
+    }
+  }
   if (readable.path) {
     return {
       path: readable.path,
@@ -1097,6 +1146,7 @@ async function resolveDocumentOpenPathAsync(userDataPath, libraryId, doc, st, ex
       fullDiskScan: false,
       scanSkipped: true,
       openedFrom: readable.kind,
+      sourceMissing: sourceMissing && readable.kind !== "source",
     };
   }
 
@@ -2854,8 +2904,13 @@ async function removeChunksByIds(userDataPath, libraryId, chunkIds) {
   let lanceDeleted = 0;
   for (const id of ids) {
     try {
-      await lanceDeleteByChunkId(userDataPath, libraryId, id);
-      lanceDeleted += 1;
+      const lanceResult = await lanceDeleteByChunkId(userDataPath, libraryId, id);
+      if (lanceResult?.ok === false) {
+        throw new Error(lanceResult.reason || "lance_delete_failed");
+      }
+      if (lanceResult?.deleted !== false) {
+        lanceDeleted += 1;
+      }
     } catch (err) {
       stages.push({ stage: "lance", chunkId: id, ok: false, error: err?.message || String(err) });
       if (isKbDeleteRepairEnabled()) {
@@ -2890,11 +2945,37 @@ async function removeDocumentFromLibrary(userDataPath, libraryId, docId) {
 
   if (!doc && chunkCount === 0) {
     try {
-      await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
+      const lanceClean = await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
       const ftsClean = removeDocFromFtsIndex(loadFtsIndex(libDir), normDocId);
       saveFtsIndex(libDir, ftsClean);
-    } catch {
-      /* idempotent orphan cleanup */
+      stages.push({
+        stage: "lance",
+        ok: lanceClean?.ok !== false,
+        reason: lanceClean?.reason || "",
+      });
+    } catch (err) {
+      const lastError = err?.message || String(err);
+      if (useRepair) {
+        upsertDeleteJob(libDir, {
+          jobId: crypto.randomUUID(),
+          docId: normDocId,
+          libraryId: String(libraryId),
+          stage: "lance",
+          status: "pending",
+          attempts: 0,
+          lastError,
+          nextRetryAt: nextRetryAt(0),
+        });
+        return {
+          ok: false,
+          status: "partial",
+          failedStage: "lance",
+          lastError,
+          deletedCounts,
+          stages: [{ stage: "lance", ok: false, error: lastError }],
+          removedChunks: 0,
+        };
+      }
     }
     return {
       ok: true,
@@ -2912,9 +2993,17 @@ async function removeDocumentFromLibrary(userDataPath, libraryId, docId) {
   }
 
   try {
-    await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
+    const lanceResult = await lanceDeleteByDocId(userDataPath, libraryId, normDocId);
+    if (lanceResult?.ok === false) {
+      throw new Error(lanceResult.reason || "lance_delete_failed");
+    }
     deletedCounts.lance = chunkCount;
-    stages.push({ stage: "lance", ok: true });
+    stages.push({
+      stage: "lance",
+      ok: true,
+      deleted: lanceResult?.deleted === true,
+      reason: lanceResult?.reason || "",
+    });
   } catch (err) {
     const lastError = err?.message || String(err);
     stages.push({ stage: "lance", ok: false, error: lastError });
@@ -4642,6 +4731,12 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     if (p.watchDirRecursive != null) {
       st.settings.watchDirRecursive = Boolean(p.watchDirRecursive);
     }
+    if (p.archivePolicy != null) {
+      const ap = String(p.archivePolicy || "").trim().toLowerCase();
+      st.settings.archivePolicy = ["always", "ask", "never", "watch-ref-only"].includes(ap)
+        ? ap
+        : "ask";
+    }
     const validated = validateKbSettings(st.settings);
     if (validated.errors.length) {
       return { ok: false, error: validated.errors.join(" ") };
@@ -5111,6 +5206,28 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
 
     const total = toIngest.length;
     const batchSeenMd5 = new Set();
+    const libStore = loadStore(ud(), libId);
+    const archivePolicy = normalizeArchivePolicy(libStore.settings?.archivePolicy || "ask");
+    let archiveConfirmed = archivePolicy === "always";
+    if (archivePolicy === "ask" && total > 0) {
+      const archiveChoice = await dialog.showMessageBox(win || undefined, {
+        type: "question",
+        title: "原文件归档",
+        message: "是否将原文件复制到知识库归档目录？",
+        detail:
+          "归档后即使移动或删除源文件，仍可打开归档副本并保持引用可用。\n选择「仅引用路径」则不复制（源文件失效后可能无法打开原文）。",
+        buttons: ["归档副本", "仅引用路径", "取消"],
+        defaultId: 0,
+        cancelId: 2,
+        noLink: true,
+      });
+      if (archiveChoice.response === 2) {
+        return { ok: false, canceled: true, results };
+      }
+      archiveConfirmed = archiveChoice.response === 0;
+    } else if (archivePolicy === "never" && total > 0) {
+      /* 不弹窗；UI 设置区已提示源路径可能失效 */
+    }
     emitKbIngestProgress(event.sender, {
       phase: "start",
       total,
@@ -5149,6 +5266,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
           onProgress,
           batchSeenMd5,
           batchFilePaths: uniquePaths,
+          archiveConfirmed,
         });
         results.push(r);
       } catch (err) {
@@ -5789,6 +5907,25 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
     setImmediate(() => {
       try {
         const logLibId = targetLibraryIds[0] || activeLibraryId();
+        let injectionRiskLevel = "low";
+        let injectionPatternIds = [];
+        let evidenceLogPreview = [];
+        if (isKbPromptSafetyEnabled() && scored.length) {
+          const wrapped = wrapEvidenceBlocks(
+            scored.slice(0, 8).map((h) => ({
+              text: String(h.text || h.snippet || ""),
+              document: h.sourceFile || h.docName || "",
+              chunkIndex: h.chunkIndex,
+            }))
+          );
+          injectionRiskLevel = wrapped.injectionRiskLevel || "low";
+          injectionPatternIds = [
+            ...new Set(wrapped.evidence.flatMap((e) => e.injectionPatternIds || [])),
+          ];
+          evidenceLogPreview = wrapped.evidence.slice(0, 3).map((e) =>
+            redactEvidenceForLog(e.text, e.injectionRiskLevel)
+          );
+        }
         appendSearchLog(libraryDir(ud(), logLibId), {
           query: q,
           queryType,
@@ -5796,7 +5933,14 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
           hitCount: scored.length,
           elapsedMs,
           lowConfidence,
-          debug: { recallStats, minScore, noAnswerThreshold },
+          debug: {
+            recallStats,
+            minScore,
+            noAnswerThreshold,
+            injectionRiskLevel,
+            injectionPatternIds,
+            evidenceLogPreview,
+          },
         });
       } catch {
         /* ignore search log failures */
@@ -5870,7 +6014,7 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       });
   }, 4000);
 
-  setTimeout(() => {
+  function runPendingDeleteJobsSweep(maxBatch = 3) {
     if (!isKbDeleteRepairEnabled()) {
       return;
     }
@@ -5879,13 +6023,17 @@ function registerKnowledgeBaseHandlers(ipcMain, deps) {
       (meta.libraries || []).forEach((lib) => {
         const id = String(lib?.id || "").trim();
         if (id) {
-          void processPendingDeleteJobs(ud(), id, 3);
+          void processPendingDeleteJobs(ud(), id, maxBatch);
         }
       });
     } catch {
-      /* ignore startup repair errors */
+      /* ignore repair sweep errors */
     }
-  }, 8000);
+  }
+
+  setTimeout(() => runPendingDeleteJobsSweep(3), 8000);
+  // 周期重试：避免仅靠重启才能消化 kb_delete_jobs
+  setInterval(() => runPendingDeleteJobsSweep(5), 6 * 60 * 1000);
 
   async function buildLibraryHealth(userDataPath, libraryId) {
     const libDir = libraryDir(userDataPath, libraryId);

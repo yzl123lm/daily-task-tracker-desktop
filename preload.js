@@ -1,6 +1,21 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+function isEnvFlagOn(key, defaultOn = true) {
+  const raw = process.env[String(key || "").trim()];
+  if (raw === "0" || raw === "false" || raw === "off") {
+    return false;
+  }
+  if (raw === "1" || raw === "true" || raw === "on") {
+    return true;
+  }
+  return defaultOn;
+}
 
+contextBridge.exposeInMainWorld("KbFeatureGates", {
+  promptSafety: isEnvFlagOn("KB_PROMPT_SAFETY_V1", true),
+  deleteRepair: isEnvFlagOn("KB_DELETE_REPAIR_V1", true),
+  sourceArchive: isEnvFlagOn("KB_SOURCE_ARCHIVE_V1", true),
+});
 
 contextBridge.exposeInMainWorld("electronAPI", {
 

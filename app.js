@@ -3910,7 +3910,11 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
           allFieldNames,
           answerInstruction,
         };
-        if (window.KbPromptSafety && window.KbPromptBuilder) {
+        const promptSafetyOn =
+          window.KbFeatureGates?.promptSafety !== false &&
+          window.KbPromptSafety &&
+          window.KbPromptBuilder;
+        if (promptSafetyOn) {
           const wrapped = window.KbPromptSafety.wrapEvidenceBlocks(evidence);
           grounding.evidence = wrapped.evidence;
           grounding.evidenceBlock = wrapped.evidenceBlock;
@@ -3930,6 +3934,8 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
             grounding,
             wantsApiSpec,
           });
+          grounding.promptText = grounding.promptLayers.promptText;
+          grounding.systemRules = grounding.promptLayers.systemRules;
         }
         return grounding;
       };
@@ -3986,6 +3992,19 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
             fieldNames: e.fieldNames,
           }));
         }
+        const promptText = String(g.promptText || g.promptLayers?.promptText || "").slice(0, maxText + 4000);
+        const systemRules = String(g.systemRules || g.promptLayers?.systemRules || "").slice(0, 4000);
+        // 高风险时 evidence.text 仅保留包装块摘要，完整分层内容走 promptText
+        if (g.sanitized && g.injectionRiskLevel && g.injectionRiskLevel !== "low") {
+          evidence = evidence.map((e, i) => {
+            const src = Array.isArray(g.evidence) ? g.evidence[i] : null;
+            return {
+              ...e,
+              text: String(src?.wrappedText || e.text || "").slice(0, maxText),
+              injectionRiskLevel: src?.injectionRiskLevel || g.injectionRiskLevel,
+            };
+          });
+        }
         return {
           ok: true,
           hitCount: out.hitCount ?? evidence.length,
@@ -4001,6 +4020,8 @@ window.runAITaskTool = async function runAITaskTool(name, args) {
             allFieldNames: g.allFieldNames || [],
             evidence,
             evidenceBlock: g.evidenceBlock || "",
+            promptText,
+            systemRules,
             injectionRiskLevel: g.injectionRiskLevel || "low",
             sanitized: g.sanitized === true,
             noAnswerReason: g.noAnswerReason || "",

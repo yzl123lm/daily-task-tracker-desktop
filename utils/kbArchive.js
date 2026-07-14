@@ -17,10 +17,18 @@ function shouldArchiveOnIngest(archivePolicy, options = {}) {
   if (policy === "watch-ref-only" && options.fromWatch) {
     return false;
   }
-  if (policy === "ask" && options.fromWatch) {
-    return false;
+  // ask：监控目录不自动归档；手动入库须用户确认（archiveConfirmed）
+  if (policy === "ask") {
+    if (options.fromWatch) {
+      return false;
+    }
+    return options.archiveConfirmed === true;
   }
-  return true;
+  if (policy === "always") {
+    return true;
+  }
+  // watch-ref-only：仅对非监控入库归档
+  return !options.fromWatch;
 }
 
 function archiveDirForDoc(libraryDir, docId) {

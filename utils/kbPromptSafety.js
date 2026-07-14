@@ -107,14 +107,40 @@
     ].join("\n");
   }
 
+  /** Plan alias — same as sanitizeEvidenceText */
+  function sanitizeEvidence(text) {
+    return sanitizeEvidenceText(text);
+  }
+
+  function redactEvidenceForLog(text, riskLevel) {
+    const raw = String(text || "");
+    if (riskLevel === "high" || riskLevel === "medium") {
+      const sanitized = sanitizeEvidenceText(raw);
+      return {
+        redacted: true,
+        riskLevel: sanitized.riskLevel,
+        patternIds: sanitized.patternIds,
+        preview: raw.slice(0, 80).replace(/\s+/g, " "),
+      };
+    }
+    return {
+      redacted: false,
+      riskLevel: riskLevel || "low",
+      patternIds: [],
+      preview: raw.slice(0, 160).replace(/\s+/g, " "),
+    };
+  }
+
   return {
     INJECTION_PATTERNS,
     EVIDENCE_DISCLAIMER,
     sanitizeEvidenceText,
+    sanitizeEvidence,
     wrapEvidenceBlocks,
     computeInjectionRiskLevel,
     buildNoEvidenceFallback,
     buildSafetyGroundingRules,
     scanInjectionPatterns,
+    redactEvidenceForLog,
   };
 });

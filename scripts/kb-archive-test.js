@@ -14,6 +14,7 @@ const {
   shouldArchiveOnIngest,
   normalizeArchivePolicy,
 } = require("../utils/kbArchive.js");
+const { normalizeKbSettings } = require("../utils/kbConfigLayout.js");
 
 function md5File(fp) {
   return crypto.createHash("md5").update(fs.readFileSync(fp)).digest("hex");
@@ -30,7 +31,9 @@ function main() {
   assert.strictEqual(r1.ok, true);
   assert.ok(fs.existsSync(r1.archivedPath));
 
-  const r2 = archiveSourceFile(libDir, "doc-2", src, md5, [{ id: docId, archivedPath: r1.archivedPath, archiveMd5: md5 }]);
+  const r2 = archiveSourceFile(libDir, "doc-2", src, md5, [
+    { id: docId, archivedPath: r1.archivedPath, archiveMd5: md5 },
+  ]);
   assert.strictEqual(r2.ok, true);
   assert.strictEqual(r2.archivedPath, r1.archivedPath);
   assert.strictEqual(r2.archiveStatus, "dedup");
@@ -44,7 +47,16 @@ function main() {
   assert.strictEqual(normalizeArchivePolicy("invalid"), "ask");
   assert.strictEqual(shouldArchiveOnIngest("never"), false);
   assert.strictEqual(shouldArchiveOnIngest("ask", { fromWatch: true }), false);
+  assert.strictEqual(shouldArchiveOnIngest("ask", {}), false);
+  assert.strictEqual(shouldArchiveOnIngest("ask", { archiveConfirmed: true }), true);
   assert.strictEqual(shouldArchiveOnIngest("always"), true);
+  assert.strictEqual(shouldArchiveOnIngest("watch-ref-only", { fromWatch: true }), false);
+  assert.strictEqual(shouldArchiveOnIngest("watch-ref-only", {}), true);
+
+  const persisted = normalizeKbSettings({ archivePolicy: "never", chunkSize: 800 });
+  assert.strictEqual(persisted.archivePolicy, "never");
+  const defaultAsk = normalizeKbSettings({});
+  assert.strictEqual(defaultAsk.archivePolicy, "ask");
 
   console.log("kb-archive-test: OK");
 }

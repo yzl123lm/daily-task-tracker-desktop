@@ -137,6 +137,11 @@ function normalizeKbSettings(input = {}) {
     autoWebVerify: s.autoWebVerify === true,
     watchDirEnabled: s.watchDirEnabled === true,
     watchDirPath: String(s.watchDirPath || "").trim(),
+    archivePolicy: ["always", "ask", "never", "watch-ref-only"].includes(
+      String(s.archivePolicy || "").trim().toLowerCase()
+    )
+      ? String(s.archivePolicy).trim().toLowerCase()
+      : "ask",
   };
 }
 

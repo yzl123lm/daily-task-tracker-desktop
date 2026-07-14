@@ -37,6 +37,7 @@
     autoLearnPendingCount: document.getElementById("kbAutoLearnPendingCount"),
     watchDirInput: document.getElementById("kbWatchDirInput"),
     watchDirEnabled: document.getElementById("kbWatchDirEnabled"),
+    archivePolicy: document.getElementById("kbArchivePolicy"),
     chooseWatchDirBtn: document.getElementById("kbChooseWatchDirBtn"),
     watchScanNowBtn: document.getElementById("kbWatchScanNowBtn"),
     watchStatusHint: document.getElementById("kbWatchStatusHint"),
@@ -265,6 +266,7 @@
       autoWebVerify: false,
       watchDirEnabled: false,
       watchDirPath: "",
+      archivePolicy: "ask",
     };
 
   function formatAutoLearnBadge(meta) {
@@ -1126,6 +1128,7 @@
     if (el.autoWebVerify) el.autoWebVerify.checked = d.autoWebVerify === true;
     if (el.watchDirEnabled) el.watchDirEnabled.checked = d.watchDirEnabled === true;
     if (el.watchDirInput) el.watchDirInput.value = d.watchDirPath || "";
+    if (el.archivePolicy) el.archivePolicy.value = d.archivePolicy || "ask";
     setConfigDirty(true);
   }
 
@@ -1172,6 +1175,7 @@
       autoLearnMinAnswerChars: Number(el.autoLearnMinAnswerChars?.value),
       watchDirEnabled: el.watchDirEnabled?.checked === true,
       watchDirPath: String(el.watchDirInput?.value || "").trim(),
+      archivePolicy: String(el.archivePolicy?.value || "ask").trim() || "ask",
     };
   }
 
@@ -1725,6 +1729,15 @@
 
   function formatOpenDocSuccessMessage(out, fallbackPath = "") {
     const openedPath = out?.path || fallbackPath || "";
+    if (out?.message) {
+      return out.message;
+    }
+    if (out?.openedFrom === "archive") {
+      return `已打开归档副本（源文件可能已移动）：${openedPath}`;
+    }
+    if (out?.openedFrom === "relink") {
+      return `已打开重新关联的源文件：${openedPath}`;
+    }
     if (out?.relocated && out?.fullDiskScan) {
       return `已通过磁盘搜索定位并打开：${openedPath}`;
     }
@@ -3329,6 +3342,9 @@
         if (el.watchDirEnabled) {
           el.watchDirEnabled.checked = s.watchDirEnabled === true;
         }
+        if (el.archivePolicy) {
+          el.archivePolicy.value = s.archivePolicy || "ask";
+        }
         renderWatchStatus(st.watchStatus, st.watchStatuses);
         if (el.storageDirInput) {
           el.storageDirInput.value = st.storageRoot || "";
@@ -4452,8 +4468,20 @@
         if (g.id && g.id !== activeLibraryId && typeof api.kbLibrarySetActive === "function") {
           await api.kbLibrarySetActive(g.id);
         }
-        await api.kbDeleteDocument(d.id);
+        const out = await api.kbDeleteDocument(d.id);
         await refreshState();
+        if (out?.status === "partial" || (out && out.ok === false && out.failedStage)) {
+          setStatus(
+            `部分删除，已加入修复队列（阶段：${out.failedStage || "未知"}）${out.lastError ? ` · ${out.lastError}` : ""}。可在运维区执行「索引修复」。`,
+            true
+          );
+          return;
+        }
+        if (out && out.ok === false) {
+          setStatus(out.error || out.lastError || "删除失败", true);
+          return;
+        }
+        setStatus(out?.status === "already_deleted" ? "文档已不存在（幂等清理完成）。" : "已删除。");
       } catch (err) {
         setStatus(err.message || String(err), true);
       }
@@ -5723,14 +5751,28 @@
         return;
       }
       const c = out.counts || {};
+      let pendingJobs = 0;
+      if (typeof api.kbDeleteJobsList === "function") {
+        try {
+          const jobsOut = await api.kbDeleteJobsList({
+            libraryId: libId || undefined,
+            status: "pending",
+            limit: 50,
+          });
+          pendingJobs = Array.isArray(jobsOut?.jobs) ? jobsOut.jobs.length : 0;
+        } catch {
+          pendingJobs = 0;
+        }
+      }
       const issueText = (out.issues || []).map((x) => x.message).join("；");
+      const jobHint = pendingJobs > 0 ? ` · 待修复删除任务 ${pendingJobs}` : "";
       const summary = out.healthy
-        ? `索引健康：文档 ${c.documents || 0} · 分片 ${c.chunks || 0} · Lance ${out.lanceChunkCount} · FTS ${out.ftsChunkCount}`
-        : `索引异常：${issueText || "请查看详情"}`;
+        ? `索引健康：文档 ${c.documents || 0} · 分片 ${c.chunks || 0} · Lance ${out.lanceChunkCount} · FTS ${out.ftsChunkCount}${jobHint}`
+        : `索引异常：${issueText || "请查看详情"}${jobHint}`;
       if (el.indexHealthHint) {
         el.indexHealthHint.textContent = `${summary}${out.sqlitePath ? ` · ${out.sqlitePath}` : ""}`;
       }
-      setStatus(summary, !out.healthy);
+      setStatus(summary, !out.healthy || pendingJobs > 0);
     } catch (err) {
       setStatus(err.message || String(err), true);
     } finally {
@@ -5757,14 +5799,15 @@
       }
       const repaired = Array.isArray(out.repaired) ? out.repaired.length : 0;
       const skipped = Array.isArray(out.skipped) ? out.skipped.length : 0;
-      const pending = out.pendingJobs ?? out.dryRun ? "—" : 0;
+      const synthesized = Number(out.synthesizedJobs || 0);
+      const pending = Number(out.pendingJobs || 0);
       const summary = out.dryRun
-        ? `预检：待处理删除任务 ${pending} 个`
-        : `修复完成：成功 ${repaired} · 跳过 ${skipped}`;
+        ? `预检：待处理删除任务 ${pending} 个 · 可补建 ${synthesized}`
+        : `修复完成：成功 ${repaired} · 跳过 ${skipped} · 补建任务 ${synthesized}${out.note ? ` · ${out.note}` : ""}`;
       if (el.indexHealthHint) {
         el.indexHealthHint.textContent = summary;
       }
-      setStatus(summary);
+      setStatus(summary, Boolean(out.note) || skipped > 0);
       el.indexHealthBtn?.click();
     } catch (err) {
       setStatus(err.message || String(err), true);

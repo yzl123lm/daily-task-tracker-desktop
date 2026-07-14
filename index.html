@@ -1709,6 +1709,16 @@
                               </span>
                             </label>
                           </div>
+                          <div class="kb-form-field">
+                            <span class="kb-label">原文件归档策略</span>
+                            <select id="kbArchivePolicy" class="kb-input" title="控制入库时是否复制原文件到知识库归档目录">
+                              <option value="ask">每次询问（推荐）</option>
+                              <option value="always">始终归档副本</option>
+                              <option value="never">从不归档（仅记录源路径）</option>
+                              <option value="watch-ref-only">监控目录仅引用路径</option>
+                            </select>
+                            <p class="field-hint">归档后源文件移动仍可打开副本；选择「从不归档」时源路径失效可能导致无法打开原文。</p>
+                          </div>
                           <p id="kbWatchStatusDetail" class="kb-monitor-detail field-hint" hidden></p>
                           <p id="kbIndexHealthHint" class="kb-monitor-meta field-hint">元数据存储：SQLite（kb-store.sqlite）</p>
                         </div>
