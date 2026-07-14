@@ -5,6 +5,34 @@ const { getPlanSteps } = require("./planStepsService.js");
 const { listStagedPatches } = require("./patchStagingService.js");
 const { getLatestRunForTask } = require("./agentRunStore.js");
 const { evaluateCompletion } = require("./completionGuardService.js");
+const fs = require("fs");
+const path = require("path");
+
+function hasPackageJson(localPath) {
+  if (!localPath) return false;
+  try {
+    return fs.existsSync(path.join(localPath, "package.json"));
+  } catch {
+    return false;
+  }
+}
+
+function isStaticWebProject(localPath) {
+  if (!localPath || hasPackageJson(localPath)) return false;
+  try {
+    const candidates = ["index.html", "public/index.html", "src/index.html", "app.html"];
+    return candidates.some((rel) => {
+      try {
+        const abs = path.join(localPath, rel);
+        return fs.existsSync(abs) && fs.statSync(abs).isFile();
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return !hasPackageJson(localPath);
+  }
+}
 
 function buildDeliveryManifest(getUserDataPath, userId, { projectId, taskId, verifyResult, getDefaultProjectRoot } = {}) {
   const uid = resolveUserId(userId);
@@ -111,10 +139,15 @@ function buildDeliveryManifest(getUserDataPath, userId, { projectId, taskId, ver
       criteria: spec?.acceptanceCriteria || [],
     },
     start: {
-      instructions: project?.localPath
-        ? `在项目目录打开并按 README/package.json 脚本启动：${project.localPath}`
-        : "请配置项目本地路径后启动",
-      commands: buildStartCommands(project?.localPath),
+      instructions: (() => {
+        const localPath = project?.localPath || project?.local_path || "";
+        if (!localPath) return "请配置项目本地路径后启动";
+        if (!hasPackageJson(localPath) || isStaticWebProject(localPath)) {
+          return `纯静态项目：用系统默认浏览器打开入口文件 index.html（位于 ${localPath}）`;
+        }
+        return `在项目目录打开并按 README/package.json 脚本启动：${localPath}`;
+      })(),
+      commands: buildStartCommands(project?.localPath || project?.local_path),
     },
     rollback: {
       instructions: "可通过工作台文件备份还原；或使用 Git 回退（若仓库已初始化）",
@@ -153,6 +186,19 @@ function buildDeliveryManifest(getUserDataPath, userId, { projectId, taskId, ver
 
 function buildStartCommands(localPath) {
   const cd = localPath ? `cd ${JSON.stringify(localPath)}` : "# cd <project-root>";
+  if (!hasPackageJson(localPath)) {
+    const openCmd =
+      process.platform === "win32"
+        ? "start \"\" index.html"
+        : process.platform === "darwin"
+          ? "open index.html"
+          : "xdg-open index.html";
+    return [
+      cd,
+      "# 无 package.json：请用浏览器打开 HTML 入口，勿默认执行 npm",
+      openCmd,
+    ];
+  }
   return [cd, "npm install  # 如需要", "npm test     # 或项目约定的验证脚本", "npm start    # 如适用"];
 }
 

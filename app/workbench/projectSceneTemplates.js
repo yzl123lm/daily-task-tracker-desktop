@@ -129,6 +129,9 @@ function applyTemplate(id, { fillComposer = false, fillNewTask = false } = {}) {
   if (composerSelect && composerSelect.value !== activeTemplateId) {
     composerSelect.value = activeTemplateId;
   }
+  if (window.__wbGoalPlanMode?.getWorkstream?.() === "general") {
+    window.__wbGoalPlanMode?.syncAgentModeSelectValue?.("general", activeTemplateId);
+  }
   const modalSelect = document.getElementById("wbNewTaskTemplate");
   if (modalSelect && modalSelect.value !== activeTemplateId) {
     modalSelect.value = activeTemplateId;
@@ -176,7 +179,7 @@ function populateTemplateSelects() {
   const options = SCENE_TEMPLATES.map(
     (t) => `<option value="${t.id}">${t.icon} ${t.name}</option>`
   ).join("");
-  const html = `<option value="">通用开发任务（默认）</option>${options}`;
+  const html = `<option value="">Agent</option>${options}`;
   const composerSelect = document.getElementById("wbPwsSceneTemplate");
   if (composerSelect) {
     composerSelect.innerHTML = html;
@@ -187,6 +190,24 @@ function populateTemplateSelects() {
     modalSelect.innerHTML = html;
     modalSelect.value = activeTemplateId;
   }
+  populateAgentModeSelect();
+}
+
+function populateAgentModeSelect() {
+  const el = document.getElementById("wbComposerAgentMode");
+  if (!el) return;
+  const sceneOptions = SCENE_TEMPLATES.map(
+    (t) => `<option value="agent:${t.id}">${t.icon} ${t.name}</option>`
+  ).join("");
+  el.innerHTML = `
+    <option value="agent">Agent</option>
+    ${sceneOptions}
+    <option value="plan">计划</option>
+    <option value="project">项目推进</option>
+  `;
+  const ws = window.__wbGoalPlanMode?.getWorkstream?.() || "general";
+  const tplId = activeTemplateId || "";
+  window.__wbGoalPlanMode?.syncAgentModeSelectValue?.(ws, tplId);
 }
 
 function bindSceneTemplates() {
@@ -224,7 +245,7 @@ function enrichAgentMessage(message) {
 function getTaskCreateExtras() {
   const tpl = getActiveTemplate();
   if (!tpl) {
-    return { currentStep: "AI 指令 · 通用开发任务" };
+    return { currentStep: "AI 指令 · Agent" };
   }
   return { currentStep: tpl.currentStep };
 }
@@ -236,6 +257,8 @@ window.__wbSceneTemplates = {
   applyTemplate,
   enrichAgentMessage,
   getTaskCreateExtras,
+  populateTemplateSelects,
+  populateAgentModeSelect,
 };
 
 window.__wbBindSceneTemplates = bindSceneTemplates;

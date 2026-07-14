@@ -5,6 +5,7 @@
 (function () {
   const MAX_FEED_ITEMS = 80;
   const DIFF_CARD_ID = "diff_card_current";
+  const RUNBOOK_CARD_ID = "runbook_delivery_current";
   /** @type {Map<string, object>} */
   const agentEventMap = new Map();
   let feedBound = false;
@@ -391,18 +392,23 @@
 
   function markDiffWritten() {
     const existing = agentEventMap.get(DIFF_CARD_ID);
-    if (!existing) {
-      return;
+    if (existing) {
+      upsertDiffCard({
+        title: "代码已写入",
+        summary: "变更已写入项目目录，任务继续执行",
+        status: "success",
+        writePending: false,
+        writing: false,
+        files: existing.files,
+        diffCount: existing.diffCount,
+        at: existing.at,
+      });
     }
-    upsertDiffCard({
-      title: "代码已写入",
-      summary: "变更已写入项目目录，任务继续执行",
-      status: "success",
-      writePending: false,
-      writing: false,
-      files: existing.files,
-      diffCount: existing.diffCount,
-      at: existing.at,
+    // 写入成功后收口仍「进行中」的 stage_patch / 待写入步骤，避免 Feed 残留
+    finalizeOpenSteps({
+      keepStepKeys: ["run_verify", "complete"],
+      markAs: "success",
+      detail: "已随写入完成",
     });
     renderActivityFeed();
   }
@@ -665,6 +671,111 @@
     `;
   }
 
+  function renderUserBubble(item) {
+    return `
+      <div class="wb-activity-user" data-feed-id="${escapeHtml(item.id)}">
+        <div class="wb-activity-user__bubble">${escapeHtml(item.summary || item.title || "")}</div>
+      </div>
+    `;
+  }
+
+  function renderPlanInlineCard(item) {
+    const steps = Array.isArray(item.planSteps) ? item.planSteps : [];
+    const stepLis = steps
+      .slice(0, 12)
+      .map((s, i) => {
+        const text = typeof s === "string" ? s : s.text || s.title || "";
+        return `<li>${escapeHtml(`${i + 1}. ${text}`)}</li>`;
+      })
+      .join("");
+    const badge = item.clarifying ? "需求澄清" : item.confirmed ? "计划已确认" : "待确认计划";
+    const actions = item.clarifying
+      ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-confirm-plan">确认规格</button>
+         <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-adjust-plan">调整需求</button>`
+      : item.confirmed
+        ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-run-next-step">执行第 ${escapeHtml(String(item.nextStepIndex || 1))} 步</button>`
+        : `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-confirm-plan">确认计划</button>
+           <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-adjust-plan">调整需求</button>`;
+    return `
+      <article class="wb-activity-plan" data-feed-id="${escapeHtml(item.id)}">
+        <div class="wb-activity-plan__head">
+          <h4>${escapeHtml(item.title || "开发计划")}</h4>
+          <span class="wb-activity-plan__badge">${escapeHtml(badge)}</span>
+        </div>
+        ${item.summary ? `<p class="wb-activity-item__summary">${escapeHtml(item.summary)}</p>` : ""}
+        ${stepLis ? `<ol class="wb-activity-plan__steps">${stepLis}</ol>` : ""}
+        <div class="wb-activity-plan__actions">${actions}</div>
+      </article>
+    `;
+  }
+
+  function renderRunbookCard(item) {
+    const guardOk = item.guardOk !== false;
+    const badge = guardOk ? (item.completed ? "交付完成" : "交付摘要") : "守卫未通过";
+    const badgeClass = guardOk ? "is-ok" : "is-warn";
+    const md = String(item.markdown || "");
+    const preview = md
+      .split("\n")
+      .map((line) => line.replace(/^#+\s*/, "").trim())
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(" · ");
+    const summary = strip(item.summary || preview || item.meta || "任务交付说明");
+    return `
+      <article class="wb-activity-runbook" data-feed-id="${escapeHtml(item.id)}">
+        <div class="wb-activity-runbook__head">
+          <h4>${escapeHtml(item.title || "交付 Runbook")}</h4>
+          <span class="wb-activity-runbook__badge ${badgeClass}">${escapeHtml(badge)}</span>
+        </div>
+        ${item.meta ? `<p class="wb-activity-runbook__meta">${escapeHtml(item.meta)}</p>` : ""}
+        <p class="wb-activity-item__summary">${escapeHtml(summary)}</p>
+        ${
+          md
+            ? `<details class="wb-activity-runbook__details" open>
+                <summary>查看完整 Runbook</summary>
+                <pre class="wb-activity-runbook__body scroll-tech">${escapeHtml(md)}</pre>
+              </details>`
+            : ""
+        }
+        <div class="wb-activity-runbook__actions">
+          ${
+            md
+              ? `<button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-copy-runbook">复制 Markdown</button>`
+              : ""
+          }
+        </div>
+      </article>
+    `;
+  }
+
+  function renderGoalStepCard(item) {
+    const badge =
+      item.status === "done" || item.status === "success"
+        ? "本步完成"
+        : item.status === "running"
+          ? "执行中"
+          : "待执行";
+    const actions =
+      item.status === "done" || item.status === "success"
+        ? item.allDone
+          ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-complete-goals">确认完成任务</button>`
+          : `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-run-next-step">执行下一步</button>
+             <button type="button" class="wb-pws-btn wb-pws-btn--ghost wb-activity-pause-goals">稍后继续</button>`
+        : item.status === "ready"
+          ? `<button type="button" class="wb-pws-btn wb-pws-btn--primary wb-activity-run-next-step">执行本步</button>`
+          : "";
+    return `
+      <article class="wb-activity-goal" data-feed-id="${escapeHtml(item.id)}">
+        <div class="wb-activity-goal__head">
+          <h4>${escapeHtml(item.title || "目标步骤")}</h4>
+          <span class="wb-activity-goal__badge">${escapeHtml(badge)}</span>
+        </div>
+        ${item.summary ? `<p class="wb-activity-goal__meta">${escapeHtml(item.summary)}</p>` : ""}
+        ${actions ? `<div class="wb-activity-goal__actions">${actions}</div>` : ""}
+      </article>
+    `;
+  }
+
   function renderActivityFeed() {
     const mount = getFeedMount();
     if (!mount) {
@@ -677,14 +788,85 @@
     }
     const sorted = [...feedItems].sort((a, b) => String(a.at).localeCompare(String(b.at)));
     mount.innerHTML = sorted
-      .map((item) =>
-        item.kind === "diff"
-          ? renderDiffCard(item)
-          : renderStepCard(item)
-      )
+      .map((item) => {
+        if (item.kind === "user") return renderUserBubble(item);
+        if (item.kind === "plan_card") return renderPlanInlineCard(item);
+        if (item.kind === "goal_step") return renderGoalStepCard(item);
+        if (item.kind === "runbook_card") return renderRunbookCard(item);
+        if (item.kind === "diff") return renderDiffCard(item);
+        return renderStepCard(item);
+      })
       .join("");
     bindFeedActions(mount);
     mount.scrollTop = mount.scrollHeight;
+  }
+
+  function pushUserMessage(text) {
+    const content = strip(text).trim();
+    if (!content) return;
+    const id = `user_${Date.now().toString(36)}`;
+    agentEventMap.set(id, {
+      id,
+      kind: "user",
+      title: "用户",
+      summary: content,
+      status: "success",
+      at: new Date().toISOString(),
+    });
+    // trim
+    while (agentEventMap.size > MAX_FEED_ITEMS) {
+      const first = agentEventMap.keys().next().value;
+      agentEventMap.delete(first);
+    }
+    renderActivityFeed();
+  }
+
+  function pushPlanInline(payload = {}) {
+    const id = "plan_card_current";
+    agentEventMap.set(id, {
+      id,
+      kind: "plan_card",
+      title: payload.title || payload.summary || "开发计划",
+      summary: strip(payload.requirementUnderstanding || payload.summary || ""),
+      planSteps: payload.plan || payload.planSteps || [],
+      clarifying: Boolean(payload.clarifying),
+      confirmed: Boolean(payload.confirmed),
+      nextStepIndex: payload.nextStepIndex || 1,
+      status: payload.confirmed ? "success" : "waiting",
+      at: new Date().toISOString(),
+    });
+    renderActivityFeed();
+  }
+
+  function pushRunbookInline(payload = {}) {
+    agentEventMap.set(RUNBOOK_CARD_ID, {
+      id: RUNBOOK_CARD_ID,
+      kind: "runbook_card",
+      title: payload.title || "交付 Runbook",
+      summary: strip(payload.summary || ""),
+      meta: strip(payload.meta || ""),
+      markdown: String(payload.markdown || ""),
+      guardOk: payload.guardOk !== false,
+      completed: Boolean(payload.completed),
+      status: payload.guardOk === false ? "failed" : "success",
+      at: new Date().toISOString(),
+    });
+    renderActivityFeed();
+  }
+
+  function pushGoalStepCard(payload = {}) {
+    const id = payload.id || `goal_${payload.stepId || Date.now().toString(36)}`;
+    agentEventMap.set(id, {
+      id,
+      kind: "goal_step",
+      stepId: payload.stepId || null,
+      title: payload.title || "目标步骤",
+      summary: strip(payload.summary || ""),
+      status: payload.status || "ready",
+      allDone: Boolean(payload.allDone),
+      at: new Date().toISOString(),
+    });
+    renderActivityFeed();
   }
 
   function bindFeedActions(mount) {
@@ -727,6 +909,49 @@
         if (card) {
           card.hidden = false;
           card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+    });
+    mount.querySelectorAll(".wb-activity-confirm-plan").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        void window.__wbConfirmGoalPlan?.();
+      });
+    });
+    mount.querySelectorAll(".wb-activity-adjust-plan").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.getElementById("wbAgentInput")?.focus();
+        window.__wbShowComposerToast?.("可在输入框补充需求后重新生成计划", { type: "info" });
+      });
+    });
+    mount.querySelectorAll(".wb-activity-run-next-step").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        void window.__wbRunNextGoalStep?.();
+      });
+    });
+    mount.querySelectorAll(".wb-activity-pause-goals").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        window.__wbSetComposerPhase?.("goal_step_done");
+        window.__wbShowComposerToast?.("已暂停。需要时点击「执行下一步」继续。", { type: "info" });
+      });
+    });
+    mount.querySelectorAll(".wb-activity-complete-goals").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        void window.__wbCompleteComposerTask?.();
+      });
+    });
+    mount.querySelectorAll(".wb-activity-copy-runbook").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const card = btn.closest(".wb-activity-runbook");
+        const text = card?.querySelector(".wb-activity-runbook__body")?.textContent || "";
+        if (!text.trim()) {
+          window.__wbShowComposerToast?.("暂无 Runbook 可复制", { type: "warn" });
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          window.__wbShowComposerToast?.("Runbook 已复制", { type: "success" });
+        } catch {
+          window.__wbShowComposerToast?.("复制失败，请手动选择文本", { type: "warn" });
         }
       });
     });
@@ -774,6 +999,10 @@
     render: renderActivityFeed,
     updateHeader: updateRunHeader,
     bind: bindActivityFeed,
+    pushUserMessage,
+    pushPlanInline,
+    pushRunbookInline,
+    pushGoalStepCard,
     getItems: () => feedItemsFromMap(),
     getAgentEventKey,
   };

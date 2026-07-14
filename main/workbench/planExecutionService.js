@@ -232,7 +232,25 @@ function advancePlanStep(
  * Mark next ready step running (or resume after crash by skipping already-done).
  */
 function beginNextPlanStep(getUserDataPath, userId, projectId, taskId) {
-  const steps = getPlanSteps(getUserDataPath, userId, projectId, taskId);
+  let steps = getPlanSteps(getUserDataPath, userId, projectId, taskId);
+  const needsFileEnrich = steps.length && steps.every((s) => !(s.expectedFiles || []).length);
+  if (needsFileEnrich) {
+    try {
+      const { enrichStepsWithExpectedFiles, savePlanSteps: persistSteps } = require("./planStepsService.js");
+      const { getTask } = require("./projectService.js");
+      const { getTaskSpec } = require("./taskSpecService.js");
+      const task = getTask(getUserDataPath, userId, projectId, taskId);
+      const spec = getTaskSpec(getUserDataPath, userId, projectId, taskId);
+      const goalHint = spec?.goal || task?.description || task?.title || "";
+      steps = enrichStepsWithExpectedFiles(steps, { goalHint });
+      persistSteps(getUserDataPath, userId, projectId, taskId, steps, {
+        skipDagValidation: true,
+        goalHint,
+      });
+    } catch {
+      /* non-fatal */
+    }
+  }
   const dag = validatePlanDag(steps);
   if (!dag.ok) {
     return { ok: false, blocked: true, reason: dag.message, code: dag.code };

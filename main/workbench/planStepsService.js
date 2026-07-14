@@ -59,11 +59,48 @@ function getPlanSteps(getUserDataPath, userId, projectId, taskId) {
   }
 }
 
+function enrichStepsWithExpectedFiles(steps, { goalHint = "", affectedFiles = [] } = {}) {
+  const goal = String(goalHint || "");
+  const isGame = /贪吃蛇|snake|小游戏|\bgame\b/i.test(goal);
+  const pool = [...new Set([...(affectedFiles || []), ...(isGame ? ["index.html", "style.css", "game.js"] : [])])];
+
+  return (steps || []).map((step, index) => {
+    if (step.expectedFiles?.length) {
+      return step;
+    }
+    const t = String(step.text || "");
+    const files = [];
+    if (isGame) {
+      if (/game\.js|\.js|逻辑|移动|食物|碰撞|得分|蛇|键盘|localStorage|重开|难度|玩法/i.test(t)) {
+        files.push("game.js");
+      }
+      if (/html|主界面|画布|canvas|控制面板|入口|状态栏|遮罩|script/i.test(t)) {
+        files.push("index.html");
+      }
+      if (/css|样式|布局|视觉|动画|自适应|响应/i.test(t)) {
+        files.push("style.css");
+      }
+      if (/canvas|绘制|网格/i.test(t)) {
+        if (!files.includes("game.js")) files.push("game.js");
+        if (!files.includes("index.html")) files.push("index.html");
+      }
+    }
+    if (!files.length && index === 0 && pool.length) {
+      return { ...step, expectedFiles: pool.slice(0, 3) };
+    }
+    return files.length ? { ...step, expectedFiles: [...new Set(files)] } : step;
+  });
+}
+
 function savePlanSteps(getUserDataPath, userId, projectId, taskId, plan, meta = {}) {
   const db = getDb(getUserDataPath);
   const uid = resolveUserId(userId);
   const ts = nowIso();
-  const steps = normalizeSteps(plan, { criterionIds: meta.criterionIds || [] });
+  let steps = normalizeSteps(plan, { criterionIds: meta.criterionIds || [] });
+  steps = enrichStepsWithExpectedFiles(steps, {
+    goalHint: meta.goalHint || meta.message || "",
+    affectedFiles: meta.affectedFiles || [],
+  });
   // BL-010: reject cyclic DAGs unless explicitly skipped (legacy repair)
   if (!meta.skipDagValidation) {
     const { validatePlanDag } = require("./planExecutionService.js");
@@ -96,6 +133,7 @@ function updatePlanStepStatus(getUserDataPath, userId, projectId, taskId, stepId
 
 module.exports = {
   normalizeSteps,
+  enrichStepsWithExpectedFiles,
   getPlanSteps,
   savePlanSteps,
   updatePlanStepStatus,

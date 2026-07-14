@@ -368,6 +368,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   wbProjectsList: (payload) => ipcRenderer.invoke("wb-projects-list", payload || {}),
   wbProjectGet: (payload) => ipcRenderer.invoke("wb-project-get", payload || {}),
+  wbProjectTrustedWorkspaceBase: () => ipcRenderer.invoke("wb-project-trusted-workspace-base"),
   wbProjectCreate: (payload) => ipcRenderer.invoke("wb-project-create", payload || {}),
   wbProjectUpdate: (payload) => ipcRenderer.invoke("wb-project-update", payload || {}),
   wbProjectArchive: (payload) => ipcRenderer.invoke("wb-project-archive", payload || {}),
@@ -444,7 +445,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   wbProjectComposeUp: (payload) => ipcRenderer.invoke("wb-project-compose-up", payload || {}),
   wbProjectComposeDown: (payload) => ipcRenderer.invoke("wb-project-compose-down", payload || {}),
   wbProjectPlanDag: (payload) => ipcRenderer.invoke("wb-project-plan-dag", payload || {}),
+  wbProjectPlanStepBegin: (payload) =>
+    ipcRenderer.invoke("wb-project-plan-step-begin", payload || {}),
+  wbProjectPlanStepAdvance: (payload) =>
+    ipcRenderer.invoke("wb-project-plan-step-advance", payload || {}),
   wbProjectCheckpointGet: (payload) => ipcRenderer.invoke("wb-project-checkpoint-get", payload || {}),
+  wbProjectCheckpointSave: (payload) =>
+    ipcRenderer.invoke("wb-project-checkpoint-save", payload || {}),
+  wbProjectImportRequirement: (payload) =>
+    ipcRenderer.invoke("wb-project-import-requirement", payload || {}),
   wbProjectTaskRecover: (payload) => ipcRenderer.invoke("wb-project-task-recover", payload || {}),
   wbProjectFixloopRollback: (payload) =>
     ipcRenderer.invoke("wb-project-fixloop-rollback", payload || {}),

@@ -1,4 +1,4 @@
-const WB_PWS_LAYOUT_VERSION = "22";
+const WB_PWS_LAYOUT_VERSION = "29";
 
 const WB_PWS_PROJECT_COL_HTML = `
     <aside class="wb-pws-project-col wb-pws-sidebar" id="wbPwsProjectCol" aria-label="项目上下文" hidden>
@@ -52,10 +52,11 @@ const WB_PWS_PROJECT_COL_HTML = `
 `;
 
 const WB_PWS_LAYOUT_HTML = `
-  <div class="wb-pws-layout wb-ai-workbench-layout" data-terminal-collapsed="1">
+  <div class="wb-pws-layout wb-ai-workbench-layout wb-pws-layout--cursor-main" data-terminal-collapsed="1" data-code-drawer="0">
     <header class="wb-pws-topbar wb-pws-status-bar wb-pws-mobile-toolbar" id="wbPwsTopbar" aria-label="移动端工具栏">
       <button type="button" id="wbPwsOpenProjectDrawer" class="wb-pws-btn wb-pws-btn--ghost" title="项目与任务">项目</button>
       <span class="wb-pws-mobile-toolbar__spacer"></span>
+      <button type="button" id="wbPwsOpenCodeDrawer" class="wb-pws-btn wb-pws-btn--ghost" title="代码与 Diff">代码</button>
       <button type="button" id="wbNewTaskBtnMobile" class="wb-pws-btn wb-pws-btn--primary">新建任务</button>
     </header>
     <div class="wb-pws-sr-only" aria-hidden="true">
@@ -77,12 +78,15 @@ const WB_PWS_LAYOUT_HTML = `
           <p id="wbTaskDetailDesc" class="wb-pws-user-card__desc wb-agent-run-header__desc"></p>
           <p id="wbTaskDetailStep" class="wb-pws-user-card__step" hidden></p>
         </div>
-        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">输入下方 AI 指令并开始执行，执行过程将在此以 Activity Feed 展示。</p>
+        <p id="wbPwsAgentEmpty" class="wb-pws-agent-empty">描述开发需求并开始执行；过程将以 Cursor 式执行流展示。</p>
+        <div class="wb-pws-agent-header__tools">
+          <button type="button" id="wbPwsOpenCodeDrawerDesktop" class="wb-pws-btn wb-pws-btn--ghost" title="打开代码 / Diff">代码 / Diff</button>
+        </div>
       </header>
       <div class="wb-pws-agent-scroll wb-agent-activity-scroll">
         <div class="wb-agent-activity-panel" aria-label="Agent 执行流">
           <header class="wb-agent-activity-panel__head">
-            <h3>Agent 执行流</h3>
+            <h3>执行流</h3>
             <button type="button" id="wbActivityOpenLogBtn" class="wb-pws-btn wb-pws-btn--ghost" title="打开执行日志">日志</button>
           </header>
           <div id="wbAgentActivityFeed" class="wb-agent-activity-feed" role="log" aria-live="polite"></div>
@@ -90,19 +94,8 @@ const WB_PWS_LAYOUT_HTML = `
           <ol id="wbAgentRuns" class="wb-pws-timeline wb-agent-runs-legacy" hidden aria-hidden="true"></ol>
         </div>
         <div id="wbPwsApprovalMount" class="wb-pws-approval-mount"></div>
-        <div id="wbPlanCard" class="wb-plan-card wb-pws-plan-card" hidden></div>
-        <details id="wbRunbookPanel" class="wb-runbook-panel" hidden>
-          <summary class="wb-runbook-panel__summary">
-            <span>交付 Runbook</span>
-            <span id="wbRunbookMeta" class="wb-runbook-panel__meta"></span>
-          </summary>
-          <div class="wb-runbook-panel__toolbar">
-            <button type="button" id="wbRunbookCopyBtn" class="wb-pws-btn wb-pws-btn--ghost">复制 Markdown</button>
-            <button type="button" id="wbRunbookRefreshBtn" class="wb-pws-btn wb-pws-btn--ghost">刷新</button>
-          </div>
-          <pre id="wbRunbookBody" class="wb-runbook-panel__body scroll-tech"></pre>
-        </details>
-        <details id="wbAsyncRunsPanel" class="wb-async-runs-panel">
+        <div id="wbPlanCard" class="wb-plan-card wb-pws-plan-card" hidden aria-hidden="true"></div>
+        <details id="wbAsyncRunsPanel" class="wb-async-runs-panel wb-pws-aux-panel" hidden>
           <summary class="wb-async-runs-panel__summary">
             <span class="wb-async-runs-panel__summary-title">异步任务中心</span>
             <span id="wbAsyncCenterMeta" class="wb-async-runs-panel__meta"></span>
@@ -122,7 +115,7 @@ const WB_PWS_LAYOUT_HTML = `
           </div>
           <ul id="wbAsyncRunsList" class="wb-async-runs-list scroll-tech"></ul>
         </details>
-        <details id="wbSkillsCatalogPanel" class="wb-skills-catalog-panel">
+        <details id="wbSkillsCatalogPanel" class="wb-skills-catalog-panel wb-pws-aux-panel" hidden>
           <summary class="wb-skills-catalog-panel__summary">
             <span class="wb-skills-catalog-panel__summary-title">指令 &amp; Skills</span>
             <span id="wbSkillsCatalogMeta" class="wb-skills-catalog-panel__meta"></span>
@@ -151,40 +144,50 @@ const WB_PWS_LAYOUT_HTML = `
         </details>
       </div>
       <div class="wb-pws-agent-composer wb-ai-command wb-agent-run-actions">
-        <div class="wb-ai-command__header">
-          <span class="wb-ai-command__title">AI 指令</span>
-          <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" hidden aria-hidden="true" title="上下文健康度"></button>
-          <select id="wbPwsSceneTemplate" class="wb-pws-template-select" aria-label="场景模板（可选）"></select>
-        </div>
-        <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>
-        <p id="wbComposerPathHint" class="wb-composer-path-hint" hidden></p>
-        <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
-        <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
-        <div class="wb-ai-command__footer">
-          <label class="wb-auto-verify-switch wb-pws-auto-verify" for="wbAutoVerifyAfterWrite" hidden aria-hidden="true">
-            <input type="checkbox" id="wbAutoVerifyAfterWrite" checked />
-            自动验证
-          </label>
-          <div class="wb-ai-command__actions">
-            <button type="button" id="wbSecondaryActionBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>调整需求</button>
-            <button type="button" id="wbPrimaryActionBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
-            <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded="false">⋯</button>
-            <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden role="menu" aria-label="更多操作">
-              <button type="button" data-wb-more-action="regen-plan">重新生成方案</button>
-              <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
-              <button type="button" data-wb-more-action="open-log">查看执行日志</button>
-              <button type="button" data-wb-more-action="open-tools">查看工具记录</button>
-              <button type="button" data-wb-more-action="new-task">新建任务</button>
-              <button type="button" data-wb-more-action="reset-layout">重置布局</button>
-              <button type="button" data-wb-more-action="manual-compress">手动压缩</button>
-              <button type="button" data-wb-more-action="open-path">打开项目路径</button>
-              <button type="button" data-wb-more-action="edit-path">编辑项目路径</button>
-              <button type="button" data-wb-more-action="parallel-merge">并行合并面板</button>
-              <button type="button" data-wb-more-action="skills-catalog">指令 &amp; Skills</button>
-              <button type="button" data-wb-more-action="complete">标记完成</button>
-              <button type="button" data-wb-more-action="cancel">取消任务</button>
+        <div class="wb-ai-command__shell">
+          <div class="wb-ai-command__surface">
+            <textarea id="wbAgentInput" class="wb-pws-composer__input wb-ai-command__input" rows="3" placeholder="描述你希望 AI 完成的开发任务，例如：开发一个贪吃蛇小游戏"></textarea>
+            <div class="wb-ai-command__toolbar">
+              <div class="wb-ai-command__toolbar-start">
+                <div class="wb-agent-mode-module" id="wbAgentModeModule">
+                  <select id="wbComposerAgentMode" class="wb-pws-template-select wb-ai-command__mode-select" aria-label="Agent 模式"></select>
+                </div>
+                <button type="button" id="wbImportRequirementBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__upload" hidden title="上传外部需求文档">上传需求文档</button>
+              </div>
+              <div class="wb-ai-command__toolbar-end">
+                <label class="wb-auto-verify-switch wb-pws-auto-verify" for="wbAutoVerifyAfterWrite" hidden aria-hidden="true">
+                  <input type="checkbox" id="wbAutoVerifyAfterWrite" checked />
+                  自动验证
+                </label>
+                <button type="button" id="wbSecondaryActionBtn" class="wb-pws-btn wb-pws-btn--ghost" hidden>调整需求</button>
+                <button type="button" id="wbPrimaryActionBtn" class="wb-pws-btn wb-pws-btn--primary">开始执行</button>
+                <button type="button" id="wbMoreActionsBtn" class="wb-pws-btn wb-pws-btn--ghost wb-ai-command__more" aria-label="更多操作" title="更多操作" aria-haspopup="menu" aria-expanded="false">⋯</button>
+              </div>
             </div>
           </div>
+          <div id="wbComposerMoreMenu" class="wb-composer-more-menu" hidden role="menu" aria-label="更多操作">
+            <button type="button" data-wb-more-action="regen-plan">重新生成方案</button>
+            <button type="button" data-wb-more-action="regen-patch">重新生成变更</button>
+            <button type="button" data-wb-more-action="open-log">查看执行日志</button>
+            <button type="button" data-wb-more-action="open-tools">查看工具记录</button>
+            <button type="button" data-wb-more-action="new-task">新建任务</button>
+            <button type="button" data-wb-more-action="reset-layout">重置布局</button>
+            <button type="button" data-wb-more-action="manual-compress">手动压缩</button>
+            <button type="button" data-wb-more-action="open-path">打开项目路径</button>
+            <button type="button" data-wb-more-action="open-game">打开游戏</button>
+            <button type="button" data-wb-more-action="skip-verify">跳过验证</button>
+            <button type="button" data-wb-more-action="continue-verify">继续验证</button>
+            <button type="button" data-wb-more-action="edit-path">编辑项目路径</button>
+            <button type="button" data-wb-more-action="parallel-merge">并行合并面板</button>
+            <button type="button" data-wb-more-action="skills-catalog">指令 &amp; Skills</button>
+            <button type="button" data-wb-more-action="complete">标记完成</button>
+            <button type="button" data-wb-more-action="cancel">取消任务</button>
+          </div>
+          <button type="button" id="wbProjectContextHealth" class="wb-ctx-health-mount" hidden aria-hidden="true" title="上下文健康度"></button>
+          <select id="wbPwsSceneTemplate" class="wb-pws-template-select" hidden aria-hidden="true" tabindex="-1"></select>
+          <p id="wbComposerPathHint" class="wb-composer-path-hint" hidden></p>
+          <p id="wbComposerError" class="wb-composer-error" role="alert" hidden></p>
+          <div id="wbComposerToast" class="wb-composer-toast" role="status" hidden></div>
         </div>
         <div class="wb-ai-command__legacy-actions" hidden aria-hidden="true">
           <button type="button" id="wbAgentRunBtn"></button>
@@ -193,9 +196,9 @@ const WB_PWS_LAYOUT_HTML = `
         </div>
       </div>
     </section>
-    <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="代码工作区">
-      <header class="wb-pws-code-col__drawer-head wb-pws-mobile-only" id="wbPwsCodeDrawerHead">
-        <h3>代码变更</h3>
+    <section class="wb-pws-code-col wb-pws-main-col main-workspace" id="wbPwsCodeCol" aria-label="代码工作区" hidden>
+      <header class="wb-pws-code-col__drawer-head" id="wbPwsCodeDrawerHead">
+        <h3>代码 / Diff</h3>
         <button type="button" id="wbPwsCodeDrawerClose" class="wb-pws-btn wb-pws-btn--ghost">关闭</button>
       </header>
       <div class="wb-pws-code-body main-editor-body" id="wbPwsCodeMount"></div>
@@ -356,28 +359,55 @@ function setDrawerState(kind, open) {
   const cls =
     kind === "project" ? "wb-project-drawer-open" : "wb-code-drawer-open";
   document.body.classList.toggle(cls, Boolean(open));
+  const layout = document.querySelector(".wb-pws-layout");
+  const codeCol = document.getElementById("wbPwsCodeCol");
+  if (kind === "code") {
+    if (layout) {
+      layout.dataset.codeDrawer = open ? "1" : "0";
+    }
+    if (codeCol) {
+      codeCol.hidden = !open;
+      codeCol.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+  }
   const backdrop = document.getElementById("wbPwsDrawerBackdrop");
   if (backdrop) {
-    backdrop.hidden = !open;
-    backdrop.setAttribute("aria-hidden", open ? "false" : "true");
+    const anyOpen =
+      document.body.classList.contains("wb-project-drawer-open") ||
+      document.body.classList.contains("wb-code-drawer-open");
+    backdrop.hidden = !anyOpen;
+    backdrop.setAttribute("aria-hidden", anyOpen ? "false" : "true");
   }
 }
 
+function openCodeDrawer(tab = "diff", { loadDiff } = {}) {
+  setDrawerState("code", true);
+  if (tab) {
+    const shouldLoadDiff = loadDiff !== undefined ? Boolean(loadDiff) : tab === "diff";
+    window.__wbSwitchCodeTab?.(tab, { loadDiff: shouldLoadDiff });
+  }
+}
+
+function closeCodeDrawer() {
+  setDrawerState("code", false);
+}
+
 function bindPwsDrawers() {
-  const openCode = document.getElementById("wbPwsOpenCodeDrawer");
+  const openers = [
+    document.getElementById("wbPwsOpenCodeDrawer"),
+    document.getElementById("wbPwsOpenCodeDrawerDesktop"),
+  ].filter(Boolean);
   const closeCode = document.getElementById("wbPwsCodeDrawerClose");
   const openProject = document.getElementById("wbPwsOpenProjectDrawer");
   const backdrop = document.getElementById("wbPwsDrawerBackdrop");
-  if (openCode && openCode.dataset.bound !== "1") {
+  for (const openCode of openers) {
+    if (openCode.dataset.bound === "1") continue;
     openCode.dataset.bound = "1";
-    openCode.addEventListener("click", () => {
-      setDrawerState("code", true);
-      window.__wbSwitchCodeTab?.("diff");
-    });
+    openCode.addEventListener("click", () => openCodeDrawer("diff"));
   }
   if (closeCode && closeCode.dataset.bound !== "1") {
     closeCode.dataset.bound = "1";
-    closeCode.addEventListener("click", () => setDrawerState("code", false));
+    closeCode.addEventListener("click", () => closeCodeDrawer());
   }
   if (openProject && openProject.dataset.bound !== "1") {
     openProject.dataset.bound = "1";
@@ -390,6 +420,8 @@ function bindPwsDrawers() {
       setDrawerState("code", false);
     });
   }
+  // Cursor 单主区：默认收起代码抽屉
+  setDrawerState("code", false);
 }
 
 function bindTerminalDrawer() {
@@ -522,6 +554,9 @@ window.__wbBindPwsDrawers = bindPwsDrawers;
 window.__wbSyncTerminalDrawer = syncTerminalDrawerFromPanels;
 window.__wbExpandTerminalDrawer = expandTerminalDrawer;
 window.__wbSwitchSidebarTab = switchSidebarTab;
+window.__wbOpenCodeDrawer = openCodeDrawer;
+window.__wbCloseCodeDrawer = closeCodeDrawer;
+window.__wbSetCodeDrawerOpen = (open) => setDrawerState("code", Boolean(open));
 window.__wbClosePwsDrawers = () => {
   setDrawerState("project", false);
   setDrawerState("code", false);

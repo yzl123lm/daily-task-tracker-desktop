@@ -1440,6 +1440,155 @@ body.jl-window-ai .jl-ai-session-list {
   min-width: 0;
 }
 
+/* 新建项目弹窗（样例图布局） */
+.wb-new-project-modal {
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.wb-new-project-modal__head {
+  padding: 20px 22px 10px;
+}
+
+.wb-new-project-modal__head h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.wb-new-project-modal__body {
+  padding: 6px 22px 18px;
+  gap: 18px;
+}
+
+.wb-new-project-field__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.wb-new-project-field__opt {
+  font-style: normal;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.wb-new-project-field__control {
+  position: relative;
+}
+
+.wb-new-project-field__control input,
+.wb-new-project-field__control textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 11px 52px 11px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #0f172a;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wb-new-project-field__control textarea {
+  min-height: 108px;
+  resize: vertical;
+  padding-bottom: 28px;
+}
+
+.wb-new-project-field__control input:focus,
+.wb-new-project-field__control textarea:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.wb-new-project-field__count {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.wb-new-project-field__count--area {
+  top: auto;
+  bottom: 10px;
+  transform: none;
+}
+
+.wb-new-project-path {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #dcebfa;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.wb-new-project-path input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  padding: 11px 12px;
+  font-size: 14px;
+  color: #0f172a;
+  background: transparent;
+}
+
+.wb-new-project-path input:focus {
+  outline: none;
+}
+
+.wb-new-project-path__browse {
+  flex-shrink: 0;
+  border: none;
+  border-left: 1px solid #dcebfa;
+  border-radius: 0;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  background: #f7fbff;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.wb-new-project-path__browse:hover {
+  background: #eaf4ff;
+  color: #1d4ed8;
+}
+
+.wb-new-project-path__browse:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.28);
+}
+
+.wb-new-project-modal__foot {
+  padding-top: 8px;
+  gap: 10px;
+}
+
+.wb-new-project-modal__cancel,
+.wb-new-project-modal__submit {
+  min-width: 88px;
+  border-radius: 10px;
+  padding: 9px 18px;
+}
+
+.wb-new-project-modal__submit {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border-color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+}
+
 .wb-code-search-hits__btn {
   width: 100%;
   text-align: left;
@@ -1601,6 +1750,25 @@ body.jl-window-ai.theme-nebula .wb-modal button.danger:hover {
   color: #fff;
   background: #b42318;
   border-color: #912018;
+}
+
+body.theme-nebula .wb-modal .wb-new-project-path__browse,
+body.jl-window-ai.theme-nebula .wb-modal .wb-new-project-path__browse {
+  color: #2563eb !important;
+  background: #f7fbff !important;
+  border: none !important;
+  border-left: 1px solid #dcebfa !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  font-weight: 600 !important;
+}
+
+body.theme-nebula .wb-modal .wb-new-project-path__browse:hover,
+body.jl-window-ai.theme-nebula .wb-modal .wb-new-project-path__browse:hover {
+  color: #1d4ed8 !important;
+  background: #eaf4ff !important;
+  border-left-color: #b9d6fb !important;
 }
 
 body.theme-nebula .wb-modal input,

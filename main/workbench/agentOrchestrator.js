@@ -161,6 +161,8 @@ function persistPlanArtifacts(getUserDataPath, uid, projectId, taskId, { message
   const planPayload = savePlanSteps(getUserDataPath, uid, projectId, taskId, plan, {
     specVersion: spec.version,
     criterionIds: (spec.acceptanceCriteria || []).filter((c) => c.must).map((c) => c.id),
+    goalHint: message || spec.goal || task?.title || "",
+    affectedFiles: output?.affectedFiles || [],
   });
   try {
     const { validatePlanDag, appendPlanEvent } = require("./planExecutionService.js");
@@ -202,6 +204,10 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
   const taskId = payload.taskId;
   const message = String(payload.message || "");
   const mode = String(payload.mode || "PLAN_ONLY").toUpperCase();
+  const goalPlan =
+    payload.execMode === "goal_plan" ||
+    payload.goalPlan === true ||
+    /【目标计划/.test(message);
   const webContents = payload.webContents || null;
 
   const project = getProject(getUserDataPath, uid, projectId);
@@ -337,21 +343,28 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         getDefaultProjectRoot: getDefaultProjectRootFn,
       });
       if (!available || !available.length) {
-        verifySkipped = {
-          skipped: true,
-          message: "当前为非 Node 项目或未配置验证脚本，已跳过自动验证",
-          scriptName,
-        };
-        emitAgentEvent(
-          { getUserDataPath, userId: uid, projectId, taskId, agentRunId: applyRunId, webContents },
+        // BL-003: 有写入结果时也不得空跳过；改为 static-smoke
+        const taskNs = buildTaskNamespace(projectId, taskId);
+        const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
+          namespace: taskNs,
+          messages: [],
+        });
+        fixResult = await runFixLoop(
+          getUserDataPath,
+          uid,
           {
-            phase: PHASE.COMPLETED,
-            status: STATUS.skipped,
-            title: "自动验证",
-            summary: verifySkipped.message,
-            stepKey: "run_verify",
-          }
+            getUserDataPath,
+            userId: uid,
+            projectId,
+            taskId,
+            agentRunId: applyRunId,
+            promptContext: prepared.promptContext,
+            webContents,
+            root: resolveProjectRoot(project, getDefaultProjectRootFn),
+          },
+          { scriptName: "static-smoke", getDefaultProjectRoot: getDefaultProjectRootFn }
         );
+        verifyResult = fixResult?.verify || null;
       } else {
         const taskNs = buildTaskNamespace(projectId, taskId);
         const prepared = compressionManager.prepareContextForAgent(getUserDataPath, uid, {
@@ -384,7 +397,8 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           { scriptName, getDefaultProjectRoot: getDefaultProjectRootFn }
         );
         verifyResult = fixResult?.verify || null;
-        if (fixResult?.skipped) {
+        // 有证据的通过（含 static-smoke fallback）不得标成 skipped
+        if (fixResult?.skipped && !fixResult?.ok) {
           verifySkipped = {
             skipped: true,
             message: fixResult.message || "未配置验证脚本，已跳过自动验证",
@@ -566,29 +580,23 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         getDefaultProjectRoot: getDefaultProjectRootFn,
       });
       if (!available || !available.length) {
-        const skipMsg = "当前为非 Node 项目或未配置验证脚本，已跳过验证";
+        // BL-003: 禁止空校验清单直接 skipped=pass；降级 static-smoke
+        const fixResult = await runFixLoop(getUserDataPath, uid, ctx, {
+          scriptName: "static-smoke",
+          getDefaultProjectRoot: getDefaultProjectRootFn,
+        });
         output = {
-          summary: skipMsg,
-          fixResult: { ok: true, skipped: true, message: skipMsg },
-          verifySkipped: { skipped: true, message: skipMsg },
+          summary: fixResult.ok
+            ? fixResult.message || "静态冒烟通过"
+            : fixResult.message || "验证失败",
+          fixResult,
           toolTrace: [],
           mode,
         };
-        runStatus = RUN_STATUS.COMPLETED;
-        emitAgentEvent(ctx, {
-          phase: PHASE.COMPLETED,
-          status: STATUS.skipped,
-          title: "运行验证",
-          summary: skipMsg,
-          stepKey: "run_verify",
-        });
-        emitAgentEvent(ctx, {
-          phase: PHASE.COMPLETED,
-          status: STATUS.success,
-          title: "任务完成",
-          summary: skipMsg,
-          stepKey: "complete",
-        });
+        runStatus =
+          fixResult.ok || fixResult.skipped
+            ? RUN_STATUS.COMPLETED
+            : RUN_STATUS.WAITING_APPROVAL;
       } else if (payload.fixContext?.resume && fixLoopV2Enabled()) {
         const fixState = getFixLoopState(getUserDataPath, uid, projectId, taskId);
         if (fixState?.active) {
@@ -632,15 +640,13 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
             ? RUN_STATUS.COMPLETED
             : RUN_STATUS.WAITING_APPROVAL;
       }
-      if (available?.length) {
-        emitAgentEvent(ctx, {
-          phase: runStatus === RUN_STATUS.COMPLETED ? PHASE.COMPLETED : PHASE.WAITING_REVIEW,
-          status: runStatus === RUN_STATUS.COMPLETED ? STATUS.success : STATUS.waiting,
-          title: runStatus === RUN_STATUS.COMPLETED ? "任务完成" : "等待用户审阅",
-          summary: output?.summary || "",
-          stepKey: runStatus === RUN_STATUS.COMPLETED ? "complete" : "await_diff",
-        });
-      }
+      emitAgentEvent(ctx, {
+        phase: runStatus === RUN_STATUS.COMPLETED ? PHASE.COMPLETED : PHASE.WAITING_REVIEW,
+        status: runStatus === RUN_STATUS.COMPLETED ? STATUS.success : STATUS.waiting,
+        title: runStatus === RUN_STATUS.COMPLETED ? "任务完成" : "等待用户审阅",
+        summary: output?.summary || "",
+        stepKey: runStatus === RUN_STATUS.COMPLETED ? "complete" : "await_diff",
+      });
     } else if (agentLlmEnabled() && root) {
       if (mode === "PLAN_ONLY") {
         emitAgentEvent(ctx, {
@@ -659,7 +665,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
           stepKey: "generate_patch",
         });
       }
-      output = await runProjectAgentLLM(ctx, { message, mode });
+      output = await runProjectAgentLLM(ctx, { message, mode, goalPlan });
       runStatus =
         mode === "PATCH_PROPOSE" ? RUN_STATUS.WAITING_APPROVAL : RUN_STATUS.COMPLETED;
 
@@ -741,6 +747,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         taskId,
         promptContext: prepared.promptContext,
         codeAnalysis,
+        goalPlan,
       });
       if (mode === "PATCH_PROPOSE") {
         output.diffPreviews = [];
@@ -907,6 +914,7 @@ async function runProjectAgent(getUserDataPath, userId, payload) {
         taskId,
         promptContext: prepared.promptContext,
         codeAnalysis,
+        goalPlan,
       });
       output.fallbackReason = err.message;
       recordTaskMemories(getUserDataPath, uid, output);

@@ -25,7 +25,7 @@
     diff_accepted: { primaryView: "diff", next: "批准写入磁盘" },
     patch_empty: { primaryView: "code", next: "重新生成代码变更" },
     written: { primaryView: "test", next: "运行验证或确认完成" },
-    ready_confirm: { primaryView: "test", next: "确认完成并查看交付 Runbook" },
+    ready_confirm: { primaryView: "test", next: "确认完成并生成交付 Runbook" },
     done: { primaryView: "git", next: "可新建任务或查看 Git/交付" },
     failed: { primaryView: "code", next: "查看错误后重试或重规划" },
     running: { primaryView: "code", next: "等待 Agent 完成当前步骤" },

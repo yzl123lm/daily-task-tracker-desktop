@@ -79,6 +79,12 @@ function summarizeToolOutput(toolName, result) {
     if (result.code === "FILE_NOT_FOUND" || result.code === "PATH_NOT_USEFUL") {
       return result.error || "文件不存在，请改用 stage_patch 新建";
     }
+    if (toolName === "stage_patch" && result.hint === "use_full_content") {
+      return "补丁失败：建议 read_file 后用 proposedContent 提交完整文件";
+    }
+    if (toolName === "stage_patch" && result.hint === "use_create_file") {
+      return "文件不存在：请用 changeType:add 新建";
+    }
     return `失败：${result.error || result.code || "unknown"}`;
   }
   if (toolName === "list_files" && Array.isArray(result.entries)) {

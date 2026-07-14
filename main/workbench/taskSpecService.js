@@ -93,6 +93,13 @@ function buildNfr(message) {
   ];
 }
 
+/** 短明确的小游戏需求：无 blocking 问题时自动批准，降低 TaskSpec 确认摩擦 */
+function isSimpleConcreteGameRequest(message) {
+  const text = String(message || "").trim();
+  if (!text || text.length > 160) return false;
+  return /(贪吃蛇|贪食蛇|snake|小游戏|打砖块|俄罗斯方块|tetris|2048|pong|扫雷)/i.test(text);
+}
+
 function createDraftSpec({ message, project, task, plan = [], answers = {} }) {
   const analysis = analyzeRequirement(message, { project });
   const answeredIds = new Set(Object.keys(answers || {}));
@@ -111,8 +118,16 @@ function createDraftSpec({ message, project, task, plan = [], answers = {} }) {
     });
   }
   const blockingOpen = openQuestions.filter((q) => q.blocking);
-  const status =
+  let status =
     blockingOpen.length > 0 ? SPEC_STATUS.CLARIFYING : SPEC_STATUS.PENDING_REVIEW;
+  let approvedAt = null;
+  let approvedBy = null;
+  // 贪吃蛇等明确小游戏：跳过 PENDING_REVIEW 人工确认档
+  if (status === SPEC_STATUS.PENDING_REVIEW && isSimpleConcreteGameRequest(message)) {
+    status = SPEC_STATUS.APPROVED;
+    approvedAt = nowIso();
+    approvedBy = "auto_simple_game";
+  }
   return {
     specId: `spec_${Date.now().toString(36)}`,
     version: 1,
@@ -138,13 +153,23 @@ function createDraftSpec({ message, project, task, plan = [], answers = {} }) {
     environment: {
       prerequisites: [],
     },
-    approvedAt: null,
-    approvedBy: null,
+    approvedAt,
+    approvedBy,
     createdAt: nowIso(),
     updatedAt: nowIso(),
     // BL-002: 仅 APPROVED 视为可执行；PENDING_REVIEW 需用户确认
     executionReady: status === SPEC_STATUS.APPROVED,
-    history: [],
+    history:
+      status === SPEC_STATUS.APPROVED && approvedBy === "auto_simple_game"
+        ? [
+            {
+              at: approvedAt,
+              action: "auto_approve",
+              by: approvedBy,
+              note: "简单明确小游戏需求，自动批准规格",
+            },
+          ]
+        : [],
   };
 }
 
@@ -282,6 +307,7 @@ module.exports = {
   SPEC_STATUS,
   taskSpecEnabled,
   createDraftSpec,
+  isSimpleConcreteGameRequest,
   getTaskSpec,
   saveTaskSpec,
   confirmTaskSpec,

@@ -289,6 +289,29 @@ function Clear-LeftoverInstallArtifacts {
 Stop-InstalledClientProcesses -InstallDir $instDir
 Clear-LeftoverInstallArtifacts -InstallDir $instDir
 
+function Reset-BrokenInstallDir {
+  param([Parameter(Mandatory = $true)][string]$InstallDir)
+  if (-not (Test-Path -LiteralPath $InstallDir)) {
+    return
+  }
+  $mainExe = Get-ChildItem -LiteralPath $InstallDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -notlike "Uninstall*" } |
+    Select-Object -First 1
+  if ($mainExe) {
+    return
+  }
+  Write-Warning "(release-client-to-latest) Install dir exists but main exe missing; removing broken install dir."
+  try {
+    Remove-Item -LiteralPath $InstallDir -Recurse -Force -ErrorAction Stop
+    Write-Host "(release-client-to-latest) Removed broken install dir: $InstallDir"
+  } catch {
+    Write-Warning "(release-client-to-latest) Cannot remove broken install dir: $($_.Exception.Message)"
+  }
+}
+
+Reset-BrokenInstallDir -InstallDir $instDir
+New-Item -ItemType Directory -Force -Path $instDir | Out-Null
+
 Write-Host "(release-client-to-latest) Silent install: $($setup.Name) -> $instDir"
 $proc = Start-Process -FilePath $setup.FullName -ArgumentList "/S", "/D=$instDir" -PassThru -Wait
 if ($proc.ExitCode -ne 0) {

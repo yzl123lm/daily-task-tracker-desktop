@@ -28,6 +28,12 @@ const controlledDevService = require("./controlledDevService.js");
 const backupRestoreService = require("./backupRestoreService.js");
 const patchStagingService = require("./patchStagingService.js");
 const verificationService = require("./verificationService.js");
+const { PERMISSION_MODE } = require("./projectPolicyService.js");
+const {
+  getTrustedWorkspaceBase,
+  resolveNewProjectPath,
+  ensureProjectDirectory,
+} = require("./trustedWorkspacePath.js");
 
 function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProjectRoot, getAppRoot }) {
   if (!ipcMain || typeof getUserDataPath !== "function") {
@@ -66,8 +72,24 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     return project;
   });
 
+  ipcMain.handle("wb-project-trusted-workspace-base", () => {
+    return getTrustedWorkspaceBase(getUserDataPath);
+  });
+
   ipcMain.handle("wb-project-create", (_event, payload) => {
-    const project = projectService.createProject(getUserDataPath, payload?.userId, payload || {});
+    const name = String(payload?.name || "").trim();
+    const base = getTrustedWorkspaceBase(getUserDataPath);
+    let localPath = payload?.localPath ? String(payload.localPath).trim() : "";
+    if (!localPath) {
+      localPath = resolveNewProjectPath(base, name || "新项目");
+    }
+    ensureProjectDirectory(localPath);
+    const body = {
+      ...(payload || {}),
+      localPath,
+      permissionMode: PERMISSION_MODE.TRUSTED_WORKSPACE,
+    };
+    const project = projectService.createProject(getUserDataPath, payload?.userId, body);
     contextMemoryService.initProjectMemory(getUserDataPath, payload?.userId, project);
     return project;
   });
@@ -652,7 +674,25 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
     const { getPlanSteps } = require("./planStepsService.js");
-    const { validatePlanDag, getReadySteps } = require("./planExecutionService.js");
+    const {
+      validatePlanDag,
+      getReadySteps,
+      beginNextPlanStep,
+      advancePlanStep,
+    } = require("./planExecutionService.js");
+    const action = String(payload?.action || "get").toLowerCase();
+    if (action === "begin") {
+      return beginNextPlanStep(getUserDataPath, payload?.userId, projectId, taskId);
+    }
+    if (action === "advance") {
+      return advancePlanStep(getUserDataPath, payload?.userId, projectId, taskId, {
+        stepId: payload?.stepId,
+        status: payload?.status || "done",
+        result: payload?.result,
+        error: payload?.error,
+        idempotencyKey: payload?.idempotencyKey,
+      });
+    }
     const steps = getPlanSteps(getUserDataPath, payload?.userId, projectId, taskId);
     const dag = validatePlanDag(steps);
     return {
@@ -661,11 +701,175 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
     };
   });
 
+  ipcMain.handle("wb-project-plan-step-begin", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { beginNextPlanStep } = require("./planExecutionService.js");
+    return beginNextPlanStep(getUserDataPath, payload?.userId, projectId, taskId);
+  });
+
+  ipcMain.handle("wb-project-plan-step-advance", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { advancePlanStep } = require("./planExecutionService.js");
+    return advancePlanStep(getUserDataPath, payload?.userId, projectId, taskId, {
+      stepId: payload?.stepId,
+      status: payload?.status || "done",
+      result: payload?.result,
+      error: payload?.error,
+      idempotencyKey: payload?.idempotencyKey,
+    });
+  });
+
   ipcMain.handle("wb-project-checkpoint-get", (_event, payload) => {
     const projectId = assertSafeId(payload?.projectId, "projectId");
     const taskId = assertSafeId(payload?.taskId, "taskId");
     const { getCheckpoint } = require("./checkpointService.js");
     return getCheckpoint(getUserDataPath, payload?.userId, projectId, taskId);
+  });
+
+  ipcMain.handle("wb-project-checkpoint-save", (_event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = assertSafeId(payload?.taskId, "taskId");
+    const { mergeCheckpoint } = require("./checkpointService.js");
+    const patch = payload?.patch && typeof payload.patch === "object" ? payload.patch : {};
+    return mergeCheckpoint(getUserDataPath, payload?.userId, projectId, taskId, patch);
+  });
+
+  ipcMain.handle("wb-project-import-requirement", async (event, payload) => {
+    const projectId = assertSafeId(payload?.projectId, "projectId");
+    const taskId = payload?.taskId ? assertSafeId(payload.taskId, "taskId") : null;
+    const project = projectService.getProject(getUserDataPath, payload?.userId, projectId);
+    if (!project) {
+      return { ok: false, error: "项目不存在" };
+    }
+    const root = resolveRootForProject(project);
+    if (!root) {
+      return { ok: false, error: "未配置项目代码目录" };
+    }
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const res = await dialog.showOpenDialog(win || undefined, {
+      title: "选择需求开发文档",
+      properties: ["openFile"],
+      filters: [
+        { name: "需求文档", extensions: ["md", "txt", "markdown", "docx", "pdf"] },
+        { name: "全部", extensions: ["*"] },
+      ],
+    });
+    if (res.canceled || !res.filePaths?.length) {
+      return { canceled: true, ok: false };
+    }
+    const src = res.filePaths[0];
+    let content = "";
+    try {
+      const ext = path.extname(src).toLowerCase();
+      if (ext === ".pdf" || ext === ".docx") {
+        // 二进制：仅复制文件，不解析正文
+        content = "";
+      } else {
+        content = fs.readFileSync(src, "utf8");
+        if (content.length > 400_000) {
+          content = content.slice(0, 400_000) + "\n\n…(已截断)";
+        }
+      }
+    } catch (err) {
+      return { ok: false, error: err?.message || "读取文件失败" };
+    }
+    const docsDir = path.join(root, "docs");
+    try {
+      fs.mkdirSync(docsDir, { recursive: true });
+    } catch {
+      /* ignore */
+    }
+    const baseName = path.basename(src).replace(/[^\w.\u4e00-\u9fff\-]+/g, "_") || "requirements.md";
+    const destName = baseName.match(/\.(md|txt|markdown|docx|pdf)$/i)
+      ? baseName
+      : `${baseName}.md`;
+    const dest = path.join(docsDir, destName);
+    try {
+      fs.copyFileSync(src, dest);
+      if (content && !fs.existsSync(path.join(docsDir, "requirements.md"))) {
+        fs.writeFileSync(path.join(docsDir, "requirements.md"), content, "utf8");
+      } else if (content && destName.toLowerCase().endsWith(".md")) {
+        /* already copied */
+      } else if (content) {
+        fs.writeFileSync(path.join(docsDir, "requirements-imported.md"), content, "utf8");
+      }
+    } catch (err) {
+      return { ok: false, error: err?.message || "写入项目失败" };
+    }
+    const relPath = path.relative(root, dest).replace(/\\/g, "/");
+    const lines = String(content || "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const inferredSteps = [];
+    for (const line of lines) {
+      if (/^[-*•]\s+/.test(line) || /^\d+[\.)、]\s*/.test(line)) {
+        inferredSteps.push(line.replace(/^[-*•]\s+/, "").replace(/^\d+[\.)、]\s*/, "").slice(0, 160));
+      }
+      if (inferredSteps.length >= 8) break;
+    }
+    if (!inferredSteps.length && lines[0]) {
+      inferredSteps.push(`依据需求文档实现：${lines[0].slice(0, 80)}`);
+      inferredSteps.push("拆分并实现核心功能");
+      inferredSteps.push("本地验证与交付说明");
+    }
+    if (taskId && inferredSteps.length) {
+      try {
+        const { savePlanSteps } = require("./planStepsService.js");
+        const { mergeCheckpoint } = require("./checkpointService.js");
+        const { createDraftSpec, saveTaskSpec, SPEC_STATUS } = require("./taskSpecService.js");
+        savePlanSteps(getUserDataPath, payload?.userId, projectId, taskId, inferredSteps, {
+          source: "imported_requirement",
+        });
+        let spec = createDraftSpec({
+          message: lines.slice(0, 20).join("\n") || `导入需求：${relPath}`,
+          project,
+          task: projectService.getTask(getUserDataPath, payload?.userId, projectId, taskId),
+          plan: inferredSteps,
+        });
+        spec = {
+          ...spec,
+          status: SPEC_STATUS.APPROVED,
+          executionReady: true,
+          approvedAt: new Date().toISOString(),
+          approvedBy: "imported_requirement",
+        };
+        saveTaskSpec(getUserDataPath, payload?.userId, projectId, taskId, spec);
+        mergeCheckpoint(getUserDataPath, payload?.userId, projectId, taskId, {
+          phase: "PLAN_CONFIRMED",
+          planConfirmed: true,
+          requirementDocPath: relPath,
+          nextAction: "execute_plan_steps",
+        });
+        projectService.updateTask(getUserDataPath, payload?.userId, projectId, taskId, {
+          currentStep: "已导入需求文档，可项目推进",
+          description: (lines.slice(0, 30).join("\n") || `需求文档：${relPath}`).slice(0, 2000),
+        });
+      } catch {
+        /* non-fatal: file still copied */
+      }
+    } else if (taskId) {
+      try {
+        const { mergeCheckpoint } = require("./checkpointService.js");
+        mergeCheckpoint(getUserDataPath, payload?.userId, projectId, taskId, {
+          requirementDocPath: relPath,
+          planConfirmed: true,
+          phase: "PLAN_CONFIRMED",
+          nextAction: "execute_plan_steps",
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      ok: true,
+      path: dest,
+      relPath,
+      preview: lines.slice(0, 8).join("\n").slice(0, 500),
+      inferredSteps,
+    };
   });
 
   ipcMain.handle("wb-project-task-recover", async (_event, payload) => {
@@ -741,9 +945,34 @@ function registerWorkbenchHandlers(ipcMain, { getUserDataPath, getDefaultProject
         target = String(project.localPath || project.local_path || "").trim();
       }
       const resolved = assertAbsolutePath(target, { mustExist: true, label: "项目路径" });
+      const openFile = Boolean(payload?.openFile);
+      const openHtmlEntry = Boolean(payload?.openHtmlEntry || payload?.openGame);
       let openTarget = resolved;
       try {
-        if (!fs.statSync(resolved).isDirectory()) {
+        const st = fs.statSync(resolved);
+        if (openHtmlEntry) {
+          const root = st.isDirectory() ? resolved : path.dirname(resolved);
+          const candidates = [
+            "index.html",
+            "public/index.html",
+            "src/index.html",
+            "app.html",
+            "game.html",
+          ];
+          let found = null;
+          for (const rel of candidates) {
+            const abs = path.join(root, rel);
+            if (fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+              found = abs;
+              break;
+            }
+          }
+          if (!found) {
+            return { ok: false, error: "未找到可打开的 HTML 入口（如 index.html）" };
+          }
+          openTarget = found;
+        } else if (!st.isDirectory() && !openFile) {
+          // 默认：打开文件所在目录；openFile=true 时用系统默认应用打开文件本身
           openTarget = path.dirname(resolved);
         }
       } catch {

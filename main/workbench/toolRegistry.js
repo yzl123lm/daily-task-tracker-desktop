@@ -119,11 +119,16 @@ const TOOL_DEFS = {
   stage_patch: {
     permission: PERMISSION.PROPOSE,
     description:
-      "Stage a patch proposal (does not write disk). Prefer edits: create_file|replace|replace_range|insert_before|insert_after|delete|full_content. replace/delete require unique match.",
+      "Stage a patch proposal (does not write disk). New files: use edits[{op:create_file,content}] or proposedContent (+ optional changeType=add). Prefer edits: create_file|replace|replace_range|insert_before|insert_after|delete|full_content. replace/delete require unique match.",
     parameters: {
       type: "object",
       properties: {
         path: { type: "string" },
+        changeType: {
+          type: "string",
+          description: "Optional. Use add|create for new files (mapped to create_file).",
+          enum: ["add", "create", "new", "modify", "delete"],
+        },
         edits: {
           type: "array",
           items: {
@@ -384,6 +389,36 @@ async function dispatchTool(ctx, toolName, args = {}) {
     }
   } catch (e) {
     result = { ok: false, error: e.message, code: e.code || "TOOL_ERROR" };
+    if (name === "stage_patch") {
+      try {
+        const { buildPatchFailureRecovery } = require("./patchRecoveryHints.js");
+        const projectCodeService = require("./projectCodeService.js");
+        let originalContent = "";
+        try {
+          originalContent = projectCodeService.readProjectFile(ctx.root, args.path).content;
+        } catch {
+          originalContent = "";
+        }
+        const rec = buildPatchFailureRecovery({
+          error: e,
+          filePath: args.path,
+          originalContent,
+          args,
+        });
+        result.recovery = rec;
+        result.error = [e.message, rec.recoveryHint].filter(Boolean).join(" ");
+        if (rec.filePreview) {
+          result.filePreview = rec.filePreview;
+        }
+        result.hint = rec.suggestCreateFile
+          ? "use_create_file"
+          : rec.suggestFullContent
+            ? "use_full_content"
+            : "use_stage_patch";
+      } catch {
+        /* optional recovery enrichment */
+      }
+    }
   }
 
   const post = await runHooks("postToolUse", { ctx, toolName: name, args, result });
@@ -457,7 +492,7 @@ const HANDLERS = {
         code: "PATH_NOT_USEFUL",
         error:
           `不要读取「${rawPath || "(空路径)"}」。该路径不是项目源码。` +
-          "若项目为空或不存在目标文件，请直接用 stage_patch（changeType=add）创建新文件；工具错误信息已在返回结果中，无需另读日志。",
+          "若项目为空或不存在目标文件，请直接用 stage_patch：proposedContent 全文，或 edits:[{op:\"create_file\",content:\"...\"}]（亦可带 changeType=add）；工具错误信息已在返回结果中，无需另读日志。",
         hint: "use_stage_patch",
       };
     }
@@ -476,7 +511,7 @@ const HANDLERS = {
           path: rawPath,
           error:
             `文件不存在：${rawPath}。` +
-            "若要新建该文件，请用 stage_patch（changeType=add）直接提议完整内容，不要反复 read_file。",
+            "若要新建该文件，请用 stage_patch 直接提议完整内容（proposedContent 或 create_file），不要反复 read_file。",
           hint: "use_stage_patch",
         };
       }

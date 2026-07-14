@@ -398,6 +398,16 @@ body.jl-project-workspace-active #panel-ai .wb-project-workspace--codex {
   background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 48%, #eaf4ff 100%);
 }
 
+/* Cursor 单主区覆盖：默认全宽执行流（代码列抽屉化，见 codex.css） */
+.wb-pws-layout.wb-pws-layout--cursor-main,
+.wb-ai-workbench-layout.wb-pws-layout--cursor-main {
+  --wb-pws-agent-width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "assistant"
+    "terminal";
+}
+
 body.wb-pws-sidebar-mounted .wb-pws-layout,
 body.wb-pws-sidebar-mounted .wb-ai-workbench-layout {
   grid-template-columns: minmax(280px, var(--wb-pws-agent-width)) minmax(0, 1fr);
@@ -919,9 +929,9 @@ body.jl-project-workspace-active .wb-list-card--compact .wb-project-card__open-d
   flex: 0 0 auto;
   position: relative;
   z-index: 2;
-  padding: 12px;
+  padding: 10px 12px 12px;
   border-top: 1px solid #dcebfa;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .wb-pws-code-body > .wb-pws-code-tabs {
@@ -1777,15 +1787,74 @@ body.jl-project-workspace-active.theme-nebula .wb-pws-project-col .wb-pws-sessio
   color: #94a3b8 !important;
 }
 
-body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-pws-composer__input,
-body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbAgentInput,
 body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-pws-template-select,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbComposerAgentMode,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-ai-command__mode-select,
 body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-code-panel__search input,
 body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-code-panel input,
 body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-code-panel textarea,
-body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-code-panel select {
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-code-panel select,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-test-result-panel__select,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbTestCommand {
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 12px !important;
+  border: 1px solid #dcebfa !important;
+  color: #1f2d3d !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbComposerAgentMode,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-ai-command__mode-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  color: #1e6bff !important;
+  background-color: #f7fbff !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-pws-composer__input,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbAgentInput {
+  background-color: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: #1f2d3d !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-pws-composer__input:focus,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-pws-composer__input:focus-visible,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbAgentInput:focus,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbAgentInput:focus-visible {
+  border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-ai-command__toolbar {
+  border: none !important;
+  border-top: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-ai-command__surface {
   background: #fff !important;
   border: 1px solid #dcebfa !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-ai-command__surface:focus-within {
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 3px rgba(47, 125, 246, 0.1) !important;
+}
+
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex .wb-test-result-panel__select option,
+body.jl-project-workspace-active.theme-nebula .wb-project-workspace--codex #wbTestCommand option {
+  background: #fff !important;
   color: #1f2d3d !important;
 }
 

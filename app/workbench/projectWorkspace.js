@@ -176,13 +176,24 @@ function renderPlanCard(output) {
   if (raw) {
     raw.hidden = true;
   }
-  card.hidden = false;
+  // Cursor 单主区：计划以内联 Feed 卡为主；旧 PlanCard 仅作详情兜底并保持隐藏
+  card.hidden = true;
+  card.setAttribute("aria-hidden", "true");
   const clarifying =
     Boolean(safe.openQuestions?.length) &&
     (safe.executionReady === false ||
       safe.taskSpec?.status === "CLARIFYING" ||
       String(safe.note || "").includes("澄清"));
-  composerPhase = clarifying ? "clarifying" : "plan_ready";
+  const goalPlan =
+    window.__wbGoalPlanMode?.isGoalPlanMode?.() ||
+    safe.execMode === "goal_plan" ||
+    safe.meta?.goalPlan;
+  const planOnlyWs = window.__wbGoalPlanMode?.isPlanWorkstream?.();
+  composerPhase = clarifying ? "clarifying" : goalPlan ? "goal_plan_ready" : "plan_ready";
+  // goal_plan_ready before confirm still shows confirm CTA via plan_card; use clarifying/plan_ready until confirmed
+  if (goalPlan && !clarifying) {
+    composerPhase = "plan_ready";
+  }
   updateComposerUi(composerPhase);
   const planItems = (safe.plan || []).map((s) => `<li>${escapeHtml(s)}</li>`).join("");
   const fileItems = (safe.affectedFiles || []).map((f) => `<li><code>${escapeHtml(f)}</code></li>`).join("");
@@ -196,8 +207,18 @@ function renderPlanCard(output) {
     .join("");
   const nextLine = clarifying
     ? "请先回答澄清问题并点击「确认规格」，确认前不会生成代码变更。"
-    : "点击「生成代码变更」，AI 将生成可审阅 Diff。";
-  const badge = clarifying ? "需求澄清中" : "方案待确认";
+    : planOnlyWs || goalPlan
+      ? window.__wbGoalPlanMode?.isPlanWorkstream?.()
+        ? "确认完整计划后，请切换到「项目推进」执行步骤。"
+        : "确认计划后，将按步骤生成 Diff；每步完成后询问是否继续。"
+      : "点击「生成代码变更」，AI 将生成可审阅 Diff。";
+  const badge = clarifying
+    ? "需求澄清中"
+    : window.__wbGoalPlanMode?.isPlanWorkstream?.()
+      ? "计划待确认"
+      : goalPlan
+        ? "目标计划待确认"
+        : "方案待确认";
   card.innerHTML = `
     <header class="wb-plan-card__head">
       <h4>${escapeHtml(safe.summary || "开发方案")}</h4>
@@ -219,6 +240,14 @@ function renderPlanCard(output) {
     </div>
     <p class="wb-plan-card__next"><strong>下一步：</strong>${nextLine}</p>
   `;
+  window.__wbActivityFeed?.pushPlanInline?.({
+    title: goalPlan ? "目标开发计划" : "开发方案",
+    summary: safe.requirementUnderstanding || safe.summary || "",
+    plan: safe.plan || [],
+    clarifying,
+    confirmed: false,
+    nextStepIndex: 1,
+  });
   window.__wbRenderPlanCodeExtras?.(safe);
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = resolveCurrentTaskId();
@@ -231,6 +260,7 @@ function renderPlanCard(output) {
       "plan"
     );
     window.__wbRenderDiffReviewPanel?.();
+    window.__wbSetCodeDrawerOpen?.(true);
     window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
   }
 }
@@ -360,8 +390,10 @@ let unsubscribeAgentEvents = null;
 let agentEventPollTimer = null;
 /** BL-019: last checkpoint snapshot for selected task (single UI truth). */
 let taskCheckpointCache = null;
-/** BL-020: cached runbook markdown for copy. */
+/** Cached runbook markdown for delivery copy helpers. */
 let lastRunbookMarkdown = "";
+/** Anchor node for restoring the floating composer more-menu. */
+let composerMoreMenuAnchor = null;
 const WB_AUTO_VERIFY_KEY = "wb_auto_verify_v1";
 
 function resolveTaskUiState(task, phase = composerPhase, planOutput = null) {
@@ -904,8 +936,8 @@ function buildTimelineItem(title, status, detail, time, isStep) {
 }
 
 function detectComposerPhaseFromContext(projectId, taskId, task = null, { ignoreRunningLock = false } = {}) {
-  if (!ignoreRunningLock && (composerPhase === "running" || agentRunStarting)) {
-    return "running";
+  if (!ignoreRunningLock && (composerPhase === "running" || agentRunStarting || composerPhase === "goal_step_running")) {
+    return composerPhase === "goal_step_running" ? "goal_step_running" : "running";
   }
   const reviewStore = window.__wbCodeReviewStore;
   const changes = reviewStore?.getChanges?.(projectId, taskId) || [];
@@ -947,12 +979,26 @@ function detectComposerPhaseFromContext(projectId, taskId, task = null, { ignore
   ) {
     return "written";
   }
+  if (
+    step.includes("目标计划") ||
+    step.includes("执行第") ||
+    step.includes("计划已确认") ||
+    (window.__wbGoalPlanMode?.isGoalPlanMode?.() &&
+      (step.includes("方案待确认") || status === "SPEC_REVIEW"))
+  ) {
+    if (step.includes("本步完成") || step.includes("是否执行下一")) {
+      return "goal_step_done";
+    }
+    if (step.includes("计划已确认") || step.includes("执行第")) {
+      return "goal_plan_ready";
+    }
+  }
   if (step.includes("未生成变更") || step.includes("生成代码变更失败")) {
     return "patch_empty";
   }
   if (step.includes("变更待审阅") || status === "WAITING_APPROVAL" || status === "REVIEWING") {
-    // 状态声称有 Diff，但 store 为空：交给 openDiff 再拉一次；UI 先按可续跑处理
-    return "patch_empty";
+    // 有待审状态：优先进入 Diff 审阅（即使内存 store 暂时为空，由 openDiff/resume 再拉取）
+    return "diff_ready";
   }
   if (status === "APPLYING" || step.includes("等待写入") || step.includes("已接受")) {
     return "diff_accepted";
@@ -1051,9 +1097,26 @@ function resolveTaskDisplayStatus(task, phase = composerPhase) {
 function resolveComposerActionConfig(phase = composerPhase) {
   switch (phase) {
     case "running":
+    case "goal_step_running":
       return { primary: "停止任务", secondary: "", showSecondary: false, showMore: false };
     case "plan_ready":
+      if (window.__wbGoalPlanMode?.isPlanWorkstream?.()) {
+        return { primary: "确认完整计划", secondary: "调整需求", showSecondary: true, showMore: true };
+      }
+      if (window.__wbGoalPlanMode?.isProjectWorkstream?.()) {
+        return { primary: "执行第 1 步", secondary: "上传需求文档", showSecondary: true, showMore: true };
+      }
+      if (window.__wbGoalPlanMode?.isGoalPlanMode?.()) {
+        return { primary: "确认计划", secondary: "调整需求", showSecondary: true, showMore: true };
+      }
       return { primary: "生成代码变更", secondary: "调整需求", showSecondary: true, showMore: true };
+    case "goal_plan_ready":
+      if (window.__wbGoalPlanMode?.isPlanWorkstream?.()) {
+        return { primary: "确认完整计划", secondary: "切换到项目推进", showSecondary: true, showMore: true };
+      }
+      return { primary: "执行第 1 步", secondary: "调整需求", showSecondary: true, showMore: true };
+    case "goal_step_done":
+      return { primary: "执行下一步", secondary: "稍后继续", showSecondary: true, showMore: true };
     case "clarifying":
       return { primary: "确认规格", secondary: "调整需求", showSecondary: true, showMore: true };
     case "diff_ready":
@@ -1068,16 +1131,15 @@ function resolveComposerActionConfig(phase = composerPhase) {
         showMore: true,
       };
     case "written":
-      return { primary: "运行验证", secondary: "稍后确认", showSecondary: true, showMore: true };
+      return { primary: "运行验证", secondary: "打开游戏", showSecondary: true, showMore: true };
     case "ready_confirm":
       return {
         primary: "确认完成",
-        secondary: "继续验证",
+        secondary: "打开游戏",
         showSecondary: true,
         showMore: true,
       };
     case "done":
-      // 仅在任务真正完成后展示「新建任务」，禁止未完成时显示「完成任务」
       return { primary: "新建任务", secondary: "", showSecondary: false, showMore: true };
     case "failed":
       return { primary: "重新生成方案", secondary: "查看错误", showSecondary: true, showMore: true };
@@ -1091,17 +1153,111 @@ function resolveComposerActionConfig(phase = composerPhase) {
   }
 }
 
+function ensureComposerMoreMenuAnchor(menu) {
+  if (!menu || composerMoreMenuAnchor) {
+    return;
+  }
+  const shell = menu.closest(".wb-ai-command__shell");
+  if (!shell) {
+    return;
+  }
+  composerMoreMenuAnchor = document.createComment("wb-composer-more-menu-anchor");
+  shell.appendChild(composerMoreMenuAnchor);
+}
+
+function mountComposerMoreMenuFloating(menu) {
+  if (!menu) {
+    return;
+  }
+  ensureComposerMoreMenuAnchor(menu);
+  if (menu.parentNode !== document.body) {
+    document.body.appendChild(menu);
+  }
+  menu.classList.add("wb-composer-more-menu--floating");
+}
+
+function restoreComposerMoreMenuMount(menu) {
+  if (!menu) {
+    return;
+  }
+  menu.classList.remove("wb-composer-more-menu--floating");
+  menu.style.top = "";
+  menu.style.left = "";
+  menu.style.right = "";
+  menu.style.bottom = "";
+  menu.style.maxHeight = "";
+  menu.style.transform = "";
+  if (composerMoreMenuAnchor?.parentNode) {
+    composerMoreMenuAnchor.parentNode.insertBefore(menu, composerMoreMenuAnchor.nextSibling);
+  }
+}
+
+function positionComposerMoreMenu() {
+  const menu = document.getElementById("wbComposerMoreMenu");
+  const btn = document.getElementById("wbMoreActionsBtn");
+  if (!menu || menu.hidden || !btn) {
+    return;
+  }
+  mountComposerMoreMenuFloating(menu);
+
+  const gap = 8;
+  const margin = 8;
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+
+  const applyPosition = () => {
+    const rect = btn.getBoundingClientRect();
+    if (!rect.width && !rect.height) {
+      return;
+    }
+
+    menu.style.transform = "";
+    menu.style.right = "auto";
+    menu.style.left = "0px";
+    menu.style.top = "auto";
+    menu.style.bottom = "auto";
+
+    const menuWidth = Math.max(menu.offsetWidth || 180, 180);
+    let left = rect.right - menuWidth;
+    left = Math.max(margin, Math.min(left, viewportW - menuWidth - margin));
+
+    const spaceAbove = rect.top - margin - gap;
+    const spaceBelow = viewportH - rect.bottom - margin - gap;
+    const openAbove = spaceAbove >= 140 || spaceAbove >= spaceBelow;
+
+    if (openAbove) {
+      const maxHeight = Math.min(420, Math.floor(viewportH * 0.7), Math.max(120, spaceAbove));
+      menu.style.maxHeight = `${maxHeight}px`;
+      menu.style.bottom = `${Math.round(viewportH - rect.top + gap)}px`;
+      menu.style.top = "auto";
+    } else {
+      const maxHeight = Math.min(420, Math.floor(viewportH * 0.7), Math.max(120, spaceBelow));
+      menu.style.maxHeight = `${maxHeight}px`;
+      menu.style.top = `${Math.round(rect.bottom + gap)}px`;
+      menu.style.bottom = "auto";
+    }
+
+    menu.style.left = `${Math.round(left)}px`;
+  };
+
+  applyPosition();
+  requestAnimationFrame(applyPosition);
+}
+
 function hideComposerMoreMenu() {
   const menu = document.getElementById("wbComposerMoreMenu");
   if (menu) {
     menu.hidden = true;
     menu.setAttribute("hidden", "");
     menu.setAttribute("aria-hidden", "true");
+    restoreComposerMoreMenuMount(menu);
   }
   const moreBtn = document.getElementById("wbMoreActionsBtn");
   if (moreBtn) {
     moreBtn.setAttribute("aria-expanded", "false");
   }
+  window.removeEventListener("resize", positionComposerMoreMenu);
+  window.removeEventListener("scroll", positionComposerMoreMenu, true);
 }
 
 function toggleComposerMoreMenu() {
@@ -1115,6 +1271,9 @@ function toggleComposerMoreMenu() {
     menu.removeAttribute("hidden");
     menu.setAttribute("aria-hidden", "false");
     document.getElementById("wbMoreActionsBtn")?.setAttribute("aria-expanded", "true");
+    positionComposerMoreMenu();
+    window.addEventListener("resize", positionComposerMoreMenu);
+    window.addEventListener("scroll", positionComposerMoreMenu, true);
   } else {
     hideComposerMoreMenu();
   }
@@ -1162,6 +1321,8 @@ function updateComposerUi(phase = composerPhase) {
   const softPhases = new Set([
     "idle",
     "plan_ready",
+    "goal_plan_ready",
+    "goal_step_done",
     "clarifying",
     "diff_ready",
     "diff_accepted",
@@ -1170,8 +1331,14 @@ function updateComposerUi(phase = composerPhase) {
     "patch_empty",
   ]);
   const running =
-    requested === "running" || (agentRunStarting && softPhases.has(requested));
-  composerPhase = running ? "running" : requested;
+    requested === "running" ||
+    requested === "goal_step_running" ||
+    (agentRunStarting && softPhases.has(requested));
+  composerPhase = running
+    ? requested === "goal_step_running"
+      ? "goal_step_running"
+      : "running"
+    : requested;
   const primaryBtn = document.getElementById("wbPrimaryActionBtn");
   const secondaryBtn = document.getElementById("wbSecondaryActionBtn");
   const moreBtn = document.getElementById("wbMoreActionsBtn");
@@ -1203,7 +1370,7 @@ function updateComposerUi(phase = composerPhase) {
 }
 
 async function confirmTaskSpecFromUi() {
-  const api = window.desktopAPI;
+  const api = wbApi();
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = resolveCurrentTaskId();
   if (!api?.wbProjectTaskSpecConfirm || !projectId || !taskId) {
@@ -1227,11 +1394,29 @@ async function confirmTaskSpecFromUi() {
   try {
     const spec = await api.wbProjectTaskSpecConfirm({ projectId, taskId, answers });
     if (spec?.status === "APPROVED" || spec?.executionReady) {
-      showComposerToast("规格已确认，可生成代码变更", { type: "success" });
-      composerPhase = "plan_ready";
-      updateComposerUi("plan_ready");
+      const goalPlan = window.__wbGoalPlanMode?.isGoalPlanMode?.();
+      showComposerToast(
+        goalPlan ? "计划已确认，可按步骤执行" : "规格已确认，可生成代码变更",
+        { type: "success" }
+      );
+      if (goalPlan) {
+        const dag = await window.__wbGoalPlanMode?.fetchPlanDag?.(projectId, taskId);
+        const steps = dag?.steps || [];
+        window.__wbActivityFeed?.pushPlanInline?.({
+          title: "目标开发计划",
+          summary: "计划已确认，将按步骤推进。",
+          plan: steps.map((s) => s.text || s.title || s.id),
+          confirmed: true,
+          nextStepIndex: 1,
+        });
+        composerPhase = "goal_plan_ready";
+        updateComposerUi("goal_plan_ready");
+      } else {
+        composerPhase = "plan_ready";
+        updateComposerUi("plan_ready");
+      }
       const badge = document.querySelector("#wbPlanCard .wb-plan-card__badge");
-      if (badge) badge.textContent = "方案待确认";
+      if (badge) badge.textContent = goalPlan ? "计划已确认" : "方案待确认";
       const clarify = document.querySelector("#wbPlanCard .wb-plan-card__clarify");
       if (clarify) clarify.remove();
     } else {
@@ -1249,6 +1434,7 @@ async function confirmTaskSpecFromUi() {
     showComposerToast(err?.message || "确认规格失败", { type: "error" });
   }
 }
+window.__wbConfirmTaskSpecFromUi = confirmTaskSpecFromUi;
 
 async function handlePrimaryComposerAction() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
@@ -1257,10 +1443,29 @@ async function handlePrimaryComposerAction() {
   }
   switch (composerPhase) {
     case "running":
+    case "goal_step_running":
       await cancelActiveAgent();
       break;
     case "plan_ready":
-      await proposeCodePatches();
+      if (window.__wbGoalPlanMode?.isPlanWorkstream?.()) {
+        await window.__wbConfirmGoalPlan?.();
+      } else if (window.__wbGoalPlanMode?.isProjectWorkstream?.()) {
+        await window.__wbRunNextGoalStep?.();
+      } else if (window.__wbGoalPlanMode?.isGoalPlanMode?.()) {
+        await window.__wbConfirmGoalPlan?.();
+      } else {
+        await proposeCodePatches();
+      }
+      break;
+    case "goal_plan_ready":
+      if (window.__wbGoalPlanMode?.isPlanWorkstream?.()) {
+        await window.__wbConfirmGoalPlan?.();
+      } else {
+        await window.__wbRunNextGoalStep?.();
+      }
+      break;
+    case "goal_step_done":
+      await window.__wbRunNextGoalStep?.();
       break;
     case "clarifying":
       await confirmTaskSpecFromUi();
@@ -1302,13 +1507,73 @@ async function handlePrimaryComposerAction() {
   }
 }
 
+async function openComposerGameEntry(projectId) {
+  const pid = projectId || window.__wbStore?.getState?.().selectedProjectId;
+  if (!pid) {
+    showComposerToast("请先选择项目", { type: "warn" });
+    return;
+  }
+  const api = wbApi();
+  try {
+    const result = await api.wbProjectOpenPath?.({
+      projectId: pid,
+      openHtmlEntry: true,
+      openGame: true,
+    });
+    if (result?.ok) {
+      showComposerToast(`已打开：${result.path || "游戏入口"}`, { type: "success" });
+      // Code 区尽量选中入口文件预览
+      try {
+        const rel = String(result.path || "")
+          .replace(/\\/g, "/")
+          .split("/")
+          .slice(-3)
+          .join("/");
+        const entryRel = ["index.html", "public/index.html", "src/index.html", "app.html", "game.html"].find(
+          (c) => rel.endsWith(c) || rel === c
+        );
+        if (entryRel) {
+          window.__wbSwitchCodeTab?.("code");
+          void window.__wbLoadFilePreview?.(entryRel);
+        }
+      } catch {
+        /* optional preview */
+      }
+      return;
+    }
+    showComposerToast(result?.error || "未找到可打开的 HTML 入口", { type: "warn" });
+  } catch (err) {
+    showComposerToast(err?.message || "打开游戏失败", { type: "error" });
+  }
+}
+
 async function handleSecondaryComposerAction() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   switch (composerPhase) {
     case "plan_ready":
+    case "goal_plan_ready":
     case "patch_empty":
+      if (
+        composerPhase === "goal_plan_ready" &&
+        window.__wbGoalPlanMode?.isPlanWorkstream?.()
+      ) {
+        window.__wbGoalPlanMode?.setWorkstream?.("project");
+        showComposerToast("已切换到「项目推进」，可执行步骤或上传需求文档", { type: "success" });
+        updateComposerUi("goal_plan_ready");
+        break;
+      }
+      if (
+        window.__wbGoalPlanMode?.isProjectWorkstream?.() &&
+        (composerPhase === "plan_ready" || composerPhase === "goal_plan_ready")
+      ) {
+        void window.__wbGoalPlanMode?.importRequirementDoc?.();
+        break;
+      }
       document.getElementById("wbAgentInput")?.focus();
       showComposerToast("可在输入框补充需求后重新执行", { type: "info" });
+      break;
+    case "goal_step_done":
+      showComposerToast("已暂停。需要时点击「执行下一步」继续。", { type: "info" });
       break;
     case "diff_ready":
       await openDiffReviewForCurrentTask();
@@ -1318,14 +1583,8 @@ async function handleSecondaryComposerAction() {
       await openDiffReviewForCurrentTask();
       break;
     case "written":
-      showComposerToast("可稍后确认完成；建议先运行验证。", { type: "info" });
-      advanceComposerPhase("ready_confirm", {
-        toast: "已跳过验证环节。确认功能可用后，请点击「确认完成」。",
-        toastType: "info",
-      });
-      break;
     case "ready_confirm":
-      await runComposerVerification();
+      await openComposerGameEntry(projectId);
       break;
     case "failed":
       window.__wbExpandTerminalDrawer?.("log");
@@ -1383,6 +1642,18 @@ function handleComposerMoreAction(action) {
       }
       break;
     }
+    case "open-game":
+      void openComposerGameEntry(projectId);
+      break;
+    case "skip-verify":
+      advanceComposerPhase("ready_confirm", {
+        toast: "已跳过验证环节。确认功能可用后，请点击「确认完成」。",
+        toastType: "info",
+      });
+      break;
+    case "continue-verify":
+      void runComposerVerification();
+      break;
     case "edit-path":
       window.__wbOpenEditProjectModal?.(projectId);
       break;
@@ -1392,9 +1663,12 @@ function handleComposerMoreAction(action) {
       window.__wbSwitchCodeTab?.("code");
       break;
     case "skills-catalog": {
-      window.__wbBindSkillsCatalogPanel?.();
       const skillsPanel = document.getElementById("wbSkillsCatalogPanel");
-      if (skillsPanel) skillsPanel.open = true;
+      if (skillsPanel) {
+        skillsPanel.hidden = false;
+        skillsPanel.open = true;
+      }
+      window.__wbBindSkillsCatalogPanel?.();
       void window.__wbRefreshSkillsCatalog?.(projectId);
       break;
     }
@@ -1495,12 +1769,21 @@ function buildAgentPayload(projectId, taskId, mode, extras = {}) {
     getComposerMessage() ||
     document.querySelector(".wb-plan-card__req")?.textContent?.trim() ||
     "继续执行";
+  const execMode =
+    extras.execMode ||
+    (window.__wbGoalPlanMode?.isPlanWorkstream?.() ||
+    window.__wbGoalPlanMode?.isProjectWorkstream?.()
+      ? "goal_plan"
+      : window.__wbGoalPlanMode?.getExecMode?.() || "general");
   return {
     projectId,
     taskId,
     mode,
     message,
     scene,
+    execMode,
+    goalPlan: execMode === "goal_plan",
+    workstream: window.__wbGoalPlanMode?.getWorkstream?.() || "general",
     autoVerify: getAutoVerifyChecked(),
     source: extras.source || "command_composer",
     basedOnLastPlan: Boolean(extras.basedOnLastPlan),
@@ -1521,6 +1804,28 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
   const task = getSelectedComposerTask();
   const rawInput = getComposerRawInput() || resumeMessage || "";
   if (!rawInput) {
+    if (window.__wbGoalPlanMode?.isProjectWorkstream?.() && isUnfinishedComposerTask(task)) {
+      await resumeUnfinishedComposerTask(projectId, task);
+      return;
+    }
+    if (window.__wbGoalPlanMode?.isProjectWorkstream?.()) {
+      // 允许空输入：有完整计划则推进，否则提示上传
+      const projectIdEarly = projectId;
+      const taskIdEarly = task?.id || resolveCurrentTaskId();
+      if (taskIdEarly) {
+        const gate = await window.__wbGoalPlanMode?.hasCompletePlan?.(projectIdEarly, taskIdEarly);
+        if (gate?.ok) {
+          await window.__wbRunNextGoalStep?.();
+          return;
+        }
+      }
+      showComposerToast(
+        "项目推进需要完整计划或需求文档。请切换到「计划」，或点击「上传需求文档」。",
+        { type: "warn" }
+      );
+      document.getElementById("wbImportRequirementBtn")?.focus();
+      return;
+    }
     if (isUnfinishedComposerTask(task)) {
       await resumeUnfinishedComposerTask(projectId, task);
       return;
@@ -1532,6 +1837,31 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
   if (agentRunStarting) {
     showComposerToast("Agent 正在启动，请稍候", { type: "warn" });
     return;
+  }
+  if (window.__wbGoalPlanMode?.isProjectWorkstream?.()) {
+    const taskIdEarly = task?.id || resolveCurrentTaskId();
+    if (taskIdEarly) {
+      const gate = await window.__wbGoalPlanMode?.hasCompletePlan?.(projectId, taskIdEarly);
+      if (gate && !gate.ok) {
+        showComposerToast(
+          "项目推进需要完整计划或需求文档。请切换到「计划」生成并确认，或点击「上传需求文档」。",
+          { type: "warn" }
+        );
+        document.getElementById("wbImportRequirementBtn")?.focus();
+        return;
+      }
+      if (gate?.ok) {
+        await window.__wbRunNextGoalStep?.();
+        return;
+      }
+    } else {
+      showComposerToast(
+        "项目推进需要完整计划。请先在「计划」确认，或「上传需求文档」（需已有任务）。",
+        { type: "warn" }
+      );
+      document.getElementById("wbImportRequirementBtn")?.focus();
+      return;
+    }
   }
   // Clear stale run id left from a previous waiting/review hand-off so regen is allowed.
   if (activeAgentRunId && composerPhase !== "running") {
@@ -1563,13 +1893,17 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
     window.__wbSceneTemplates?.enrichAgentMessage?.(rawInput) ||
     rawInput ||
     getComposerMessage();
+  window.__wbActivityFeed?.pushUserMessage?.(rawInput || message);
   const out = document.getElementById("wbAgentOutput");
   if (out) {
     out.hidden = false;
     out.textContent = "Agent 分析项目中…";
   }
   window.__wbExpandTerminalDrawer?.("log");
-  document.getElementById("wbPlanCard").hidden = true;
+  const planCardEl = document.getElementById("wbPlanCard");
+  if (planCardEl) {
+    planCardEl.hidden = true;
+  }
   document.getElementById("wbTaskConfirmBtn").hidden = true;
   agentRunStarting = true;
   updateComposerUi("running");
@@ -1577,9 +1911,16 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
   upsertComposerStep("generate_plan", "pending");
   subscribeAgentEvents();
   startAgentEventPolling(projectId, taskId);
+  const goalPlan = window.__wbGoalPlanMode?.isGoalPlanMode?.();
+  const planOnlyWs = window.__wbGoalPlanMode?.isPlanWorkstream?.();
+  // 目标计划/计划工作流：方案生成后不自动打补丁
+  const shouldAutoPatch = autoContinueToPatch && !goalPlan;
   try {
     const result = await invokeProjectAgent(
-      buildAgentPayload(projectId, taskId, "PLAN_ONLY", { message })
+      buildAgentPayload(projectId, taskId, "PLAN_ONLY", {
+        message,
+        execMode: goalPlan || planOnlyWs ? "goal_plan" : "general",
+      })
     );
     if (result.agentRunId) {
       activeAgentRunId = result.agentRunId;
@@ -1603,7 +1944,7 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
       showComposerToast("没有生成任何计划", { type: "warn" });
     } else {
       showComposerToast(
-        autoContinueToPatch ? "方案已生成，正在继续生成代码变更…" : "开发方案已生成，可继续生成代码变更",
+        shouldAutoPatch ? "方案已生成，正在继续生成代码变更…" : "开发方案已生成，可继续生成代码变更",
         { type: "success" }
       );
     }
@@ -1620,12 +1961,19 @@ async function startAgentExecution(projectId, { mutexRetry = false, resumeMessag
         toast: "需求存在待澄清项。请确认规格后再继续。",
         toastType: "info",
       });
+    } else if (planOnlyWs || goalPlan) {
+      advanceComposerPhase("plan_ready", {
+        toast: planOnlyWs
+          ? "计划已生成。请确认完整计划后，再切换到「项目推进」。"
+          : "目标计划已生成。请确认计划后按步骤执行。",
+        toastType: "success",
+      });
     } else {
       advanceComposerPhase("plan_ready", {
         toast: "方案已生成。是否继续生成代码变更？",
         toastType: "success",
       });
-      if (autoContinueToPatch && result.output?.plan?.length) {
+      if (shouldAutoPatch && result.output?.plan?.length) {
         await proposeCodePatches();
       }
     }
@@ -1684,17 +2032,37 @@ async function resumeUnfinishedComposerTask(projectId, task) {
   }
 
   showComposerToast("继续推进未完成任务…", { type: "info" });
-  const synced =
+  let synced =
     (await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, task.id)) || [];
   window.__wbActivityFeed?.pushDiffSummary?.(synced);
 
   const latestTasks = window.__wbStore?.getState?.()?.tasks || [];
   const latestTask = latestTasks.find((t) => t.id === task.id) || task;
+  const status = String(
+    window.__wbTaskStatus?.normalizeTaskStatus?.(latestTask?.status) || latestTask?.status || ""
+  ).toUpperCase();
+  const step = String(latestTask?.currentStep || "");
+  const waitingReview =
+    status === "WAITING_APPROVAL" ||
+    status === "REVIEWING" ||
+    step.includes("变更待审阅");
+
+  // WAITING_APPROVAL 但首次 sync 为空：强制打开 Diff 再拉一次，禁止误走 patch_empty 重生成
+  if (waitingReview && !synced.length) {
+    synced =
+      (await openDiffReviewForCurrentTask({ forceReload: true })) ||
+      (await window.__wbCodeReviewStore?.syncFromStagedPatches?.(projectId, task.id)) ||
+      [];
+    window.__wbActivityFeed?.pushDiffSummary?.(synced);
+  }
+
   let phase = detectComposerPhaseFromContext(projectId, task.id, latestTask);
   if (synced.length) {
     const accepted = window.__wbCodeReviewStore?.getAcceptedChanges?.(projectId, task.id) || [];
     phase =
       accepted.length > 0 && accepted.length === synced.length ? "diff_accepted" : "diff_ready";
+  } else if (waitingReview) {
+    phase = "diff_ready";
   }
   composerPhase = phase;
   updateComposerUi(phase);
@@ -1702,7 +2070,12 @@ async function resumeUnfinishedComposerTask(projectId, task) {
   switch (phase) {
     case "diff_ready":
       await openDiffReviewForCurrentTask({ forceReload: true });
-      showComposerToast("已恢复待审阅变更，请确认 Diff 后继续", { type: "success" });
+      showComposerToast(
+        synced.length
+          ? "已恢复待审阅变更，请确认 Diff 后继续"
+          : "正在打开 Diff；若仍为空请重新生成代码变更",
+        { type: synced.length ? "success" : "warn" }
+      );
       return;
     case "diff_accepted":
       await window.__wbApplyAcceptedDiffs?.({
@@ -1718,7 +2091,10 @@ async function resumeUnfinishedComposerTask(projectId, task) {
       showComposerToast("当前阶段已结束，请确认是否标记完成", { type: "info" });
       return;
     case "plan_ready":
+      await proposeCodePatches({ resumeMessage: resolveTaskResumeMessage(latestTask) });
+      return;
     case "patch_empty":
+      // 仅「明确未生成变更」才重跑补丁；待审状态已在上方改道
       await proposeCodePatches({ resumeMessage: resolveTaskResumeMessage(latestTask) });
       return;
     case "done":
@@ -1731,7 +2107,6 @@ async function resumeUnfinishedComposerTask(projectId, task) {
       });
       return;
     default:
-      // 无明确阶段：沿用任务标题/描述续跑，方案生成后自动进入补丁
       await startAgentExecution(projectId, {
         resumeMessage: resolveTaskResumeMessage(latestTask),
         autoContinueToPatch: true,
@@ -1739,14 +2114,22 @@ async function resumeUnfinishedComposerTask(projectId, task) {
   }
 }
 
+let diffReviewOpenInFlight = false;
+
 async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
+  if (diffReviewOpenInFlight) {
+    return [];
+  }
+  diffReviewOpenInFlight = true;
+  try {
   let projectId = resolveCurrentProjectId();
   let taskId = resolveCurrentTaskId();
   if (taskId) {
     syncSelectedTaskId(taskId, { projectId });
   }
   const reviewStore = window.__wbCodeReviewStore;
-  // 先切 Tab，避免 switchTab 再递归调用本函数
+  // 仅打开抽屉/切 Tab，禁止再走 openCodeDrawer→loadDiff→本函数 的递归链
+  window.__wbSetCodeDrawerOpen?.(true);
   window.__wbSwitchCodeTab?.("diff", { loadDiff: false });
   if (!projectId || !taskId) {
     // 再尝试从任务列表唯一/待审阅任务回退一次
@@ -1856,6 +2239,9 @@ async function openDiffReviewForCurrentTask({ forceReload = false } = {}) {
     showComposerToast(`已加载 ${patches.length} 个代码变更，请审阅`, { type: "success" });
   }
   return patches;
+  } finally {
+    diffReviewOpenInFlight = false;
+  }
 }
 
 async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } = {}) {
@@ -1878,12 +2264,14 @@ async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } =
   syncSelectedTaskId(taskId);
   const resumeText = resumeMessage || resolveTaskResumeMessage(task);
   const message =
-    getComposerMessage() ||
-    (resumeText
-      ? window.__wbSceneTemplates?.enrichAgentMessage?.(resumeText) || resumeText
-      : "") ||
-    document.querySelector(".wb-plan-card__req")?.textContent?.trim() ||
-    "继续生成补丁";
+    (resumeMessage
+      ? resumeMessage
+      : getComposerMessage() ||
+        (resumeText
+          ? window.__wbSceneTemplates?.enrichAgentMessage?.(resumeText) || resumeText
+          : "") ||
+        document.querySelector(".wb-plan-card__req")?.textContent?.trim() ||
+        "继续生成补丁");
   const out = document.getElementById("wbAgentOutput");
   if (out) {
     out.hidden = false;
@@ -1891,7 +2279,7 @@ async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } =
   }
   upsertComposerStep("generate_patch", "running");
   agentRunStarting = true;
-  updateComposerUi("running");
+  updateComposerUi(window.__wbGoalPlanMode?.isGoalPlanMode?.() ? "goal_step_running" : "running");
   subscribeAgentEvents();
   startAgentEventPolling(projectId, taskId);
   try {
@@ -1997,6 +2385,19 @@ async function proposeCodePatches({ mutexRetry = false, resumeMessage = null } =
   }
 }
 
+async function resolveComposerVerifyFixContext(projectId) {
+  if (!projectId) {
+    return { scriptName: "build" };
+  }
+  try {
+    await wbApi().wbProjectFileRead?.({ projectId, path: "package.json" });
+    return { scriptName: "build" };
+  } catch {
+    // 无 package.json：走 static-smoke，避免 npm build 假跳过
+    return { scriptName: "static-smoke", profileId: "static-smoke" };
+  }
+}
+
 async function runComposerVerification() {
   const projectId = window.__wbStore?.getState?.().selectedProjectId;
   const taskId = resolveCurrentTaskId();
@@ -2007,27 +2408,31 @@ async function runComposerVerification() {
   agentRunStarting = true;
   updateComposerUi("running");
   try {
+    const fixContext = await resolveComposerVerifyFixContext(projectId);
     const result = await invokeProjectAgent({
       projectId,
       taskId,
       message: "运行验证",
       mode: "VERIFY_FIX",
-      fixContext: { scriptName: "build" },
+      fixContext,
       source: "command_composer",
     });
-    if (result.output?.fixResult?.ok || result.output?.fixResult?.skipped || result.output?.verifySkipped?.skipped) {
+    const fixResult = result.output?.fixResult || null;
+    const verifyOk = Boolean(fixResult?.ok);
+    // 有证据的通过（含 static-smoke）优先于 skipped；禁止 ok 仍标成「已跳过」
+    const skipped =
+      !verifyOk &&
+      Boolean(fixResult?.skipped || result.output?.verifySkipped?.skipped);
+    if (verifyOk || skipped) {
       const skipMsg =
-        result.output?.fixResult?.message ||
+        fixResult?.message ||
         result.output?.verifySkipped?.message ||
         result.output?.summary ||
         "";
-      const skipped = Boolean(
-        result.output?.fixResult?.skipped || result.output?.verifySkipped?.skipped
-      );
       upsertComposerStep(
         "run_verify",
         "done",
-        skipped ? skipMsg || "已跳过验证" : "验证通过"
+        verifyOk ? fixResult?.message || "验证通过" : skipMsg || "已跳过验证"
       );
       finalizeOpenComposerSteps({ keepIds: ["run_verify", "complete"] });
       const api = wbApi();
@@ -2035,16 +2440,16 @@ async function runComposerVerification() {
         await api.wbProjectTaskUpdate({
           projectId,
           taskId,
-          currentStep: skipped
-            ? "已跳过验证，待确认完成"
-            : "验证通过，待确认完成",
+          currentStep: verifyOk
+            ? "验证通过，待确认完成"
+            : "已跳过验证，待确认完成",
         });
       }
       advanceComposerPhase("ready_confirm", {
-        toast: skipped
-          ? `${skipMsg || "已跳过自动验证"}。请确认功能可用后，再标记完成；或继续推进其他环节。`
-          : "验证通过。是否确认完成任务？",
-        toastType: skipped ? "info" : "success",
+        toast: verifyOk
+          ? "验证通过。是否确认完成任务？"
+          : `${skipMsg || "已跳过自动验证"}。请确认功能可用后，再标记完成；或继续推进其他环节。`,
+        toastType: verifyOk ? "success" : "info",
         finalize: false,
       });
     } else if (result.output?.fixResult?.waitingApproval) {
@@ -2107,7 +2512,7 @@ async function completeComposerTask() {
     showComposerToast(blocker, { type: "error" });
     updateComposerUi("written");
     renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
-    void refreshRunbookPanel(projectId, taskId);
+    void emitRunbookToActivityFeed(projectId, taskId, { guardOk: false, blocker });
     return;
   }
 
@@ -2119,7 +2524,47 @@ async function completeComposerTask() {
     finalize: false,
   });
   renderTaskDetail(tasks.find((t) => t.id === taskId) || null);
-  void refreshRunbookPanel(projectId, taskId);
+  void emitRunbookToActivityFeed(projectId, taskId, { guardOk: true, completed: true });
+}
+
+async function emitRunbookToActivityFeed(projectId, taskId, { guardOk, blocker, completed } = {}) {
+  const api = wbApi();
+  if (!projectId || !taskId || typeof api.wbProjectRunbookGet !== "function") {
+    return;
+  }
+  try {
+    const data = await api.wbProjectRunbookGet({ projectId, taskId });
+    const md = data?.markdown || "";
+    lastRunbookMarkdown = md;
+    const m = data?.manifest;
+    const bits = [];
+    if (m?.git?.isRepo) {
+      bits.push(`${m.git.branch || "?"}@${m.git.shortHash || "?"}`);
+    }
+    const effectiveGuardOk = guardOk != null ? guardOk : m?.acceptance?.guardOk !== false;
+    if (!effectiveGuardOk) {
+      bits.push("守卫未通过");
+    } else if (m?.complete) {
+      bits.push("Manifest 完整");
+    }
+    window.__wbActivityFeed?.pushRunbookInline?.({
+      title: `交付 Runbook${m?.task?.title ? ` · ${m.task.title}` : ""}`,
+      markdown: md,
+      summary: blocker || bits.join(" · ") || "任务交付说明",
+      meta: bits.join(" · "),
+      guardOk: effectiveGuardOk,
+      completed: completed != null ? completed : effectiveGuardOk,
+    });
+  } catch (err) {
+    lastRunbookMarkdown = "";
+    window.__wbActivityFeed?.pushRunbookInline?.({
+      title: "交付 Runbook",
+      markdown: "",
+      summary: err?.message || "加载 Runbook 失败",
+      guardOk: false,
+      completed: false,
+    });
+  }
 }
 
 async function refreshCheckpointCache(projectId, taskId) {
@@ -2134,81 +2579,6 @@ async function refreshCheckpointCache(projectId, taskId) {
     taskCheckpointCache = null;
   }
   return taskCheckpointCache;
-}
-
-function bindRunbookPanelOnce() {
-  const panel = document.getElementById("wbRunbookPanel");
-  if (!panel || panel.dataset.bound === "1") {
-    return;
-  }
-  panel.dataset.bound = "1";
-  document.getElementById("wbRunbookCopyBtn")?.addEventListener("click", async () => {
-    const text = lastRunbookMarkdown || document.getElementById("wbRunbookBody")?.textContent || "";
-    if (!text) {
-      showComposerToast("暂无 Runbook 可复制", { type: "warn" });
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      showComposerToast("Runbook 已复制", { type: "success" });
-    } catch {
-      showComposerToast("复制失败，请手动选择文本", { type: "warn" });
-    }
-  });
-  document.getElementById("wbRunbookRefreshBtn")?.addEventListener("click", () => {
-    const projectId = window.__wbStore?.getState?.().selectedProjectId;
-    const taskId = resolveCurrentTaskId();
-    void refreshRunbookPanel(projectId, taskId);
-  });
-}
-
-async function refreshRunbookPanel(projectId, taskId) {
-  bindRunbookPanelOnce();
-  const panel = document.getElementById("wbRunbookPanel");
-  const body = document.getElementById("wbRunbookBody");
-  const meta = document.getElementById("wbRunbookMeta");
-  if (!panel || !body) {
-    return;
-  }
-  const api = wbApi();
-  if (!projectId || !taskId || typeof api.wbProjectRunbookGet !== "function") {
-    panel.hidden = true;
-    lastRunbookMarkdown = "";
-    return;
-  }
-  try {
-    const data = await api.wbProjectRunbookGet({ projectId, taskId });
-    const md = data?.markdown || "";
-    lastRunbookMarkdown = md;
-    body.textContent = md || "（暂无交付内容）";
-    const m = data?.manifest;
-    const bits = [];
-    if (m?.git?.isRepo) {
-      bits.push(`${m.git.branch || "?"}@${m.git.shortHash || "?"}`);
-    }
-    if (m?.acceptance?.guardOk === false) {
-      bits.push("守卫未通过");
-    } else if (m?.complete) {
-      bits.push("Manifest 完整");
-    }
-    if (meta) {
-      meta.textContent = bits.join(" · ");
-    }
-    panel.hidden = false;
-    // 完成态或已有变更时默认展开
-    const status = String(
-      window.__wbTaskStatus?.normalizeTaskStatus?.(
-        (window.__wbStore?.getState?.().tasks || []).find((t) => t.id === taskId)?.status
-      ) || ""
-    ).toUpperCase();
-    if (status === "COMPLETED" || status === "DONE" || composerPhase === "done" || composerPhase === "ready_confirm") {
-      panel.open = true;
-    }
-  } catch (err) {
-    lastRunbookMarkdown = "";
-    body.textContent = err?.message || "加载 Runbook 失败";
-    panel.hidden = false;
-  }
 }
 
 function bindAsyncRunsPanelOnce() {
@@ -2426,7 +2796,6 @@ async function loadTaskContext(projectId, taskId) {
   if (task) {
     renderTaskDetail(task);
   }
-  void refreshRunbookPanel(projectId, resolvedTaskId);
   void refreshAsyncRunsPanel(projectId, resolvedTaskId);
   window.__wbBindSkillsCatalogPanel?.();
   void window.__wbRefreshSkillsCatalog?.(projectId);
@@ -2972,6 +3341,7 @@ function ensureNewTaskModal() {
 
 function openNewTaskModal(projectId) {
   const modal = ensureNewTaskModal();
+  window.__wbSceneTemplates?.populateTemplateSelects?.();
   document.getElementById("wbNewTaskProjectId").value = String(projectId || "");
   const err = document.getElementById("wbNewTaskError");
   if (err) {
@@ -3082,17 +3452,27 @@ function bindComposerActions() {
 window.__wbUpsertComposerStep = upsertComposerStep;
 window.__wbShowComposerToast = showComposerToast;
 window.__wbProposeCodePatches = proposeCodePatches;
+window.__wbCompleteComposerTask = completeComposerTask;
 window.__wbOpenDiffReviewForCurrentTask = openDiffReviewForCurrentTask;
 window.__wbOnComposerDiffApplied = function onComposerDiffApplied() {
   upsertComposerStep("write_code", "done");
   upsertComposerStep("await_diff", "done");
   finalizeOpenComposerSteps({ keepIds: ["write_code", "await_diff", "run_verify"] });
   window.__wbActivityFeed?.markDiffWritten?.();
-  advanceComposerPhase("written", {
-    toast: "代码已写入。下一步：是否运行验证？",
-    toastType: "success",
-    finalize: false,
-  });
+  void (async () => {
+    const handled = await window.__wbGoalPlanMode?.onGoalStepWritten?.({
+      summary: "本步代码已写入项目目录。",
+    });
+    if (handled) {
+      return;
+    }
+    window.__wbCloseCodeDrawer?.();
+    advanceComposerPhase("written", {
+      toast: "代码已写入。下一步：是否运行验证？",
+      toastType: "success",
+      finalize: false,
+    });
+  })();
 };
 
 window.__wbSetComposerPhase = function setComposerPhase(phase) {
@@ -3103,6 +3483,8 @@ window.__wbSetComposerPhase = function setComposerPhase(phase) {
   agentRunStarting = false;
   updateComposerUi(phase);
 };
+
+window.__wbEnsureComposerTask = ensureComposerTask;
 
 function syncComposerPhaseFromReview() {
   if (composerPhase === "running" || agentRunStarting || composerPhase === "written") {
@@ -3161,16 +3543,17 @@ function renderProjectColSessions() {
 function bindProjectWorkspace() {
   ensureWorkspaceRoot();
   window.__wbActivityFeed?.bind?.();
+  window.__wbGoalPlanMode?.bindExecModeSelect?.();
   window.__wbBindTerminalDrawer?.();
   window.__wbBindPwsDrawers?.();
   window.__wbBindWorkspaceResizers?.();
+  ensureNewTaskModal();
   window.__wbBindSceneTemplates?.();
   window.__wbBindApprovalCard?.();
   window.__wbBindDiffReviewPanel?.();
   window.__wbBindCodeWorkspaceTabs?.();
   window.__wbBindTestResultPanel?.();
   window.__wbBindGitChangePanel?.();
-  bindRunbookPanelOnce();
   bindAsyncRunsPanelOnce();
   window.__wbBindAsyncTaskCenter?.();
   window.__wbBindSkillsCatalogPanel?.();

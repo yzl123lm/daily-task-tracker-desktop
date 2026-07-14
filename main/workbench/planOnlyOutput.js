@@ -33,7 +33,35 @@ function inferAffectedFiles(message, project) {
   return uniqueFiles(files).slice(0, 8);
 }
 
-function inferPlanSteps(message, task) {
+function inferGoalPlanSteps(message, task) {
+  const text = String(message || "").trim();
+  const steps = [];
+  if (/贪吃蛇|snake|小游戏|game/i.test(text)) {
+    steps.push("创建可玩入口：index.html + style.css 基础布局与画布");
+    steps.push("实现蛇的移动、方向控制与食物生成（game.js）");
+    steps.push("实现碰撞检测、得分、游戏结束与重新开始");
+    steps.push("联调三文件并给出浏览器打开验收说明");
+    return uniqueFiles(steps).slice(0, 8);
+  }
+  if (/todo|待办/i.test(text)) {
+    steps.push("搭建静态页面结构与样式");
+    steps.push("实现待办增删改与本地存储");
+    steps.push("补充空态与基础校验");
+    return uniqueFiles(steps).slice(0, 8);
+  }
+  // generic detailed goal plan
+  steps.push(`澄清并固化需求范围：${(task?.title || text).slice(0, 60)}`);
+  steps.push("搭建/确认项目入口文件与目录结构");
+  steps.push("实现核心功能主流程");
+  steps.push("补齐边界情况与基础交互反馈");
+  steps.push("本地验证并整理交付说明");
+  return uniqueFiles(steps).slice(0, 8);
+}
+
+function inferPlanSteps(message, task, { goalPlan = false } = {}) {
+  if (goalPlan) {
+    return inferGoalPlanSteps(message, task);
+  }
   const text = String(message || "").trim();
   const steps = [];
   if (/贪吃蛇|snake|小游戏/i.test(text)) {
@@ -97,13 +125,15 @@ function buildDiffPreviews(_codeAnalysis, _message) {
   return [];
 }
 
-function buildPlanOnlyOutput({ message, project, task, projectId, taskId, promptContext, codeAnalysis }) {
+function buildPlanOnlyOutput({ message, project, task, projectId, taskId, promptContext, codeAnalysis, goalPlan = false }) {
   const req = String(message || "").trim();
   const lines = req.split(/\n+/).map((l) => l.trim()).filter(Boolean);
   const headline = lines[0] || task?.title || "未指定需求";
   const taskNs = `task:${projectId}:${taskId}`;
-  const summary = "已生成开发方案，尚未修改文件。";
-  const plan = inferPlanSteps(req, task);
+  const summary = goalPlan
+    ? "已生成目标计划（分步实施），尚未修改文件。"
+    : "已生成开发方案，尚未修改文件。";
+  const plan = inferPlanSteps(req, task, { goalPlan });
   const inferredFiles = inferAffectedFiles(req, project);
   const codeFiles = Array.isArray(codeAnalysis?.relevantFiles) ? codeAnalysis.relevantFiles : [];
   const affectedFiles = uniqueFiles([...codeFiles, ...inferredFiles]).slice(0, 12);
@@ -112,7 +142,7 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
     {
       namespace: taskNs,
       type: "development_plan",
-      content: `${headline} — 开发计划已生成，共 ${plan.length} 步。`,
+      content: `${headline} — ${goalPlan ? "目标计划" : "开发计划"}已生成，共 ${plan.length} 步。`,
     },
     {
       namespace: taskNs,
@@ -134,6 +164,7 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
     testPlan: inferTestPlan(req),
     needUserConfirm: true,
     mode: "PLAN_ONLY",
+    execMode: goalPlan ? "goal_plan" : "general",
     memoryToRecord,
     codeAnalysis: codeAnalysis
       ? {
@@ -149,7 +180,9 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
       : null,
     diffPreviews,
     executionReady: false,
-    note: "规则回退方案：仅供参考规划，未生成可执行 Diff；请配置模型后重新生成。",
+    note: goalPlan
+      ? "目标计划模式：请确认计划后按步骤生成 Diff，每步完成后确认是否继续。"
+      : "规则回退方案：仅供参考规划，未生成可执行 Diff；请配置模型后重新生成。",
     meta: {
       projectId,
       taskId,
@@ -158,6 +191,7 @@ function buildPlanOnlyOutput({ message, project, task, projectId, taskId, prompt
       generatedAt: new Date().toISOString(),
       codeRoot: codeAnalysis?.codeRoot || project?.localPath || null,
       ruleFallback: true,
+      goalPlan: Boolean(goalPlan),
     },
     contextPreview: promptContext?.text ? promptContext.text.slice(0, 600) : "",
   };
